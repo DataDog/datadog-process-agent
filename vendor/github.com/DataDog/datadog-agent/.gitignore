@@ -1,0 +1,12 @@
+# dogstatsd image temporary file
+Dockerfiles/dogstatsd/alpine/dogstatsd
+
+vendor/
+bin/
+.vscode
+
+.DS_Store
+*.cov
+*.pyc
+*.swp
+*.exe

@@ -1,0 +1,11 @@
+#!/usr/bin/expect -f
+
+set passphrase $env(RPM_SIGNING_PASSPHRASE)
+set workspace $env(WORKSPACE)
+
+set rpmfile [exec find $workspace/go/src/github.com/DataDog/datadog-process-agent/packaging/rpm -name *.rpm -type f]
+
+spawn rpm --addsign $rpmfile
+expect "Enter pass phrase: "
+send -- "$passphrase\r"
+expect eof

@@ -1,0 +1,216 @@
+syntax = "proto3";
+
+option go_package = "github.com/DataDog/dd-process-agent/model";
+
+package datadog.process_agent;
+
+import "github.com/DataDog/agent-payload/agent_payload.proto";
+
+//
+// Message Types
+//
+
+message ResCollector {
+	// Header must exist at position 1 for compatibility
+	// with older version of the Agent. We should be able
+	// to drop this at some point.
+	message Header {
+		int32 type = 4;
+	}
+	Header header = 1;
+	string message = 2;
+	CollectorStatus status = 3;
+}
+
+message CollectorProc {
+	string  hostName = 2;
+	repeated Process processes = 3;
+	Host host = 4;
+	SystemInfo info = 5;
+	int32 groupId = 6;
+	int32 groupSize = 7;
+
+	// Optional metadata fields
+	datadog.agentpayload.KubeMetadataPayload kubernetes = 8;
+}
+
+message CollectorConnections {
+	string hostName = 2;
+	repeated Connection connections = 3;
+	Host host = 4;
+}
+
+message CollectorRealTime {
+	string hostName = 2;
+	repeated ProcessStat stats = 3;
+	// Post-resolved fields
+	int32 hostId = 4;
+	int32 orgId = 5;
+	int32 groupId = 6;
+	int32 groupSize = 7;
+	int32 numCpus = 8;
+	int64 totalMemory = 9;
+}
+
+message CollectorReqStatus {
+	string hostName = 2;
+}
+
+//
+// Models
+//
+
+message CollectorStatus {
+	int32 activeClients = 1;
+	int32 interval = 2;
+}
+
+message Process {
+	uint32 key = 1;
+	int32 pid = 2;
+	Host host = 3;
+	Command command = 4;
+	ProcessUser user = 5;
+	// 6 is deprecated
+	MemoryStat memory = 7;
+	CPUStat cpu = 8;
+	int64 createTime = 9;
+	Container container = 10;
+	int32 openFdCount = 11;
+}
+
+message Command {
+	repeated string args = 1;
+	string state = 2;
+	string cwd = 3;
+	string root = 4;
+	bool onDisk = 5;
+	int32 ppid = 6;
+	int32 pgroup = 7;
+	string exe = 8;
+}
+
+message ProcessUser {
+	string name = 1;
+	int32 uid = 2;
+	int32 gid = 3;
+	int32 euid = 4;
+	int32 egid = 5;
+	int32 suid = 6;
+	int32 sgid = 7;
+}
+
+message Container {
+	string type = 1;
+	string id = 2;
+	string name = 3;
+	string image = 4;
+	float  cpuLimit = 5;
+	uint64 memoryLimit = 6;
+}
+
+// ProcessStat is used for real-time process messages. It should only contain
+// data that can change for a running process (and relevant information to
+// generate a key). We will send a lot of these in the real-time messages so
+// it's critical to keep this small.
+message ProcessStat {
+	int32 pid = 1;
+	// In milliseconds
+	int64 createTime = 2;
+	MemoryStat memory = 3;
+	CPUStat cpu = 4;
+	int32 nice = 5;
+	int32 state = 6;
+	int32 threads = 7;
+	int32 openFdCount = 8;
+	uint32 key = 9;
+}
+
+
+message SystemInfo {
+	string uuid = 1;
+	OSInfo os = 2;
+	repeated CPUInfo cpus = 3;
+	// 4 is deprecated
+	int64 totalMemory = 5;
+}
+
+message OSInfo {
+	string name = 1;
+	string platform = 2;
+	string family = 3;
+	string version = 4;
+	string kernelVersion = 5;
+}
+
+message Connection {
+	int32 pid = 1;
+	int32 fd = 2;
+	int32 family = 3;
+	int32 type = 4;
+	Addr  laddr = 5;
+	Addr  raddr = 6;
+	string status = 7;
+}
+
+message Addr {
+	Host host = 1;
+	string ip = 2;
+	int32 port = 3;
+}
+
+message MemoryStat {
+	uint64 rss = 1;
+	uint64 vms = 2;
+	uint64 swap = 3;
+	uint64 shared = 4;
+	uint64 text = 5;
+	uint64 lib = 6;
+	uint64 data = 7;
+	uint64 dirty = 8;
+}
+
+message CPUStat {
+	string lastCpu = 1;
+	float totalPct = 2;
+	float userPct = 3;
+	float systemPct = 4;
+	int32 numThreads = 5;
+	repeated SingleCPUStat cpus = 6;
+	int32 nice = 7;
+	int64 userTime = 8;
+	int64 systemTime = 9;
+}
+
+message SingleCPUStat {
+	string name = 1;
+	float  totalPct = 2;
+}
+
+message CPUInfo {
+	int32 number = 1;
+	string vendor = 2;
+	string family = 3;
+	string model = 4;
+	string physicalId = 5;
+	string coreId = 6;
+	int32 cores = 7;
+	int64 mhz = 8;
+	int32 cacheSize = 9;
+}
+
+// Host and HostTags are used in backend post-resolution
+message Host {
+	int32 id = 1;
+	int32 orgId = 2;
+	string name = 3;
+	repeated HostTags tags = 4;
+	repeated string allTags = 6;
+	int32 numCpus = 7;
+	int64 totalMemory = 8;
+}
+
+message HostTags {
+	uint32 sourceType = 1;
+	repeated string tags = 2;
+}

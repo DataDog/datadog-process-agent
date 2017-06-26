@@ -1,0 +1,210 @@
+hash: 32ad1bd017d5e324f25e76c1666110a3904ac8c8513b56833da34d3ef3d5e67b
+updated: 2017-06-10T18:40:26.596881784-04:00
+imports:
+- name: github.com/cihub/seelog
+  version: d2c6e5aa9fbfdd1c624e140287063c7730654115
+- name: github.com/DataDog/agent-payload
+  version: 091e000da55ab18aca225f8338abe8338b959aea
+  subpackages:
+  - gogen
+- name: github.com/DataDog/datadog-agent
+  version: bbef7e852ce367d6b27ebae91431b863d2bec20e
+  subpackages:
+  - pkg/metadata/kubernetes
+- name: github.com/DataDog/gohai
+  version: 92686dde04c3c01d4b1268d21e31ecbfffd29606
+  subpackages:
+  - cpu
+  - filesystem
+  - memory
+  - network
+  - platform
+  - processes
+  - processes/gops
+- name: github.com/DataDog/gopsutil
+  version: 4aa3d28f5b1214bb7a2d4bc2bca1a93a941e966b
+  subpackages:
+  - cpu
+  - host
+  - internal/common
+  - mem
+  - net
+  - process
+- name: github.com/DataDog/zstd
+  version: 2bf71ec4836011b92dc78df3b9ace6b40e65f7df
+- name: github.com/davecgh/go-spew
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  subpackages:
+  - spew
+- name: github.com/docker/distribution
+  version: cd27f179f2c10c5d300e6d09025b538c475b0d51
+  subpackages:
+  - digest
+  - reference
+- name: github.com/docker/docker
+  version: 092cba3727bb9b4a2f0e922cd6c0f93ea270e363
+  subpackages:
+  - api/types
+  - api/types/blkiodev
+  - api/types/container
+  - api/types/events
+  - api/types/filters
+  - api/types/mount
+  - api/types/network
+  - api/types/reference
+  - api/types/registry
+  - api/types/strslice
+  - api/types/swarm
+  - api/types/time
+  - api/types/versions
+  - api/types/volume
+  - client
+  - pkg/tlsconfig
+- name: github.com/docker/go-connections
+  version: e15c02316c12de00874640cd76311849de2aeed5
+  subpackages:
+  - nat
+  - sockets
+  - tlsconfig
+- name: github.com/docker/go-units
+  version: 0dadbb0345b35ec7ef35e228dabb8de89a65bf52
+- name: github.com/ericchiang/k8s
+  version: 860d64039a0d98e149452f9687f26eb3636d5038
+  subpackages:
+  - api/resource
+  - api/unversioned
+  - api/v1
+  - apis/apps/v1alpha1
+  - apis/apps/v1beta1
+  - apis/authentication/v1
+  - apis/authentication/v1beta1
+  - apis/authorization/v1
+  - apis/authorization/v1beta1
+  - apis/autoscaling/v1
+  - apis/autoscaling/v2alpha1
+  - apis/batch/v1
+  - apis/batch/v2alpha1
+  - apis/certificates/v1alpha1
+  - apis/certificates/v1beta1
+  - apis/extensions/v1beta1
+  - apis/imagepolicy/v1alpha1
+  - apis/meta/v1
+  - apis/policy/v1alpha1
+  - apis/policy/v1beta1
+  - apis/rbac/v1alpha1
+  - apis/rbac/v1beta1
+  - apis/settings/v1alpha1
+  - apis/storage/v1
+  - apis/storage/v1beta1
+  - runtime
+  - runtime/schema
+  - util/intstr
+  - watch/versioned
+- name: github.com/fsnotify/fsnotify
+  version: 629574ca2a5df945712d3079857300b5e4da0236
+- name: github.com/go-ole/go-ole
+  version: de8695c8edbf8236f30d6e1376e20b198a028d42
+  subpackages:
+  - oleutil
+- name: github.com/gogo/protobuf
+  version: d76fbc1373015ced59b43ac267f28d546b955683
+  subpackages:
+  - jsonpb
+  - proto
+- name: github.com/golang/protobuf
+  version: c9c7427a2a70d2eb3bafa0ab2dc163e45f143317
+  subpackages:
+  - proto
+- name: github.com/hashicorp/hcl
+  version: 7fa7fff964d035e8a162cce3a164b3ad02ad651b
+  subpackages:
+  - hcl/ast
+  - hcl/parser
+  - hcl/scanner
+  - hcl/strconv
+  - hcl/token
+  - json/parser
+  - json/scanner
+  - json/token
+- name: github.com/magiconair/properties
+  version: 51463bfca2576e06c62a8504b5c0f06d61312647
+- name: github.com/Microsoft/go-winio
+  version: fff283ad5116362ca252298cfc9b95828956d85d
+- name: github.com/mitchellh/mapstructure
+  version: 482a9fd5fa83e8c4e7817413b80f3eb8feec03ef
+- name: github.com/mitchellh/reflectwalk
+  version: 417edcfd99a4d472c262e58f22b4bfe97580f03e
+- name: github.com/patrickmn/go-cache
+  version: 1881a9bccb818787f68c52bfba648c6cf34c34fa
+- name: github.com/pelletier/go-buffruneio
+  version: c37440a7cf42ac63b919c752ca73a85067e05992
+- name: github.com/pelletier/go-toml
+  version: fe206efb84b2bc8e8cfafe6b4c1826622be969e3
+- name: github.com/pkg/errors
+  version: ff09b135c25aae272398c51a07235b90a75aa4f0
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
+- name: github.com/sbinet/go-python
+  version: ba7e58341058bdefb92b359870caf2dc0a05cfcf
+- name: github.com/shirou/gopsutil
+  version: e30b7839cd6161b2fbef5f187377a345157abe04
+  subpackages:
+  - cpu
+  - host
+  - internal/common
+  - mem
+  - net
+  - process
+- name: github.com/shirou/w32
+  version: bb4de0191aa41b5507caa14b0650cdbddcd9280b
+- name: github.com/Sirupsen/logrus
+  version: 55eb11d21d2a31a3cc93838241d04800f52e823d
+  subpackages:
+  - formatters/logstash
+- name: github.com/spf13/afero
+  version: 9be650865eab0c12963d8753212f4f9c66cdcf12
+  subpackages:
+  - mem
+- name: github.com/spf13/cast
+  version: acbeb36b902d72a7a4c18e8f3241075e7ab763e4
+- name: github.com/spf13/jwalterweatherman
+  version: fa7ca7e836cf3a8bb4ebf799f472c12d7e903d66
+- name: github.com/spf13/pflag
+  version: 5644820622454e71517561946e3d94b9f9db6842
+- name: github.com/spf13/viper
+  version: 0967fc9aceab2ce9da34061253ac10fb99bba5b2
+- name: github.com/StackExchange/wmi
+  version: ea383cf3ba6ec950874b8486cd72356d007c768f
+- name: github.com/stretchr/objx
+  version: cbeaeb16a013161a98496fad62933b1d21786672
+- name: github.com/stretchr/testify
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  subpackages:
+  - assert
+  - mock
+- name: github.com/go-ini/ini
+  version: d3de07a94d22b4a0972deb4b96d790c2c0ce8333
+- name: golang.org/x/net
+  version: 4876518f9e71663000c348837735820161a42df7
+  subpackages:
+  - context
+  - context/ctxhttp
+  - http2
+  - http2/hpack
+  - proxy
+- name: golang.org/x/sys
+  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
+  subpackages:
+  - unix
+  - windows
+  - windows/registry
+- name: golang.org/x/text
+  version: 2910a502d2bf9e43193af9d68ca516529614eed3
+  subpackages:
+  - transform
+  - unicode/norm
+- name: gopkg.in/yaml.v2
+  version: bef53efd0c76e49e6de55ead051f886bea7e9420
+testImports: []

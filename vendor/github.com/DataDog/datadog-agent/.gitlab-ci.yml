@@ -1,0 +1,185 @@
+stages:
+  - source_test
+  - binary_build
+  - integration_test
+  - package_build
+  - deploy
+
+variables:
+  DOCKER_REGISTRY: gitlab.datad0g.com:4567
+  SRC_PATH: /src/github.com/DataDog/datadog-agent
+  DEB_X64: $DOCKER_REGISTRY/datadog/datadog-agent-builders:deb_x64
+  RPM_X64: $DOCKER_REGISTRY/datadog/datadog-agent-builders:rpm_x64
+  DEPLOY: $DOCKER_REGISTRY/datadog/datadog-agent-builders:deploy # For now, just a renamed version of the image datadog/mars-jenkins-scripts
+  AGENT_OMNIBUS_PACKAGE_DIR: $CI_PROJECT_DIR/.omnibus/pkg/
+  STATIC_BINARIES_DIR: bin/static
+  DEB_S3_BUCKET: apt-agent6.datad0g.com
+
+before_script:
+  # We need to install go deps from within the GOPATH, which we set to / on builder images; that's because pointing
+  # GOPATH to the project folder would be too complex (we'd need to replicate the `src/github/project` scheme).
+  # So we copy the agent sources to / and bootstrap from there the vendor dependencies before running any job.
+  - rsync -azr --delete ./ $SRC_PATH
+  - cd $SRC_PATH
+  - rake deps
+
+# run tests for deb-x64
+run_tests_deb-x64:
+  stage: source_test
+  image: $DEB_X64
+  tags:
+    - docker
+  variables:
+    # No need to use the embedded python built with omnibus to run tests.
+    USE_SYSTEM_PY: "1"
+  script:
+    - echo "deb http://deb.debian.org/debian wheezy contrib non-free" >> /etc/apt/sources.list
+    - apt-get update && apt-get install -y -qq libsnmp-base libsnmp-dev snmp-mibs-downloader # required by snmp check
+    - rake test
+
+# run tests for rpm-x64
+run_test_rpm-x64:
+  stage: source_test
+  image: $RPM_X64
+  tags:
+    - docker
+  variables:
+    USE_SYSTEM_PY: "1"
+  script:
+    - yum install -y net-snmp net-snmp-devel  # required by snmp check
+    - rake test
+
+# run system tests for deb-x64
+run_system_tests_deb-x64:
+  stage: source_test
+  image: $DEB_X64
+  tags:
+    - docker
+  variables:
+    # No need to use the embedded python built with omnibus to run tests.
+    USE_SYSTEM_PY: "1"
+  script:
+    - echo "deb http://deb.debian.org/debian wheezy contrib non-free" >> /etc/apt/sources.list
+    - apt-get update && apt-get install -y -qq libsnmp-base libsnmp-dev snmp-mibs-downloader # required by snmp check
+    - rake system_test
+
+# build dogstatsd static for deb-x64
+dogstatsd_static-x64:
+  stage: binary_build
+  image: $DEB_X64
+  tags:
+    - docker
+  variables:
+    # Artifacts and cache must live within project directory but we run omnibus from the GOPATH (see above).
+    # We then instrument `rake` to invoke `omnibus` with custom parameter, pointing to a gitlab-friendly location.
+    AGENT_OMNIBUS_BASE_DIR: $CI_PROJECT_DIR/.omnibus/var/
+    # Uncomment the following to see debug logs from omnibus, it defaults to info
+    # AGENT_OMNIBUS_LOG_LEVEL: debug
+  script:
+    - rake dogstatsd:build static=true
+    - cp $SRC_PATH/$STATIC_BINARIES_DIR/dogstatsd $CI_PROJECT_DIR
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+      - dogstatsd
+
+# check the size of the static dogstatsd binary
+run_dogstatsd_size_test:
+  stage: integration_test
+  image: $DEB_X64
+  tags:
+    - docker
+  dependencies:
+    - dogstatsd_static-x64 # Reuse artifact from build stage
+  before_script:
+    # Disable global before_script
+    - mkdir -p $STATIC_BINARIES_DIR
+    - ln dogstatsd $STATIC_BINARIES_DIR/dogstatsd
+  script:
+    - rake dogstatsd:size_test skip_rebuild=true
+
+# run integration tests for deb-x64
+run_docker_integration_tests_deb-x64:
+  stage: integration_test
+  dependencies:
+    - dogstatsd_static-x64 # Reuse artifact from build stage
+  tags:
+    - container-builder
+  before_script:
+    # Disable global before_script
+    - mkdir --parent $STATIC_BINARIES_DIR
+    - ln dogstatsd $STATIC_BINARIES_DIR/dogstatsd
+  script:
+    - docker run --rm --user root -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd):$(pwd) --workdir $(pwd) -e CI_PIPELINE_ID=$CI_PIPELINE_ID -e CI_COMMIT_SHA=$CI_COMMIT_SHA -e skip_rebuild=true $DEB_X64 rake docker:integration_test 2>&1
+
+# build the package for deb-x64
+agent_deb-x64:
+  stage: package_build
+  image: $DEB_X64
+  tags:
+    - docker
+  variables:
+    # Artifacts and cache must live within project directory but we run omnibus from the GOPATH (see above).
+    # We then instrument `rake` to invoke `omnibus` with custom parameter, pointing to a gitlab-friendly location.
+    AGENT_OMNIBUS_BASE_DIR: $CI_PROJECT_DIR/.omnibus/var/
+    # Uncomment the following to see debug logs from omnibus, it defaults to info
+    # AGENT_OMNIBUS_LOG_LEVEL: debug
+  script:
+    - apt-get install -y -qq libpq-dev  # this has to be removed as soon as we upgrade to psycopg2 2.7
+    - rake agent:omnibus
+    - dpkg -c $AGENT_OMNIBUS_PACKAGE_DIR/*.deb
+  cache:
+    # cache per branch
+    key: $CI_COMMIT_REF_NAME
+    paths:
+      - $AGENT_OMNIBUS_BASE_DIR
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+      - $AGENT_OMNIBUS_PACKAGE_DIR
+
+# build the package for rpm-x64
+agent_rpm-x64:
+  stage: package_build
+  image: $RPM_X64
+  tags:
+    - docker
+  variables:
+    # Artifacts and cache must live within project directory but we run omnibus from the GOPATH (see above).
+    # We then instrument `rake` to invoke `omnibus` with custom parameter, pointing to a gitlab-friendly location.
+    AGENT_OMNIBUS_BASE_DIR: $CI_PROJECT_DIR/.omnibus/var/
+    # Uncomment the following to see debug logs from omnibus, it defaults to info
+    # AGENT_OMNIBUS_LOG_LEVEL: debug
+  script:
+    - yum -y install postgresql-devel  # this has to be removed as soon as we upgrade to psycopg2 2.7
+    - rake agent:omnibus
+    - rpm -i $AGENT_OMNIBUS_PACKAGE_DIR/*.rpm
+  cache:
+    # cache per branch
+    key: $CI_COMMIT_REF_NAME
+    paths:
+      - $AGENT_OMNIBUS_BASE_DIR
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+      - $AGENT_OMNIBUS_PACKAGE_DIR
+
+# deploy debian packages to apt staging repo
+deploy_deb:
+  stage: deploy
+  image: $DEPLOY
+  before_script:
+    - ls $AGENT_OMNIBUS_PACKAGE_DIR
+  only:
+    - master
+  tags:
+    - docker
+  script:
+    - source ~/.rvm/scripts/rvm
+    - rvm use 2.2.2@circleci
+    - echo "$APT_SIGNING_KEY_ID"
+    - echo "$APT_SIGNING_PRIVATE_KEY" | gpg --import
+    - echo "$APT_SIGNING_KEY_PASSPHRASE" | deb-s3 upload -c unstable -b $DEB_S3_BUCKET -a amd64 --sign=$APT_SIGNING_KEY_ID --gpg_options="--passphrase-fd 0 --no-tty --digest-algo SHA512" --preserve_versions $AGENT_OMNIBUS_PACKAGE_DIR/*amd64.deb
+    - echo "$APT_SIGNING_KEY_PASSPHRASE" | deb-s3 upload -c unstable -b $DEB_S3_BUCKET -a x86_64 --sign=$APT_SIGNING_KEY_ID --gpg_options="--passphrase-fd 0 --no-tty --digest-algo SHA512" --preserve_versions $AGENT_OMNIBUS_PACKAGE_DIR/*amd64.deb
+
+# TODO: deploy rpm packages

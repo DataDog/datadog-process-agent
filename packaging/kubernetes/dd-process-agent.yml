@@ -1,0 +1,51 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: dd-process-agent
+spec:
+  template:
+    metadata:
+      labels:
+        app: dd-process-agent
+      name: dd-process-agent
+    spec:
+      containers:
+      - image: datadoghq/dd-process-agent:latest
+        imagePullPolicy: Always
+        name: dd-process-agent
+        env:
+          - name: API_KEY
+            value: "YOUR_API_KEY"
+          - name: KUBERNETES
+            value: "yes"
+          - name: HOST_PROC
+            value: "/host/proc"
+          - name: HOST_SYS
+            value: "/host/sys"
+          - name: DD_URL
+            value: "https://app.datadoghq.com"
+        volumeMounts:
+          - name: dockersocket
+            mountPath: /var/run/docker.sock
+          - name: procdir
+            mountPath: /host/proc
+            readOnly: true
+          - name: cgroups
+            mountPath: /host/sys/fs/cgroup
+            readOnly: true
+          - name: passwd
+            mountPath: /etc/passwd
+            readOnly: true
+      volumes:
+        - hostPath:
+            path: /var/run/docker.sock
+          name: dockersocket
+        - hostPath:
+            path: /proc
+          name: procdir
+        - hostPath:
+            path: /sys/fs/cgroup
+          name: cgroups
+        - hostPath:
+            path: /etc/passwd
+          name: passwd

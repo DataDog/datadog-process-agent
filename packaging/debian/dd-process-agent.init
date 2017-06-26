@@ -1,0 +1,65 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          datadog-process-agent
+# Required-Start:    $local_fs $network $remote_fs $syslog
+# Required-Stop:     $local_fs $network $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: process-agent
+# Description:       An agent that collecting and submitting process data to DataDog
+### END INIT INFO
+
+# Author: DataDog, Inc <package@datadoghq.com>
+
+# source functions library
+. /lib/lsb/init-functions
+
+PATH=$PATH:/sbin
+PIDFILE=/opt/dd-process-agent/run/dd-process-agent.pid
+DAEMON=/opt/dd-process-agent/bin/dd-process-agent
+CONFIG=/etc/dd-agent/dd-process-agent.ini
+
+# Exit if the package is not installed
+[ -x "$DAEMON" ] || exit 0
+
+start() {
+    if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE"); then
+        echo 'dd-process-agent already running' >&2
+	return 1
+    fi
+    echo 'Starting dd-process-agent...' >&2
+    start-stop-daemon --start --quiet --oknodo --background \
+        --make-pidfile --pidfile $PIDFILE --chuid dd-agent \
+        --startas /bin/bash -- -c \
+        "exec $DAEMON -config=$CONFIG >> /var/log/dd-process-agent.log 2>&1"
+}
+
+stop() {
+    if [ ! -f "$PIDFILE" ] || ! kill -0 $(cat "$PIDFILE"); then
+        echo 'dd-process-agent not running' >&2
+	return 1
+    fi
+    echo "Stopping dd-process-agent..." >&2
+    start-stop-daemon --stop --retry 30 --quiet --oknodo --pidfile $PIDFILE && rm -f $PIDFILE
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+
+    stop)
+        stop
+        ;;
+
+    restart)
+        stop
+        start
+        ;;
+    status)
+        status_of_proc -p "$PIDFILE" "$DAEMON" dd-process-agent
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+
+esac
