@@ -14,14 +14,6 @@ Grab the latest release from the [releases page](https://github.com/DataDog/dd-p
 dd-process-agent -config $PATH_TO_PROCESS_CONFIG_FILE
 ```
 
-## Run on Mac
-
-Coming soon...
-
-## Run on Windows
-
-Coming soon..
-
 ## Development or running from source
 
 Pre-requisites:
@@ -53,3 +45,9 @@ If you modify any of the `.proto` files you _must_ rebuild the *.pb.go files wit
 ```
 rake protobuf
 ```
+
+## Run on Mac or Windows
+
+Coming soon...
+
+
