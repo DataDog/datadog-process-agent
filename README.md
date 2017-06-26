@@ -14,6 +14,14 @@ Grab the latest release from the [releases page](https://github.com/DataDog/dd-p
 dd-process-agent -config $PATH_TO_PROCESS_CONFIG_FILE
 ```
 
+## Run on Mac
+
+Coming soon...
+
+## Run on Windows
+
+Coming soon..
+
 ## Development or running from source
 
 Pre-requisites:
