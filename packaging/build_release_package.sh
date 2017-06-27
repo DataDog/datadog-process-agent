@@ -28,12 +28,11 @@ agent_path="$WORKSPACE/go/src/github.com/DataDog/datadog-process-agent"
 
 echo "Getting dependencies..."
 go get github.com/Masterminds/glide
-go get -u github.com/golang/lint/golint
+glide install
 
 cd $agent_path/agent
 
 echo "Building binaries..."
-glide install
 # we use musl-gcc so everything is statically linked
 CC=/usr/local/musl/bin/musl-gcc go build \
 	-a -o dd-process-agent \
