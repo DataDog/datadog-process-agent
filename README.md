@@ -6,7 +6,7 @@ Follow the installation steps on [http://docs.datadoghq.com/guides/process/](htt
 
 OR
 
-Grab the latest release from the [releases page](https://github.com/DataDog/dd-process-agent/releases) and run from the command line:
+Grab the latest release from the [releases page](https://github.com/DataDog/datadog-process-agent/releases) and run from the command line:
 
 ```
 dd-process-agent -config $PATH_TO_PROCESS_CONFIG_FILE
