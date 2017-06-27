@@ -1,6 +1,0 @@
-.DS_Store
-*.test
-/.vagrant
-/build
-/vendor
-gohai

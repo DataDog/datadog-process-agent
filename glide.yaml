@@ -3,6 +3,8 @@ import:
 - package: github.com/DataDog/agent-payload
 - package: github.com/DataDog/datadog-agent
   version: bbef7e852ce367d6b27ebae91431b863d2bec20e
+  repo:    git@github.com.com:DataDog/datadog-agent.git
+  vcs:     git
   subpackages:
   - pkg/metadata/kubernetes
 - package: github.com/DataDog/gopsutil
