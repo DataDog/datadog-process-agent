@@ -1,4 +1,4 @@
-package: github.com/DataDog/dd-process-agent
+package: github.com/DataDog/datadog-process-agent
 import:
 - package: github.com/DataDog/agent-payload
 - package: github.com/DataDog/datadog-agent
