@@ -15,6 +15,7 @@ echo "Adding dd-process-agent to start on boot..."
 update-rc.d -f dd-process-agent defaults
 
 echo "Starting dd-process-agent..."
+export DD_PROCESS_ENABLED=true
 start-stop-daemon --start --quiet --oknodo --background \
 --make-pidfile --pidfile $PIDFILE --chuid dd-agent \
 --startas /bin/bash -- -c \
