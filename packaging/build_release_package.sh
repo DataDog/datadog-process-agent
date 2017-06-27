@@ -27,12 +27,14 @@ export DEBFULLNAME="Datadog, Inc"
 agent_path="$WORKSPACE/go/src/github.com/DataDog/datadog-process-agent"
 
 echo "Getting dependencies..."
+
+cd $agent_path
 go get github.com/Masterminds/glide
 glide install
 
-cd $agent_path/agent
 
 echo "Building binaries..."
+cd agent
 # we use musl-gcc so everything is statically linked
 CC=/usr/local/musl/bin/musl-gcc go build \
 	-a -o dd-process-agent \
