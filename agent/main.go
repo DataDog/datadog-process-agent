@@ -17,7 +17,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 )
 
-const AgentVersion = "0.99.28"
+const AgentVersion = "0.99.29"
 
 var opts struct {
 	ddConfigPath string
