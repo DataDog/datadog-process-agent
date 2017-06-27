@@ -31,7 +31,7 @@ Pull down the latest dependencies via `glide`:
 
 ```
 rake deps
-go install
+rake install
 ```
 
 You can now run the Agent on the command-line:
