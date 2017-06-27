@@ -1,29 +1,28 @@
 package: github.com/DataDog/datadog-process-agent
 import:
-- package: github.com/DataDog/agent-payload
-- package: github.com/DataDog/datadog-agent
-  version: bbef7e852ce367d6b27ebae91431b863d2bec20e
-  repo:    git@github.com.com:DataDog/datadog-agent.git
-  vcs:     git
-  subpackages:
-  - pkg/metadata/kubernetes
-- package: github.com/DataDog/gopsutil
-  subpackages:
-  - cpu
-  - host
-  - mem
-  - net
-  - process
-- package: github.com/DataDog/zstd
-- package: github.com/cihub/seelog
-  version: v2.6
-- package: github.com/gogo/protobuf
-  subpackages:
-  - proto
-- package: github.com/go-ini/ini
-- package: github.com/ericchiang/k8s
+  - package: github.com/DataDog/datadog-agent
+    vcs: git
+    version: master
+    repo: git@github.com:DataDog/datadog-agent.git
+  - package: github.com/DataDog/agent-payload
+  - package: github.com/DataDog/gopsutil
+    subpackages:
+    - cpu
+    - host
+    - mem
+    - net
+    - process
+  - package: github.com/DataDog/zstd
+  - package: github.com/cihub/seelog
+    version: v2.6
+  - package: github.com/gogo/protobuf
+    subpackages:
+    - proto
+  - package: github.com/go-ini/ini
+  - package: github.com/ericchiang/k8s
 testImport:
-- package: github.com/stretchr/testify
-  version: ^1.1.3
-  subpackages:
-  - assert
+  - package: github.com/stretchr/testify
+    version: ^1.1.3
+    subpackages:
+    - assert
+

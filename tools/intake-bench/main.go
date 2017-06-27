@@ -14,7 +14,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
-	"github.com/DataDog/datadog-process-agent/conn"
+	"github.com/DataDog/datadog-process-agent/model"
 )
 
 var opts struct {
@@ -62,7 +62,7 @@ func main() {
 		panic("err collector")
 	}
 
-	msgch := make(chan []conn.Message)
+	msgch := make(chan []model.Message)
 	for i := 0; i < opts.workers; i++ {
 		go func() {
 			for m := range msgch {
@@ -93,17 +93,17 @@ func isHTTPTimeout(err error) bool {
 	return false
 }
 
-func postMessages(cfg *config.AgentConfig, client http.Client, msgs []conn.Message) {
+func postMessages(cfg *config.AgentConfig, client http.Client, msgs []model.Message) {
 	for _, m := range msgs {
 		postMessage(cfg, client, m)
 	}
 }
 
-func postMessage(cfg *config.AgentConfig, client http.Client, m conn.Message) {
-	body, err := conn.EncodeMessage(conn.MessageHeader{
-		Version:  conn.MessageV2,
-		Encoding: conn.MessageEncodingProtobuf,
-		Type:     conn.MessageType(m.GetHeader().Type),
+func postMessage(cfg *config.AgentConfig, client http.Client, m model.Message) {
+	body, err := model.EncodeMessage(model.MessageHeader{
+		Version:  model.MessageV2,
+		Encoding: model.MessageEncodingProtobuf,
+		Type:     model.MessageType(m.GetHeader().Type),
 	}, m)
 	if err != nil {
 		log.Errorf("Unable to encode message: %s", err)
@@ -141,7 +141,7 @@ func postMessage(cfg *config.AgentConfig, client http.Client, m conn.Message) {
 		return
 	}
 
-	if _, err := conn.DecodeMessage(body); err != nil {
+	if _, err := model.DecodeMessage(body); err != nil {
 		log.Errorf("could not decode response, invalid format: %s", err)
 		return
 	}
