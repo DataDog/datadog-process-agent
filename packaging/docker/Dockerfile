@@ -3,7 +3,8 @@ FROM datadog/docker-dd-agent:latest
 MAINTAINER Datadog <package@datadoghq.com>
 
 ENV DOCKER_DD_AGENT=yes \
-    AGENT_VERSION=0.99.27
+    AGENT_VERSION=0.99.27 \
+    DD_PROCESS_ENABLED=true
 
 # Install the Agent
 RUN echo "deb http://apt.datad0g.com/ process main" > /etc/apt/sources.list.d/datadog.list \

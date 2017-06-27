@@ -9,12 +9,15 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	log "github.com/cihub/seelog"
 
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
 )
+
+const AgentVersion = "0.99.28"
 
 var opts struct {
 	ddConfigPath string
@@ -24,6 +27,12 @@ var opts struct {
 	check        string
 }
 
+const agentDisabledMessage = `trace-agent not enabled.
+Set env var DD_PROCESS_ENABLED=true or add
+process_enabled: true
+to your datadog.conf file.
+Exiting.`
+
 func main() {
 	flag.StringVar(&opts.ddConfigPath, "ddconfig", "/etc/dd-agent/datadog.conf", "Path to dd-agent config")
 	flag.StringVar(&opts.configPath, "config", "/etc/dd-agent/dd-process-agent.ini", "DEPRECATED: Path to legacy config file. Prefer -ddconfig to point to the dd-agent config")
@@ -31,14 +40,14 @@ func main() {
 	flag.StringVar(&opts.check, "check", "", "Run a specific check and print the results. Choose from: process, connections, realtime")
 	flag.Parse()
 
-	if opts.version {
-		fmt.Println(config.AgentVersion)
-		os.Exit(0)
-	}
-
 	// Set up a default config before parsing config so we log errors nicely.
 	if err := NewLoggerLevelCustom("info"); err != nil {
 		panic(err)
+	}
+
+	if opts.version {
+		fmt.Println(AgentVersion)
+		os.Exit(0)
 	}
 
 	// Run a profile server.
@@ -65,6 +74,17 @@ func main() {
 	// Once config is parsed we can change the log level.
 	if err := NewLoggerLevelCustom(cfg.LogLevel); err != nil {
 		panic(err)
+	}
+
+	// Exit if agent is is not enabled
+	if !cfg.Enabled {
+		log.Info(agentDisabledMessage)
+
+		// a sleep is necessary to ensure that supervisor registers this process as "STARTED"
+		// If the exit is "too quick", we enter a BACKOFF->FATAL loop even though this is an expected exit
+		// http://supervisord.org/subprocess.html#process-states
+		time.Sleep(5 * time.Second)
+		return
 	}
 
 	if opts.check != "" {

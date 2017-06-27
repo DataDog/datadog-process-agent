@@ -18,6 +18,7 @@ PATH=$PATH:/sbin
 PIDFILE=/opt/dd-process-agent/run/dd-process-agent.pid
 DAEMON=/opt/dd-process-agent/bin/dd-process-agent
 CONFIG=/etc/dd-agent/dd-process-agent.ini
+DD_PROCESS_ENABLED=true
 
 # Exit if the package is not installed
 [ -x "$DAEMON" ] || exit 0

@@ -148,8 +148,6 @@ And to stop it:
 
     \033[0m"
         $sudo_cmd mv /etc/dd-agent/dd-process-agent.ini.example /etc/dd-agent/dd-process-agent.ini
-        host_name=$(hostname)
-        $sudo_cmd sh -c 'sed -i "s/sample_hostname/$host_name/" /etc/dd-agent/dd-process-agent.ini'
 	exit 1;
     fi
 else

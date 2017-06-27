@@ -114,7 +114,7 @@ func postMessage(cfg *config.AgentConfig, client http.Client, m conn.Message) {
 		log.Errorf("could not create request: %s", err)
 		return
 	}
-	req.Header.Set("X-Dd-Processagentversion", config.AgentVersion)
+	req.Header.Set("X-Dd-Processagentversion", "0.99.23")
 	req.Header.Set("X-Dd-Hostname", cfg.HostName)
 	req.Header.Set("X-Dd-Apikey", cfg.APIKey)
 

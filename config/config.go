@@ -30,7 +30,6 @@ type AgentConfig struct {
 	Blacklist     []*regexp.Regexp
 	MaxProcFDs    int
 	ProcLimit     int
-	Version       string
 	AllowRealTime bool
 	Concurrency   int
 	Proxy         *url.URL
@@ -38,7 +37,6 @@ type AgentConfig struct {
 }
 
 const (
-	AgentVersion    = "0.99.27"
 	defaultEndpoint = "https://process.datadoghq.com"
 	maxProcLimit    = 100
 )
@@ -55,14 +53,13 @@ func NewDefaultAgentConfig() *AgentConfig {
 		panic(err)
 	}
 	ac := &AgentConfig{
-		Enabled:       true,
+		Enabled:       false,
 		HostName:      hostname,
 		APIEndpoint:   u,
 		LogLevel:      "info",
 		QueueSize:     20,
 		MaxProcFDs:    200,
 		ProcLimit:     100,
-		Version:       AgentVersion,
 		AllowRealTime: true,
 		Concurrency:   4,
 		Timers: &CheckTimers{
@@ -104,6 +101,9 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		u, err := url.Parse(e)
 		if err != nil {
 			return nil, fmt.Errorf("invalid endpoint URL: %s", err)
+		}
+		if v, _ := agentConf.Get("Main", "process_enabled"); v == "true" {
+			cfg.Enabled = true
 		}
 		cfg.APIEndpoint = u
 	}
@@ -152,7 +152,7 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 				blacklist = append(blacklist, r)
 			}
 		}
-
+		cfg.Blacklist = blacklist
 		procLimit := file.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
 		if procLimit <= maxProcLimit {
 			cfg.ProcLimit = procLimit
@@ -161,14 +161,10 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 			cfg.ProcLimit = maxProcLimit
 		}
 		cfg.Concurrency = file.GetIntDefault(ns, "concurrency", cfg.Concurrency)
-
-		cfg.Blacklist = blacklist
 		t := cfg.Timers
 		t.Process = time.NewTicker(file.GetDurationDefault(ns, "process_interval", time.Second, 10*time.Second))
 		t.Connections = time.NewTicker(file.GetDurationDefault(ns, "connection_interval", time.Minute, 3*60*time.Minute))
 		t.RealTime = time.NewTicker(file.GetDurationDefault(ns, "realtime_interval", time.Second, 2*time.Second))
-
-		cfg.Version = AgentVersion
 	}
 
 	return mergeEnv(cfg), nil
