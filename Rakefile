@@ -96,7 +96,7 @@ end
 
 # FIXME: Lint all the files and then add lint task here
 desc "Datadog Process Agent CI script (fmt, vet, etc)"
-task :ci => [:fmt, :vet, :test, :build]
+task :ci => [:deps, :fmt, :vet, :test, :build]
 
 task :err do
   system("go get github.com/kisielk/errcheck")
