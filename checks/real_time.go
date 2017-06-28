@@ -6,7 +6,6 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/util/docker"
-	log "github.com/cihub/seelog"
 )
 
 func CollectRealTime(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
@@ -21,7 +20,7 @@ func CollectRealTime(cfg *config.AgentConfig, groupID int32) ([]model.MessageBod
 	}
 	containerByPID, err := docker.ContainersByPID(pids)
 	if err != nil && err != docker.ErrDockerNotAvailable {
-		log.Warnf("unable to get docker stats: %s", err)
+		return nil, err
 	}
 
 	info, err := collectSystemInfo(cfg)
