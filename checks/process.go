@@ -19,6 +19,8 @@ const (
 	cpuDelta = 1 * time.Second
 )
 
+var lastDockerErr string
+
 func CollectProcesses(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
 	var err error
@@ -32,8 +34,11 @@ func CollectProcesses(cfg *config.AgentConfig, groupID int32) ([]model.MessageBo
 		pids = append(pids, fp.Pid)
 	}
 	containerByPID, err := docker.ContainersByPID(pids)
-	if err != nil && err != docker.ErrDockerNotAvailable {
+	if err != nil && err != docker.ErrDockerNotAvailable && err.Error() != lastDockerErr {
+		// Limit docker error logging to once per Agent run to prevent noise when permissions
+		// aren't correct.
 		log.Warnf("unable to get docker stats: %s", err)
+		lastDockerErr = err.Error()
 	}
 
 	info, err := collectSystemInfo(cfg)
