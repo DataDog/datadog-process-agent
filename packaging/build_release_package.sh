@@ -54,8 +54,8 @@ mkdir -p "$agent_path/packaging/rpm/package/opt/dd-process-agent/bin/"
 mkdir -p "$agent_path/packaging/rpm/package/opt/dd-process-agent/run/"
 
 # copy the binary
-cp "$agent_path/agent/dd-process-agent" "$agent_path/packaging/debian/package/opt/dd-process-agent/bin/dd-process-agent"
-cp "$agent_path/agent/dd-process-agent" "$agent_path/packaging/rpm/package/opt/dd-process-agent/bin/dd-process-agent"
+cp "$agent_path/dd-process-agent" "$agent_path/packaging/debian/package/opt/dd-process-agent/bin/dd-process-agent"
+cp "$agent_path/dd-process-agent" "$agent_path/packaging/rpm/package/opt/dd-process-agent/bin/dd-process-agent"
 
 # make debian package using fpm
 echo "Building debian package..."
