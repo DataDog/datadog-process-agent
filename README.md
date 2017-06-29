@@ -12,6 +12,14 @@ Grab the latest release from the [releases page](https://github.com/DataDog/data
 dd-process-agent -config $PATH_TO_PROCESS_CONFIG_FILE
 ```
 
+## Running in Docker
+
+See our [Docker README](https://github.com/DataDog/datadog-process-agent/blob/master/packaging/docker/README.md) for the full details.
+
+## Running in Kubernetes
+
+See our [Kubernetes README](https://github.com/DataDog/datadog-process-agent/blob/master/packaging/docker/README.md) for the full details.
+
 ## Development or running from source
 
 Pre-requisites:
