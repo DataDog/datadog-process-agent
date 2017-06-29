@@ -102,7 +102,7 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid endpoint URL: %s", err)
 		}
-		if v, _ := agentConf.Get("Main", "process_enabled"); v == "true" {
+		if v, _ := agentConf.Get("Main", "process_agent_enabled"); v == "true" {
 			cfg.Enabled = true
 		}
 		cfg.APIEndpoint = u
@@ -172,7 +172,7 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 
 // mergeEnv applies overrides from environment variables to the trace agent configuration
 func mergeEnv(c *AgentConfig) *AgentConfig {
-	if v := os.Getenv("DD_PROCESS_ENABLED"); v == "true" {
+	if v := os.Getenv("DD_PROCESS_AGENT_ENABLED"); v == "true" {
 		c.Enabled = true
 	} else if v == "false" {
 		c.Enabled = false

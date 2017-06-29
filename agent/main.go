@@ -27,9 +27,9 @@ var opts struct {
 	check        string
 }
 
-const agentDisabledMessage = `trace-agent not enabled.
-Set env var DD_PROCESS_ENABLED=true or add
-process_enabled: true
+const agentDisabledMessage = `process-agent not enabled.
+Set env var DD_PROCESS_AGENT_ENABLED=true or add
+process_agent_enabled: true
 to your datadog.conf file.
 Exiting.`
 
@@ -76,8 +76,8 @@ func main() {
 		panic(err)
 	}
 
-	// Exit if agent is is not enabled
-	if !cfg.Enabled {
+	// Exit if agent is is not enabled and we're not debugging a check.
+	if !cfg.Enabled && opts.check == "" {
 		log.Info(agentDisabledMessage)
 
 		// a sleep is necessary to ensure that supervisor registers this process as "STARTED"
