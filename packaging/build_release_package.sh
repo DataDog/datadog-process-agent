@@ -33,11 +33,13 @@ if [ -z ${PROCESS_AGENT_VERSION+x} ]; then
 fi
 
 if [ -z ${PROCESS_AGENT_STAGING+x} ]; then
+	echo "Agent version: $PROCESS_AGENT_VERSION"
+else
 	# Staging builds add build number to versioning
 	PROCESS_AGENT_VERSION="$PROCESS_AGENT_VERSION-$BUILD_NUMBER"
+	echo "Agent version (staging): $PROCESS_AGENT_VERSION"
 fi
 
-echo "Agent version: $PROCESS_AGENT_VERSION"
 
 echo "Getting dependencies..."
 
