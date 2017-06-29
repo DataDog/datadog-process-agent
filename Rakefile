@@ -20,9 +20,21 @@ task :default => [:ci]
 desc "Build Datadog Process agent"
 task :build do
   go_build("github.com/DataDog/datadog-process-agent/agent", {
+    :cmd => "go build -a -o process-agent",
+    :race => ENV['GO_RACE'] == 'true',
+    :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
+    :static => ENV['PROCESS_AGENT_STATIC'] == 'true'
+  })
+end
+
+# Deprecated, should go away once we are fully merged into dd-agent
+desc "DEPRECATED: Build Datadog Process agent for dd-process-agent pkg release"
+task :build_ddpkg do
+  go_build("github.com/DataDog/datadog-process-agent/agent", {
     :cmd => "go build -a -o dd-process-agent",
     :race => ENV['GO_RACE'] == 'true',
-    :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false'
+    :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
+    :static => ENV['PROCESS_AGENT_STATIC'] == 'true'
   })
 end
 

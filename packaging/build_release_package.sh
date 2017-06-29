@@ -34,24 +34,24 @@ glide install
 
 
 echo "Building binaries..."
-cd agent
-# we use musl-gcc so everything is statically linked
-CC=/usr/local/musl/bin/musl-gcc go build \
-	-a -o dd-process-agent \
-	--ldflags '-linkmode external -extldflags "-static"'
+PROCESS_AGENT_STATIC=true rake build_ddpkg
+
 mkdir -p "$agent_path/packaging/debian/package/opt/dd-process-agent/bin/"
 mkdir -p "$agent_path/packaging/debian/package/opt/dd-process-agent/run/"
 mkdir -p "$agent_path/packaging/rpm/package/opt/dd-process-agent/bin/"
 mkdir -p "$agent_path/packaging/rpm/package/opt/dd-process-agent/run/"
 
 if [ -z ${PROCESS_AGENT_VERSION+x} ]; then
-	# Generate a version unless it's defined. This will handle the staging case.
-	agent_version=$(./dd-process-agent -version)
-	PROCESS_AGENT_VERSION="$agent_version-$BUILD_NUMBER"
-	echo "Agent version from build: $PROCESS_AGENT_VERSION"
-else
-	echo "Agent version from environment: $PROCESS_AGENT_VERSION"
+	echo "Missing PROCESS_AGENT_VERSION in environment"
+	exit 1;
 fi
+
+if [ -z ${PROCESS_AGENT_STAGING+x} ]
+	# Staging builds add build number to versioning
+	PROCESS_AGENT_VERSION="$PROCESS_AGENT_VERSION-$BUILD_NUMBER"
+fi
+
+echo "Agent version: $PROCESS_AGENT_VERSION"
 
 # copy the binary
 cp "$agent_path/agent/dd-process-agent" "$agent_path/packaging/debian/package/opt/dd-process-agent/bin/dd-process-agent"

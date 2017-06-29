@@ -144,7 +144,7 @@ func (l *Collector) postMessage(m model.MessageBody) {
 	}
 	req.Header.Add("X-Dd-APIKey", l.cfg.APIKey)
 	req.Header.Add("X-Dd-Hostname", l.cfg.HostName)
-	req.Header.Add("X-Dd-Processagentversion", AgentVersion)
+	req.Header.Add("X-Dd-Processagentversion", Version)
 
 	resp, err := l.httpClient.Do(req)
 	if err != nil {

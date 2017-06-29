@@ -7,7 +7,8 @@ def go_build(program, opts={})
   opts = {
     :cmd => default_cmd,
     :race => false,
-    :add_build_vars => true
+    :add_build_vars => true,
+    :static => false
   }.merge(opts)
 
   dd = 'main'
@@ -30,6 +31,14 @@ def go_build(program, opts={})
 
   cmd = opts[:cmd]
   cmd += ' -race' if opts[:race]
+
+  if opts[:static]
+    # Statically linked builds use musl-gcc for full support 
+    # of alpine and other machines with different gcc versions.
+    ENV['CC'] = '/usr/local/musl/bin/musl-gcc'
+    ldflags << '-linkmode external'
+    ldflags << '-extldflags \'-static\''
+  end
 
   sh "#{cmd} -ldflags \"#{ldflags.join(' ')}\" #{program}"
 end

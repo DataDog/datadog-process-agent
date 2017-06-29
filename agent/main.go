@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -17,14 +18,44 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 )
 
-const AgentVersion = "0.99.29"
-
 var opts struct {
 	ddConfigPath string
 	configPath   string
 	debug        bool
 	version      bool
 	check        string
+}
+
+// version info sourced from build flags
+var (
+	Version   string
+	GitCommit string
+	GitBranch string
+	BuildDate string
+	GoVersion string
+)
+
+// versionString returns the version information filled in at build time
+func versionString() string {
+	var buf bytes.Buffer
+
+	if Version != "" {
+		fmt.Fprintf(&buf, "Version: %s\n", Version)
+	}
+	if GitCommit != "" {
+		fmt.Fprintf(&buf, "Git hash: %s\n", GitCommit)
+	}
+	if GitBranch != "" {
+		fmt.Fprintf(&buf, "Git branch: %s\n", GitBranch)
+	}
+	if BuildDate != "" {
+		fmt.Fprintf(&buf, "Build date: %s\n", BuildDate)
+	}
+	if GoVersion != "" {
+		fmt.Fprintf(&buf, "Go Version: %s\n", GoVersion)
+	}
+
+	return buf.String()
 }
 
 const agentDisabledMessage = `process-agent not enabled.
@@ -46,7 +77,7 @@ func main() {
 	}
 
 	if opts.version {
-		fmt.Println(AgentVersion)
+		fmt.Println(versionString())
 		os.Exit(0)
 	}
 
