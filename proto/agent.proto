@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/DataDog/dd-process-agent/model";
+option go_package = "github.com/DataDog/datadog-process-agent/model";
 
 package datadog.process_agent;
 
@@ -124,6 +124,8 @@ message ProcessStat {
 	int32 threads = 7;
 	int32 openFdCount = 8;
 	uint32 key = 9;
+	// we need container id because we need to do the scoring by container
+	string containerId = 10;
 }
 
 
