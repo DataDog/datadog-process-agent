@@ -17,7 +17,7 @@ In the file pointed to by `-ddconfig`
 ```
 [Main]
 # Enable the process agent.
-process_enabled = true
+process_agent_enabled = true
 
 # process-agent will use this api key when reporting to the Datadog backend.
 # no default.
@@ -35,7 +35,7 @@ We allow overriding a subset of configuration values from the environment. These
 can be useful when running the agent in a Docker container or in other situations
 where env vars are preferrable to static files
 
-- `DD_PROCESS_ENABLED` - overrides `[Main] process_enabled`
+- `DD_PROCESS_AGENT_ENABLED` - overrides `[Main] process_agent_enabled`
 - `DD_HOSTNAME` - overrides `[Main] hostname`
 - `DD_API_KEY` - overrides `[Main] api_key`
 - `DD_LOG_LEVEL` - overrides `[Main] log_level`

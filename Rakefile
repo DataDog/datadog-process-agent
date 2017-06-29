@@ -56,7 +56,7 @@ end
 
 desc "Run Datadog Process agent"
 task :run do
-  ENV['DD_PROCESS_ENABLED'] = 'true'
+  ENV['DD_PROCESS_AGENT_ENABLED'] = 'true'
   sh "./dd-process-agent -config ./agent/process-agent.ini"
 end
 

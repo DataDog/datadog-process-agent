@@ -14,7 +14,7 @@ echo "Adding dd-process-agent to start on boot..."
 chkconfig --add dd-process-agent
 
 echo "Starting dd-process-agent"
-export DD_PROCESS_ENABLED=true
+export DD_PROCESS_AGENT_ENABLED=true
 daemon --pidfile $PIDFILE --user dd-agent "exec $DAEMON >> /var/log/dd-process-agent.log 2>&1 &"
 [ $? -eq 0 ] && makePid $DAEMON
 
