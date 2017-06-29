@@ -81,7 +81,7 @@ func (l *Collector) runCheck(r CheckRunner) {
 }
 
 func (l *Collector) run() {
-	log.Infof("Starting collector with a 10s interval for host=%s", l.cfg.HostName)
+	log.Infof("Starting process-agent for host=%s, endpoint=%s", l.cfg.HostName, l.cfg.APIEndpoint)
 	exit := make(chan bool)
 	go handleSignals(exit)
 	go func() {

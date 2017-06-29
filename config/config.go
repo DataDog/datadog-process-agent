@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -183,18 +184,44 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 		c.HostName = v
 	}
 
-	if v := os.Getenv("DD_API_KEY"); v != "" {
+	// Support API_KEY and DD_API_KEY but prefer DD_API_KEY.
+	var apiKey string
+	if v := os.Getenv("API_KEY"); v != "" {
+		apiKey = v
 		log.Info("overriding API key from env API_KEY value")
-		vals := strings.Split(v, ",")
+	}
+	if v := os.Getenv("DD_API_KEY"); v != "" {
+		apiKey = v
+		log.Info("overriding API key from env DD_API_KEY value")
+	}
+	if apiKey != "" {
+		vals := strings.Split(apiKey, ",")
 		for i := range vals {
 			vals[i] = strings.TrimSpace(vals[i])
 		}
 		c.APIKey = vals[0]
 	}
 
+	// Support LOG_LEVEL and DD_LOG_LEVEL but prefer DD_LOG_LEVE
+	if v := os.Getenv("LOG_LEVEL"); v != "" {
+		c.LogLevel = v
+	}
 	if v := os.Getenv("DD_LOG_LEVEL"); v != "" {
 		c.LogLevel = v
 	}
+
+	c.Proxy = proxyFromEnv(c.Proxy)
+
+	if v := os.Getenv("DD_PROCESS_AGENT_URL"); v != "" {
+		u, err := url.Parse(v)
+		if err != nil {
+			log.Warnf("DD_PROCESS_AGENT_URL is invalid: %s", err)
+		} else {
+			log.Infof("overriding API endpoint from env")
+			c.APIEndpoint = u
+		}
+	}
+
 	return c
 }
 
@@ -266,7 +293,6 @@ func getProxySettings(m *ini.Section) *url.URL {
 	if v := m.Key("proxy_port").MustInt(-1); v != -1 {
 		port = v
 	}
-
 	var user, password string
 	if v := m.Key("proxy_user").MustString(""); v != "" {
 		user = v
@@ -274,8 +300,49 @@ func getProxySettings(m *ini.Section) *url.URL {
 	if v := m.Key("proxy_password").MustString(""); v != "" {
 		password = v
 	}
+	return constructProxy(host, scheme, port, user, password)
+}
 
-	// construct scheme://user:pass@host:port
+// proxyFromEnv parses out the proxy configuration from the ENV variables in a
+// similar way to getProxySettings and, if enough values are available, returns
+// a new proxy URL value. If the environment is not set for this then the
+// `defaultVal` is returned.
+func proxyFromEnv(defaultVal *url.URL) *url.URL {
+	var host, scheme string
+	if v := os.Getenv("PROXY_HOST"); v != "" {
+		// accept either http://myproxy.com or myproxy.com
+		if i := strings.Index(v, "://"); i != -1 {
+			// when available, parse the scheme from the url
+			scheme = v[0:i]
+			host = v[i+3:]
+		} else {
+			host = v
+		}
+	}
+
+	if host == "" {
+		return defaultVal
+	}
+
+	var port int
+	if v := os.Getenv("PROXY_PORT"); v != "" {
+		port, _ = strconv.Atoi(v)
+	}
+	var user, password string
+	if v := os.Getenv("PROXY_USER"); v != "" {
+		user = v
+	}
+	if v := os.Getenv("PROXY_PASSWORD"); v != "" {
+		password = v
+	}
+
+	return constructProxy(host, scheme, port, user, password)
+}
+
+// constructProxy constructs a *url.Url for a proxy given the parts of a
+// Note that we assume we have at least a non-empty host for this call but
+// all other values can be their defaults (empty string or 0).
+func constructProxy(host, scheme string, port int, user, password string) *url.URL {
 	var userpass *url.Userinfo
 	if user != "" {
 		if password != "" {
