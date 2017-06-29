@@ -32,7 +32,7 @@ if [ -z ${PROCESS_AGENT_VERSION+x} ]; then
 	exit 1;
 fi
 
-if [ -z ${PROCESS_AGENT_STAGING+x} ]
+if [ -z ${PROCESS_AGENT_STAGING+x} ]; then
 	# Staging builds add build number to versioning
 	PROCESS_AGENT_VERSION="$PROCESS_AGENT_VERSION-$BUILD_NUMBER"
 fi
