@@ -36,6 +36,19 @@ docker run -d --name dd-agent \
   datadoghq/dd-process-agent
 ```
 
+## Environment variables
+
+We support all of the relevant environment variables from [docker-dd-agent](https://github.com/DataDog/docker-dd-agent#environment-variables).
+
+Here are variables that would specifically affect the `process-agent`:
+
+* `API_KEY` override the Datadog API key
+* `LOG_LEVEL` set logging verbosity (CRITICAL, ERROR, WARNING, INFO, DEBUG). Add `-e LOG_LEVEL=DEBUG` to turn logs to debug mode.
+* `PROXY_HOST`, `PROXY_PORT`, `PROXY_USER` and `PROXY_PASSWORD` set the proxy configuration.
+
+**Note:** it is possible to use `DD_LOG_LEVEL` instead of `LOG_LEVEL` and `DD_API_KEY` instead of `API_KEY`, these variables have the same impact.
+
+
 ## Notes
 
 * We mount the host `/etc/passwd` so that UID resolution maps to host-level usernames.
