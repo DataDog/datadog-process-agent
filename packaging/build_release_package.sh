@@ -26,20 +26,6 @@ export DEBFULLNAME="Datadog, Inc"
 
 agent_path="$WORKSPACE/go/src/github.com/DataDog/datadog-process-agent"
 
-echo "Getting dependencies..."
-
-cd $agent_path
-go get github.com/Masterminds/glide
-glide install
-
-
-echo "Building binaries..."
-PROCESS_AGENT_STATIC=true rake build_ddpkg
-
-mkdir -p "$agent_path/packaging/debian/package/opt/dd-process-agent/bin/"
-mkdir -p "$agent_path/packaging/debian/package/opt/dd-process-agent/run/"
-mkdir -p "$agent_path/packaging/rpm/package/opt/dd-process-agent/bin/"
-mkdir -p "$agent_path/packaging/rpm/package/opt/dd-process-agent/run/"
 
 if [ -z ${PROCESS_AGENT_VERSION+x} ]; then
 	echo "Missing PROCESS_AGENT_VERSION in environment"
@@ -52,6 +38,20 @@ if [ -z ${PROCESS_AGENT_STAGING+x} ]
 fi
 
 echo "Agent version: $PROCESS_AGENT_VERSION"
+
+echo "Getting dependencies..."
+
+cd $agent_path
+go get github.com/Masterminds/glide
+glide install
+
+echo "Building binaries..."
+PROCESS_AGENT_STATIC=true rake build_ddpkg
+
+mkdir -p "$agent_path/packaging/debian/package/opt/dd-process-agent/bin/"
+mkdir -p "$agent_path/packaging/debian/package/opt/dd-process-agent/run/"
+mkdir -p "$agent_path/packaging/rpm/package/opt/dd-process-agent/bin/"
+mkdir -p "$agent_path/packaging/rpm/package/opt/dd-process-agent/run/"
 
 # copy the binary
 cp "$agent_path/agent/dd-process-agent" "$agent_path/packaging/debian/package/opt/dd-process-agent/bin/dd-process-agent"
