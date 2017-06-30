@@ -1,7 +1,4 @@
-// log.go is a copy of util/seelog.go without a dependency on the util package
-// to avoid pulling in a world of dependencies. This should eventually go away
-// when dd-process agent is part of the mainline Agent code.
-package main
+package config
 
 import (
 	"encoding/xml"
@@ -19,6 +16,8 @@ const (
 	DefaultLogLevel    = "info"
 	DefaultSyslogHost  = "localhost:514"
 	DefaultSyslogLevel = "error"
+
+	defaultLogFilePath = "/var/log/datadog/process-agent.log"
 )
 
 var (
@@ -51,12 +50,14 @@ type seelogFilter struct {
 	Levels  string             `xml:"levels,attr,omitempty"`
 	Syslog  *seelogFilterAttrs `xml:"conn"`
 	Console *seelogFilterAttrs `xml:"console"`
+	File    *seelogFilterAttrs `xml:"file"`
 }
 
 type seelogFilterAttrs struct {
 	FormatID string `xml:"formatid,attr,omitempty"`
 	Net      string `xml:"net,attr,omitempty"`
 	Addr     string `xml:"addr,attr,omitempty"`
+	Path     string `xml:"path,attr,omitempty"`
 }
 
 type seelogFormats struct {
@@ -66,14 +67,6 @@ type seelogFormats struct {
 type seelogFormat struct {
 	ID     string `xml:"id,attr"`
 	Format string `xml:"format,attr"`
-}
-
-type LoggerConfig struct {
-	AppName     string
-	LogLevel    string
-	Syslog      bool
-	SyslogLevel string
-	SyslogHost  string
 }
 
 func newConsoleFormat() *seelogFormat {
@@ -90,10 +83,17 @@ func newSyslogFormat() *seelogFormat {
 	}
 }
 
+func newFileFormat() *seelogFormat {
+	return &seelogFormat{
+		ID:     "file",
+		Format: "%Date %Time %LEVEL (%File:%Line) - %Msg%n",
+	}
+}
+
 var syslogFormatter log.FormatterFuncCreator
 
 func registerSyslogFormatter(appName string) error {
-	hostName := getHostname()
+	hostName := getSyslogHostname()
 	pid := os.Getpid()
 
 	if syslogFormatter == nil {
@@ -140,6 +140,16 @@ func newConsoleFilter(logLvl string) *seelogFilter {
 	}
 }
 
+func newFileFilter(logLvl, filename string) *seelogFilter {
+	return &seelogFilter{
+		Levels: filterLevels(logLvl),
+		File: &seelogFilterAttrs{
+			FormatID: "file",
+			Path:     filename,
+		},
+	}
+}
+
 func newSeelog() *seelogConfig {
 	return &seelogConfig{
 		// Filters override this value
@@ -171,22 +181,38 @@ func (s *seelogConfig) addConsole(logLvl string) {
 	s.addFormat(newConsoleFormat())
 }
 
+func (s *seelogConfig) addFile(logLvl, filename string) {
+	s.addFilter(newFileFilter(logLvl, filename))
+	s.addFormat(newFileFormat())
+}
+
 func (cfg *LoggerConfig) SeelogConfig() (*seelogConfig, error) {
 	s := newSeelog()
-	s.addConsole(cfg.LogLevel)
 
+	if cfg.Filename != "" {
+		s.addFile(cfg.LogLevel, cfg.Filename)
+	}
+	if cfg.Console {
+		s.addConsole(cfg.LogLevel)
+	}
 	if cfg.Syslog {
-		appName := cfg.AppName
-		if appName == "" {
-			appName = "unknown-app"
-		}
-
-		if err := s.addSyslog(appName, cfg.SyslogHost, cfg.SyslogLevel); err != nil {
+		if err := s.addSyslog("process-agent", cfg.SyslogHost, cfg.SyslogLevel); err != nil {
 			return nil, err
 		}
 	}
 
 	return s, nil
+}
+
+// LoggerConfig defines the configuration of a logger
+type LoggerConfig struct {
+	AppName     string
+	LogLevel    string
+	Console     bool
+	Syslog      bool
+	SyslogLevel string
+	SyslogHost  string
+	Filename    string
 }
 
 // SeelogLogger returns a new seelog Logger
@@ -213,7 +239,7 @@ func filterLevels(level string) string {
 	return levels[strings.Index(levels, level):]
 }
 
-func getHostname() string {
+func getSyslogHostname() string {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return "unknown"
@@ -252,27 +278,12 @@ func ReplaceLogger(cfg *LoggerConfig) error {
 	return log.ReplaceLogger(logger)
 }
 
-func NewLoggerLevelCustom(logLevel string) error {
+func NewLoggerLevel(logLevel string) error {
 	loggerConfig := &LoggerConfig{
 		LogLevel:    logLevel,
+		Filename:    defaultLogFilePath,
 		SyslogLevel: "off",
+		Console:     false,
 	}
 	return ReplaceLogger(loggerConfig)
-}
-
-// NewLoggerLevel sets the global log level.
-func NewLoggerLevel(debug bool) error {
-	if debug {
-		return NewLoggerLevelCustom("debug")
-	}
-	return NewLoggerLevelCustom("info")
-}
-
-// NewLoggerLevelFromEnv sets the log level based on the LOG_LEVEL environment variable.
-func NewLoggerLevelFromEnv() error {
-	logLevel := os.Getenv("LOG_LEVEL")
-	if logLevel == "" {
-		logLevel = DefaultLogLevel
-	}
-	return NewLoggerLevelCustom(logLevel)
 }

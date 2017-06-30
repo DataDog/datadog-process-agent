@@ -72,7 +72,7 @@ func main() {
 	flag.Parse()
 
 	// Set up a default config before parsing config so we log errors nicely.
-	if err := NewLoggerLevelCustom("info"); err != nil {
+	if err := config.NewLoggerLevel("info"); err != nil {
 		panic(err)
 	}
 
@@ -100,11 +100,6 @@ func main() {
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)
-	}
-
-	// Once config is parsed we can change the log level.
-	if err := NewLoggerLevelCustom(cfg.LogLevel); err != nil {
-		panic(err)
 	}
 
 	// Exit if agent is is not enabled and we're not debugging a check.

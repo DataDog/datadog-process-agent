@@ -35,6 +35,7 @@ type AgentConfig struct {
 	Concurrency   int
 	Proxy         *url.URL
 	Timers        *CheckTimers
+	Logger        *LoggerConfig
 }
 
 const (
@@ -168,7 +169,12 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		t.RealTime = time.NewTicker(file.GetDurationDefault(ns, "realtime_interval", time.Second, 2*time.Second))
 	}
 
-	return mergeEnv(cfg), nil
+	cfg = mergeEnv(cfg)
+
+	// (Re)configure the logging from our configuration
+	NewLoggerLevel(cfg.LogLevel)
+
+	return cfg, nil
 }
 
 // mergeEnv applies overrides from environment variables to the trace agent configuration
