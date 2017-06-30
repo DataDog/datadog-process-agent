@@ -20,7 +20,7 @@ type CheckRunner func(cfg *config.AgentConfig, groupID int32) ([]model.MessageBo
 
 // Collector will collect metrics from the local system and ship to the backend.
 type Collector struct {
-	send       chan model.MessageBody
+	send       chan []model.MessageBody
 	cfg        *config.AgentConfig
 	httpClient http.Client
 	// flag for current collector's realTime status
@@ -60,7 +60,7 @@ func NewCollector(cfg *config.AgentConfig) Collector {
 	}
 
 	return Collector{
-		send:          make(chan model.MessageBody, cfg.QueueSize),
+		send:          make(chan []model.MessageBody, cfg.QueueSize),
 		cfg:           cfg,
 		groupID:       rand.Int31(),
 		interval:      2 * time.Second,
@@ -74,9 +74,7 @@ func (l *Collector) runCheck(r CheckRunner) {
 		log.Criticalf("Unable to run check %v: %s", r, err)
 	} else {
 		l.groupID++
-		for _, m := range messages {
-			l.send <- m
-		}
+		l.send <- messages
 	}
 }
 
@@ -87,13 +85,15 @@ func (l *Collector) run() {
 	go func() {
 		for {
 			select {
-			case m := <-l.send:
+			case messages := <-l.send:
 				if len(l.send) >= l.cfg.QueueSize {
 					log.Info("Expiring payload from in-memory queue.")
 					// Limit number of items kept in memory while we wait.
 					<-l.send
 				}
-				l.postMessage(m)
+				for _, m := range messages {
+					l.postMessage(m)
+				}
 			case <-exit:
 				return
 			}
