@@ -179,6 +179,7 @@ func formatContainer(container *docker.Container) *model.Container {
 		Image:       container.Image,
 		CpuLimit:    float32(container.CPULimit),
 		MemoryLimit: container.MemLimit,
+		Status:      container.Status,
 	}
 }
 
