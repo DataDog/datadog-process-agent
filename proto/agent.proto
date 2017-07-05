@@ -107,6 +107,7 @@ message Container {
 	string image = 4;
 	float  cpuLimit = 5;
 	uint64 memoryLimit = 6;
+	string status = 7;
 }
 
 // ProcessStat is used for real-time process messages. It should only contain
