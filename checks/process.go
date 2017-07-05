@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 	log "github.com/cihub/seelog"
 
@@ -21,12 +22,27 @@ const (
 
 var lastDockerErr string
 
-func CollectProcesses(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
+type ProcessCheck struct {
+	lastCPUTime cpu.TimesStat
+	lastProcs   map[int32]*process.FilledProcess
+}
+
+func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
-	var err error
+	cpuTimes, err := cpu.Times(false)
+	if err != nil {
+		return nil, err
+	}
 	fps, err := process.AllProcesses(cpuDelta, cfg.Concurrency)
 	if err != nil {
 		return nil, err
+	}
+
+	// End check early if this is our first run.
+	if p.lastProcs == nil {
+		p.lastProcs = fps
+		p.lastCPUTime = cpuTimes[0]
+		return nil, nil
 	}
 
 	pids := make([]int32, 0, len(fps))
@@ -46,19 +62,21 @@ func CollectProcesses(cfg *config.AgentConfig, groupID int32) ([]model.MessageBo
 		return nil, err
 	}
 
-	groupSize := len(fps) / cfg.ProcLimit
-	if len(fps) != cfg.ProcLimit {
+	// Pre-filter the list to get an accurate grou psize.
+	filteredFps := make([]*process.FilledProcess, 0, len(fps))
+	for _, fp := range fps {
+		if !p.skipProcess(cfg, fp) {
+			filteredFps = append(filteredFps, fp)
+		}
+	}
+	groupSize := len(filteredFps) / cfg.ProcLimit
+	if len(filteredFps) != cfg.ProcLimit {
 		groupSize++
 	}
+
 	messages := make([]model.MessageBody, 0, groupSize)
 	procs := make([]*model.Process, 0, cfg.ProcLimit)
-	for _, fp := range fps {
-		if len(fp.Cmdline) == 0 {
-			continue
-		}
-		if config.IsBlacklisted(fp.Cmdline, cfg.Blacklist) {
-			continue
-		}
+	for _, fp := range filteredFps {
 		container, _ := containerByPID[fp.Pid]
 
 		if len(procs) >= cfg.ProcLimit {
@@ -77,7 +95,7 @@ func CollectProcesses(cfg *config.AgentConfig, groupID int32) ([]model.MessageBo
 			Command:     formatCommand(fp),
 			User:        formatUser(fp),
 			Memory:      formatMemory(fp),
-			Cpu:         formatCPU(fp),
+			Cpu:         formatCPU(fp, fp.CpuTime, p.lastProcs[fp.Pid].CpuTime, cpuTimes[0], p.lastCPUTime),
 			CreateTime:  fp.CreateTime,
 			Container:   formatContainer(container),
 			OpenFdCount: fp.OpenFdCount,
@@ -95,8 +113,28 @@ func CollectProcesses(cfg *config.AgentConfig, groupID int32) ([]model.MessageBo
 		Kubernetes: GetKubernetesMeta(),
 	})
 
+	// Store the last state for comparison on the next run.
+	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
+	p.lastProcs = fps
+	p.lastCPUTime = cpuTimes[0]
+
 	log.Infof("collected processes in %s", time.Now().Sub(start))
 	return messages, nil
+}
+
+func (p *ProcessCheck) skipProcess(cfg *config.AgentConfig, fp *process.FilledProcess) bool {
+	if len(fp.Cmdline) == 0 {
+		return true
+	}
+	if config.IsBlacklisted(fp.Cmdline, cfg.Blacklist) {
+		return true
+	}
+	if _, ok := p.lastProcs[fp.Pid]; !ok {
+		// Skipping any processes that didn't exist in the previous run.
+		// This means short-lived processes (<2s) will never be captured.
+		return true
+	}
+	return false
 }
 
 func formatCommand(fp *process.FilledProcess) *model.Command {
@@ -150,15 +188,14 @@ func formatMemory(fp *process.FilledProcess) *model.MemoryStat {
 	return ms
 }
 
-func formatCPU(fp *process.FilledProcess) *model.CPUStat {
+func formatCPU(fp *process.FilledProcess, t2, t1, syst2, syst1 cpu.TimesStat) *model.CPUStat {
 	numCPU := float64(runtime.NumCPU())
-	t1, t2 := fp.CpuTime1, fp.CpuTime2
-	deltaTime := float64(t2.Timestamp - t1.Timestamp)
+	deltaSys := syst2.Total() - syst1.Total()
 	return &model.CPUStat{
 		LastCpu:    t2.CPU,
-		TotalPct:   calculatePct((t2.User-t1.User)+(t2.System-t1.System), deltaTime, numCPU),
-		UserPct:    calculatePct(t2.User-t1.User, deltaTime, numCPU),
-		SystemPct:  calculatePct(t2.System-t1.System, deltaTime, numCPU),
+		TotalPct:   calculatePct((t2.User-t1.User)+(t2.System-t1.System), deltaSys, numCPU),
+		UserPct:    calculatePct(t2.User-t1.User, deltaSys, numCPU),
+		SystemPct:  calculatePct(t2.System-t1.System, deltaSys, numCPU),
 		NumThreads: fp.NumThreads,
 		Cpus:       []*model.SingleCPUStat{},
 		Nice:       fp.Nice,

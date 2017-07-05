@@ -150,22 +150,29 @@ func handleSignals(exit chan bool) {
 func debugCheckResults(cfg *config.AgentConfig, check string) error {
 	switch check {
 	case "process":
-		return printResults(cfg, checks.CollectProcesses, check)
+		return printResults(cfg, &checks.ProcessCheck{}, check)
 	case "connections":
-		return printResults(cfg, checks.CollectConnections, check)
+		return printResults(cfg, &checks.ConnectionsCheck{}, check)
 	case "realtime":
-		return printResults(cfg, checks.CollectRealTime, check)
+		return printResults(cfg, &checks.RealTimeCheck{}, check)
 	default:
 		return fmt.Errorf("invalid check: %s", check)
 	}
 }
 
-func printResults(cfg *config.AgentConfig, r CheckRunner, check string) error {
+func printResults(cfg *config.AgentConfig, ch checks.Check, check string) error {
+	// Run the check once to prime the cache.
+	_, err := ch.Run(cfg, 0)
+	if err != nil {
+		return fmt.Errorf("collection error: %s", err)
+	}
+	time.Sleep(1 * time.Second)
+
 	fmt.Printf("-----------------------------\n\n")
 	fmt.Printf("\nResults for check %s\n", check)
 	fmt.Printf("-----------------------------\n\n")
 
-	msgs, err := r(cfg, 0)
+	msgs, err := ch.Run(cfg, 1)
 	if err != nil {
 		return fmt.Errorf("collection error: %s", err)
 	}

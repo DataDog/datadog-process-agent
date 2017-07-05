@@ -16,7 +16,11 @@ import (
 	"github.com/DataDog/datadog-process-agent/model"
 )
 
-type CheckRunner func(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error)
+type collectorChecks struct {
+	process     *checks.ProcessCheck
+	realTime    *checks.RealTimeCheck
+	connections *checks.ConnectionsCheck
+}
 
 // Collector will collect metrics from the local system and ship to the backend.
 type Collector struct {
@@ -29,6 +33,9 @@ type Collector struct {
 	interval time.Duration
 	// switch to enable/disable real time mode, comes directly from the config file
 	allowRealTime bool
+
+	// Store check state - this is ugly and should be managed differently.
+	checks collectorChecks
 }
 
 // NewCollector creates a new Collectr
@@ -66,12 +73,19 @@ func NewCollector(cfg *config.AgentConfig) Collector {
 		interval:      2 * time.Second,
 		allowRealTime: cfg.AllowRealTime,
 		httpClient:    http.Client{Transport: transport},
+
+		// Each check should handle a empty state initialization.
+		checks: collectorChecks{
+			process:     &checks.ProcessCheck{},
+			realTime:    &checks.RealTimeCheck{},
+			connections: &checks.ConnectionsCheck{},
+		},
 	}
 }
 
-func (l *Collector) runCheck(r CheckRunner) {
-	if messages, err := r(l.cfg, l.groupID); err != nil {
-		log.Criticalf("Unable to run check %v: %s", r, err)
+func (l *Collector) runCheck(c checks.Check) {
+	if messages, err := c.Run(l.cfg, l.groupID); err != nil {
+		log.Criticalf("Unable to run check %v: %s", c, err)
 	} else {
 		l.groupID++
 		l.send <- messages
@@ -100,16 +114,23 @@ func (l *Collector) run() {
 		}
 	}()
 
-	l.runCheck(checks.CollectConnections)
+	// Perform an initial check to prime the process caches.
+	// This are expected to return no messages.
+	l.runCheck(l.checks.process)
+
+	// Then perform initial checks to start sending data immediately.
+	l.runCheck(l.checks.process)
+	l.runCheck(l.checks.connections)
+
 	for {
 		select {
 		case <-l.cfg.Timers.Process.C:
-			l.runCheck(checks.CollectProcesses)
+			l.runCheck(l.checks.process)
 		case <-l.cfg.Timers.Connections.C:
-			l.runCheck(checks.CollectConnections)
+			l.runCheck(l.checks.connections)
 		case <-l.cfg.Timers.RealTime.C:
 			if l.realTime && l.allowRealTime {
-				l.runCheck(checks.CollectRealTime)
+				l.runCheck(l.checks.realTime)
 			}
 		case _, ok := <-exit:
 			if !ok {
