@@ -156,7 +156,7 @@ func formatCPU(fp *process.FilledProcess) *model.CPUStat {
 	deltaTime := float64(t2.Timestamp - t1.Timestamp)
 	return &model.CPUStat{
 		LastCpu:    t2.CPU,
-		TotalPct:   calculatePct((t2.User-t1.User)+(t2.System-t2.System), deltaTime, numCPU),
+		TotalPct:   calculatePct((t2.User-t1.User)+(t2.System-t1.System), deltaTime, numCPU),
 		UserPct:    calculatePct(t2.User-t1.User, deltaTime, numCPU),
 		SystemPct:  calculatePct(t2.System-t1.System, deltaTime, numCPU),
 		NumThreads: fp.NumThreads,
