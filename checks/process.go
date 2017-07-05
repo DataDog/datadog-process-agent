@@ -153,12 +153,12 @@ func formatMemory(fp *process.FilledProcess) *model.MemoryStat {
 func formatCPU(fp *process.FilledProcess) *model.CPUStat {
 	numCPU := float64(runtime.NumCPU())
 	t1, t2 := fp.CpuTime1, fp.CpuTime2
-	delta := float64(t2.Timestamp-t1.Timestamp) * float64(numCPU)
+	deltaTime := float64(t2.Timestamp - t1.Timestamp)
 	return &model.CPUStat{
 		LastCpu:    t2.CPU,
-		TotalPct:   calculatePercent(t1.Total(), t2.Total(), delta, numCPU),
-		UserPct:    calculatePercent(t1.User, t2.User, delta, numCPU),
-		SystemPct:  calculatePercent(t1.System, t2.System, delta, numCPU),
+		TotalPct:   calculatePct((t2.User-t1.User)+(t2.System-t2.System), deltaTime, numCPU),
+		UserPct:    calculatePct(t2.User-t1.User, deltaTime, numCPU),
+		SystemPct:  calculatePct(t2.System-t1.System, deltaTime, numCPU),
 		NumThreads: fp.NumThreads,
 		Cpus:       []*model.SingleCPUStat{},
 		Nice:       fp.Nice,
@@ -183,10 +183,15 @@ func formatContainer(container *docker.Container) *model.Container {
 	}
 }
 
-func calculatePercent(v1, v2, delta, numCPU float64) float32 {
-	if delta == 0 {
+func calculatePct(deltaProc, deltaTime, numCPU float64) float32 {
+	if deltaTime == 0 {
 		return 0
 	}
-	deltaProc := v2 - v1
-	return float32(((deltaProc / delta) * 100) * float64(numCPU))
+
+	// Calculates utilization split across all CPUs. A busy-loop process
+	// on a 2-CPU-core system would be reported as 50% instead of 100%.
+	overalPct := (deltaProc / deltaTime) * 100
+
+	// In order to emulate top we multiply utilization by # of CPUs so a busy loop would be 100%.
+	return float32(overalPct * numCPU)
 }
