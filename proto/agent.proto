@@ -100,6 +100,17 @@ message ProcessUser {
 	int32 sgid = 7;
 }
 
+// status section in https://docs.docker.com/engine/api/v1.29/#tag/Container
+enum ContainerState {
+	unknown = 0;
+	created = 1;
+	restarting = 2;
+	running = 3;
+	paused = 4;
+	exited = 5;
+	dead = 6;
+}
+
 message Container {
 	string type = 1;
 	string id = 2;
@@ -108,6 +119,7 @@ message Container {
 	float  cpuLimit = 5;
 	uint64 memoryLimit = 6;
 	string status = 7;
+	ContainerState state = 8;
 }
 
 // ProcessStat is used for real-time process messages. It should only contain

@@ -24,6 +24,7 @@ type Container struct {
 	Status   string
 	CPULimit float64
 	MemLimit uint64
+	State    string
 }
 
 func detectServerAPIVersion() (string, error) {
@@ -74,6 +75,7 @@ func GetDockerContainers() ([]*Container, error) {
 			Image:   c.Image,
 			ImageID: c.ImageID,
 			Status:  c.Status,
+			State:   c.State,
 		})
 	}
 	return ret, nil

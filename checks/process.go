@@ -212,6 +212,7 @@ func formatContainer(container *docker.Container) *model.Container {
 		CpuLimit:    float32(container.CPULimit),
 		MemoryLimit: container.MemLimit,
 		Status:      container.Status,
+		State:       model.ContainerState(model.ContainerState_value[container.State]),
 	}
 }
 
