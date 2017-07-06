@@ -32,7 +32,6 @@ type AgentConfig struct {
 	MaxProcFDs    int
 	ProcLimit     int
 	AllowRealTime bool
-	Concurrency   int
 	Proxy         *url.URL
 	Timers        *CheckTimers
 	Logger        *LoggerConfig
@@ -63,7 +62,6 @@ func NewDefaultAgentConfig() *AgentConfig {
 		MaxProcFDs:    200,
 		ProcLimit:     100,
 		AllowRealTime: true,
-		Concurrency:   4,
 		Timers: &CheckTimers{
 			Process:     time.NewTicker(10 * time.Second),
 			Connections: time.NewTicker(3 * 60 * time.Minute),
@@ -162,7 +160,6 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 			log.Warn("Overriding the configured process limit because it exceeds maximum")
 			cfg.ProcLimit = maxProcLimit
 		}
-		cfg.Concurrency = file.GetIntDefault(ns, "concurrency", cfg.Concurrency)
 		t := cfg.Timers
 		t.Process = time.NewTicker(file.GetDurationDefault(ns, "process_interval", time.Second, 10*time.Second))
 		t.Connections = time.NewTicker(file.GetDurationDefault(ns, "connection_interval", time.Minute, 3*60*time.Minute))

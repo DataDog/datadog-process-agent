@@ -10,7 +10,9 @@ import (
 	"github.com/DataDog/datadog-process-agent/model"
 )
 
-func CollectConnections(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
+type ConnectionsCheck struct{}
+
+func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
 	connections, err := net.ConnectionsMax("tcp", cfg.MaxProcFDs)
 	if err != nil {
