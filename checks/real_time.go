@@ -73,15 +73,16 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 		}
 
 		stats = append(stats, &model.ProcessStat{
-			Pid:         fp.Pid,
-			CreateTime:  fp.CreateTime,
-			Memory:      formatMemory(fp),
-			Cpu:         formatCPU(fp, fp.CpuTime, r.lastProcs[fp.Pid].CpuTime, cpuTimes[0], r.lastCPUTime),
-			Nice:        fp.Nice,
-			State:       0, //model.ProcessStateFromString(fp.Status), TODO
-			Threads:     fp.NumThreads,
-			ContainerId: cidFromPid(fp.Pid, containerByPID),
-			OpenFdCount: fp.OpenFdCount,
+			Pid:            fp.Pid,
+			CreateTime:     fp.CreateTime,
+			Memory:         formatMemory(fp),
+			Cpu:            formatCPU(fp, fp.CpuTime, r.lastProcs[fp.Pid].CpuTime, cpuTimes[0], r.lastCPUTime),
+			Nice:           fp.Nice,
+			State:          0, //model.ProcessStateFromString(fp.Status), TODO
+			Threads:        fp.NumThreads,
+			ContainerId:    cidFromPid(fp.Pid, containerByPID),
+			OpenFdCount:    fp.OpenFdCount,
+			ContainerState: cStateFromPid(fp.Pid, containerByPID),
 		})
 	}
 
@@ -117,9 +118,26 @@ func (r *RealTimeCheck) skipProcess(cfg *config.AgentConfig, fp *process.FilledP
 	return false
 }
 
+// get container id from pid
 func cidFromPid(pid int32, containerMap map[int32]*docker.Container) string {
 	if c, ok := containerMap[pid]; ok {
 		return c.ID
 	}
 	return ""
+}
+
+// get container state from pid
+func cStateFromPid(pid int32, containerMap map[int32]*docker.Container) model.ContainerState {
+	if c, ok := containerMap[pid]; ok {
+		return model.ContainerState(model.ContainerState_value[c.State])
+	}
+	return model.ContainerState(0)
+}
+
+// get container created time from pid
+func cCreatedFromPid(pid int32, containerMap map[int32]*docker.Container) int64 {
+	if c, ok := containerMap[pid]; ok {
+		return c.Created
+	}
+	return int64(0)
 }

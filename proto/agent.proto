@@ -118,7 +118,7 @@ message Container {
 	string image = 4;
 	float  cpuLimit = 5;
 	uint64 memoryLimit = 6;
-	string status = 7;
+	int64  created = 7;
 	ContainerState state = 8;
 }
 
@@ -139,6 +139,7 @@ message ProcessStat {
 	uint32 key = 9;
 	// we need container id because we need to do the scoring by container
 	string containerId = 10;
+	ContainerState containerState = 11;
 }
 
 
