@@ -3,7 +3,7 @@ FROM datadog/docker-dd-agent:latest
 MAINTAINER Datadog <package@datadoghq.com>
 
 ENV DOCKER_DD_AGENT=yes \
-    AGENT_VERSION=0.99.31 \
+    AGENT_VERSION=0.99.32 \
     DD_PROCESS_AGENT_ENABLED=true
 
 # Install the Agent
