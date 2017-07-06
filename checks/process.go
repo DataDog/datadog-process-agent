@@ -15,11 +15,6 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/docker"
 )
 
-const (
-	// cpuDelta is the amount of time spent between CPU timing checks.
-	cpuDelta = 1 * time.Second
-)
-
 var lastDockerErr string
 
 type ProcessCheck struct {
@@ -33,7 +28,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if err != nil {
 		return nil, err
 	}
-	fps, err := process.AllProcesses(cpuDelta, cfg.Concurrency)
+	fps, err := process.AllProcesses()
 	if err != nil {
 		return nil, err
 	}

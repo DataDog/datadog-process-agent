@@ -19,7 +19,7 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 	if err != nil {
 		return nil, err
 	}
-	fps, err := process.AllProcesses(cpuDelta, cfg.Concurrency)
+	fps, err := process.AllProcesses()
 	if err != nil {
 		return nil, err
 	}
