@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/docker/docker/api/types"
@@ -118,4 +119,23 @@ func ContainersByPID(pids []int32) (map[int32]*Container, error) {
 		}
 	}
 	return containerMap, nil
+}
+
+func GetHostname() (string, error) {
+	if os.Getenv("DOCKER_API_VERSION") == "" {
+		version, err := detectServerAPIVersion()
+		if err != nil {
+			return "", err
+		}
+		os.Setenv("DOCKER_API_VERSION", version)
+	}
+	client, err := client.NewEnvClient()
+	if err != nil {
+		return "", err
+	}
+	info, err := client.Info(context.Background())
+	if err != nil {
+		return "", fmt.Errorf("unable to get Docker info: %s", err)
+	}
+	return info.Name, nil
 }
