@@ -100,6 +100,17 @@ message ProcessUser {
 	int32 sgid = 7;
 }
 
+// status section in https://docs.docker.com/engine/api/v1.29/#tag/Container
+enum ContainerState {
+	unknown = 0;
+	created = 1;
+	restarting = 2;
+	running = 3;
+	paused = 4;
+	exited = 5;
+	dead = 6;
+}
+
 message Container {
 	string type = 1;
 	string id = 2;
@@ -107,7 +118,8 @@ message Container {
 	string image = 4;
 	float  cpuLimit = 5;
 	uint64 memoryLimit = 6;
-	string status = 7;
+	int64  created = 7;
+	ContainerState state = 8;
 }
 
 // ProcessStat is used for real-time process messages. It should only contain
@@ -127,6 +139,7 @@ message ProcessStat {
 	uint32 key = 9;
 	// we need container id because we need to do the scoring by container
 	string containerId = 10;
+	ContainerState containerState = 11;
 }
 
 
