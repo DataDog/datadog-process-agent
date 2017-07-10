@@ -85,7 +85,7 @@ func NewCollector(cfg *config.AgentConfig) Collector {
 
 func (l *Collector) runCheck(c checks.Check) {
 	if messages, err := c.Run(l.cfg, l.groupID); err != nil {
-		log.Criticalf("Unable to run check %v: %s", c, err)
+		log.Criticalf("Unable to run check: %s", err)
 	} else {
 		l.groupID++
 		l.send <- messages

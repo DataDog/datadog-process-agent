@@ -4,6 +4,8 @@ import (
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 
+	log "github.com/cihub/seelog"
+
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/util/docker"
@@ -36,8 +38,11 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 		pids = append(pids, fp.Pid)
 	}
 	containerByPID, err := docker.ContainersByPID(pids)
-	if err != nil && err != docker.ErrDockerNotAvailable {
-		return nil, err
+	if err != nil && err != docker.ErrDockerNotAvailable && err.Error() != lastDockerErr {
+		// Limit docker error logging to once per Agent run to prevent noise when permissions
+		// aren't correct.
+		log.Warnf("unable to get docker stats: %s", err)
+		lastDockerErr = err.Error()
 	}
 
 	info, err := collectSystemInfo(cfg)
