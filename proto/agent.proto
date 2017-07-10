@@ -122,6 +122,18 @@ message Container {
 	ContainerState state = 8;
 }
 
+// Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
+enum ProcessState {
+	U = 0; // unknown state
+	D = 1;
+	R = 2;
+	S = 3;
+	T = 4;
+	W = 5;
+	X = 6;
+	Z = 7;
+}
+
 // ProcessStat is used for real-time process messages. It should only contain
 // data that can change for a running process (and relevant information to
 // generate a key). We will send a lot of these in the real-time messages so
@@ -133,13 +145,13 @@ message ProcessStat {
 	MemoryStat memory = 3;
 	CPUStat cpu = 4;
 	int32 nice = 5;
-	int32 state = 6;
 	int32 threads = 7;
 	int32 openFdCount = 8;
 	uint32 key = 9;
 	// we need container id because we need to do the scoring by container
 	string containerId = 10;
 	ContainerState containerState = 11;
+	ProcessState processState = 12;
 }
 
 

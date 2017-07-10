@@ -78,11 +78,11 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 			Memory:         formatMemory(fp),
 			Cpu:            formatCPU(fp, fp.CpuTime, r.lastProcs[fp.Pid].CpuTime, cpuTimes[0], r.lastCPUTime),
 			Nice:           fp.Nice,
-			State:          0, //model.ProcessStateFromString(fp.Status), TODO
 			Threads:        fp.NumThreads,
 			ContainerId:    cidFromPid(fp.Pid, containerByPID),
 			OpenFdCount:    fp.OpenFdCount,
 			ContainerState: cStateFromPid(fp.Pid, containerByPID),
+			ProcessState:   model.ProcessState(model.ProcessState_value[fp.Status]),
 		})
 	}
 
