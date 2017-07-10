@@ -1,11 +1,13 @@
 package checks
 
 import (
+	"os"
 	"os/user"
 	"runtime"
 	"strconv"
 	"time"
 
+	agentpayload "github.com/DataDog/agent-payload/gogen"
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 	log "github.com/cihub/seelog"
@@ -13,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/util/docker"
+	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
 var lastDockerErr string
@@ -20,6 +23,20 @@ var lastDockerErr string
 type ProcessCheck struct {
 	lastCPUTime cpu.TimesStat
 	lastProcs   map[int32]*process.FilledProcess
+	kubeUtil    *kubernetes.KubeUtil
+}
+
+func NewProcessCheck(cfg *config.AgentConfig) *ProcessCheck {
+	var err error
+	var kubeUtil *kubernetes.KubeUtil
+	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" && cfg.CollectKubernetesMetadata {
+		kubeUtil, err = kubernetes.NewKubeUtil(cfg)
+		if err != nil {
+			log.Errorf("error initializing kubernetes check, metadata won't be collected: %s", err)
+		}
+	}
+
+	return &ProcessCheck{kubeUtil: kubeUtil}
 }
 
 func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
@@ -32,7 +49,6 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if err != nil {
 		return nil, err
 	}
-
 	// End check early if this is our first run.
 	if p.lastProcs == nil {
 		p.lastProcs = fps
@@ -40,6 +56,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		return nil, nil
 	}
 
+	// Pull in container metadata, where available.
 	pids := make([]int32, 0, len(fps))
 	for _, fp := range fps {
 		pids = append(pids, fp.Pid)
@@ -51,13 +68,17 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		log.Warnf("unable to get docker stats: %s", err)
 		lastDockerErr = err.Error()
 	}
+	var kubeMeta *agentpayload.KubeMetadataPayload
+	if p.kubeUtil != nil {
+		kubeMeta = p.kubeUtil.GetKubernetesMeta(cfg)
+	}
 
 	info, err := collectSystemInfo(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	// Pre-filter the list to get an accurate grou psize.
+	// Pre-filter the list to get an accurate group size.
 	filteredFps := make([]*process.FilledProcess, 0, len(fps))
 	for _, fp := range fps {
 		if !p.skipProcess(cfg, fp) {
@@ -73,14 +94,14 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	procs := make([]*model.Process, 0, cfg.ProcLimit)
 	for _, fp := range filteredFps {
 		container, _ := containerByPID[fp.Pid]
-
 		if len(procs) >= cfg.ProcLimit {
 			messages = append(messages, &model.CollectorProc{
-				HostName:  cfg.HostName,
-				Processes: procs,
-				Info:      info,
-				GroupId:   groupID,
-				GroupSize: int32(groupSize),
+				HostName:   cfg.HostName,
+				Processes:  procs,
+				Info:       info,
+				GroupId:    groupID,
+				GroupSize:  int32(groupSize),
+				Kubernetes: kubeMeta,
 			})
 			procs = make([]*model.Process, 0, cfg.ProcLimit)
 		}
@@ -105,7 +126,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		GroupSize: int32(groupSize),
 		// FIXME: We should not send this in every payload. Long-term the container
 		// ID should be enough context to resolve this metadata on the backend.
-		Kubernetes: GetKubernetesMeta(),
+		Kubernetes: kubeMeta,
 	})
 
 	// Store the last state for comparison on the next run.

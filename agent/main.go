@@ -150,7 +150,8 @@ func handleSignals(exit chan bool) {
 func debugCheckResults(cfg *config.AgentConfig, check string) error {
 	switch check {
 	case "process":
-		return printResults(cfg, &checks.ProcessCheck{}, check)
+		p := checks.NewProcessCheck(cfg)
+		return printResults(cfg, p, check)
 	case "connections":
 		return printResults(cfg, &checks.ConnectionsCheck{}, check)
 	case "realtime":

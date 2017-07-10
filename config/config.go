@@ -35,6 +35,12 @@ type AgentConfig struct {
 	Proxy         *url.URL
 	Timers        *CheckTimers
 	Logger        *LoggerConfig
+
+	// Kubernetes
+	CollectKubernetesMetadata  bool
+	KubernetesKubeletHost      string
+	KubernetesHTTPKubeletPort  int
+	KubernetesHTTPSKubeletPort int
 }
 
 const (
@@ -67,6 +73,11 @@ func NewDefaultAgentConfig() *AgentConfig {
 			Connections: time.NewTicker(3 * 60 * time.Minute),
 			RealTime:    time.NewTicker(2 * time.Second),
 		},
+
+		// Kubernetes
+		CollectKubernetesMetadata:  true,
+		KubernetesHTTPKubeletPort:  10255,
+		KubernetesHTTPSKubeletPort: 10250,
 	}
 
 	return ac
@@ -223,6 +234,20 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 			log.Infof("overriding API endpoint from env")
 			c.APIEndpoint = u
 		}
+	}
+
+	// Kubernetes config is set via environment only (for now).
+	if v := os.Getenv("DD_COLLECT_KUBERNETES_METADATA"); v == "false" {
+		c.CollectKubernetesMetadata = false
+	}
+	if v := os.Getenv("DD_KUBERNETES_KUBELET_HOST"); v != "" {
+		c.KubernetesKubeletHost = v
+	}
+	if v := os.Getenv("DD_KUBERNETES_KUBELET_HTTP_PORT"); v != "" {
+		c.KubernetesHTTPKubeletPort, _ = strconv.Atoi(v)
+	}
+	if v := os.Getenv("DD_KUBERNETES_KUBELET_HTTPS_PORT"); v == "false" {
+		c.KubernetesHTTPSKubeletPort, _ = strconv.Atoi(v)
 	}
 
 	return c

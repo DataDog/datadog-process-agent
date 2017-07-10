@@ -76,7 +76,7 @@ func NewCollector(cfg *config.AgentConfig) Collector {
 
 		// Each check should handle a empty state initialization.
 		checks: collectorChecks{
-			process:     &checks.ProcessCheck{},
+			process:     checks.NewProcessCheck(cfg),
 			realTime:    &checks.RealTimeCheck{},
 			connections: &checks.ConnectionsCheck{},
 		},
