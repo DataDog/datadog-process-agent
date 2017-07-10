@@ -152,6 +152,11 @@ message ProcessStat {
 	string containerId = 10;
 	ContainerState containerState = 11;
 	ProcessState processState = 12;
+
+	// These stats are from the container level but are stored per-process
+	// because we don't send a container primitive yet.
+	uint64 containerReadBytes = 13;
+	uint64 containerWriteBytes = 14;
 }
 
 

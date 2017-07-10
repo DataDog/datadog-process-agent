@@ -17,15 +17,17 @@ var (
 )
 
 type Container struct {
-	Type     string
-	ID       string
-	Name     string
-	Image    string
-	ImageID  string
-	CPULimit float64
-	MemLimit uint64
-	Created  int64
-	State    string
+	Type       string
+	ID         string
+	Name       string
+	Image      string
+	ImageID    string
+	CPULimit   float64
+	MemLimit   uint64
+	Created    int64
+	State      string
+	ReadBytes  uint64
+	WriteBytes uint64
 }
 
 func detectServerAPIVersion() (string, error) {
@@ -111,9 +113,15 @@ func ContainersByPID(pids []int32) (map[int32]*Container, error) {
 		if err != nil {
 			return nil, err
 		}
+		ioStat, err := cgroup.IO()
+		if err != nil {
+			return nil, err
+		}
 
 		containerStat.MemLimit = memstat.MemLimitInBytes
 		containerStat.CPULimit = cpuLimit
+		containerStat.ReadBytes = ioStat.ReadBytes
+		containerStat.WriteBytes = ioStat.ReadBytes
 		for _, p := range cgroup.Pids {
 			containerMap[p] = containerStat
 		}
