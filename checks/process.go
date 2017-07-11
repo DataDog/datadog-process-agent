@@ -234,6 +234,7 @@ func formatContainer(container *docker.Container) *model.Container {
 		MemoryLimit: container.MemLimit,
 		Created:     container.Created,
 		State:       model.ContainerState(model.ContainerState_value[container.State]),
+		Health:      model.ContainerHealth(model.ContainerHealth_value[container.Health]),
 	}
 }
 

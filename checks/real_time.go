@@ -95,6 +95,7 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 			// Container-level statistics. These will be duplicated for every process in this container.
 			ContainerId:         container.ID,
 			ContainerState:      model.ContainerState(model.ContainerState_value[container.State]),
+			ContainerHealth:     model.ContainerHealth(model.ContainerHealth_value[container.Health]),
 			ContainerReadBytes:  container.ReadBytes,
 			ContainerWriteBytes: container.WriteBytes,
 		})
