@@ -67,7 +67,7 @@ type CgroupIOStat struct {
 
 type ContainerCgroup struct {
 	ContainerID string
-	Pids        []int32
+	Pids        util.Int32Set
 	Paths       map[string]string
 	Mounts      map[string]string
 }
@@ -369,6 +369,8 @@ func parseCgroupMountPoints(lines []string) map[string]string {
 
 // CgroupsForPids returns ContainerCgroup for every container that's in a Cgroup.
 // We return as a map[containerID]Cgroup for easy look-up.
+// We expect `pids` to be a list of top-level PIDs for every cgroup and then we'll
+// attach the remainder of the pids (from cgroup.procs) to the ContainerCgroup.
 func CgroupsForPids(pids []int32) (map[string]*ContainerCgroup, error) {
 	mounts, err := cgroupMountPoints()
 	if err != nil {
@@ -394,47 +396,36 @@ func CgroupsForPids(pids []int32) (map[string]*ContainerCgroup, error) {
 		}
 
 		if cg, ok := cgs[containerID]; ok {
-			// Assumes that the paths will always be the same for a container id.
-			cg.Pids = append(cg.Pids, pid)
+			// If we've already seen a pid then
+			cg.Pids.Add(pid)
 		} else {
-			cgs[containerID] = &ContainerCgroup{
+			cg = &ContainerCgroup{
 				ContainerID: containerID,
-				Pids:        []int32{pid},
 				Paths:       paths,
-				Mounts:      mounts}
+				Mounts:      mounts,
+				Pids:        util.NewInt32Set(),
+			}
+
+			// Load the pids from the cgroup.procs file.
+			procfile, err := cg.cgroupFilePath("cpu", "cgroup.procs")
+			if err != nil {
+				return nil, err
+			}
+			lines, err := util.ReadLines(procfile)
+			if err != nil {
+				return nil, err
+			}
+			for _, l := range lines {
+				p, err := strconv.ParseInt(l, 10, 32)
+				if err == nil {
+					cg.Pids.Add(int32(p))
+				}
+			}
+			cgs[containerID] = cg
 		}
 	}
+
 	return cgs, nil
-}
-
-// CGroup for pid returns a ContainerCgroup for a single pid
-func CGroupForPid(pid int32) (*ContainerCgroup, error) {
-	mounts, err := cgroupMountPoints()
-	if err != nil {
-		return nil, err
-	}
-	cgPath := util.HostProc(strconv.Itoa(int(pid)), "cgroup")
-	if !util.PathExists(cgPath) {
-		return nil, fmt.Errorf("missing cgroup file for pid %d", pid)
-	}
-
-	lines, err := util.ReadLines(cgPath)
-	if err != nil {
-		return nil, err
-	}
-	if len(lines) == 0 {
-		return nil, fmt.Errorf("empty cgroup file for pid %d", pid)
-	}
-	containerID, paths := parseCgroupPaths(lines)
-	if containerID == "" {
-		return nil, fmt.Errorf("pid %d not in a container", pid)
-	}
-	return &ContainerCgroup{
-		ContainerID: containerID,
-		Pids:        []int32{pid},
-		Paths:       paths,
-		Mounts:      mounts,
-	}, nil
 }
 
 // parseCgroupPaths parses out the cgroup paths from a /proc/$pid/cgroup file.
