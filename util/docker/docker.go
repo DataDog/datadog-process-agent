@@ -19,6 +19,7 @@ var (
 type Container struct {
 	Type       string
 	ID         string
+	Pid        int32
 	Name       string
 	Image      string
 	ImageID    string
@@ -86,6 +87,7 @@ func GetDockerContainers() ([]*Container, error) {
 		ret = append(ret, &Container{
 			Type:    "Docker",
 			ID:      c.ID,
+			Pid:     int32(i.State.Pid),
 			Name:    c.Names[0],
 			Image:   c.Image,
 			ImageID: c.ImageID,
@@ -101,16 +103,20 @@ func GetDockerContainers() ([]*Container, error) {
 // number of syscalls for each PID for just enough to get the data we need.
 // Only supports Docker containers for now but the bulk of the logic is around
 // cgroups so we could support other types without too much trouble.
-func ContainersByPID(pids []int32) (map[int32]*Container, error) {
+func ContainersByPID() (map[int32]*Container, error) {
 	sockPath := util.GetEnv("DOCKER_SOCKET_PATH", "/var/run/docker.sock")
 	if !util.PathExists(sockPath) {
 		return nil, ErrDockerNotAvailable
 	}
-	cgByContainer, err := CgroupsForPids(pids)
+	containers, err := GetDockerContainers()
 	if err != nil {
 		return nil, err
 	}
-	containers, err := GetDockerContainers()
+	pids := make([]int32, 0, len(containers))
+	for _, c := range containers {
+		pids = append(pids, c.Pid)
+	}
+	cgByContainer, err := CgroupsForPids(pids)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +143,7 @@ func ContainersByPID(pids []int32) (map[int32]*Container, error) {
 		containerStat.CPULimit = cpuLimit
 		containerStat.ReadBytes = ioStat.ReadBytes
 		containerStat.WriteBytes = ioStat.WriteBytes
-		for _, p := range cgroup.Pids {
+		for p := range cgroup.Pids {
 			containerMap[p] = containerStat
 		}
 	}

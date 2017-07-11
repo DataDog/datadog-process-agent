@@ -61,7 +61,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	for _, fp := range fps {
 		pids = append(pids, fp.Pid)
 	}
-	containerByPID, err := docker.ContainersByPID(pids)
+	containerByPID, err := docker.ContainersByPID()
 	if err != nil && err != docker.ErrDockerNotAvailable && err.Error() != lastDockerErr {
 		// Limit docker error logging to once per Agent run to prevent noise when permissions
 		// aren't correct.
