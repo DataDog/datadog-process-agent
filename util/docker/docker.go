@@ -26,6 +26,7 @@ type Container struct {
 	MemLimit   uint64
 	Created    int64
 	State      string
+	Health     string
 	ReadBytes  uint64
 	WriteBytes uint64
 }
@@ -48,9 +49,8 @@ func detectServerAPIVersion() (string, error) {
 	return v.APIVersion, nil
 }
 
-// GetDockerContainers returns a list of Docker info for
-// active containers using the Docker API.
-// This requires certain permission.
+// GetDockerContainers returns a list of Docker info for active containers using the Docker API.
+// This requires the running user to be in the "docker" user group or have access to /tmp/docker.sock.
 func GetDockerContainers() ([]*Container, error) {
 	if os.Getenv("DOCKER_API_VERSION") == "" {
 		version, err := detectServerAPIVersion()
@@ -71,6 +71,18 @@ func GetDockerContainers() ([]*Container, error) {
 	}
 	ret := make([]*Container, 0, len(containers))
 	for _, c := range containers {
+		// We could have lost the container between list and inspect so ignore these errors.
+		i, err := cli.ContainerInspect(context.Background(), c.ID)
+		if err != nil && client.IsErrContainerNotFound(err) {
+			return nil, err
+		}
+
+		var health string
+		// Healthcheck and status not available until >= 1.12
+		if i.State.Health != nil {
+			health = i.State.Health.Status
+		}
+
 		ret = append(ret, &Container{
 			Type:    "Docker",
 			ID:      c.ID,
@@ -79,6 +91,7 @@ func GetDockerContainers() ([]*Container, error) {
 			ImageID: c.ImageID,
 			Created: c.Created,
 			State:   c.State,
+			Health:  health,
 		})
 	}
 	return ret, nil
@@ -86,6 +99,8 @@ func GetDockerContainers() ([]*Container, error) {
 
 // Generates a mapping of PIDs to container metadata. Optimized to limit the
 // number of syscalls for each PID for just enough to get the data we need.
+// Only supports Docker containers for now but the bulk of the logic is around
+// cgroups so we could support other types without too much trouble.
 func ContainersByPID(pids []int32) (map[int32]*Container, error) {
 	sockPath := util.GetEnv("DOCKER_SOCKET_PATH", "/var/run/docker.sock")
 	if !util.PathExists(sockPath) {

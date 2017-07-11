@@ -111,6 +111,15 @@ enum ContainerState {
 	dead = 6;
 }
 
+// https://blog.couchbase.com/docker-health-check-keeping-containers-healthy/
+// health can be: starting, healthy, unhealthy
+enum ContainerHealth {
+	unknownHealth = 0;
+	starting = 1;
+	healthy = 2;
+	unhealthy = 3;
+}
+
 message Container {
 	string type = 1;
 	string id = 2;
@@ -120,6 +129,7 @@ message Container {
 	uint64 memoryLimit = 6;
 	int64  created = 7;
 	ContainerState state = 8;
+	ContainerHealth health = 9;
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
@@ -152,11 +162,11 @@ message ProcessStat {
 	string containerId = 10;
 	ContainerState containerState = 11;
 	ProcessState processState = 12;
-
 	// These stats are from the container level but are stored per-process
 	// because we don't send a container primitive yet.
 	uint64 containerReadBytes = 13;
 	uint64 containerWriteBytes = 14;
+	ContainerHealth containerHealth = 15;
 }
 
 
