@@ -59,6 +59,12 @@ type CgroupTimesStat struct {
 	User        float64
 }
 
+type CgroupIOStat struct {
+	ContainerID string
+	ReadBytes   uint64
+	WriteBytes  uint64
+}
+
 type ContainerCgroup struct {
 	ContainerID string
 	Pids        []int32
@@ -227,6 +233,35 @@ func (c ContainerCgroup) CPULimit() (float64, error) {
 		limit = (quota / period) * 100.0
 	}
 	return limit, nil
+}
+
+// IO returns the disk read and write bytes stats for this cgroup.
+func (c ContainerCgroup) IO() (*CgroupIOStat, error) {
+	statfile, err := c.cgroupFilePath("blkio", "blkio.throttle.io_service_bytes")
+	if err != nil {
+		return nil, err
+	}
+	lines, err := util.ReadLines(statfile)
+	if err != nil {
+		return nil, err
+	}
+	ret := &CgroupIOStat{ContainerID: c.ContainerID}
+	for _, line := range lines {
+		fields := strings.Split(line, " ")
+		if fields[0] == "Read" {
+			read, err := strconv.ParseUint(fields[0], 10, 64)
+			if err == nil {
+				ret.ReadBytes = read
+			}
+		}
+		if fields[0] == "Write" {
+			write, err := strconv.ParseUint(fields[0], 10, 64)
+			if err == nil {
+				ret.WriteBytes = write
+			}
+		}
+	}
+	return ret, nil
 }
 
 // cgroupFilePath constructs file path to get targetted stats file.
