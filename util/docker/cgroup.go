@@ -236,6 +236,19 @@ func (c ContainerCgroup) CPULimit() (float64, error) {
 }
 
 // IO returns the disk read and write bytes stats for this cgroup.
+// Format:
+//
+// 8:0 Read 49225728
+// 8:0 Write 9850880
+// 8:0 Sync 0
+// 8:0 Async 59076608
+// 8:0 Total 59076608
+// 252:0 Read 49094656
+// 252:0 Write 9850880
+// 252:0 Sync 0
+// 252:0 Async 58945536
+// 252:0 Total 58945536
+//
 func (c ContainerCgroup) IO() (*CgroupIOStat, error) {
 	statfile, err := c.cgroupFilePath("blkio", "blkio.throttle.io_service_bytes")
 	if err != nil {
@@ -248,14 +261,13 @@ func (c ContainerCgroup) IO() (*CgroupIOStat, error) {
 	ret := &CgroupIOStat{ContainerID: c.ContainerID}
 	for _, line := range lines {
 		fields := strings.Split(line, " ")
-		if fields[0] == "Read" {
-			read, err := strconv.ParseUint(fields[0], 10, 64)
+		if fields[1] == "Read" {
+			read, err := strconv.ParseUint(fields[2], 10, 64)
 			if err == nil {
 				ret.ReadBytes = read
 			}
-		}
-		if fields[0] == "Write" {
-			write, err := strconv.ParseUint(fields[0], 10, 64)
+		} else if fields[1] == "Write" {
+			write, err := strconv.ParseUint(fields[2], 10, 64)
 			if err == nil {
 				ret.WriteBytes = write
 			}

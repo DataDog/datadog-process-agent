@@ -136,7 +136,7 @@ func ContainersByPID(pids []int32) (map[int32]*Container, error) {
 		containerStat.MemLimit = memstat.MemLimitInBytes
 		containerStat.CPULimit = cpuLimit
 		containerStat.ReadBytes = ioStat.ReadBytes
-		containerStat.WriteBytes = ioStat.ReadBytes
+		containerStat.WriteBytes = ioStat.WriteBytes
 		for _, p := range cgroup.Pids {
 			containerMap[p] = containerStat
 		}
