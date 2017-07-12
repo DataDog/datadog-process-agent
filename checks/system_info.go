@@ -9,7 +9,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/model"
 )
 
-func collectSystemInfo(cfg *config.AgentConfig) (*model.SystemInfo, error) {
+func CollectSystemInfo(cfg *config.AgentConfig) (*model.SystemInfo, error) {
 	hi, err := host.Info()
 	if err != nil {
 		return nil, err

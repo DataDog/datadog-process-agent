@@ -77,11 +77,11 @@ message Process {
 	int64 createTime = 9;
 	Container container = 10;
 	int32 openFdCount = 11;
+	ProcessState state = 12;
 }
 
 message Command {
 	repeated string args = 1;
-	string state = 2;
 	string cwd = 3;
 	string root = 4;
 	bool onDisk = 5;
@@ -131,6 +131,8 @@ message Container {
 	ContainerState state = 8;
 	ContainerHealth health = 9;
 	int64 created = 10;
+	float containerRbps = 11;
+	float containerWbps = 12;
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
@@ -165,9 +167,9 @@ message ProcessStat {
 	ProcessState processState = 12;
 	// These stats are from the container level but are stored per-process
 	// because we don't send a container primitive yet.
-	uint64 containerReadBytes = 13;
-	uint64 containerWriteBytes = 14;
 	ContainerHealth containerHealth = 15;
+	float containerRbps = 16;
+	float containerWbps = 17;
 }
 
 

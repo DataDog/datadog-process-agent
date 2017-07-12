@@ -1,6 +1,8 @@
 package checks
 
 import (
+	"time"
+
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 
@@ -12,9 +14,20 @@ import (
 )
 
 type RealTimeCheck struct {
-	lastCPUTime cpu.TimesStat
-	lastProcs   map[int32]*process.FilledProcess
+	sysInfo        *model.SystemInfo
+	lastCPUTime    cpu.TimesStat
+	lastProcs      map[int32]*process.FilledProcess
+	lastContainers map[int32]*docker.Container
+	lastRun        time.Time
 }
+
+func NewRealTimeCheck(cfg *config.AgentConfig, sysInfo *model.SystemInfo) *RealTimeCheck {
+	return &RealTimeCheck{
+		sysInfo:   sysInfo,
+		lastProcs: make(map[int32]*process.FilledProcess)}
+}
+
+func (r *RealTimeCheck) Name() string { return "real-time" }
 
 func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	cpuTimes, err := cpu.Times(false)
@@ -24,13 +37,6 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 	fps, err := process.AllProcesses()
 	if err != nil {
 		return nil, err
-	}
-
-	// End check early if this is our first run.
-	if r.lastProcs == nil {
-		r.lastProcs = fps
-		r.lastCPUTime = cpuTimes[0]
-		return nil, nil
 	}
 
 	pids := make([]int32, 0, len(fps))
@@ -43,11 +49,6 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 		// aren't correct.
 		log.Warnf("unable to get docker stats: %s", err)
 		lastDockerErr = err.Error()
-	}
-
-	info, err := collectSystemInfo(cfg)
-	if err != nil {
-		return nil, err
 	}
 
 	// Pre-filter the list to get an accurate grou psize.
@@ -71,15 +72,19 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 				Stats:       stats,
 				GroupId:     groupID,
 				GroupSize:   int32(groupSize),
-				NumCpus:     int32(len(info.Cpus)),
-				TotalMemory: info.TotalMemory,
+				NumCpus:     int32(len(r.sysInfo.Cpus)),
+				TotalMemory: r.sysInfo.TotalMemory,
 			})
 			stats = make([]*model.ProcessStat, 0, cfg.ProcLimit)
 		}
 
-		container, ok := containerByPID[fp.Pid]
+		ctr, ok := containerByPID[fp.Pid]
 		if !ok {
-			container = &docker.Container{}
+			ctr = &docker.Container{}
+		}
+		lastCtr, ok := r.lastContainers[fp.Pid]
+		if !ok {
+			lastCtr = &docker.Container{}
 		}
 
 		stats = append(stats, &model.ProcessStat{
@@ -93,11 +98,11 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 			ProcessState: model.ProcessState(model.ProcessState_value[fp.Status]),
 
 			// Container-level statistics. These will be duplicated for every process in this container.
-			ContainerId:         container.ID,
-			ContainerState:      model.ContainerState(model.ContainerState_value[container.State]),
-			ContainerHealth:     model.ContainerHealth(model.ContainerHealth_value[container.Health]),
-			ContainerReadBytes:  container.ReadBytes,
-			ContainerWriteBytes: container.WriteBytes,
+			ContainerId:     ctr.ID,
+			ContainerState:  model.ContainerState(model.ContainerState_value[ctr.State]),
+			ContainerHealth: model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
+			ContainerRbps:   calculateRate(ctr.ReadBytes, lastCtr.ReadBytes, r.lastRun),
+			ContainerWbps:   calculateRate(ctr.WriteBytes, lastCtr.WriteBytes, r.lastRun),
 		})
 	}
 
@@ -106,13 +111,15 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 		Stats:       stats,
 		GroupId:     groupID,
 		GroupSize:   int32(groupSize),
-		NumCpus:     int32(len(info.Cpus)),
-		TotalMemory: info.TotalMemory,
+		NumCpus:     int32(len(r.sysInfo.Cpus)),
+		TotalMemory: r.sysInfo.TotalMemory,
 	})
 
 	// Store the last state for comparison on the next run.
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
+	r.lastRun = time.Now()
 	r.lastProcs = fps
+	r.lastContainers = containerByPID
 	r.lastCPUTime = cpuTimes[0]
 
 	return messages, nil
@@ -131,4 +138,13 @@ func (r *RealTimeCheck) skipProcess(cfg *config.AgentConfig, fp *process.FilledP
 		return true
 	}
 	return false
+}
+
+func calculateRate(cur, prev uint64, before time.Time) float32 {
+	now := time.Now()
+	diff := now.Unix() - before.Unix()
+	if before.IsZero() || diff <= 0 {
+		return 0
+	}
+	return float32(cur-prev) / float32(diff)
 }
