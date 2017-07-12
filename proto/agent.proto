@@ -127,9 +127,10 @@ message Container {
 	string image = 4;
 	float  cpuLimit = 5;
 	uint64 memoryLimit = 6;
-	int64  created = 7;
+	// 7 is removed, do not use.
 	ContainerState state = 8;
 	ContainerHealth health = 9;
+	int64 created = 10;
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
