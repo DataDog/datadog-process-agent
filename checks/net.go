@@ -12,6 +12,12 @@ import (
 
 type ConnectionsCheck struct{}
 
+func NewConnectionsCheck(cfg *config.AgentConfig, sysInfo *model.SystemInfo) *ConnectionsCheck {
+	return &ConnectionsCheck{}
+}
+
+func (c *ConnectionsCheck) Name() string { return "connections" }
+
 func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
 	connections, err := net.ConnectionsMax("tcp", cfg.MaxProcFDs)

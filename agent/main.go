@@ -124,7 +124,12 @@ func main() {
 		return
 	}
 
-	cl := NewCollector(cfg)
+	cl, err := NewCollector(cfg)
+	if err != nil {
+		log.Criticalf("Error creating collector: %s", err)
+		os.Exit(1)
+		return
+	}
 	cl.run()
 }
 
@@ -148,20 +153,27 @@ func handleSignals(exit chan bool) {
 }
 
 func debugCheckResults(cfg *config.AgentConfig, check string) error {
+	sysInfo, err := checks.CollectSystemInfo(cfg)
+	if err != nil {
+		return err
+	}
+
 	switch check {
 	case "process":
-		p := checks.NewProcessCheck(cfg)
-		return printResults(cfg, p, check)
+		p := checks.NewProcessCheck(cfg, sysInfo)
+		return printResults(cfg, p)
 	case "connections":
-		return printResults(cfg, &checks.ConnectionsCheck{}, check)
+		p := checks.NewConnectionsCheck(cfg, sysInfo)
+		return printResults(cfg, p)
 	case "realtime":
-		return printResults(cfg, &checks.RealTimeCheck{}, check)
+		p := checks.NewRealTimeCheck(cfg, sysInfo)
+		return printResults(cfg, p)
 	default:
 		return fmt.Errorf("invalid check: %s", check)
 	}
 }
 
-func printResults(cfg *config.AgentConfig, ch checks.Check, check string) error {
+func printResults(cfg *config.AgentConfig, ch checks.Check) error {
 	// Run the check once to prime the cache.
 	_, err := ch.Run(cfg, 0)
 	if err != nil {
@@ -170,7 +182,7 @@ func printResults(cfg *config.AgentConfig, ch checks.Check, check string) error 
 	time.Sleep(1 * time.Second)
 
 	fmt.Printf("-----------------------------\n\n")
-	fmt.Printf("\nResults for check %s\n", check)
+	fmt.Printf("\nResults for check %s\n", ch.Name())
 	fmt.Printf("-----------------------------\n\n")
 
 	msgs, err := ch.Run(cfg, 1)

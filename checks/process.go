@@ -21,12 +21,15 @@ import (
 var lastDockerErr string
 
 type ProcessCheck struct {
-	lastCPUTime cpu.TimesStat
-	lastProcs   map[int32]*process.FilledProcess
-	kubeUtil    *kubernetes.KubeUtil
+	kubeUtil       *kubernetes.KubeUtil
+	sysInfo        *model.SystemInfo
+	lastCPUTime    cpu.TimesStat
+	lastProcs      map[int32]*process.FilledProcess
+	lastContainers map[int32]*docker.Container
+	lastRun        time.Time
 }
 
-func NewProcessCheck(cfg *config.AgentConfig) *ProcessCheck {
+func NewProcessCheck(cfg *config.AgentConfig, info *model.SystemInfo) *ProcessCheck {
 	var err error
 	var kubeUtil *kubernetes.KubeUtil
 	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" && cfg.CollectKubernetesMetadata {
@@ -36,8 +39,13 @@ func NewProcessCheck(cfg *config.AgentConfig) *ProcessCheck {
 		}
 	}
 
-	return &ProcessCheck{kubeUtil: kubeUtil}
+	return &ProcessCheck{
+		sysInfo:   info,
+		lastProcs: make(map[int32]*process.FilledProcess),
+		kubeUtil:  kubeUtil}
 }
+
+func (p *ProcessCheck) Name() string { return "process" }
 
 func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
@@ -73,11 +81,6 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		kubeMeta = p.kubeUtil.GetKubernetesMeta(cfg)
 	}
 
-	info, err := collectSystemInfo(cfg)
-	if err != nil {
-		return nil, err
-	}
-
 	// Pre-filter the list to get an accurate group size.
 	filteredFps := make([]*process.FilledProcess, 0, len(fps))
 	for _, fp := range fps {
@@ -93,12 +96,11 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	messages := make([]model.MessageBody, 0, groupSize)
 	procs := make([]*model.Process, 0, cfg.ProcLimit)
 	for _, fp := range filteredFps {
-		container, _ := containerByPID[fp.Pid]
 		if len(procs) >= cfg.ProcLimit {
 			messages = append(messages, &model.CollectorProc{
 				HostName:   cfg.HostName,
 				Processes:  procs,
-				Info:       info,
+				Info:       p.sysInfo,
 				GroupId:    groupID,
 				GroupSize:  int32(groupSize),
 				Kubernetes: kubeMeta,
@@ -106,6 +108,8 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 			procs = make([]*model.Process, 0, cfg.ProcLimit)
 		}
 
+		container, _ := containerByPID[fp.Pid]
+		lastContainer, _ := p.lastContainers[fp.Pid]
 		procs = append(procs, &model.Process{
 			Pid:         fp.Pid,
 			Command:     formatCommand(fp),
@@ -113,15 +117,16 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 			Memory:      formatMemory(fp),
 			Cpu:         formatCPU(fp, fp.CpuTime, p.lastProcs[fp.Pid].CpuTime, cpuTimes[0], p.lastCPUTime),
 			CreateTime:  fp.CreateTime,
-			Container:   formatContainer(container),
+			Container:   formatContainer(container, lastContainer, p.lastRun),
 			OpenFdCount: fp.OpenFdCount,
+			State:       model.ProcessState(model.ProcessState_value[fp.Status]),
 		})
 	}
 
 	messages = append(messages, &model.CollectorProc{
 		HostName:  cfg.HostName,
 		Processes: procs,
-		Info:      info,
+		Info:      p.sysInfo,
 		GroupId:   groupID,
 		GroupSize: int32(groupSize),
 		// FIXME: We should not send this in every payload. Long-term the container
@@ -132,6 +137,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	// Store the last state for comparison on the next run.
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
 	p.lastProcs = fps
+	p.lastContainers = containerByPID
 	p.lastCPUTime = cpuTimes[0]
 
 	log.Infof("collected processes in %s", time.Now().Sub(start))
@@ -156,7 +162,6 @@ func (p *ProcessCheck) skipProcess(cfg *config.AgentConfig, fp *process.FilledPr
 func formatCommand(fp *process.FilledProcess) *model.Command {
 	return &model.Command{
 		Args:   fp.Cmdline,
-		State:  fp.Status,
 		Cwd:    fp.Cwd,
 		Root:   "",    // TODO
 		OnDisk: false, // TODO
@@ -220,21 +225,28 @@ func formatCPU(fp *process.FilledProcess, t2, t1, syst2, syst1 cpu.TimesStat) *m
 	}
 }
 
-func formatContainer(container *docker.Container) *model.Container {
+func formatContainer(ctr, lastCtr *docker.Container, lastRun time.Time) *model.Container {
 	// Container will be nill if the process has no container.
-	if container == nil {
+	if ctr == nil {
 		return nil
 	}
+	if lastCtr == nil {
+		// Set to an empty container so rate calculations work and use defaults.
+		lastCtr = &docker.Container{}
+	}
+
 	return &model.Container{
-		Type:        container.Type,
-		Name:        container.Name,
-		Id:          container.ID,
-		Image:       container.Image,
-		CpuLimit:    float32(container.CPULimit),
-		MemoryLimit: container.MemLimit,
-		Created:     container.Created,
-		State:       model.ContainerState(model.ContainerState_value[container.State]),
-		Health:      model.ContainerHealth(model.ContainerHealth_value[container.Health]),
+		Type:          ctr.Type,
+		Name:          ctr.Name,
+		Id:            ctr.ID,
+		Image:         ctr.Image,
+		CpuLimit:      float32(ctr.CPULimit),
+		MemoryLimit:   ctr.MemLimit,
+		Created:       ctr.Created,
+		State:         model.ContainerState(model.ContainerState_value[ctr.State]),
+		Health:        model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
+		ContainerRbps: calculateRate(ctr.ReadBytes, lastCtr.ReadBytes, lastRun),
+		ContainerWbps: calculateRate(ctr.WriteBytes, lastCtr.WriteBytes, lastRun),
 	}
 }
 

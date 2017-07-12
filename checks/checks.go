@@ -6,5 +6,6 @@ import (
 )
 
 type Check interface {
+	Name() string
 	Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error)
 }

@@ -39,7 +39,7 @@ type Collector struct {
 }
 
 // NewCollector creates a new Collectr
-func NewCollector(cfg *config.AgentConfig) Collector {
+func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 	transport := &http.Transport{
 		MaxIdleConns:    5,
 		IdleConnTimeout: 90 * time.Second,
@@ -66,6 +66,11 @@ func NewCollector(cfg *config.AgentConfig) Collector {
 		transport.Proxy = http.ProxyURL(proxy)
 	}
 
+	sysInfo, err := checks.CollectSystemInfo(cfg)
+	if err != nil {
+		return Collector{}, err
+	}
+
 	return Collector{
 		send:          make(chan []model.MessageBody, cfg.QueueSize),
 		cfg:           cfg,
@@ -76,16 +81,16 @@ func NewCollector(cfg *config.AgentConfig) Collector {
 
 		// Each check should handle a empty state initialization.
 		checks: collectorChecks{
-			process:     checks.NewProcessCheck(cfg),
-			realTime:    &checks.RealTimeCheck{},
-			connections: &checks.ConnectionsCheck{},
+			process:     checks.NewProcessCheck(cfg, sysInfo),
+			realTime:    checks.NewRealTimeCheck(cfg, sysInfo),
+			connections: checks.NewConnectionsCheck(cfg, sysInfo),
 		},
-	}
+	}, nil
 }
 
 func (l *Collector) runCheck(c checks.Check) {
 	if messages, err := c.Run(l.cfg, l.groupID); err != nil {
-		log.Criticalf("Unable to run check: %s", err)
+		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
 		l.groupID++
 		l.send <- messages
