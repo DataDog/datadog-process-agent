@@ -139,6 +139,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	p.lastProcs = fps
 	p.lastContainers = containerByPID
 	p.lastCPUTime = cpuTimes[0]
+	p.lastRun = time.Now()
 
 	log.Infof("collected processes in %s", time.Now().Sub(start))
 	return messages, nil
