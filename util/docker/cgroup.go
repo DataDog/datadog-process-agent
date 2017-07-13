@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -11,11 +12,13 @@ import (
 	"strings"
 
 	"github.com/DataDog/datadog-process-agent/util"
+	log "github.com/cihub/seelog"
 )
 
 var (
 	containerRe      = regexp.MustCompile("[0-9a-f]{64}")
 	ErrMissingTarget = errors.New("Missing cgroup target")
+	ErrFildNotFound  = errors.New("cgroup file is missing")
 )
 
 type CgroupMemStat struct {
@@ -72,9 +75,14 @@ type ContainerCgroup struct {
 	Mounts      map[string]string
 }
 
+// Mem returns the memory statistics for a Cgroup. If the cgroup file is not
+// availble then we return an empty stats file.
 func (c ContainerCgroup) Mem() (*CgroupMemStat, error) {
+	ret := &CgroupMemStat{ContainerID: c.ContainerID}
 	statfile, err := c.cgroupFilePath("memory", "memory.stat")
-	if err != nil {
+	if os.IsNotExist(err) {
+		return ret, nil
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -82,7 +90,6 @@ func (c ContainerCgroup) Mem() (*CgroupMemStat, error) {
 	if err != nil {
 		return nil, err
 	}
-	ret := &CgroupMemStat{ContainerID: c.ContainerID}
 	for _, line := range lines {
 		fields := strings.Split(line, " ")
 		v, err := strconv.ParseUint(fields[1], 10, 64)
@@ -167,16 +174,20 @@ func (c ContainerCgroup) Mem() (*CgroupMemStat, error) {
 }
 
 // CPU returns the CPU status for this cgroup instance
+// If the cgroup file does not exist then we just log debug return nothing.
 func (c ContainerCgroup) CPU() (*CgroupTimesStat, error) {
+	ret := &CgroupTimesStat{ContainerID: c.ContainerID}
 	statfile, err := c.cgroupFilePath("cpuacct", "cpuacct.stat")
-	if err != nil {
+	if os.IsNotExist(err) {
+		return ret, nil
+	} else if err != nil {
 		return nil, err
 	}
+
 	lines, err := util.ReadLines(statfile)
 	if err != nil {
 		return nil, err
 	}
-	ret := &CgroupTimesStat{ContainerID: c.ContainerID}
 	for _, line := range lines {
 		fields := strings.Split(line, " ")
 		if fields[0] == "user" {
@@ -202,30 +213,36 @@ func (c ContainerCgroup) CPU() (*CgroupTimesStat, error) {
 //	docker run --cpus='0.5' ubuntu:latest
 //
 // we should return 50% for that container
+// If the limits files aren't available (on older version) then
+// we'll return the default value of 100.
 func (c ContainerCgroup) CPULimit() (float64, error) {
 	periodFile, err := c.cgroupFilePath("cpu", "cpu.cfs_period_us")
-	if err != nil {
-		return 0.0, err
+	if os.IsNotExist(err) {
+		return 100, nil
+	} else if err != nil {
+		return 0, err
 	}
 	quotaFile, err := c.cgroupFilePath("cpu", "cpu.cfs_quota_us")
-	if err != nil {
-		return 0.0, err
+	if os.IsNotExist(err) {
+		return 100, nil
+	} else if err != nil {
+		return 0, err
 	}
 	plines, err := util.ReadLines(periodFile)
 	if err != nil {
-		return 0.0, err
+		return 0, err
 	}
 	qlines, err := util.ReadLines(quotaFile)
 	if err != nil {
-		return 0.0, err
+		return 0, err
 	}
 	period, err := strconv.ParseFloat(plines[0], 64)
 	if err != nil {
-		return 0.0, err
+		return 0, err
 	}
 	quota, err := strconv.ParseFloat(qlines[0], 64)
 	if err != nil {
-		return 0.0, err
+		return 0, err
 	}
 	// default cpu limit is 100%
 	limit := 100.0
@@ -289,7 +306,8 @@ func (c ContainerCgroup) cgroupFilePath(target, file string) (string, error) {
 
 	statfile := filepath.Join(mount, targetPath, file)
 	if !util.PathExists(statfile) {
-		return "", fmt.Errorf("file not exist: %s", statfile)
+		log.Debug("cgroup file does not exist: %s", statfile)
+		return "", os.ErrNotExist
 	}
 	return statfile, nil
 }
@@ -405,36 +423,6 @@ func CgroupsForPids(pids []int32) (map[string]*ContainerCgroup, error) {
 		}
 	}
 	return cgs, nil
-}
-
-// CGroup for pid returns a ContainerCgroup for a single pid
-func CGroupForPid(pid int32) (*ContainerCgroup, error) {
-	mounts, err := cgroupMountPoints()
-	if err != nil {
-		return nil, err
-	}
-	cgPath := util.HostProc(strconv.Itoa(int(pid)), "cgroup")
-	if !util.PathExists(cgPath) {
-		return nil, fmt.Errorf("missing cgroup file for pid %d", pid)
-	}
-
-	lines, err := util.ReadLines(cgPath)
-	if err != nil {
-		return nil, err
-	}
-	if len(lines) == 0 {
-		return nil, fmt.Errorf("empty cgroup file for pid %d", pid)
-	}
-	containerID, paths := parseCgroupPaths(lines)
-	if containerID == "" {
-		return nil, fmt.Errorf("pid %d not in a container", pid)
-	}
-	return &ContainerCgroup{
-		ContainerID: containerID,
-		Pids:        []int32{pid},
-		Paths:       paths,
-		Mounts:      mounts,
-	}, nil
 }
 
 // parseCgroupPaths parses out the cgroup paths from a /proc/$pid/cgroup file.
