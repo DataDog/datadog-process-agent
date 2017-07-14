@@ -131,8 +131,8 @@ message Container {
 	ContainerState state = 8;
 	ContainerHealth health = 9;
 	int64 created = 10;
-	float containerRbps = 11;
-	float containerWbps = 12;
+	float rbps = 11;
+	float wbps = 12;
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
