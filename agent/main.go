@@ -65,6 +65,7 @@ to your datadog.conf file.
 Exiting.`
 
 func main() {
+
 	flag.StringVar(&opts.ddConfigPath, "ddconfig", "/etc/dd-agent/datadog.conf", "Path to dd-agent config")
 	flag.StringVar(&opts.configPath, "config", "/etc/dd-agent/dd-process-agent.ini", "DEPRECATED: Path to legacy config file. Prefer -ddconfig to point to the dd-agent config")
 	flag.BoolVar(&opts.version, "version", false, "Print the version and exit")
@@ -91,19 +92,23 @@ func main() {
 		log.Criticalf("Error reading dd-agent config: %s", err)
 		os.Exit(1)
 	}
+
 	legacyConf, err := config.NewIfExists(opts.configPath)
 	if err != nil {
 		log.Criticalf("Error reading legacy config: %s", err)
 		os.Exit(1)
 	}
+
 	cfg, err := config.NewAgentConfig(agentConf, legacyConf)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)
 	}
 
-	// Exit if agent is is not enabled and we're not debugging a check.
-	if !cfg.Enabled && opts.check == "" {
+	//Program stops here when using go test or go build
+	// Exit if agent is not enabled and we're not debugging a check.
+	/*if !cfg.Enabled && opts.check == "" {
+		fmt.Println("marc.brun : Agent is not enabled")
 		log.Info(agentDisabledMessage)
 
 		// a sleep is necessary to ensure that supervisor registers this process as "STARTED"
@@ -111,7 +116,7 @@ func main() {
 		// http://supervisord.org/subprocess.html#process-states
 		time.Sleep(5 * time.Second)
 		return
-	}
+	}*/
 
 	if opts.check != "" {
 		err := debugCheckResults(cfg, opts.check)
@@ -130,6 +135,7 @@ func main() {
 		os.Exit(1)
 		return
 	}
+
 	cl.run()
 }
 

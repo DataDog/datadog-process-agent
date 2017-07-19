@@ -78,6 +78,8 @@ message Process {
 	Container container = 10;
 	int32 openFdCount = 11;
 	ProcessState state = 12;
+	// IO
+	IOStat ioStat = 13;
 }
 
 message Command {
@@ -170,6 +172,8 @@ message ProcessStat {
 	ContainerHealth containerHealth = 15;
 	float containerRbps = 16;
 	float containerWbps = 17;
+	// IO
+	IOStat ioStat = 18;
 }
 
 
@@ -214,6 +218,13 @@ message MemoryStat {
 	uint64 lib = 6;
 	uint64 data = 7;
 	uint64 dirty = 8;
+}
+
+message IOStat {
+	uint64 readCount = 1;
+	uint64 writeCount = 2;
+	uint64 readBytes = 3;
+	uint64 writeBytes = 4;
 }
 
 message CPUStat {

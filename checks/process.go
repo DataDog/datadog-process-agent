@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strconv"
 	"time"
+	//"fmt"
 
 	agentpayload "github.com/DataDog/agent-payload/gogen"
 	"github.com/DataDog/gopsutil/cpu"
@@ -54,6 +55,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		return nil, err
 	}
 	fps, err := process.AllProcesses()
+
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +112,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 
 		container, _ := containerByPID[fp.Pid]
 		lastContainer, _ := p.lastContainers[fp.Pid]
+
 		procs = append(procs, &model.Process{
 			Pid:         fp.Pid,
 			Command:     formatCommand(fp),
@@ -120,6 +123,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 			Container:   formatContainer(container, lastContainer, p.lastRun),
 			OpenFdCount: fp.OpenFdCount,
 			State:       model.ProcessState(model.ProcessState_value[fp.Status]),
+			IoStat:		 formatIO(fp),
 		})
 	}
 
@@ -193,6 +197,15 @@ func formatUser(fp *process.FilledProcess) *model.ProcessUser {
 	}
 }
 
+func formatIO(fp *process.FilledProcess) *model.IOStat {
+	return &model.IOStat{
+		ReadCount: fp.IOStat.ReadCount,
+		WriteCount: fp.IOStat.WriteCount,
+		ReadBytes: fp.IOStat.ReadBytes,
+		WriteBytes: fp.IOStat.WriteBytes,
+	}
+}
+
 func formatMemory(fp *process.FilledProcess) *model.MemoryStat {
 	ms := &model.MemoryStat{
 		Rss:  fp.MemInfo.RSS,
@@ -213,6 +226,7 @@ func formatMemory(fp *process.FilledProcess) *model.MemoryStat {
 func formatCPU(fp *process.FilledProcess, t2, t1, syst2, syst1 cpu.TimesStat) *model.CPUStat {
 	numCPU := float64(runtime.NumCPU())
 	deltaSys := syst2.Total() - syst1.Total()
+
 	return &model.CPUStat{
 		LastCpu:    t2.CPU,
 		TotalPct:   calculatePct((t2.User-t1.User)+(t2.System-t1.System), deltaSys, numCPU),
