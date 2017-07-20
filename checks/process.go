@@ -122,7 +122,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 			Container:   formatContainer(container, lastContainer, p.lastRun),
 			OpenFdCount: fp.OpenFdCount,
 			State:       model.ProcessState(model.ProcessState_value[fp.Status]),
-			IoStat:		 formatIO(fp),
+			IoStat:      formatIO(fp),
 		})
 	}
 
@@ -198,10 +198,10 @@ func formatUser(fp *process.FilledProcess) *model.ProcessUser {
 
 func formatIO(fp *process.FilledProcess) *model.IOStat {
 	return &model.IOStat{
-		ReadCount: 	fp.IOStat.ReadCount,
-		WriteCount:	fp.IOStat.WriteCount,
-		ReadBytes: 	fp.IOStat.ReadBytes,
-		WriteBytes:	fp.IOStat.WriteBytes,
+		ReadCount:  fp.IOStat.ReadCount,
+		WriteCount: fp.IOStat.WriteCount,
+		ReadBytes:  fp.IOStat.ReadBytes,
+		WriteBytes: fp.IOStat.WriteBytes,
 	}
 }
 
