@@ -65,7 +65,6 @@ to your datadog.conf file.
 Exiting.`
 
 func main() {
-
 	flag.StringVar(&opts.ddConfigPath, "ddconfig", "/etc/dd-agent/datadog.conf", "Path to dd-agent config")
 	flag.StringVar(&opts.configPath, "config", "/etc/dd-agent/dd-process-agent.ini", "DEPRECATED: Path to legacy config file. Prefer -ddconfig to point to the dd-agent config")
 	flag.BoolVar(&opts.version, "version", false, "Print the version and exit")
@@ -92,13 +91,11 @@ func main() {
 		log.Criticalf("Error reading dd-agent config: %s", err)
 		os.Exit(1)
 	}
-
 	legacyConf, err := config.NewIfExists(opts.configPath)
 	if err != nil {
 		log.Criticalf("Error reading legacy config: %s", err)
 		os.Exit(1)
 	}
-
 	cfg, err := config.NewAgentConfig(agentConf, legacyConf)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
@@ -133,7 +130,6 @@ func main() {
 		os.Exit(1)
 		return
 	}
-
 	cl.run()
 }
 

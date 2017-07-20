@@ -54,7 +54,6 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		return nil, err
 	}
 	fps, err := process.AllProcesses()
-
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +110,6 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 
 		container, _ := containerByPID[fp.Pid]
 		lastContainer, _ := p.lastContainers[fp.Pid]
-
 		procs = append(procs, &model.Process{
 			Pid:         fp.Pid,
 			Command:     formatCommand(fp),
@@ -225,7 +223,6 @@ func formatMemory(fp *process.FilledProcess) *model.MemoryStat {
 func formatCPU(fp *process.FilledProcess, t2, t1, syst2, syst1 cpu.TimesStat) *model.CPUStat {
 	numCPU := float64(runtime.NumCPU())
 	deltaSys := syst2.Total() - syst1.Total()
-
 	return &model.CPUStat{
 		LastCpu:    t2.CPU,
 		TotalPct:   calculatePct((t2.User-t1.User)+(t2.System-t1.System), deltaSys, numCPU),
