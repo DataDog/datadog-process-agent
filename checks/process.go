@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"strconv"
 	"time"
-	//"fmt"
 
 	agentpayload "github.com/DataDog/agent-payload/gogen"
 	"github.com/DataDog/gopsutil/cpu"
@@ -199,10 +198,10 @@ func formatUser(fp *process.FilledProcess) *model.ProcessUser {
 
 func formatIO(fp *process.FilledProcess) *model.IOStat {
 	return &model.IOStat{
-		ReadCount: fp.IOStat.ReadCount,
-		WriteCount: fp.IOStat.WriteCount,
-		ReadBytes: fp.IOStat.ReadBytes,
-		WriteBytes: fp.IOStat.WriteBytes,
+		ReadCount: 	fp.IOStat.ReadCount,
+		WriteCount:	fp.IOStat.WriteCount,
+		ReadBytes: 	fp.IOStat.ReadBytes,
+		WriteBytes:	fp.IOStat.WriteBytes,
 	}
 }
 

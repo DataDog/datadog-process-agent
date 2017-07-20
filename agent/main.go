@@ -105,10 +105,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	//Program stops here when using go test or go build
 	// Exit if agent is not enabled and we're not debugging a check.
-	/*if !cfg.Enabled && opts.check == "" {
-		fmt.Println("marc.brun : Agent is not enabled")
+	if !cfg.Enabled && opts.check == "" {
 		log.Info(agentDisabledMessage)
 
 		// a sleep is necessary to ensure that supervisor registers this process as "STARTED"
@@ -116,7 +114,7 @@ func main() {
 		// http://supervisord.org/subprocess.html#process-states
 		time.Sleep(5 * time.Second)
 		return
-	}*/
+	}
 
 	if opts.check != "" {
 		err := debugCheckResults(cfg, opts.check)
