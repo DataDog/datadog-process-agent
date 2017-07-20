@@ -12,7 +12,7 @@ import (
 	"github.com/DataDog/gopsutil/process"
 )
 
-func Test(t *testing.T){
+func Test(t *testing.T) {
 	process.AllProcesses()
 }
 
@@ -168,4 +168,3 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 }
 
 */
-
