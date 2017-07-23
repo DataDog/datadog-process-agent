@@ -12,6 +12,7 @@ import (
 	log "github.com/cihub/seelog"
 )
 
+// Default logging constants.
 const (
 	DefaultLogLevel    = "info"
 	DefaultSyslogHost  = "localhost:514"
@@ -186,7 +187,7 @@ func (s *seelogConfig) addFile(logLvl, filename string) {
 	s.addFormat(newFileFormat())
 }
 
-func (cfg *LoggerConfig) SeelogConfig() (*seelogConfig, error) {
+func (cfg *LoggerConfig) seelogConfig() (*seelogConfig, error) {
 	s := newSeelog()
 
 	if cfg.Filename != "" {
@@ -217,7 +218,7 @@ type LoggerConfig struct {
 
 // SeelogLogger returns a new seelog Logger
 func (cfg *LoggerConfig) SeelogLogger() (log.LoggerInterface, error) {
-	scfg, err := cfg.SeelogConfig()
+	scfg, err := cfg.seelogConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +267,7 @@ func validateLogLevels(levels ...string) error {
 	return nil
 }
 
-func ReplaceLogger(cfg *LoggerConfig) error {
+func replaceLogger(cfg *LoggerConfig) error {
 	if err := validateLogLevels(cfg.LogLevel, cfg.SyslogLevel); err != nil {
 		return err
 	}
@@ -278,6 +279,7 @@ func ReplaceLogger(cfg *LoggerConfig) error {
 	return log.ReplaceLogger(logger)
 }
 
+// NewLoggerLevel sets the global logger to the given log level.
 func NewLoggerLevel(logLevel string) error {
 	loggerConfig := &LoggerConfig{
 		LogLevel:    logLevel,
@@ -285,5 +287,5 @@ func NewLoggerLevel(logLevel string) error {
 		SyslogLevel: "off",
 		Console:     false,
 	}
-	return ReplaceLogger(loggerConfig)
+	return replaceLogger(loggerConfig)
 }

@@ -20,6 +20,9 @@ import (
 
 var lastDockerErr string
 
+// ProcessCheck collects full state, including cmdline args and related metadata,
+// for live and running processes. The instance will store some state between
+// checks that will be used for rates, cpu calculations, etc.
 type ProcessCheck struct {
 	kubeUtil       *kubernetes.KubeUtil
 	sysInfo        *model.SystemInfo
@@ -29,6 +32,8 @@ type ProcessCheck struct {
 	lastRun        time.Time
 }
 
+// NewProcessCheck returns a new ProcessCheck initialized with a connection to
+// Kubernetes (if appliable) and other zeoes-out information.
 func NewProcessCheck(cfg *config.AgentConfig, info *model.SystemInfo) *ProcessCheck {
 	var err error
 	var kubeUtil *kubernetes.KubeUtil
@@ -45,8 +50,16 @@ func NewProcessCheck(cfg *config.AgentConfig, info *model.SystemInfo) *ProcessCh
 		kubeUtil:  kubeUtil}
 }
 
+// Name returns the name of the ProcessCheck.
 func (p *ProcessCheck) Name() string { return "process" }
 
+// Run runs the ProcessCheck to collect a list of running processes and relevant
+// stats for each. On most POSIX systems this will use a mix of procfs and other
+// OS-specific APIs to collect this information. The bulk of this collection is
+// abstracted into the `gopsutil` library.
+// Processes are split up into a chunks of at most 100 processes per message to
+// limit the message size on intake.
+// See agent.proto for the schema of the message and models used.
 func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
 	cpuTimes, err := cpu.Times(false)
@@ -145,6 +158,8 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	return messages, nil
 }
 
+// skipProcess will skip a given process if it's blacklisted or hasn't existed
+// for multiple collections.
 func (p *ProcessCheck) skipProcess(cfg *config.AgentConfig, fp *process.FilledProcess) bool {
 	if len(fp.Cmdline) == 0 {
 		return true

@@ -13,6 +13,8 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/docker"
 )
 
+// RealTimeCheck collects numeric statistics about the live processes.
+// The instance stores state between checks for calculation of rates and CPU.
 type RealTimeCheck struct {
 	sysInfo        *model.SystemInfo
 	lastCPUTime    cpu.TimesStat
@@ -21,14 +23,22 @@ type RealTimeCheck struct {
 	lastRun        time.Time
 }
 
+// NewRealTimeCheck returns a new RealTimeCheck instance.
 func NewRealTimeCheck(cfg *config.AgentConfig, sysInfo *model.SystemInfo) *RealTimeCheck {
 	return &RealTimeCheck{
 		sysInfo:   sysInfo,
 		lastProcs: make(map[int32]*process.FilledProcess)}
 }
 
+// Name returns the name of the RealTimeCheck.
 func (r *RealTimeCheck) Name() string { return "real-time" }
 
+// Run runs the RealTimeCheck to collect statistics about the running processes.
+// On most POSIX systems these statistics are collected from procfs. The bulk
+// of this collection is abstracted into the `gopsutil` library.
+// Processes are split up into a chunks of at most 100 processes per message to
+// limit the message size on intake.
+// See agent.proto for the schema of the message and models used.
 func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	cpuTimes, err := cpu.Times(false)
 	if err != nil {
@@ -125,6 +135,8 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 	return messages, nil
 }
 
+// skipProcess will skip a given process if it's blacklisted or hasn't existed
+// for multiple collections.
 func (r *RealTimeCheck) skipProcess(cfg *config.AgentConfig, fp *process.FilledProcess) bool {
 	if len(fp.Cmdline) == 0 {
 		return true

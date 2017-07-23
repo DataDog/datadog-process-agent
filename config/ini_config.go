@@ -1,4 +1,3 @@
-// This is a duplicate of config/config.go without a dependency on dd-go/util to avoid pulling in the world.
 package config
 
 import (
@@ -137,7 +136,7 @@ func (c *File) GetDuration(section, name string, unit time.Duration) (time.Durat
 	return time.Duration(value) * unit, nil
 }
 
-// GetDuration returns a value from section/name converted to a duration using unit
+// GetDurationDefault returns a value from section/name converted to a duration using unit
 // and returns the default if any error occurs.
 func (c *File) GetDurationDefault(section, name string, unit, defaultVal time.Duration) time.Duration {
 	duration, err := c.GetDuration(section, name, unit)

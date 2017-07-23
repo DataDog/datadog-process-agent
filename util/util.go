@@ -49,14 +49,19 @@ func GetEnv(key string, dfault string, combineWith ...string) string {
 	}
 }
 
+// HostProc returns the location of a host's procfs. This can and will be
+// overriden when running inside a container.
 func HostProc(combineWith ...string) string {
 	return GetEnv("HOST_PROC", "/proc", combineWith...)
 }
 
+// HostSys returns the location of a host's /sys. This can and will be overriden
+// when running inside a container.
 func HostSys(combineWith ...string) string {
 	return GetEnv("HOST_SYS", "/sys", combineWith...)
 }
 
+// PathExists returns a boolean indicating if the given path exists on the file system.
 func PathExists(filename string) bool {
 	if _, err := os.Stat(filename); err == nil {
 		return true

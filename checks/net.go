@@ -10,14 +10,22 @@ import (
 	"github.com/DataDog/datadog-process-agent/model"
 )
 
+// ConnectionsCheck collects statistics about live TCP and UDP connections.
 type ConnectionsCheck struct{}
 
+// NewConnectionsCheck returns a new ConnectionsCheck instance.
 func NewConnectionsCheck(cfg *config.AgentConfig, sysInfo *model.SystemInfo) *ConnectionsCheck {
 	return &ConnectionsCheck{}
 }
 
+// Name returns the name of the ConnectionsCheck.
 func (c *ConnectionsCheck) Name() string { return "connections" }
 
+// Run runs the ConnectionsCheck to collect the live TCP connections on the
+// system. In most POSIX systems we will use the procfs net files to read out
+// this information. For each connection we'll return a `model.Connection` that
+// will be bundled up into a `CollectorConnections`.
+// See agent.proto for the schema of the message and models.
 func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
 	connections, err := net.ConnectionsMax("tcp", cfg.MaxProcFDs)

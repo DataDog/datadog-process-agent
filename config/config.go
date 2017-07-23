@@ -15,12 +15,15 @@ import (
 	"github.com/go-ini/ini"
 )
 
+// CheckTimers is a singleton of tickers for different check intervals.
 type CheckTimers struct {
 	Process     *time.Ticker
 	Connections *time.Ticker
 	RealTime    *time.Ticker
 }
 
+// AgentConfig is the global config for the process-agent. This information
+// is sourced from config files and the environment variables.
 type AgentConfig struct {
 	Enabled       bool
 	APIKey        string

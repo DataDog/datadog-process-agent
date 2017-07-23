@@ -1,7 +1,8 @@
+package model
+
 // message.go is a stripped down version of the backend message processing
 // with support for the same MessageVersion and MessageEncoding but with
 // only a limited set of message types.
-package model
 
 import (
 	"bytes"
@@ -19,14 +20,18 @@ import (
 // (e.g. from collector <-> server) and JSON should be used for client-side.
 type MessageEncoding uint8
 
+// Message encoding constants.
 const (
 	MessageEncodingProtobuf MessageEncoding = 0
 	MessageEncodingJSON     MessageEncoding = 1
 	MessageEncodingZstdPB   MessageEncoding = 2
 )
 
+// MessageVersion is the version of the message. It should always be the first
+// byte in the encoded version.
 type MessageVersion uint8
 
+// Message versioning constants.
 const (
 	MessageV1 MessageVersion = 1
 	MessageV2                = 2
@@ -35,6 +40,9 @@ const (
 
 const headerLength = 1 + 1 + 1 + 1 + 4
 
+// MessageHeader is attached to all messages at the head of the message. Some
+// fields are added in later versions so make sure you're only using fields that
+// are available in the defined Version.
 type MessageHeader struct {
 	Version        MessageVersion
 	Encoding       MessageEncoding
@@ -63,6 +71,7 @@ func unmarshal(enc MessageEncoding, body []byte, m proto.Message) error {
 // MessageType is a string representing the type of a message.
 type MessageType uint8
 
+// Message type constants for MessageType.
 const (
 	TypeCollectorProc        = 12
 	TypeCollectorConnections = 22
@@ -70,12 +79,13 @@ const (
 	TypeCollectorRealTime    = 27
 )
 
+// Message is a generic type for all messages with a Header and Body.
 type Message struct {
 	Header MessageHeader
 	Body   MessageBody
 }
 
-// Message is a common interface used by all message types.
+// MessageBody is a common interface used by all message types.
 type MessageBody interface {
 	ProtoMessage()
 	Reset()
