@@ -252,17 +252,17 @@ func formatContainer(ctr, lastCtr *docker.Container, lastRun time.Time) *model.C
 	}
 
 	return &model.Container{
-		Type:          ctr.Type,
-		Name:          ctr.Name,
-		Id:            ctr.ID,
-		Image:         ctr.Image,
-		CpuLimit:      float32(ctr.CPULimit),
-		MemoryLimit:   ctr.MemLimit,
-		Created:       ctr.Created,
-		State:         model.ContainerState(model.ContainerState_value[ctr.State]),
-		Health:        model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
-		ContainerRbps: calculateRate(ctr.ReadBytes, lastCtr.ReadBytes, lastRun),
-		ContainerWbps: calculateRate(ctr.WriteBytes, lastCtr.WriteBytes, lastRun),
+		Type:        ctr.Type,
+		Name:        ctr.Name,
+		Id:          ctr.ID,
+		Image:       ctr.Image,
+		CpuLimit:    float32(ctr.CPULimit),
+		MemoryLimit: ctr.MemLimit,
+		Created:     ctr.Created,
+		State:       model.ContainerState(model.ContainerState_value[ctr.State]),
+		Health:      model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
+		Rbps:        calculateRate(ctr.ReadBytes, lastCtr.ReadBytes, lastRun),
+		Wbps:        calculateRate(ctr.WriteBytes, lastCtr.WriteBytes, lastRun),
 	}
 }
 
