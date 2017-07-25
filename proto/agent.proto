@@ -133,6 +133,9 @@ message Container {
 	int64 created = 10;
 	float rbps = 11;
 	float wbps = 12;
+
+	// Unique key for a container, used on backend.
+	uint32 key = 13;
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
@@ -170,6 +173,7 @@ message ProcessStat {
 	ContainerHealth containerHealth = 15;
 	float containerRbps = 16;
 	float containerWbps = 17;
+	uint32 containerKey = 18;
 }
 
 
