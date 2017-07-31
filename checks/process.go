@@ -193,15 +193,11 @@ func formatIO(fp *process.FilledProcess, lastIO *process.IOCountersStat, before 
 	if before.IsZero() || diff <= 0 {
 		return nil
 	}
-	readRate := float32(fp.IOStat.ReadCount-lastIO.ReadCount) / float32(diff)
-	writeRate := float32(fp.IOStat.WriteCount-lastIO.WriteCount) / float32(diff)
-	readBytesRate := float32(fp.IOStat.ReadBytes-lastIO.ReadBytes) / float32(diff)
-	writeBytesRate := float32(fp.IOStat.WriteBytes-lastIO.WriteBytes) / float32(diff)
 	return &model.IOStat{
-		ReadRate:       readRate,
-		WriteRate:      writeRate,
-		ReadBytesRate:  readBytesRate,
-		WriteBytesRate: writeBytesRate,
+		ReadRate:       calculateRate(fp.IOStat.ReadCount, lastIO.ReadCount, before),
+		WriteRate:      calculateRate(fp.IOStat.WriteCount, lastIO.WriteCount, before),
+		ReadBytesRate:  calculateRate(fp.IOStat.ReadBytes, lastIO.ReadBytes, before),
+		WriteBytesRate: calculateRate(fp.IOStat.WriteBytes, lastIO.WriteBytes, before),
 	}
 }
 
