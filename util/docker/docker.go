@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	log "github.com/cihub/seelog"
 	"github.com/docker/docker/api/types"
@@ -21,6 +22,7 @@ import (
 var (
 	ErrDockerNotAvailable = errors.New("docker not available")
 	globalDockerUtil      *dockerUtil
+	invalidationInterval  = 5 * time.Minute
 )
 
 type NetworkStat struct {
@@ -60,6 +62,8 @@ func (a dockerNetworks) Less(i, j int) bool { return a[i].dockerName < a[j].dock
 // dockerUtil wraps interactions with a local docker API. It is not thread-safe.
 type dockerUtil struct {
 	cli *client.Client
+	// tracks the last time we invalidate our internal caches
+	lastInvalidate time.Time
 	// networkMappings by container id
 	networkMappings map[string][]dockerNetwork
 }
@@ -105,6 +109,7 @@ func InitDockerUtil() error {
 	globalDockerUtil = &dockerUtil{
 		cli:             cli,
 		networkMappings: make(map[string][]dockerNetwork),
+		lastInvalidate:  time.Now(),
 	}
 	return nil
 }
@@ -147,6 +152,11 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 			Health:  health,
 		})
 	}
+
+	if d.lastInvalidate.Add(invalidationInterval).After(time.Now()) {
+		d.invalidateCaches(containers)
+	}
+
 	return ret, nil
 }
 
@@ -181,10 +191,16 @@ func (d *dockerUtil) containersForPIDs(pids []int32) (map[int32]*Container, erro
 			return nil, err
 		}
 
+		networks, ok := d.networkMappings[cgroup.ContainerID]
+		if ok && len(cgroup.Pids) > 0 {
+			netStat, err := collectNetworkStats(cgroup.ContainerID, cgroup.Pids[0], networks)
+			containerStat.Network = netStat
+		}
 		containerStat.MemLimit = memstat.MemLimitInBytes
 		containerStat.CPULimit = cpuLimit
 		containerStat.ReadBytes = ioStat.ReadBytes
 		containerStat.WriteBytes = ioStat.WriteBytes
+
 		for _, p := range cgroup.Pids {
 			containerMap[p] = containerStat
 		}
@@ -198,6 +214,18 @@ func (d *dockerUtil) getHostname() (string, error) {
 		return "", fmt.Errorf("unable to get Docker info: %s", err)
 	}
 	return info.Name, nil
+}
+
+func (d *dockerUtil) invalidateCaches(containers []*types.ContainerJSON) {
+	liveContainers := make(map[string]struct{})
+	for _, c := range containers {
+		c[c.ID] = struct{}{}
+	}
+	for cid := range d.networkMappings {
+		if _, ok := liveContainers[cid]; !ok {
+			delete(d.networkMappings, cid)
+		}
+	}
 }
 
 func detectServerAPIVersion() (string, error) {

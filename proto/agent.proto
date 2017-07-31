@@ -122,6 +122,9 @@ enum ContainerHealth {
 }
 
 message Container {
+	// Unique key for a container, used on backend.
+	uint32 key = 13;
+
 	string type = 1;
 	string id = 2;
 	string name = 3;
@@ -134,9 +137,10 @@ message Container {
 	int64 created = 10;
 	float rbps = 11;
 	float wbps = 12;
-
-	// Unique key for a container, used on backend.
-	uint32 key = 13;
+	float netRcvdPs = 14;
+	float netSentPs = 15;
+	float netRcvdBps = 16;
+	float netSentBps = 17;
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
@@ -170,12 +174,17 @@ message ProcessStat {
 	ContainerState containerState = 11;
 	ProcessState processState = 12;
 	IOStat ioStat = 19;
+
 	// These stats are from the container level but are stored per-process
 	// because we don't send a container primitive yet.
 	ContainerHealth containerHealth = 15;
 	float containerRbps = 16;
 	float containerWbps = 17;
 	uint32 containerKey = 18;
+	float containerNetRcvdPs = 20;
+	float containerNetSentPs = 21;
+	float containerNetRcvdBps = 22;
+	float containerNetSentBps = 23;
 }
 
 
