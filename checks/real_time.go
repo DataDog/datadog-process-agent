@@ -53,12 +53,9 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 	for _, fp := range fps {
 		pids = append(pids, fp.Pid)
 	}
-	containerByPID, err := docker.ContainersByPID(pids)
-	if err != nil && err != docker.ErrDockerNotAvailable && err.Error() != lastDockerErr {
-		// Limit docker error logging to once per Agent run to prevent noise when permissions
-		// aren't correct.
+	containerByPID, err := docker.ContainersForPIDs(pids)
+	if err != nil {
 		log.Warnf("unable to get docker stats: %s", err)
-		lastDockerErr = err.Error()
 	}
 
 	// Pre-filter the list to get an accurate grou psize.
