@@ -113,6 +113,7 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 			ContainerHealth: model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
 			ContainerRbps:   calculateRate(ctr.ReadBytes, lastCtr.ReadBytes, r.lastRun),
 			ContainerWbps:   calculateRate(ctr.WriteBytes, lastCtr.WriteBytes, r.lastRun),
+			IoStat:          formatIO(fp, r.lastProcs[fp.Pid].IOStat, r.lastRun),
 		})
 	}
 
