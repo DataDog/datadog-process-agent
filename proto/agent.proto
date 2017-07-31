@@ -78,6 +78,7 @@ message Process {
 	Container container = 10;
 	int32 openFdCount = 11;
 	ProcessState state = 12;
+	IOStat ioStat = 13;
 }
 
 message Command {
@@ -168,6 +169,7 @@ message ProcessStat {
 	string containerId = 10;
 	ContainerState containerState = 11;
 	ProcessState processState = 12;
+	IOStat ioStat = 13;
 	// These stats are from the container level but are stored per-process
 	// because we don't send a container primitive yet.
 	ContainerHealth containerHealth = 15;
@@ -191,6 +193,13 @@ message OSInfo {
 	string family = 3;
 	string version = 4;
 	string kernelVersion = 5;
+}
+
+message IOStat {
+	float readRate = 1;
+	float writeRate = 2;
+	float readBytesRate = 3;
+	float writeBytesRate = 4;
 }
 
 message Connection {

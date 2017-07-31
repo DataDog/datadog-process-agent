@@ -133,6 +133,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 			Container:   formatContainer(container, lastContainer, p.lastRun),
 			OpenFdCount: fp.OpenFdCount,
 			State:       model.ProcessState(model.ProcessState_value[fp.Status]),
+			IoStat:      formatIO(fp, p.lastProcs[fp.Pid].IOStat, p.lastRun),
 		})
 	}
 
@@ -184,6 +185,19 @@ func formatCommand(fp *process.FilledProcess) *model.Command {
 		Ppid:   fp.Ppid,
 		Pgroup: fp.Pgrp,
 		Exe:    fp.Exe,
+	}
+}
+
+func formatIO(fp *process.FilledProcess, lastIO *process.IOCountersStat, before time.Time) *model.IOStat {
+	diff := time.Now().Unix() - before.Unix()
+	if before.IsZero() || diff <= 0 {
+		return nil
+	}
+	return &model.IOStat{
+		ReadRate:       calculateRate(fp.IOStat.ReadCount, lastIO.ReadCount, before),
+		WriteRate:      calculateRate(fp.IOStat.WriteCount, lastIO.WriteCount, before),
+		ReadBytesRate:  calculateRate(fp.IOStat.ReadBytes, lastIO.ReadBytes, before),
+		WriteBytesRate: calculateRate(fp.IOStat.WriteBytes, lastIO.WriteBytes, before),
 	}
 }
 
