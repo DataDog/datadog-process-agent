@@ -1,6 +1,6 @@
 # Datadog Process Agent
 
-## Run on Linux
+## Run on Linux, Docker or Kubernetes
 
 Follow the installation steps on [http://docs.datadoghq.com/guides/process/](http://docs.datadoghq.com/guides/process/) for your OS version.
 
@@ -11,14 +11,6 @@ Grab the latest release from the [releases page](https://github.com/DataDog/data
 ```
 dd-process-agent -config $PATH_TO_PROCESS_CONFIG_FILE
 ```
-
-## Running in Docker
-
-See our [Docker README](https://github.com/DataDog/datadog-process-agent/blob/master/packaging/docker/README.md) for the full details.
-
-## Running in Kubernetes
-
-See our [Kubernetes README](https://github.com/DataDog/datadog-process-agent/blob/master/packaging/docker/README.md) for the full details.
 
 ## Development or running from source
 
