@@ -1,13 +1,11 @@
 package checks
 
 import (
-	"os"
 	"os/user"
 	"runtime"
 	"strconv"
 	"time"
 
-	agentpayload "github.com/DataDog/agent-payload/gogen"
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 	log "github.com/cihub/seelog"
@@ -18,13 +16,10 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
-var lastDockerErr string
-
 // ProcessCheck collects full state, including cmdline args and related metadata,
 // for live and running processes. The instance will store some state between
 // checks that will be used for rates, cpu calculations, etc.
 type ProcessCheck struct {
-	kubeUtil       *kubernetes.KubeUtil
 	sysInfo        *model.SystemInfo
 	lastCPUTime    cpu.TimesStat
 	lastProcs      map[int32]*process.FilledProcess
@@ -35,19 +30,10 @@ type ProcessCheck struct {
 // NewProcessCheck returns a new ProcessCheck initialized with a connection to
 // Kubernetes (if appliable) and other zeoes-out information.
 func NewProcessCheck(cfg *config.AgentConfig, info *model.SystemInfo) *ProcessCheck {
-	var err error
-	var kubeUtil *kubernetes.KubeUtil
-	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" && cfg.CollectKubernetesMetadata {
-		kubeUtil, err = kubernetes.NewKubeUtil(cfg)
-		if err != nil {
-			log.Errorf("error initializing kubernetes check, metadata won't be collected: %s", err)
-		}
-	}
-
 	return &ProcessCheck{
 		sysInfo:   info,
 		lastProcs: make(map[int32]*process.FilledProcess),
-		kubeUtil:  kubeUtil}
+	}
 }
 
 // Name returns the name of the ProcessCheck.
@@ -82,17 +68,11 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	for _, fp := range fps {
 		pids = append(pids, fp.Pid)
 	}
-	containerByPID, err := docker.ContainersByPID(pids)
-	if err != nil && err != docker.ErrDockerNotAvailable && err.Error() != lastDockerErr {
-		// Limit docker error logging to once per Agent run to prevent noise when permissions
-		// aren't correct.
+	containerByPID, err := docker.ContainersForPIDs(pids)
+	if err != nil {
 		log.Warnf("unable to get docker stats: %s", err)
-		lastDockerErr = err.Error()
 	}
-	var kubeMeta *agentpayload.KubeMetadataPayload
-	if p.kubeUtil != nil {
-		kubeMeta = p.kubeUtil.GetKubernetesMeta(cfg)
-	}
+	kubeMeta := kubernetes.GetMetadata()
 
 	// Pre-filter the list to get an accurate group size.
 	filteredFps := make([]*process.FilledProcess, 0, len(fps))

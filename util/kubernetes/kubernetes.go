@@ -2,9 +2,11 @@ package kubernetes
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -16,6 +18,34 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/cache"
 	"github.com/DataDog/datadog-process-agent/util/docker"
 )
+
+var (
+	ErrKubernetesNotAvailable = errors.New("kubernetes not available")
+	globalKubeUtil            *kubeUtil
+)
+
+// InitKubeUtil initializes a global kubeUtil used by later function calls.
+func InitKubeUtil(cfg *config.AgentConfig) error {
+	if os.Getenv("KUBERNETES_SERVICE_HOST") == "" {
+		return ErrKubernetesNotAvailable
+	}
+
+	kubeletURL, err := locateKubelet(cfg)
+	if err != nil {
+		return err
+	}
+	globalKubeUtil = &kubeUtil{kubeletAPIURL: kubeletURL}
+
+	return nil
+}
+
+// Expose module-level functions that will interact with a Singleton KubeUtil.
+func GetMetadata() *agentpayload.KubeMetadataPayload {
+	if globalKubeUtil != nil {
+		return globalKubeUtil.getKubernetesMeta()
+	}
+	return nil
+}
 
 // Kubelet constants
 const (
@@ -80,25 +110,17 @@ type OwnerReference struct {
 	Name string `json:"name,omitempty"`
 }
 
-// KubeUtil is a struct to hold Kubernetes config state.
-type KubeUtil struct {
+// kubeUtil is a struct to hold Kubernetes config state. It is unexported because
+// all calls should go through the module-level functions (e.g. GetMetadata)
+// that interact with the globalKubeUtil.
+type kubeUtil struct {
 	kubeletAPIURL string
 	lastKubeErr   string
 }
 
-// NewKubeUtil returns a new instance of KubeUtil.
-func NewKubeUtil(cfg *config.AgentConfig) (*KubeUtil, error) {
-	kubeletURL, err := locateKubelet(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return &KubeUtil{kubeletAPIURL: kubeletURL}, nil
-}
-
 // GetKubernetesMeta returns a Kubernetes metadata payload using a mix of state from the
 // Kube master and local kubelet.
-func (ku *KubeUtil) GetKubernetesMeta(cfg *config.AgentConfig) *agentpayload.KubeMetadataPayload {
+func (ku *kubeUtil) getKubernetesMeta() *agentpayload.KubeMetadataPayload {
 	// The whole metadata payload is cached to limit load on the master server.
 	var kubeMeta *agentpayload.KubeMetadataPayload
 	cacheKey := "kubernetes_meta"
@@ -122,7 +144,7 @@ func (ku *KubeUtil) GetKubernetesMeta(cfg *config.AgentConfig) *agentpayload.Kub
 
 	if kubeMeta != nil {
 		// But we can fetch local state from the kubelet and merge.
-		localPods, err := ku.GetLocalPodList()
+		localPods, err := ku.getLocalPodList()
 		if err != nil {
 			log.Errorf("Unable to get local pods from kubelet: %s", err)
 		}
@@ -134,8 +156,8 @@ func (ku *KubeUtil) GetKubernetesMeta(cfg *config.AgentConfig) *agentpayload.Kub
 	return kubeMeta
 }
 
-// GetLocalPodList returns the list of pods running on the node where this pod is running
-func (ku *KubeUtil) GetLocalPodList() ([]*Pod, error) {
+// getLocalPodList returns the list of pods running on the node where this pod is running
+func (ku *kubeUtil) getLocalPodList() ([]*Pod, error) {
 	data, err := performKubeletQuery(fmt.Sprintf("%s/pods", ku.kubeletAPIURL))
 	if err != nil {
 		return nil, fmt.Errorf("Error performing kubelet query: %s", err)

@@ -16,6 +16,8 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
+	"github.com/DataDog/datadog-process-agent/util/docker"
+	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
 var opts struct {
@@ -113,6 +115,10 @@ func main() {
 		return
 	}
 
+	// Initialize the metadata providers so the singletons are available.
+	// This will log any unknown errors
+	initMetadataProviders(cfg)
+
 	if opts.check != "" {
 		err := debugCheckResults(cfg, opts.check)
 		if err != nil {
@@ -131,6 +137,18 @@ func main() {
 		return
 	}
 	cl.run()
+}
+
+func initMetadataProviders(cfg *config.AgentConfig) {
+	err := docker.InitDockerUtil()
+	if err != nil && err != docker.ErrDockerNotAvailable {
+		log.Errorf("unable to initialize docker collection: %s", err)
+	}
+
+	err = kubernetes.InitKubeUtil(cfg)
+	if err != nil && err != kubernetes.ErrKubernetesNotAvailable {
+		log.Errorf("unable to initialize kubernetes collection: %s", err)
+	}
 }
 
 // Handles signals - tells us whether we should exit.
