@@ -106,6 +106,7 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 			Threads:      fp.NumThreads,
 			OpenFdCount:  fp.OpenFdCount,
 			ProcessState: model.ProcessState(model.ProcessState_value[fp.Status]),
+			IoStat:       formatIO(fp, r.lastProcs[fp.Pid].IOStat, r.lastRun),
 
 			// Container-level statistics. These will be duplicated for every process in this container.
 			ContainerId:     ctr.ID,
@@ -113,7 +114,6 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 			ContainerHealth: model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
 			ContainerRbps:   calculateRate(ctr.ReadBytes, lastCtr.ReadBytes, r.lastRun),
 			ContainerWbps:   calculateRate(ctr.WriteBytes, lastCtr.WriteBytes, r.lastRun),
-			IoStat:          formatIO(fp, r.lastProcs[fp.Pid].IOStat, r.lastRun),
 		})
 	}
 
