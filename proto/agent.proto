@@ -78,6 +78,7 @@ message Process {
 	Container container = 10;
 	int32 openFdCount = 11;
 	ProcessState state = 12;
+	IOStat ioStat = 13;
 }
 
 message Command {
@@ -174,6 +175,7 @@ message ProcessStat {
 	float containerRbps = 16;
 	float containerWbps = 17;
 	uint32 containerKey = 18;
+	IOStat ioStat = 19;
 }
 
 
@@ -191,6 +193,13 @@ message OSInfo {
 	string family = 3;
 	string version = 4;
 	string kernelVersion = 5;
+}
+
+message IOStat {
+	float readRate = 1;
+	float writeRate = 2;
+	float readBytesRate = 3;
+	float writeBytesRate = 4;
 }
 
 message Connection {

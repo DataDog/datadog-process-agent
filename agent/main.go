@@ -102,8 +102,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Exit if agent is is not enabled and we're not debugging a check.
-	if !cfg.Enabled && opts.check == "" {
+	// Exit if agent is not enabled and we're not debugging a check.
+	/*if !cfg.Enabled && opts.check == "" {
 		log.Info(agentDisabledMessage)
 
 		// a sleep is necessary to ensure that supervisor registers this process as "STARTED"
@@ -111,7 +111,7 @@ func main() {
 		// http://supervisord.org/subprocess.html#process-states
 		time.Sleep(5 * time.Second)
 		return
-	}
+	}*/
 
 	if opts.check != "" {
 		err := debugCheckResults(cfg, opts.check)
