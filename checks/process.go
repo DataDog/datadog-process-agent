@@ -257,6 +257,10 @@ func formatContainer(ctr, lastCtr *docker.Container, lastRun time.Time) *model.C
 		Health:      model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
 		Rbps:        calculateRate(ctr.ReadBytes, lastCtr.ReadBytes, lastRun),
 		Wbps:        calculateRate(ctr.WriteBytes, lastCtr.WriteBytes, lastRun),
+		NetRcvdPs:   calculateRate(ctr.Network.PacketsRcvd, lastCtr.Network.PacketsRcvd, lastRun),
+		NetSentPs:   calculateRate(ctr.Network.PacketsSent, lastCtr.Network.PacketsSent, lastRun),
+		NetRcvdBps:  calculateRate(ctr.Network.BytesRcvd, lastCtr.Network.BytesRcvd, lastRun),
+		NetSentBps:  calculateRate(ctr.Network.BytesSent, lastCtr.Network.BytesSent, lastRun),
 	}
 }
 

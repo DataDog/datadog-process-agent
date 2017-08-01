@@ -106,11 +106,15 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 			IoStat:       formatIO(fp, r.lastProcs[fp.Pid].IOStat, r.lastRun),
 
 			// Container-level statistics. These will be duplicated for every process in this container.
-			ContainerId:     ctr.ID,
-			ContainerState:  model.ContainerState(model.ContainerState_value[ctr.State]),
-			ContainerHealth: model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
-			ContainerRbps:   calculateRate(ctr.ReadBytes, lastCtr.ReadBytes, r.lastRun),
-			ContainerWbps:   calculateRate(ctr.WriteBytes, lastCtr.WriteBytes, r.lastRun),
+			ContainerId:         ctr.ID,
+			ContainerState:      model.ContainerState(model.ContainerState_value[ctr.State]),
+			ContainerHealth:     model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
+			ContainerRbps:       calculateRate(ctr.ReadBytes, lastCtr.ReadBytes, r.lastRun),
+			ContainerWbps:       calculateRate(ctr.WriteBytes, lastCtr.WriteBytes, r.lastRun),
+			ContainerNetRcvdPs:  calculateRate(ctr.Network.PacketsRcvd, lastCtr.Network.PacketsRcvd, r.lastRun),
+			ContainerNetSentPs:  calculateRate(ctr.Network.PacketsSent, lastCtr.Network.PacketsSent, r.lastRun),
+			ContainerNetRcvdBps: calculateRate(ctr.Network.BytesRcvd, lastCtr.Network.BytesRcvd, r.lastRun),
+			ContainerNetSentBps: calculateRate(ctr.Network.BytesSent, lastCtr.Network.BytesSent, r.lastRun),
 		})
 	}
 

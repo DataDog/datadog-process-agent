@@ -2,10 +2,17 @@ package docker
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
 	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
 
+	log "github.com/cihub/seelog"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 
@@ -15,7 +22,15 @@ import (
 var (
 	ErrDockerNotAvailable = errors.New("docker not available")
 	globalDockerUtil      *dockerUtil
+	invalidationInterval  = 5 * time.Minute
 )
+
+type NetworkStat struct {
+	BytesSent   uint64
+	BytesRcvd   uint64
+	PacketsSent uint64
+	PacketsRcvd uint64
+}
 
 type Container struct {
 	Type       string
@@ -30,10 +45,27 @@ type Container struct {
 	Health     string
 	ReadBytes  uint64
 	WriteBytes uint64
+	Network    *NetworkStat
 }
 
+type dockerNetwork struct {
+	iface      string
+	dockerName string
+}
+
+type dockerNetworks []dockerNetwork
+
+func (a dockerNetworks) Len() int           { return len(a) }
+func (a dockerNetworks) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a dockerNetworks) Less(i, j int) bool { return a[i].dockerName < a[j].dockerName }
+
+// dockerUtil wraps interactions with a local docker API. It is not thread-safe.
 type dockerUtil struct {
 	cli *client.Client
+	// tracks the last time we invalidate our internal caches
+	lastInvalidate time.Time
+	// networkMappings by container id
+	networkMappings map[string][]dockerNetwork
 }
 
 //
@@ -74,7 +106,11 @@ func InitDockerUtil() error {
 		return err
 	}
 
-	globalDockerUtil = &dockerUtil{cli}
+	globalDockerUtil = &dockerUtil{
+		cli:             cli,
+		networkMappings: make(map[string][]dockerNetwork),
+		lastInvalidate:  time.Now(),
+	}
 	return nil
 }
 
@@ -94,6 +130,11 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 			return nil, err
 		}
 
+		// FIXME: We might need to invalidate this cache if a containers networks are changed live.
+		if _, ok := d.networkMappings[c.ID]; !ok {
+			d.networkMappings[c.ID] = findDockerNetworks(c.ID, i.State.Pid, c.NetworkSettings)
+		}
+
 		var health string
 		// Healthcheck and status not available until >= 1.12
 		if i.State.Health != nil {
@@ -111,6 +152,11 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 			Health:  health,
 		})
 	}
+
+	if d.lastInvalidate.Add(invalidationInterval).After(time.Now()) {
+		d.invalidateCaches(containers)
+	}
+
 	return ret, nil
 }
 
@@ -145,10 +191,16 @@ func (d *dockerUtil) containersForPIDs(pids []int32) (map[int32]*Container, erro
 			return nil, err
 		}
 
+		networks, ok := d.networkMappings[cgroup.ContainerID]
+		if ok && len(cgroup.Pids) > 0 {
+			netStat, err := collectNetworkStats(cgroup.ContainerID, cgroup.Pids[0], networks)
+			containerStat.Network = netStat
+		}
 		containerStat.MemLimit = memstat.MemLimitInBytes
 		containerStat.CPULimit = cpuLimit
 		containerStat.ReadBytes = ioStat.ReadBytes
 		containerStat.WriteBytes = ioStat.WriteBytes
+
 		for _, p := range cgroup.Pids {
 			containerMap[p] = containerStat
 		}
@@ -162,6 +214,18 @@ func (d *dockerUtil) getHostname() (string, error) {
 		return "", fmt.Errorf("unable to get Docker info: %s", err)
 	}
 	return info.Name, nil
+}
+
+func (d *dockerUtil) invalidateCaches(containers []*types.ContainerJSON) {
+	liveContainers := make(map[string]struct{})
+	for _, c := range containers {
+		c[c.ID] = struct{}{}
+	}
+	for cid := range d.networkMappings {
+		if _, ok := liveContainers[cid]; !ok {
+			delete(d.networkMappings, cid)
+		}
+	}
 }
 
 func detectServerAPIVersion() (string, error) {
@@ -183,4 +247,122 @@ func detectServerAPIVersion() (string, error) {
 		return "", err
 	}
 	return v.APIVersion, nil
+}
+
+var hostNetwork = dockerNetwork{"eth0", "bridge"}
+
+func findDockerNetworks(containerID string, pid int, netSettings *types.SummaryNetworkSettings) []dockerNetwork {
+	var err error
+	dockerGateways := make(map[string]int64)
+	for netName, netConf := range netSettings.Networks {
+		gw := netConf.Gateway
+		if netName == "host" || gw == "" {
+			log.Debugf("Empty network gateway, container %s is in network host mode, its network metrics are for the whole host", containerID)
+			return []dockerNetwork{hostNetwork}
+		}
+
+		// Check if this is a CIDR or just an IP
+		var ip net.IP
+		if strings.Contains(gw, "/") {
+			ip, _, err = net.ParseCIDR(gw)
+			if err != nil {
+				log.Warnf("Invalid gateway %s for container id %s: %s, skipping", gw, containerID, err)
+				continue
+			}
+		} else {
+			ip = net.ParseIP(gw)
+			if ip == nil {
+				log.Warnf("Invalid gateway %s for container id %s: %s, skipping", gw, containerID, err)
+				continue
+			}
+		}
+
+		// Convert IP to int64 for comparison to network routes.
+		dockerGateways[netName] = int64(binary.BigEndian.Uint32(ip.To4()))
+	}
+
+	// Read contents of file. Handle missing or unreadable file in case container was stopped.
+	procNetFile := util.HostProc(strconv.Itoa(int(pid)), "net", "route")
+	if !util.PathExists(procNetFile) {
+		log.Debugf("Missing %s for container %s", procNetFile, containerID)
+		return nil
+	}
+	lines, err := util.ReadLines(procNetFile)
+	if err != nil {
+		log.Debugf("Unable to read %s for container %s", procNetFile, containerID)
+		return nil
+	}
+	if len(lines) < 1 {
+		log.Errorf("empty network file, unable to get docker networks: %s", procNetFile)
+		return nil
+	}
+
+	networks := make([]dockerNetwork, 0)
+	for _, line := range lines[1:] {
+		fields := strings.Fields(line)
+		if len(fields) < 8 {
+			continue
+		}
+		if fields[0] == "00000000" {
+			continue
+		}
+		dest, _ := strconv.ParseInt(fields[1], 16, 32)
+		mask, _ := strconv.ParseInt(fields[7], 16, 32)
+		for net, gw := range dockerGateways {
+			if gw&mask == dest {
+				networks = append(networks, dockerNetwork{fields[0], net})
+			}
+		}
+	}
+	sort.Sort(dockerNetworks(networks))
+	return networks
+}
+
+func collectNetworkStats(containerID string, pid int, networks []dockerNetwork) (*NetworkStat, error) {
+	procNetFile := util.HostProc(strconv.Itoa(int(pid)), "net", "dev")
+	if !util.PathExists(procNetFile) {
+		log.Debugf("Unable to read %s for container %s", procNetFile, containerID)
+		return &NetworkStat{}, nil
+	}
+	lines, err := util.ReadLines(procNetFile)
+	if err != nil {
+		log.Debugf("Unable to read %s for container %s", procNetFile, containerID)
+		return &NetworkStat{}, nil
+	}
+	if len(lines) < 2 {
+		return nil, fmt.Errorf("invalid format for %s", procNetFile)
+	}
+
+	nwByIface := make(map[string]dockerNetwork)
+	for _, nw := range networks {
+		nwByIface[nw.iface] = nw
+	}
+
+	// Format:
+	//
+	// Inter-|   Receive                                                |  Transmit
+	// face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+	// eth0:    1296      16    0    0    0     0          0         0        0       0    0    0    0     0       0          0
+	// lo:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
+	//
+	stat := &NetworkStat{}
+	for _, line := range lines[2:] {
+		fields := strings.Fields(line)
+		if len(fields) < 11 {
+			continue
+		}
+		iface := fields[0][:len(fields[0])-1]
+
+		if _, ok := nwByIface[iface]; ok {
+			rcvd, _ := strconv.Atoi(fields[1])
+			stat.BytesRcvd += uint64(rcvd)
+			pktRcvd, _ := strconv.Atoi(fields[2])
+			stat.PacketsRcvd += uint64(pktRcvd)
+			sent, _ := strconv.Atoi(fields[9])
+			stat.BytesSent += uint64(sent)
+			pktSent, _ := strconv.Atoi(fields[10])
+			stat.PacketsSent += uint64(pktSent)
+		}
+	}
+	return stat, nil
 }
