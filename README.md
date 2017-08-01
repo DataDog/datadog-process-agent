@@ -1,5 +1,7 @@
 # Datadog Process Agent
 
+[![CircleCI](https://circleci.com/gh/DataDog/datadog-trace-agent.svg?style=svg)](https://circleci.com/gh/DataDog/datadog-trace-agent)
+
 ## Run on Linux, Docker or Kubernetes
 
 Follow the installation steps on [http://docs.datadoghq.com/guides/process/](http://docs.datadoghq.com/guides/process/) for your OS version.
