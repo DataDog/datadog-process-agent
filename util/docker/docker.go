@@ -193,7 +193,10 @@ func (d *dockerUtil) containersForPIDs(pids []int32) (map[int32]*Container, erro
 
 		networks, ok := d.networkMappings[cgroup.ContainerID]
 		if ok && len(cgroup.Pids) > 0 {
-			netStat, err := collectNetworkStats(cgroup.ContainerID, cgroup.Pids[0], networks)
+			netStat, err := collectNetworkStats(cgroup.ContainerID, int(cgroup.Pids[0]), networks)
+			if err != nil {
+				return nil, err
+			}
 			containerStat.Network = netStat
 		}
 		containerStat.MemLimit = memstat.MemLimitInBytes
@@ -216,10 +219,10 @@ func (d *dockerUtil) getHostname() (string, error) {
 	return info.Name, nil
 }
 
-func (d *dockerUtil) invalidateCaches(containers []*types.ContainerJSON) {
+func (d *dockerUtil) invalidateCaches(containers []types.Container) {
 	liveContainers := make(map[string]struct{})
 	for _, c := range containers {
-		c[c.ID] = struct{}{}
+		liveContainers[c.ID] = struct{}{}
 	}
 	for cid := range d.networkMappings {
 		if _, ok := liveContainers[cid]; !ok {
