@@ -1,6 +1,6 @@
 # Datadog Process Agent
 
-[![CircleCI](https://circleci.com/gh/DataDog/datadog-trace-agent.svg?style=svg)](https://circleci.com/gh/DataDog/datadog-trace-agent)
+[![CircleCI](https://circleci.com/gh/DataDog/datadog-process-agent.svg?style=svg)](https://circleci.com/gh/DataDog/datadog-process-agent)
 
 ## Run on Linux, Docker or Kubernetes
 
