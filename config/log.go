@@ -47,18 +47,25 @@ type seelogOutputs struct {
 }
 
 type seelogFilter struct {
-	XMLName xml.Name           `xml:"filter,omitempty"`
-	Levels  string             `xml:"levels,attr,omitempty"`
-	Syslog  *seelogFilterAttrs `xml:"conn"`
-	Console *seelogFilterAttrs `xml:"console"`
-	File    *seelogFilterAttrs `xml:"file"`
+	XMLName     xml.Name           `xml:"filter,omitempty"`
+	Levels      string             `xml:"levels,attr,omitempty"`
+	Syslog      *seelogFilterAttrs `xml:"conn"`
+	Console     *seelogFilterAttrs `xml:"console"`
+	RollingFile *seelogFilterAttrs `xml:"rollingfile"`
 }
 
 type seelogFilterAttrs struct {
 	FormatID string `xml:"formatid,attr,omitempty"`
-	Net      string `xml:"net,attr,omitempty"`
-	Addr     string `xml:"addr,attr,omitempty"`
-	Path     string `xml:"path,attr,omitempty"`
+
+	// <conn>
+	Net  string `xml:"net,attr,omitempty"`
+	Addr string `xml:"addr,attr,omitempty"`
+
+	// <rollingfile>
+	Filename string `xml:"filename,attr,omitempty"`
+	Type     string `xml:"type,attr,omitempty"`
+	MaxSize  int    `xml:"maxsize,attr,omitempty"`
+	MaxRolls int    `xml:"maxrolls,attr,omitempty"`
 }
 
 type seelogFormats struct {
@@ -144,9 +151,12 @@ func newConsoleFilter(logLvl string) *seelogFilter {
 func newFileFilter(logLvl, filename string) *seelogFilter {
 	return &seelogFilter{
 		Levels: filterLevels(logLvl),
-		File: &seelogFilterAttrs{
+		RollingFile: &seelogFilterAttrs{
 			FormatID: "file",
-			Path:     filename,
+			Filename: filename,
+			Type:     "size",
+			MaxSize:  10 * 1024 * 1024,
+			MaxRolls: 1,
 		},
 	}
 }
@@ -280,12 +290,16 @@ func replaceLogger(cfg *LoggerConfig) error {
 }
 
 // NewLoggerLevel sets the global logger to the given log level.
-func NewLoggerLevel(logLevel string) error {
+func NewLoggerLevel(logLevel, logFile string) error {
+	var console bool
+	if logFile == "" {
+		console = true
+	}
 	loggerConfig := &LoggerConfig{
 		LogLevel:    logLevel,
-		Filename:    defaultLogFilePath,
+		Filename:    logFile,
 		SyslogLevel: "off",
-		Console:     false,
+		Console:     console,
 	}
 	return replaceLogger(loggerConfig)
 }

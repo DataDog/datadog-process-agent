@@ -29,6 +29,7 @@ type AgentConfig struct {
 	APIKey        string
 	HostName      string
 	APIEndpoint   *url.URL
+	LogFile       string
 	LogLevel      string
 	QueueSize     int
 	Blacklist     []*regexp.Regexp
@@ -66,6 +67,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		Enabled:       false,
 		HostName:      hostname,
 		APIEndpoint:   u,
+		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
 		QueueSize:     20,
 		MaxProcFDs:    200,
@@ -157,6 +159,7 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		cfg.QueueSize = file.GetIntDefault(ns, "queue_size", cfg.QueueSize)
 		cfg.MaxProcFDs = file.GetIntDefault(ns, "max_proc_fds", cfg.MaxProcFDs)
 		cfg.AllowRealTime = file.GetBool(ns, "allow_real_time", cfg.AllowRealTime)
+		cfg.LogFile = file.GetDefault(ns, "log_file", cfg.LogFile)
 
 		blacklistPats := file.GetStrArrayDefault(ns, "blacklist", ",", []string{})
 		blacklist := make([]*regexp.Regexp, 0, len(blacklistPats))
@@ -183,7 +186,9 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 	cfg = mergeEnv(cfg)
 
 	// (Re)configure the logging from our configuration
-	NewLoggerLevel(cfg.LogLevel)
+	if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile); err != nil {
+		return nil, err
+	}
 
 	return cfg, nil
 }
@@ -219,12 +224,16 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 		c.APIKey = vals[0]
 	}
 
-	// Support LOG_LEVEL and DD_LOG_LEVEL but prefer DD_LOG_LEVE
+	// Support LOG_LEVEL and DD_LOG_LEVEL but prefer DD_LOG_LEVEL
 	if v := os.Getenv("LOG_LEVEL"); v != "" {
 		c.LogLevel = v
 	}
 	if v := os.Getenv("DD_LOG_LEVEL"); v != "" {
 		c.LogLevel = v
+	}
+	if v := os.Getenv("DD_LOGS_STDOUT"); v == "true" {
+		// Empty log file implies logging to stdout and stdout
+		c.LogFile = ""
 	}
 
 	c.Proxy = proxyFromEnv(c.Proxy)
