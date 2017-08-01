@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/util/docker"
+	"github.com/DataDog/datadog-process-agent/util/ecs"
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
@@ -149,6 +150,11 @@ func initMetadataProviders(cfg *config.AgentConfig) {
 	err = kubernetes.InitKubeUtil(cfg)
 	if err != nil && err != kubernetes.ErrKubernetesNotAvailable {
 		log.Errorf("unable to initialize kubernetes collection: %s", err)
+	}
+
+	err = ecs.InitECSUtil()
+	if err != nil && err != ecs.ErrECSNotAvailable {
+		log.Errorf("unable to initialize ECS collection: %s", err)
 	}
 }
 

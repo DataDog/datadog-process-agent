@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/util/docker"
+	"github.com/DataDog/datadog-process-agent/util/ecs"
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
@@ -69,6 +70,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		pids = append(pids, fp.Pid)
 	}
 	containerByPID := docker.ContainersForPIDs(pids)
+	ecsMeta := ecs.GetMetadata()
 	kubeMeta := kubernetes.GetMetadata()
 
 	// Pre-filter the list to get an accurate group size.
@@ -94,6 +96,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 				GroupId:    groupID,
 				GroupSize:  int32(groupSize),
 				Kubernetes: kubeMeta,
+				Ecs:        ecsMeta,
 			})
 			procs = make([]*model.Process, 0, cfg.ProcLimit)
 		}
@@ -123,6 +126,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		// FIXME: We should not send this in every payload. Long-term the container
 		// ID should be enough context to resolve this metadata on the backend.
 		Kubernetes: kubeMeta,
+		Ecs:        ecsMeta,
 	})
 
 	// Store the last state for comparison on the next run.
