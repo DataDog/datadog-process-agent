@@ -112,7 +112,7 @@ func TestDefaultConfig(t *testing.T) {
 	agentConfig := NewDefaultAgentConfig()
 
 	// assert that some sane defaults are set
-	assert.Equal(agentConfig.Enabled, true)
+	assert.Equal(agentConfig.Enabled, false)
 	assert.Equal(agentConfig.LogLevel, "info")
 	assert.Equal(agentConfig.AllowRealTime, true)
 }
