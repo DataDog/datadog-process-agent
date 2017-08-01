@@ -74,7 +74,8 @@ func main() {
 	flag.Parse()
 
 	// Set up a default config before parsing config so we log errors nicely.
-	if err := config.NewLoggerLevel("info"); err != nil {
+	// The default will be stdout since we can't assume any file is writeable.
+	if err := config.NewLoggerLevel("info", ""); err != nil {
 		panic(err)
 	}
 
