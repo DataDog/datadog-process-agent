@@ -32,6 +32,7 @@ message CollectorProc {
 
 	// Optional metadata fields
 	datadog.agentpayload.KubeMetadataPayload kubernetes = 8;
+	datadog.agentpayload.ECSMetadataPayload ecs = 9;
 }
 
 message CollectorConnections {
