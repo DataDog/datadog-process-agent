@@ -21,8 +21,10 @@ import (
 
 var (
 	ErrDockerNotAvailable = errors.New("docker not available")
-	globalDockerUtil      *dockerUtil
-	invalidationInterval  = 5 * time.Minute
+
+	globalDockerUtil     *dockerUtil
+	invalidationInterval = 5 * time.Minute
+	lastErr              string
 
 	// NullContainer is an empty container object that has
 	// default values for all fields including sub-fields.
@@ -77,11 +79,17 @@ type dockerUtil struct {
 //
 // Expose module-level functions that will interact with a Singleton dockerUtil.
 
-func ContainersForPIDs(pids []int32) (map[int32]*Container, error) {
+func ContainersForPIDs(pids []int32) map[int32]*Container {
 	if globalDockerUtil != nil {
-		return globalDockerUtil.containersForPIDs(pids)
+		r, err := globalDockerUtil.containersForPIDs(pids)
+		if err != nil && err.Error() != lastErr {
+			log.Warnf("unable to collect docker stats: %s", err)
+			lastErr = err.Error()
+		} else {
+			return r
+		}
 	}
-	return map[int32]*Container{}, nil
+	return map[int32]*Container{}
 }
 
 func GetHostname() (string, error) {
@@ -97,6 +105,11 @@ func InitDockerUtil() error {
 	// If we don't have a docker.sock then return a known error.
 	sockPath := util.GetEnv("DOCKER_SOCKET_PATH", "/var/run/docker.sock")
 	if !util.PathExists(sockPath) {
+		return ErrDockerNotAvailable
+	}
+	// The /proc/mounts file won't be availble on non-Linux systems.
+	mountsFile := "/proc/mounts"
+	if !util.PathExists(mountsFile) {
 		return ErrDockerNotAvailable
 	}
 
