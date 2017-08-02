@@ -38,7 +38,7 @@ imports:
   - processes
   - processes/gops
 - name: github.com/DataDog/gopsutil
-  version: 605b95884e4661a781cffaeb8457fc3c93c09cbc
+  version: a24a4d153b63dd64d83f84024be3f0fe7f95c2c6
   subpackages:
   - cpu
   - host
