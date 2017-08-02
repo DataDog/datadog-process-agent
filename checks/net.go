@@ -8,6 +8,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
+	"github.com/DataDog/datadog-process-agent/util"
 )
 
 // ConnectionsCheck collects statistics about live TCP and UDP connections.
@@ -29,7 +30,9 @@ func (c *ConnectionsCheck) Name() string { return "connections" }
 func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
 	connections, err := net.ConnectionsMax("tcp", cfg.MaxProcFDs)
-	if err != nil {
+	if err != nil && err.Error() == util.ErrNotImplemented.Error() {
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 

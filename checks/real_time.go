@@ -6,8 +6,6 @@ import (
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 
-	log "github.com/cihub/seelog"
-
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/util/docker"
@@ -53,10 +51,7 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 	for _, fp := range fps {
 		pids = append(pids, fp.Pid)
 	}
-	containerByPID, err := docker.ContainersForPIDs(pids)
-	if err != nil {
-		log.Warnf("unable to get docker stats: %s", err)
-	}
+	containerByPID := docker.ContainersForPIDs(pids)
 
 	// Pre-filter the list to get an accurate grou psize.
 	filteredFps := make([]*process.FilledProcess, 0, len(fps))

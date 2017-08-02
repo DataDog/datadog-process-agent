@@ -68,10 +68,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	for _, fp := range fps {
 		pids = append(pids, fp.Pid)
 	}
-	containerByPID, err := docker.ContainersForPIDs(pids)
-	if err != nil {
-		log.Warnf("unable to get docker stats: %s", err)
-	}
+	containerByPID := docker.ContainersForPIDs(pids)
 	kubeMeta := kubernetes.GetMetadata()
 
 	// Pre-filter the list to get an accurate group size.
@@ -163,12 +160,16 @@ func formatCommand(fp *process.FilledProcess) *model.Command {
 		Root:   "",    // TODO
 		OnDisk: false, // TODO
 		Ppid:   fp.Ppid,
-		Pgroup: fp.Pgrp,
 		Exe:    fp.Exe,
 	}
 }
 
 func formatIO(fp *process.FilledProcess, lastIO *process.IOCountersStat, before time.Time) *model.IOStat {
+	// This will be nill for Mac
+	if fp.IOStat == nil {
+		return &model.IOStat{}
+	}
+
 	diff := time.Now().Unix() - before.Unix()
 	if before.IsZero() || diff <= 0 {
 		return nil
