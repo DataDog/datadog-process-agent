@@ -87,11 +87,11 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 
 		ctr, ok := containerByPID[fp.Pid]
 		if !ok {
-			ctr = &docker.Container{}
+			ctr = docker.NullContainer
 		}
 		lastCtr, ok := r.lastContainers[fp.Pid]
 		if !ok {
-			lastCtr = &docker.Container{}
+			lastCtr = docker.NullContainer
 		}
 
 		stats = append(stats, &model.ProcessStat{

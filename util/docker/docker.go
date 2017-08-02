@@ -23,6 +23,12 @@ var (
 	ErrDockerNotAvailable = errors.New("docker not available")
 	globalDockerUtil      *dockerUtil
 	invalidationInterval  = 5 * time.Minute
+
+	// NullContainer is an empty container object that has
+	// default values for all fields including sub-fields.
+	// If new sub-structs are added to Container this must
+	// be updated.
+	NullContainer = &Container{Network: &NetworkStat{}}
 )
 
 type NetworkStat struct {
