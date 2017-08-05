@@ -183,19 +183,22 @@ func debugCheckResults(cfg *config.AgentConfig, check string) error {
 		return err
 	}
 
+	var ch checks.Check
 	switch check {
 	case "process":
-		p := checks.NewProcessCheck(cfg, sysInfo)
-		return printResults(cfg, p)
+		ch = checks.NewProcessCheck(cfg, sysInfo)
+	case "process_realtime":
+		ch = checks.NewRTProcessCheck(cfg, sysInfo)
 	case "connections":
-		p := checks.NewConnectionsCheck(cfg, sysInfo)
-		return printResults(cfg, p)
-	case "realtime":
-		p := checks.NewRealTimeCheck(cfg, sysInfo)
-		return printResults(cfg, p)
+		ch = checks.NewConnectionsCheck(cfg, sysInfo)
+	case "container":
+		ch = checks.NewContainerCheck(cfg, sysInfo)
+	case "container_realtime":
+		ch = checks.NewRTContainerCheck(cfg, sysInfo)
 	default:
 		return fmt.Errorf("invalid check: %s", check)
 	}
+	return printResults(cfg, ch)
 }
 
 func printResults(cfg *config.AgentConfig, ch checks.Check) error {
