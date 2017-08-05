@@ -14,7 +14,6 @@ import:
     - process
   - package: github.com/DataDog/zstd
   - package: github.com/cihub/seelog
-    version: v2.6
   - package: github.com/gogo/protobuf
     subpackages:
     - proto

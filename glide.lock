@@ -2,7 +2,7 @@ hash: 0b37d87882e4d7bf17af4b762864d4703faf28ade3bbf3d56b0c52b9c4e25686
 updated: 2017-06-27T14:55:21.947132712-04:00
 imports:
 - name: github.com/cihub/seelog
-  version: d2c6e5aa9fbfdd1c624e140287063c7730654115
+  version: f561c5e57575bb1e0a2167028b7339b3a8d16fb4
 - name: github.com/DataDog/agent-payload
   version: fb25fcedf155de94e762080a914adb5436d45b9c
   subpackages:
