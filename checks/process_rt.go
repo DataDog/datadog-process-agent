@@ -11,9 +11,9 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/docker"
 )
 
-// RealTimeCheck collects numeric statistics about the live processes.
+// RTProcessCheck collects numeric statistics about the live processes.
 // The instance stores state between checks for calculation of rates and CPU.
-type RealTimeCheck struct {
+type RTProcessCheck struct {
 	sysInfo        *model.SystemInfo
 	lastCPUTime    cpu.TimesStat
 	lastProcs      map[int32]*process.FilledProcess
@@ -21,23 +21,23 @@ type RealTimeCheck struct {
 	lastRun        time.Time
 }
 
-// NewRealTimeCheck returns a new RealTimeCheck instance.
-func NewRealTimeCheck(cfg *config.AgentConfig, sysInfo *model.SystemInfo) *RealTimeCheck {
-	return &RealTimeCheck{
+// NewRTProcessCheck returns a new RTProcessCheck instance.
+func NewRTProcessCheck(cfg *config.AgentConfig, sysInfo *model.SystemInfo) *RTProcessCheck {
+	return &RTProcessCheck{
 		sysInfo:   sysInfo,
 		lastProcs: make(map[int32]*process.FilledProcess)}
 }
 
-// Name returns the name of the RealTimeCheck.
-func (r *RealTimeCheck) Name() string { return "real-time" }
+// Name returns the name of the RTProcessCheck.
+func (r *RTProcessCheck) Name() string { return "real-time" }
 
-// Run runs the RealTimeCheck to collect statistics about the running processes.
+// Run runs the RTProcessCheck to collect statistics about the running processes.
 // On most POSIX systems these statistics are collected from procfs. The bulk
 // of this collection is abstracted into the `gopsutil` library.
 // Processes are split up into a chunks of at most 100 processes per message to
 // limit the message size on intake.
 // See agent.proto for the schema of the message and models used.
-func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
+func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	cpuTimes, err := cpu.Times(false)
 	if err != nil {
 		return nil, err
@@ -104,8 +104,8 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 			ContainerId:         ctr.ID,
 			ContainerState:      model.ContainerState(model.ContainerState_value[ctr.State]),
 			ContainerHealth:     model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
-			ContainerRbps:       calculateRate(ctr.ReadBytes, lastCtr.ReadBytes, r.lastRun),
-			ContainerWbps:       calculateRate(ctr.WriteBytes, lastCtr.WriteBytes, r.lastRun),
+			ContainerRbps:       calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, r.lastRun),
+			ContainerWbps:       calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, r.lastRun),
 			ContainerNetRcvdPs:  calculateRate(ctr.Network.PacketsRcvd, lastCtr.Network.PacketsRcvd, r.lastRun),
 			ContainerNetSentPs:  calculateRate(ctr.Network.PacketsSent, lastCtr.Network.PacketsSent, r.lastRun),
 			ContainerNetRcvdBps: calculateRate(ctr.Network.BytesRcvd, lastCtr.Network.BytesRcvd, r.lastRun),
@@ -134,7 +134,7 @@ func (r *RealTimeCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mes
 
 // skipProcess will skip a given process if it's blacklisted or hasn't existed
 // for multiple collections.
-func (r *RealTimeCheck) skipProcess(cfg *config.AgentConfig, fp *process.FilledProcess) bool {
+func (r *RTProcessCheck) skipProcess(cfg *config.AgentConfig, fp *process.FilledProcess) bool {
 	if len(fp.Cmdline) == 0 {
 		return true
 	}
