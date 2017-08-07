@@ -18,7 +18,7 @@ import (
 
 type collectorChecks struct {
 	process     *checks.ProcessCheck
-	realTime    *checks.RealTimeCheck
+	realTime    *checks.RTProcessCheck
 	connections *checks.ConnectionsCheck
 }
 
@@ -82,7 +82,7 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 		// Each check should handle a empty state initialization.
 		checks: collectorChecks{
 			process:     checks.NewProcessCheck(cfg, sysInfo),
-			realTime:    checks.NewRealTimeCheck(cfg, sysInfo),
+			realTime:    checks.NewRTProcessCheck(cfg, sysInfo),
 			connections: checks.NewConnectionsCheck(cfg, sysInfo),
 		},
 	}, nil

@@ -58,8 +58,9 @@ type CgroupMemStat struct {
 
 type CgroupTimesStat struct {
 	ContainerID string
-	System      float64
-	User        float64
+	System      uint64
+	User        uint64
+	Limit       float64
 }
 
 type CgroupIOStat struct {
@@ -191,18 +192,24 @@ func (c ContainerCgroup) CPU() (*CgroupTimesStat, error) {
 	for _, line := range lines {
 		fields := strings.Split(line, " ")
 		if fields[0] == "user" {
-			user, err := strconv.ParseFloat(fields[1], 64)
+			user, err := strconv.ParseUint(fields[1], 10, 64)
 			if err == nil {
-				ret.User = float64(user)
+				ret.User = user
 			}
 		}
 		if fields[0] == "system" {
-			system, err := strconv.ParseFloat(fields[1], 64)
+			system, err := strconv.ParseUint(fields[1], 10, 64)
 			if err == nil {
-				ret.System = float64(system)
+				ret.System = system
 			}
 		}
 	}
+	limit, err := c.CPULimit()
+	if err != nil {
+		return nil, err
+	}
+	ret.Limit = limit
+
 	return ret, nil
 }
 

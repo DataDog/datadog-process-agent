@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/gopsutil/process"
 	log "github.com/cihub/seelog"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -30,7 +31,12 @@ var (
 	// default values for all fields including sub-fields.
 	// If new sub-structs are added to Container this must
 	// be updated.
-	NullContainer = &Container{Network: &NetworkStat{}}
+	NullContainer = &Container{
+		CPU:     &CgroupTimesStat{},
+		Memory:  &CgroupMemStat{},
+		IO:      &CgroupIOStat{},
+		Network: &NetworkStat{},
+	}
 )
 
 type NetworkStat struct {
@@ -41,19 +47,20 @@ type NetworkStat struct {
 }
 
 type Container struct {
-	Type       string
-	ID         string
-	Name       string
-	Image      string
-	ImageID    string
-	CPULimit   float64
-	MemLimit   uint64
-	Created    int64
-	State      string
-	Health     string
-	ReadBytes  uint64
-	WriteBytes uint64
-	Network    *NetworkStat
+	Type    string
+	ID      string
+	Name    string
+	Image   string
+	ImageID string
+	Created int64
+	State   string
+	Health  string
+	Pids    []int32
+
+	CPU     *CgroupTimesStat
+	Memory  *CgroupMemStat
+	IO      *CgroupIOStat
+	Network *NetworkStat
 }
 
 type dockerNetwork struct {
@@ -85,6 +92,7 @@ type dockerUtil struct {
 //
 // Expose module-level functions that will interact with a Singleton dockerUtil.
 
+// ContainersForPids gets a mapping of pids -> container for the given PIDs.
 func ContainersForPIDs(pids []int32) map[int32]*Container {
 	if globalDockerUtil != nil {
 		r, err := globalDockerUtil.containersForPIDs(pids)
@@ -96,6 +104,25 @@ func ContainersForPIDs(pids []int32) map[int32]*Container {
 		}
 	}
 	return map[int32]*Container{}
+}
+
+// AllContainers returns a slice of all running containers.
+func AllContainers() ([]*Container, error) {
+	pids, err := process.Pids()
+	if err != nil {
+		return nil, fmt.Errorf("could not get pids: %s", err)
+	}
+
+	if globalDockerUtil != nil {
+		r, err := globalDockerUtil.containers(pids)
+		if err != nil && err.Error() != lastErr {
+			log.Warnf("unable to collect docker stats: %s", err)
+			lastErr = err.Error()
+		} else {
+			return r, nil
+		}
+	}
+	return nil, nil
 }
 
 func GetHostname() (string, error) {
@@ -198,10 +225,9 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 	return ret, nil
 }
 
-// containersForPIDs Generates a mapping of PIDs to container metadata with
-// filled stats. Calls are meant tolimit the number of syscalls for each PID for
-// just enough to get the data we need.
-func (d *dockerUtil) containersForPIDs(pids []int32) (map[int32]*Container, error) {
+// containers gets a list of all containers on the current node using a mix of
+// the Docker APIs and cgroups stats. We attempt to limit syscalls where possible.
+func (d *dockerUtil) containers(pids []int32) ([]*Container, error) {
 	cgByContainer, err := CgroupsForPids(pids)
 	if err != nil {
 		return nil, err
@@ -210,21 +236,20 @@ func (d *dockerUtil) containersForPIDs(pids []int32) (map[int32]*Container, erro
 	if err != nil {
 		return nil, err
 	}
-	containerMap := make(map[int32]*Container)
-	for _, containerStat := range containers {
-		cgroup, ok := cgByContainer[containerStat.ID]
+	for _, container := range containers {
+		cgroup, ok := cgByContainer[container.ID]
 		if !ok {
 			continue
 		}
-		memstat, err := cgroup.Mem()
+		container.Memory, err = cgroup.Mem()
 		if err != nil {
 			return nil, err
 		}
-		cpuLimit, err := cgroup.CPULimit()
+		container.CPU, err = cgroup.CPU()
 		if err != nil {
 			return nil, err
 		}
-		ioStat, err := cgroup.IO()
+		container.IO, err = cgroup.IO()
 		if err != nil {
 			return nil, err
 		}
@@ -236,16 +261,24 @@ func (d *dockerUtil) containersForPIDs(pids []int32) (map[int32]*Container, erro
 				if err != nil {
 					return nil, err
 				}
-				containerStat.Network = netStat
+				container.Network = netStat
 			}
 		}
-		containerStat.MemLimit = memstat.MemLimitInBytes
-		containerStat.CPULimit = cpuLimit
-		containerStat.ReadBytes = ioStat.ReadBytes
-		containerStat.WriteBytes = ioStat.WriteBytes
+		container.Pids = cgroup.Pids
+	}
+	return containers, nil
+}
 
-		for _, p := range cgroup.Pids {
-			containerMap[p] = containerStat
+// containersForPIDs generates a mapping of PIDs to container using containers()
+func (d *dockerUtil) containersForPIDs(pids []int32) (map[int32]*Container, error) {
+	containers, err := d.containers(pids)
+	if err != nil {
+		return nil, err
+	}
+	containerMap := make(map[int32]*Container)
+	for _, container := range containers {
+		for _, p := range container.Pids {
+			containerMap[p] = container
 		}
 	}
 	return containerMap, nil

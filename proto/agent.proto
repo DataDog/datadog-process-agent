@@ -53,9 +53,38 @@ message CollectorRealTime {
 	int64 totalMemory = 9;
 }
 
+message CollectorContainer {
+	string hostName = 1;
+	SystemInfo info = 2;
+	repeated Container containers = 3;
+	int32 groupId = 4;
+	int32 groupSize = 5;
+
+	// Optional metadata fields
+	datadog.agentpayload.KubeMetadataPayload kubernetes = 6;
+	datadog.agentpayload.ECSMetadataPayload ecs = 7;
+
+	// Post-resolved fields
+	Host host = 8;
+}
+
+message CollectorContainerRealTime {
+	string hostName = 1;
+	repeated ContainerStat stats = 2;
+
+	// Used for normalization at host-level.
+	int32 numCpus = 3;
+	int64 totalMemory = 4;
+
+	// Post-resolved fields
+	int32 hostId = 5;
+}
+
+
 message CollectorReqStatus {
 	string hostName = 2;
 }
+
 
 //
 // Models
@@ -123,9 +152,6 @@ enum ContainerHealth {
 }
 
 message Container {
-	// Unique key for a container, used on backend.
-	uint32 key = 13;
-
 	string type = 1;
 	string id = 2;
 	string name = 3;
@@ -138,10 +164,16 @@ message Container {
 	int64 created = 10;
 	float rbps = 11;
 	float wbps = 12;
+	uint32 key = 13; // Unique key for a container resolved on backend.
 	float netRcvdPs = 14;
 	float netSentPs = 15;
 	float netRcvdBps = 16;
 	float netSentBps = 17;
+	float userPct = 18;
+	float systemPct = 19;
+	float totalPct = 20;
+	uint64 memRss = 21;
+	uint64 memCache = 22;
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
@@ -188,6 +220,31 @@ message ProcessStat {
 	float containerNetSentBps = 23;
 }
 
+// ContainerStat is used for real-time container messages. It should only contain
+// data that can change for a running container (and relevant information to
+// generate a key). We will send a lot of these in the real-time messages so
+// it's critical to keep this small (basically no strings except ID)
+message ContainerStat {
+	string id = 1;
+	float userPct = 2;
+	float systemPct = 3;
+	float totalPct = 4;
+	float cpuLimit = 5;
+	uint64 memRss = 6;
+	uint64 memCache = 7;
+	uint64 memLimit = 8;
+	float rbps = 9;
+	float wbps = 10;
+	float netRcvdPs = 11;
+	float netSentPs = 12;
+	float netRcvdBps = 13;
+	float netSentBps = 14;
+	ContainerState state = 15;
+	ContainerHealth health = 16;
+
+	// Post-resolved fields
+	uint32 key = 17;
+}
 
 message SystemInfo {
 	string uuid = 1;

@@ -110,7 +110,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 			Memory:      formatMemory(fp),
 			Cpu:         formatCPU(fp, fp.CpuTime, p.lastProcs[fp.Pid].CpuTime, cpuTimes[0], p.lastCPUTime),
 			CreateTime:  fp.CreateTime,
-			Container:   formatContainer(container, lastContainer, p.lastRun),
+			Container:   formatContainer(container, lastContainer, cpuTimes[0], p.lastCPUTime, p.lastRun),
 			OpenFdCount: fp.OpenFdCount,
 			State:       model.ProcessState(model.ProcessState_value[fp.Status]),
 			IoStat:      formatIO(fp, p.lastProcs[fp.Pid].IOStat, p.lastRun),
@@ -237,35 +237,6 @@ func formatCPU(fp *process.FilledProcess, t2, t1, syst2, syst1 cpu.TimesStat) *m
 		Nice:       fp.Nice,
 		UserTime:   int64(t2.User),
 		SystemTime: int64(t2.System),
-	}
-}
-
-func formatContainer(ctr, lastCtr *docker.Container, lastRun time.Time) *model.Container {
-	// Container will be nill if the process has no container.
-	if ctr == nil {
-		return nil
-	}
-	if lastCtr == nil {
-		// Set to an empty container so rate calculations work and use defaults.
-		lastCtr = &docker.Container{}
-	}
-
-	return &model.Container{
-		Type:        ctr.Type,
-		Name:        ctr.Name,
-		Id:          ctr.ID,
-		Image:       ctr.Image,
-		CpuLimit:    float32(ctr.CPULimit),
-		MemoryLimit: ctr.MemLimit,
-		Created:     ctr.Created,
-		State:       model.ContainerState(model.ContainerState_value[ctr.State]),
-		Health:      model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
-		Rbps:        calculateRate(ctr.ReadBytes, lastCtr.ReadBytes, lastRun),
-		Wbps:        calculateRate(ctr.WriteBytes, lastCtr.WriteBytes, lastRun),
-		NetRcvdPs:   calculateRate(ctr.Network.PacketsRcvd, lastCtr.Network.PacketsRcvd, lastRun),
-		NetSentPs:   calculateRate(ctr.Network.PacketsSent, lastCtr.Network.PacketsSent, lastRun),
-		NetRcvdBps:  calculateRate(ctr.Network.BytesRcvd, lastCtr.Network.BytesRcvd, lastRun),
-		NetSentBps:  calculateRate(ctr.Network.BytesSent, lastCtr.Network.BytesSent, lastRun),
 	}
 }
 
