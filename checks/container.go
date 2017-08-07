@@ -58,27 +58,22 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 		return nil, nil
 	}
 
-	formatted := fmtContainers(containers, c.lastContainers,
-		cpuTimes[0], c.lastCPUTime, c.lastRun)
-	groupSize := len(formatted) / cfg.ProcLimit
-	if len(formatted) != cfg.ProcLimit {
-		groupSize++
-	}
-
 	// Fetch orchestrator metadata once per check.
 	ecsMeta := ecs.GetMetadata()
 	kubeMeta := kubernetes.GetMetadata()
 
+	groupSize := len(containers) / cfg.ProcLimit
+	if len(containers) != cfg.ProcLimit {
+		groupSize++
+	}
+	chunked := fmtContainers(containers, c.lastContainers,
+		cpuTimes[0], c.lastCPUTime, c.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	for i := 0; i < groupSize; i++ {
-		end := groupSize * (i + 1)
-		if end > len(formatted) {
-			end = len(formatted)
-		}
 		messages = append(messages, &model.CollectorContainer{
 			HostName:   cfg.HostName,
 			Info:       c.sysInfo,
-			Containers: formatted[groupSize*i : end],
+			Containers: chunked[i],
 			GroupId:    groupID,
 			GroupSize:  int32(groupSize),
 			Kubernetes: kubeMeta,
@@ -94,65 +89,66 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	return messages, nil
 }
 
+// fmtContainers formats and chunks the containers into a slice of chunks using a specific
+// number of chunks. len(result) MUST EQUAL chunks.
 func fmtContainers(
 	containers, lastContainers []*docker.Container,
 	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
-) []*model.Container {
+	chunks int,
+) [][]*model.Container {
 	lastByID := make(map[string]*docker.Container, len(containers))
 	for _, c := range lastContainers {
 		lastByID[c.ID] = c
 	}
 
-	formatted := make([]*model.Container, 0, len(containers))
+	perChunk := (len(containers) / chunks) + 1
+	chunked := make([][]*model.Container, chunks)
+	chunk := make([]*model.Container, 0, perChunk)
+	i := 0
 	for _, ctr := range containers {
-		lastCtr, _ := lastByID[ctr.ID]
-		formatted = append(formatted, formatContainer(ctr, lastCtr, syst2, syst1, lastRun))
-	}
-	return formatted
-}
+		lastCtr, ok := lastByID[ctr.ID]
+		if !ok {
+			// Set to an empty container so rate calculations work and use defaults.
+			lastCtr = docker.NullContainer
+		}
 
-func formatContainer(
-	ctr, lastCtr *docker.Container,
-	syst2, syst1 cpu.TimesStat,
-	lastRun time.Time,
-) *model.Container {
-	// Container will be nill if the process has no container
-	// when this function is used by the process check. This
-	// should not occur in the ContainerCheck.
-	if ctr == nil {
-		return nil
-	}
-	if lastCtr == nil {
-		// Set to an empty container so rate calculations work and use defaults.
-		lastCtr = docker.NullContainer
-	}
+		numCPU := float64(runtime.NumCPU())
+		deltaUser := ctr.CPU.User - lastCtr.CPU.User
+		deltaSys := ctr.CPU.System - lastCtr.CPU.System
+		// User and Sys times are in nanoseconds for cgroups, so we must adjust our system time.
+		deltaTime := uint64(syst2.Total()-syst1.Total()) * nanoSecondsPerSecond
+		chunk = append(chunk, &model.Container{
+			Type:        ctr.Type,
+			Name:        ctr.Name,
+			Id:          ctr.ID,
+			Image:       ctr.Image,
+			CpuLimit:    float32(ctr.CPU.Limit),
+			UserPct:     calculateCtrPct(deltaUser, deltaTime, numCPU),
+			SystemPct:   calculateCtrPct(deltaSys, deltaTime, numCPU),
+			TotalPct:    calculateCtrPct(deltaUser+deltaSys, deltaTime, numCPU),
+			MemoryLimit: ctr.Memory.MemLimitInBytes,
+			Created:     ctr.Created,
+			State:       model.ContainerState(model.ContainerState_value[ctr.State]),
+			Health:      model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
+			Rbps:        calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun),
+			Wbps:        calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun),
+			NetRcvdPs:   calculateRate(ctr.Network.PacketsRcvd, lastCtr.Network.PacketsRcvd, lastRun),
+			NetSentPs:   calculateRate(ctr.Network.PacketsSent, lastCtr.Network.PacketsSent, lastRun),
+			NetRcvdBps:  calculateRate(ctr.Network.BytesRcvd, lastCtr.Network.BytesRcvd, lastRun),
+			NetSentBps:  calculateRate(ctr.Network.BytesSent, lastCtr.Network.BytesSent, lastRun),
+		})
 
-	numCPU := float64(runtime.NumCPU())
-	deltaUser := ctr.CPU.User - lastCtr.CPU.User
-	deltaSys := ctr.CPU.System - lastCtr.CPU.System
-	// User and Sys times are in nanoseconds for cgroups, so we must adjust our system time.
-	deltaTime := uint64(syst2.Total()-syst1.Total()) * nanoSecondsPerSecond
-	return &model.Container{
-		Type:        ctr.Type,
-		Name:        ctr.Name,
-		Id:          ctr.ID,
-		Image:       ctr.Image,
-		CpuLimit:    float32(ctr.CPU.Limit),
-		UserPct:     calculateCtrPct(deltaUser, deltaTime, numCPU),
-		SystemPct:   calculateCtrPct(deltaSys, deltaTime, numCPU),
-		TotalPct:    calculateCtrPct(deltaUser+deltaSys, deltaTime, numCPU),
-		MemoryLimit: ctr.Memory.MemLimitInBytes,
-		Created:     ctr.Created,
-		State:       model.ContainerState(model.ContainerState_value[ctr.State]),
-		Health:      model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
-		Rbps:        calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun),
-		Wbps:        calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun),
-		NetRcvdPs:   calculateRate(ctr.Network.PacketsRcvd, lastCtr.Network.PacketsRcvd, lastRun),
-		NetSentPs:   calculateRate(ctr.Network.PacketsSent, lastCtr.Network.PacketsSent, lastRun),
-		NetRcvdBps:  calculateRate(ctr.Network.BytesRcvd, lastCtr.Network.BytesRcvd, lastRun),
-		NetSentBps:  calculateRate(ctr.Network.BytesSent, lastCtr.Network.BytesSent, lastRun),
+		if len(chunk) == perChunk {
+			chunked[i] = chunk
+			chunk = make([]*model.Container, 0, perChunk)
+			i++
+		}
 	}
+	if len(chunk) > 0 {
+		chunked[i] = chunk
+	}
+	return chunked
 }
 
 func calculateCtrPct(deltaProc, deltaTime uint64, numCPU float64) float32 {

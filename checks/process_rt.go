@@ -19,7 +19,7 @@ type RTProcessCheck struct {
 	sysInfo        *model.SystemInfo
 	lastCPUTime    cpu.TimesStat
 	lastProcs      map[int32]*process.FilledProcess
-	lastContainers map[int32]*docker.Container
+	lastContainers []*docker.Container
 	lastRun        time.Time
 }
 
@@ -45,111 +45,99 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if err != nil {
 		return nil, err
 	}
-	fps, err := process.AllProcesses()
+	procs, err := process.AllProcesses()
+	if err != nil {
+		return nil, err
+	}
+	containers, err := docker.AllContainers()
 	if err != nil {
 		return nil, err
 	}
 
-	pids := make([]int32, 0, len(fps))
-	for _, fp := range fps {
-		pids = append(pids, fp.Pid)
-	}
-	containerByPID := docker.ContainersForPIDs(pids)
-
-	// Pre-filter the list to get an accurate grou psize.
-	filteredFps := make([]*process.FilledProcess, 0, len(fps))
-	for _, fp := range fps {
-		if !r.skipProcess(cfg, fp) {
-			filteredFps = append(filteredFps, fp)
-		}
-	}
-	groupSize := len(filteredFps) / cfg.ProcLimit
-	if len(filteredFps) != cfg.ProcLimit {
-		groupSize++
+	// End check early if this is our first run.
+	if r.lastProcs == nil {
+		r.lastContainers = containers
+		r.lastProcs = procs
+		r.lastCPUTime = cpuTimes[0]
+		r.lastRun = time.Now()
+		return nil, nil
 	}
 
+	chunkedStats := fmtProcessStats(cfg, procs, r.lastProcs,
+		containers, cpuTimes[0], r.lastCPUTime, r.lastRun)
+	groupSize := len(chunkedStats)
+	chunkedCtrStats := fmtContainerStats(containers, r.lastContainers,
+		cpuTimes[0], r.lastCPUTime, r.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
-	stats := make([]*model.ProcessStat, 0, cfg.ProcLimit)
-	for _, fp := range filteredFps {
-		if len(stats) >= cfg.ProcLimit {
-			messages = append(messages, &model.CollectorRealTime{
-				HostName:    cfg.HostName,
-				Stats:       stats,
-				GroupId:     groupID,
-				GroupSize:   int32(groupSize),
-				NumCpus:     int32(len(r.sysInfo.Cpus)),
-				TotalMemory: r.sysInfo.TotalMemory,
-			})
-			stats = make([]*model.ProcessStat, 0, cfg.ProcLimit)
-		}
-
-		ctr, ok := containerByPID[fp.Pid]
-		if !ok {
-			ctr = docker.NullContainer
-		}
-		lastCtr, ok := r.lastContainers[fp.Pid]
-		if !ok {
-			lastCtr = docker.NullContainer
-		}
-
-		stats = append(stats, &model.ProcessStat{
-			Pid:          fp.Pid,
-			CreateTime:   fp.CreateTime,
-			Memory:       formatMemory(fp),
-			Cpu:          formatCPU(fp, fp.CpuTime, r.lastProcs[fp.Pid].CpuTime, cpuTimes[0], r.lastCPUTime),
-			Nice:         fp.Nice,
-			Threads:      fp.NumThreads,
-			OpenFdCount:  fp.OpenFdCount,
-			ProcessState: model.ProcessState(model.ProcessState_value[fp.Status]),
-			IoStat:       formatIO(fp, r.lastProcs[fp.Pid].IOStat, r.lastRun),
-
-			// Container-level statistics. These will be duplicated for every process in this container.
-			ContainerId:         ctr.ID,
-			ContainerState:      model.ContainerState(model.ContainerState_value[ctr.State]),
-			ContainerHealth:     model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
-			ContainerRbps:       calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, r.lastRun),
-			ContainerWbps:       calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, r.lastRun),
-			ContainerNetRcvdPs:  calculateRate(ctr.Network.PacketsRcvd, lastCtr.Network.PacketsRcvd, r.lastRun),
-			ContainerNetSentPs:  calculateRate(ctr.Network.PacketsSent, lastCtr.Network.PacketsSent, r.lastRun),
-			ContainerNetRcvdBps: calculateRate(ctr.Network.BytesRcvd, lastCtr.Network.BytesRcvd, r.lastRun),
-			ContainerNetSentBps: calculateRate(ctr.Network.BytesSent, lastCtr.Network.BytesSent, r.lastRun),
+	for i := 0; i < groupSize; i++ {
+		messages = append(messages, &model.CollectorRealTime{
+			HostName:       cfg.HostName,
+			Stats:          chunkedStats[i],
+			ContainerStats: chunkedCtrStats[i],
+			GroupId:        groupID,
+			GroupSize:      int32(groupSize),
+			NumCpus:        int32(len(r.sysInfo.Cpus)),
+			TotalMemory:    r.sysInfo.TotalMemory,
 		})
 	}
-
-	messages = append(messages, &model.CollectorRealTime{
-		HostName:    cfg.HostName,
-		Stats:       stats,
-		GroupId:     groupID,
-		GroupSize:   int32(groupSize),
-		NumCpus:     int32(len(r.sysInfo.Cpus)),
-		TotalMemory: r.sysInfo.TotalMemory,
-	})
 
 	// Store the last state for comparison on the next run.
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
 	r.lastRun = time.Now()
-	r.lastProcs = fps
-	r.lastContainers = containerByPID
+	r.lastProcs = procs
+	r.lastContainers = containers
 	r.lastCPUTime = cpuTimes[0]
 
 	return messages, nil
 }
 
-// skipProcess will skip a given process if it's blacklisted or hasn't existed
-// for multiple collections.
-func (r *RTProcessCheck) skipProcess(cfg *config.AgentConfig, fp *process.FilledProcess) bool {
-	if len(fp.Cmdline) == 0 {
-		return true
+// fmtProcessStats formats and chunks a slice of ProcessStat into chunks.
+func fmtProcessStats(
+	cfg *config.AgentConfig,
+	procs, lastProcs map[int32]*process.FilledProcess,
+	containers []*docker.Container,
+	syst2, syst1 cpu.TimesStat,
+	lastRun time.Time,
+) [][]*model.ProcessStat {
+	ctrByPid := make(map[int32]*docker.Container, len(containers))
+	for _, c := range containers {
+		for _, p := range c.Pids {
+			ctrByPid[p] = c
+		}
 	}
-	if config.IsBlacklisted(fp.Cmdline, cfg.Blacklist) {
-		return true
+
+	chunked := make([][]*model.ProcessStat, 0)
+	chunk := make([]*model.ProcessStat, 0, cfg.ProcLimit)
+	for _, fp := range procs {
+		if skipProcess(cfg, fp, lastProcs) {
+			continue
+		}
+
+		ctr, ok := ctrByPid[fp.Pid]
+		if !ok {
+			ctr = docker.NullContainer
+		}
+		chunk = append(chunk, &model.ProcessStat{
+			Pid:          fp.Pid,
+			CreateTime:   fp.CreateTime,
+			Memory:       formatMemory(fp),
+			Cpu:          formatCPU(fp, fp.CpuTime, lastProcs[fp.Pid].CpuTime, syst2, syst1),
+			Nice:         fp.Nice,
+			Threads:      fp.NumThreads,
+			OpenFdCount:  fp.OpenFdCount,
+			ProcessState: model.ProcessState(model.ProcessState_value[fp.Status]),
+			IoStat:       formatIO(fp, lastProcs[fp.Pid].IOStat, lastRun),
+			ContainerId:  ctr.ID,
+		})
+		if len(chunk) == cfg.ProcLimit {
+			chunked = append(chunked, chunk)
+			chunk = make([]*model.ProcessStat, 0, cfg.ProcLimit)
+		}
 	}
-	if _, ok := r.lastProcs[fp.Pid]; !ok {
-		// Skipping any processes that didn't exist in the previous run.
-		// This means short-lived processes (<2s) will never be captured.
-		return true
+	if len(chunk) > 0 {
+		chunked = append(chunked, chunk)
 	}
-	return false
+	return chunked
 }
 
 func calculateRate(cur, prev uint64, before time.Time) float32 {
