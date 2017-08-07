@@ -72,11 +72,15 @@ func unmarshal(enc MessageEncoding, body []byte, m proto.Message) error {
 type MessageType uint8
 
 // Message type constants for MessageType.
+// Note: Ordering my seem unusual, this is just to match the backend where there
+// are additional types that aren't covered here.
 const (
-	TypeCollectorProc        = 12
-	TypeCollectorConnections = 22
-	TypeResCollector         = 23
-	TypeCollectorRealTime    = 27
+	TypeCollectorProc              = 12
+	TypeCollectorConnections       = 22
+	TypeResCollector               = 23
+	TypeCollectorRealTime          = 27
+	TypeCollectorContainer         = 39
+	TypeCollectorContainerRealTime = 40
 )
 
 // Message is a generic type for all messages with a Header and Body.
@@ -111,6 +115,10 @@ func DecodeMessage(data []byte) (Message, error) {
 		m = &CollectorRealTime{}
 	case TypeResCollector:
 		m = &ResCollector{}
+	case TypeCollectorContainer:
+		m = &CollectorContainer{}
+	case TypeCollectorContainerRealTime:
+		m = &CollectorContainerRealTime{}
 	default:
 		return Message{}, fmt.Errorf("unhandled message type: %d", header.Type)
 	}
@@ -132,6 +140,10 @@ func DetectMessageType(b MessageBody) (MessageType, error) {
 		t = TypeCollectorRealTime
 	case *ResCollector:
 		t = TypeResCollector
+	case *CollectorContainer:
+		t = TypeCollectorContainer
+	case *CollectorContainerRealTime:
+		t = TypeCollectorContainerRealTime
 	default:
 		return 0, fmt.Errorf("unknown message body type: %s", reflect.TypeOf(b))
 	}
