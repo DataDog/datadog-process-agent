@@ -17,6 +17,8 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
+var Process = &ProcessCheck{}
+
 // ProcessCheck collects full state, including cmdline args and related metadata,
 // for live and running processes. The instance will store some state between
 // checks that will be used for rates, cpu calculations, etc.
@@ -30,15 +32,16 @@ type ProcessCheck struct {
 
 // NewProcessCheck returns a new ProcessCheck initialized with a connection to
 // Kubernetes (if appliable) and other zeoes-out information.
-func NewProcessCheck(cfg *config.AgentConfig, info *model.SystemInfo) *ProcessCheck {
-	return &ProcessCheck{
-		sysInfo:   info,
-		lastProcs: make(map[int32]*process.FilledProcess),
-	}
+func (p *ProcessCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
+	p.sysInfo = info
+	p.lastProcs = make(map[int32]*process.FilledProcess)
 }
 
 // Name returns the name of the ProcessCheck.
 func (p *ProcessCheck) Name() string { return "process" }
+
+// RealTime indicates if this check only runs in real-time mode.
+func (c *ProcessCheck) RealTime() bool { return false }
 
 // Run runs the ProcessCheck to collect a list of running processes and relevant
 // stats for each. On most POSIX systems this will use a mix of procfs and other

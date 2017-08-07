@@ -11,6 +11,8 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/docker"
 )
 
+var RTProcess = &RTProcessCheck{}
+
 // RTProcessCheck collects numeric statistics about the live processes.
 // The instance stores state between checks for calculation of rates and CPU.
 type RTProcessCheck struct {
@@ -21,15 +23,16 @@ type RTProcessCheck struct {
 	lastRun        time.Time
 }
 
-// NewRTProcessCheck returns a new RTProcessCheck instance.
-func NewRTProcessCheck(cfg *config.AgentConfig, sysInfo *model.SystemInfo) *RTProcessCheck {
-	return &RTProcessCheck{
-		sysInfo:   sysInfo,
-		lastProcs: make(map[int32]*process.FilledProcess)}
+// Init initializes a new RTProcessCheck instance.
+func (r *RTProcessCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
+	r.sysInfo = info
 }
 
 // Name returns the name of the RTProcessCheck.
-func (r *RTProcessCheck) Name() string { return "real-time" }
+func (r *RTProcessCheck) Name() string { return "rtprocess" }
+
+// RealTime indicates if this check only runs in real-time mode.
+func (c *RTProcessCheck) RealTime() bool { return true }
 
 // Run runs the RTProcessCheck to collect statistics about the running processes.
 // On most POSIX systems these statistics are collected from procfs. The bulk

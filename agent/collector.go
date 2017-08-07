@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	log "github.com/cihub/seelog"
@@ -16,26 +17,20 @@ import (
 	"github.com/DataDog/datadog-process-agent/model"
 )
 
-type collectorChecks struct {
-	process     *checks.ProcessCheck
-	realTime    *checks.RTProcessCheck
-	connections *checks.ConnectionsCheck
-}
-
 // Collector will collect metrics from the local system and ship to the backend.
 type Collector struct {
-	send       chan []model.MessageBody
-	cfg        *config.AgentConfig
-	httpClient http.Client
-	// flag for current collector's realTime status
-	realTime bool
-	groupID  int32
-	interval time.Duration
-	// switch to enable/disable real time mode, comes directly from the config file
-	allowRealTime bool
+	send          chan []model.MessageBody
+	rtIntervalCh  chan time.Duration
+	cfg           *config.AgentConfig
+	httpClient    http.Client
+	groupID       int32
+	enabledChecks []checks.Check
 
-	// Store check state - this is ugly and should be managed differently.
-	checks collectorChecks
+	// Controls the real-time interval, can change live.
+	realTimeInterval time.Duration
+	// Set to 1 if enabled 0 is not. We're using an integer
+	// so we can use the sync/atomic for thread-safe access.
+	realTimeEnabled int64
 }
 
 // NewCollector creates a new Collectr
@@ -71,28 +66,32 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 		return Collector{}, err
 	}
 
+	enabledChecks := make([]checks.Check, 0)
+	for _, c := range checks.All {
+		if cfg.CheckIsEnabled(c.Name()) {
+			c.Init(cfg, sysInfo)
+			enabledChecks = append(enabledChecks, c)
+		}
+	}
+
 	return Collector{
 		send:          make(chan []model.MessageBody, cfg.QueueSize),
+		rtIntervalCh:  make(chan time.Duration),
 		cfg:           cfg,
 		groupID:       rand.Int31(),
-		interval:      2 * time.Second,
-		allowRealTime: cfg.AllowRealTime,
 		httpClient:    http.Client{Transport: transport},
+		enabledChecks: enabledChecks,
 
-		// Each check should handle a empty state initialization.
-		checks: collectorChecks{
-			process:     checks.NewProcessCheck(cfg, sysInfo),
-			realTime:    checks.NewRTProcessCheck(cfg, sysInfo),
-			connections: checks.NewConnectionsCheck(cfg, sysInfo),
-		},
+		// Defaults for real-time on start
+		realTimeInterval: 2 * time.Second,
+		realTimeEnabled:  0,
 	}, nil
 }
 
 func (l *Collector) runCheck(c checks.Check) {
-	if messages, err := c.Run(l.cfg, l.groupID); err != nil {
+	if messages, err := c.Run(l.cfg, atomic.AddInt32(&l.groupID, 1)); err != nil {
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
-		l.groupID++
 		l.send <- messages
 	}
 }
@@ -119,30 +118,36 @@ func (l *Collector) run() {
 		}
 	}()
 
-	// Perform an initial check to prime the process caches.
-	// This are expected to return no messages.
-	l.runCheck(l.checks.process)
-
-	// Then perform initial checks to start sending data immediately.
-	l.runCheck(l.checks.process)
-	l.runCheck(l.checks.connections)
-
-	for {
-		select {
-		case <-l.cfg.Timers.Process.C:
-			l.runCheck(l.checks.process)
-		case <-l.cfg.Timers.Connections.C:
-			l.runCheck(l.checks.connections)
-		case <-l.cfg.Timers.RealTime.C:
-			if l.realTime && l.allowRealTime {
-				l.runCheck(l.checks.realTime)
+	for _, c := range l.enabledChecks {
+		go func(c checks.Check) {
+			// Run the check the first time to prime the caches.
+			if !c.RealTime() {
+				l.runCheck(c)
 			}
-		case _, ok := <-exit:
-			if !ok {
-				return
+
+			ticker := time.NewTicker(l.cfg.CheckInterval(c.Name()))
+			for {
+				select {
+				case <-ticker.C:
+					realTimeEnabled := atomic.LoadInt64(&l.realTimeEnabled) == 1
+					if !c.RealTime() || realTimeEnabled {
+						l.runCheck(c)
+					}
+				case d := <-l.rtIntervalCh:
+					// Live-update the ticker.
+					if c.RealTime() {
+						ticker.Stop()
+						ticker = time.NewTicker(d)
+					}
+				case _, ok := <-exit:
+					if !ok {
+						return
+					}
+				}
 			}
-		}
+		}(c)
 	}
+	<-exit
 }
 
 func (l *Collector) postMessage(m model.MessageBody) {
@@ -214,22 +219,26 @@ func (l *Collector) postMessage(m model.MessageBody) {
 }
 
 func (l *Collector) updateStatus(s *model.CollectorStatus) {
-	if s.ActiveClients > 0 && !l.realTime && l.allowRealTime {
+	curEnabled := atomic.LoadInt64(&l.realTimeEnabled) == 1
+	if s.ActiveClients > 0 && !curEnabled && l.cfg.AllowRealTime {
 		log.Infof("Detected %d clients, enabling real-time mode", s.ActiveClients)
-		l.realTime = true
-	} else if s.ActiveClients == 0 && l.realTime {
+		atomic.StoreInt64(&l.realTimeEnabled, 1)
+	} else if s.ActiveClients == 0 && curEnabled {
 		log.Info("Detected 0 clients, disabling real-time mode")
-		l.realTime = false
+		atomic.StoreInt64(&l.realTimeEnabled, 0)
 	}
 
 	interval := time.Duration(s.Interval) * time.Second
-	if interval != l.interval {
-		l.interval = interval
-		if l.interval <= 0 {
-			l.interval = 2 * time.Second
+	if interval != l.realTimeInterval {
+		l.realTimeInterval = interval
+		if l.realTimeInterval <= 0 {
+			l.realTimeInterval = 2 * time.Second
 		}
-		l.cfg.Timers.RealTime.Stop()
-		l.cfg.Timers.RealTime = time.NewTicker(l.interval)
-		log.Infof("real time interval updated: %s", l.interval)
+		// Pass along the real-time interval, one per check, so that every
+		// check routine will see the new interval.
+		for range l.enabledChecks {
+			l.rtIntervalCh <- l.realTimeInterval
+		}
+		log.Infof("real time interval updated to %s", l.realTimeInterval)
 	}
 }

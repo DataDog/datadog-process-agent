@@ -11,16 +11,19 @@ import (
 	"github.com/DataDog/datadog-process-agent/util"
 )
 
+var Connections = &ConnectionsCheck{}
+
 // ConnectionsCheck collects statistics about live TCP and UDP connections.
 type ConnectionsCheck struct{}
 
-// NewConnectionsCheck returns a new ConnectionsCheck instance.
-func NewConnectionsCheck(cfg *config.AgentConfig, sysInfo *model.SystemInfo) *ConnectionsCheck {
-	return &ConnectionsCheck{}
-}
+// Init initializes a ConnectionsCheck instance.
+func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {}
 
 // Name returns the name of the ConnectionsCheck.
 func (c *ConnectionsCheck) Name() string { return "connections" }
+
+// RealTime indicates if this check only runs in real-time mode.
+func (c *ConnectionsCheck) RealTime() bool { return false }
 
 // Run runs the ConnectionsCheck to collect the live TCP connections on the
 // system. In most POSIX systems we will use the procfs net files to read out

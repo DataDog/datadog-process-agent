@@ -16,6 +16,8 @@ import (
 
 const nanoSecondsPerSecond uint64 = 10e9
 
+var Container = &ContainerCheck{}
+
 // ContainerCheck is a check that returns container metadata and stats.
 type ContainerCheck struct {
 	sysInfo        *model.SystemInfo
@@ -24,13 +26,16 @@ type ContainerCheck struct {
 	lastRun        time.Time
 }
 
-// NewContainerCheck returns a new ContainerCheck
-func NewContainerCheck(cfg *config.AgentConfig, info *model.SystemInfo) *ContainerCheck {
-	return &ContainerCheck{sysInfo: info}
+// Init initializes a ContainerCheck instance.
+func (c *ContainerCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
+	c.sysInfo = info
 }
 
 // Name returns the name of the ProcessCheck.
 func (c *ContainerCheck) Name() string { return "container" }
+
+// RealTime indicates if this check only runs in real-time mode.
+func (c *ContainerCheck) RealTime() bool { return false }
 
 // Run runs the ContainerCheck to collect a list of running containers and the
 // stats for each container.
