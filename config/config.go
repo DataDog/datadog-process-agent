@@ -11,16 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-process-agent/util"
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"
 )
-
-// CheckTimers is a singleton of tickers for different check intervals.
-type CheckTimers struct {
-	Process     *time.Ticker
-	Connections *time.Ticker
-	RealTime    *time.Ticker
-}
 
 // AgentConfig is the global config for the process-agent. This information
 // is sourced from config files and the environment variables.
@@ -37,8 +31,11 @@ type AgentConfig struct {
 	ProcLimit     int
 	AllowRealTime bool
 	Proxy         *url.URL
-	Timers        *CheckTimers
 	Logger        *LoggerConfig
+
+	// Check config
+	EnabledChecks  []string
+	CheckIntervals map[string]time.Duration
 
 	// Docker
 	CollectDockerHealth  bool
@@ -49,6 +46,19 @@ type AgentConfig struct {
 	KubernetesKubeletHost      string
 	KubernetesHTTPKubeletPort  int
 	KubernetesHTTPSKubeletPort int
+}
+
+func (a AgentConfig) CheckIsEnabled(checkName string) bool {
+	return util.StringInSlice(a.EnabledChecks, checkName)
+}
+
+func (a AgentConfig) CheckInterval(checkName string) time.Duration {
+	d, ok := a.CheckIntervals[checkName]
+	if !ok {
+		log.Errorf("missing check interval for '%s', you must set a default", checkName)
+		d = 10 * time.Second
+	}
+	return d
 }
 
 const (
@@ -77,10 +87,15 @@ func NewDefaultAgentConfig() *AgentConfig {
 		MaxProcFDs:    200,
 		ProcLimit:     100,
 		AllowRealTime: true,
-		Timers: &CheckTimers{
-			Process:     time.NewTicker(10 * time.Second),
-			Connections: time.NewTicker(3 * 60 * time.Minute),
-			RealTime:    time.NewTicker(2 * time.Second),
+
+		// Check config
+		EnabledChecks: []string{"process", "rtprocess"},
+		CheckIntervals: map[string]time.Duration{
+			"process":     10 * time.Second,
+			"rtprocess":   2 * time.Second,
+			"container":   10 * time.Second,
+			"rtcontainer": 2 * time.Second,
+			"connections": 3 * 60 * time.Minute,
 		},
 
 		// Docker
@@ -185,10 +200,16 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 			log.Warn("Overriding the configured process limit because it exceeds maximum")
 			cfg.ProcLimit = maxProcLimit
 		}
-		t := cfg.Timers
-		t.Process = time.NewTicker(file.GetDurationDefault(ns, "process_interval", time.Second, 10*time.Second))
-		t.Connections = time.NewTicker(file.GetDurationDefault(ns, "connection_interval", time.Minute, 3*60*time.Minute))
-		t.RealTime = time.NewTicker(file.GetDurationDefault(ns, "realtime_interval", time.Second, 2*time.Second))
+
+		// Checks intervals can be overriden by configuration.
+		for checkName, defaultInterval := range cfg.CheckIntervals {
+			key := fmt.Sprintf("%s_interval", checkName)
+			interval := file.GetDurationDefault(ns, key, time.Second, defaultInterval)
+			if interval != defaultInterval {
+				log.Infof("Overriding check interval for %s to %s", checkName, interval)
+				cfg.CheckIntervals[checkName] = interval
+			}
+		}
 
 		// Docker config
 		cfg.CollectDockerHealth = file.GetBool(ns, "allow_real_time", cfg.CollectDockerHealth)

@@ -74,3 +74,13 @@ func PathExists(filename string) bool {
 	}
 	return false
 }
+
+// StringInSlice returns true if the given searchString is in the given slice, false otherwise.
+func StringInSlice(slice []string, searchString string) bool {
+	for _, curString := range slice {
+		if curString == searchString {
+			return true
+		}
+	}
+	return false
+}

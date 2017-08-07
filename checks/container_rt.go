@@ -11,6 +11,8 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/docker"
 )
 
+var RTContainer = &RTContainerCheck{}
+
 // RTContainerCheck collects numeric statistics about live containers.
 type RTContainerCheck struct {
 	sysInfo        *model.SystemInfo
@@ -19,13 +21,16 @@ type RTContainerCheck struct {
 	lastRun        time.Time
 }
 
-// NewRTContainerCheck returns a new RTContainerCheck.
-func NewRTContainerCheck(cfg *config.AgentConfig, sysInfo *model.SystemInfo) *RTContainerCheck {
-	return &RTContainerCheck{sysInfo: sysInfo}
+// Init initializes a RTContainerCheck instance.
+func (r *RTContainerCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
+	r.sysInfo = sysInfo
 }
 
 // Name returns the name of the RTContainerCheck.
-func (r *RTContainerCheck) Name() string { return "rt-container" }
+func (r *RTContainerCheck) Name() string { return "rtcontainer" }
+
+// RealTime indicates if this check only runs in real-time mode.
+func (c *RTContainerCheck) RealTime() bool { return false }
 
 func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	cpuTimes, err := cpu.Times(false)
