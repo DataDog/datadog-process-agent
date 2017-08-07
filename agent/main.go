@@ -142,7 +142,7 @@ func main() {
 }
 
 func initMetadataProviders(cfg *config.AgentConfig) {
-	err := docker.InitDockerUtil()
+	err := docker.InitDockerUtil(cfg.CollectDockerHealth, cfg.CollectDockerNetwork)
 	if err != nil && err != docker.ErrDockerNotAvailable {
 		log.Errorf("unable to initialize docker collection: %s", err)
 	}

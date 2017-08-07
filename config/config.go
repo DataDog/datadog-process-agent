@@ -40,6 +40,10 @@ type AgentConfig struct {
 	Timers        *CheckTimers
 	Logger        *LoggerConfig
 
+	// Docker
+	CollectDockerHealth  bool
+	CollectDockerNetwork bool
+
 	// Kubernetes
 	CollectKubernetesMetadata  bool
 	KubernetesKubeletHost      string
@@ -78,6 +82,10 @@ func NewDefaultAgentConfig() *AgentConfig {
 			Connections: time.NewTicker(3 * 60 * time.Minute),
 			RealTime:    time.NewTicker(2 * time.Second),
 		},
+
+		// Docker
+		CollectDockerHealth:  true,
+		CollectDockerNetwork: true,
 
 		// Kubernetes
 		CollectKubernetesMetadata:  true,
@@ -181,6 +189,10 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		t.Process = time.NewTicker(file.GetDurationDefault(ns, "process_interval", time.Second, 10*time.Second))
 		t.Connections = time.NewTicker(file.GetDurationDefault(ns, "connection_interval", time.Minute, 3*60*time.Minute))
 		t.RealTime = time.NewTicker(file.GetDurationDefault(ns, "realtime_interval", time.Second, 2*time.Second))
+
+		// Docker config
+		cfg.CollectDockerHealth = file.GetBool(ns, "allow_real_time", cfg.CollectDockerHealth)
+		cfg.CollectDockerNetwork = file.GetBool(ns, "collect_docker_network", cfg.CollectDockerNetwork)
 	}
 
 	cfg = mergeEnv(cfg)
@@ -246,6 +258,14 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 			log.Infof("overriding API endpoint from env")
 			c.APIEndpoint = u
 		}
+	}
+
+	// Docker config
+	if v := os.Getenv("DD_COLLECT_DOCKER_HEALTH"); v == "false" {
+		c.CollectDockerHealth = false
+	}
+	if v := os.Getenv("DD_COLLECT_DOCKER_NETWORK"); v == "false" {
+		c.CollectDockerNetwork = false
 	}
 
 	// Kubernetes config is set via environment only (for now).

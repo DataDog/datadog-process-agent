@@ -74,6 +74,12 @@ type dockerUtil struct {
 	lastInvalidate time.Time
 	// networkMappings by container id
 	networkMappings map[string][]dockerNetwork
+	// if enabled we will collect health. this requires calling a container.Inspect
+	// for each container on every called to getContainers().
+	collectHealth bool
+	// if enabled we will collect network statistics. this requires at least one
+	// call to container.Inspect for new containers and reads from the procfs for stats.
+	collectNetwork bool
 }
 
 //
@@ -101,7 +107,7 @@ func GetHostname() (string, error) {
 
 // InitDockerUtil initializes the global dockerUtil singleton. This _must_ be
 // called before accessing any of the top-level docker calls.
-func InitDockerUtil() error {
+func InitDockerUtil(collectHealth, collectNetwork bool) error {
 	// If we don't have a docker.sock then return a known error.
 	sockPath := util.GetEnv("DOCKER_SOCKET_PATH", "/var/run/docker.sock")
 	if !util.PathExists(sockPath) {
@@ -129,6 +135,8 @@ func InitDockerUtil() error {
 		cli:             cli,
 		networkMappings: make(map[string][]dockerNetwork),
 		lastInvalidate:  time.Now(),
+		collectHealth:   collectHealth,
+		collectNetwork:  collectNetwork,
 	}
 	return nil
 }
@@ -143,15 +151,26 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 	}
 	ret := make([]*Container, 0, len(containers))
 	for _, c := range containers {
-		// We could have lost the container between list and inspect so ignore these errors.
-		i, err := d.cli.ContainerInspect(context.Background(), c.ID)
-		if err != nil && client.IsErrContainerNotFound(err) {
-			return nil, err
+		var i types.ContainerJSON
+		if d.collectHealth {
+			// We could have lost the container between list and inspect so ignore these errors.
+			i, err = d.cli.ContainerInspect(context.Background(), c.ID)
+			if err != nil && client.IsErrContainerNotFound(err) {
+				return nil, err
+			}
 		}
 
-		// FIXME: We might need to invalidate this cache if a containers networks are changed live.
-		if _, ok := d.networkMappings[c.ID]; !ok {
-			d.networkMappings[c.ID] = findDockerNetworks(c.ID, i.State.Pid, c.NetworkSettings)
+		if d.collectNetwork {
+			// FIXME: We might need to invalidate this cache if a containers networks are changed live.
+			if _, ok := d.networkMappings[c.ID]; !ok {
+				if i.ID == "" {
+					i, err = d.cli.ContainerInspect(context.Background(), c.ID)
+					if err != nil && client.IsErrContainerNotFound(err) {
+						return nil, err
+					}
+				}
+				d.networkMappings[c.ID] = findDockerNetworks(c.ID, i.State.Pid, c.NetworkSettings)
+			}
 		}
 
 		var health string
@@ -210,13 +229,15 @@ func (d *dockerUtil) containersForPIDs(pids []int32) (map[int32]*Container, erro
 			return nil, err
 		}
 
-		networks, ok := d.networkMappings[cgroup.ContainerID]
-		if ok && len(cgroup.Pids) > 0 {
-			netStat, err := collectNetworkStats(cgroup.ContainerID, int(cgroup.Pids[0]), networks)
-			if err != nil {
-				return nil, err
+		if d.collectNetwork {
+			networks, ok := d.networkMappings[cgroup.ContainerID]
+			if ok && len(cgroup.Pids) > 0 {
+				netStat, err := collectNetworkStats(cgroup.ContainerID, int(cgroup.Pids[0]), networks)
+				if err != nil {
+					return nil, err
+				}
+				containerStat.Network = netStat
 			}
-			containerStat.Network = netStat
 		}
 		containerStat.MemLimit = memstat.MemLimitInBytes
 		containerStat.CPULimit = cpuLimit
