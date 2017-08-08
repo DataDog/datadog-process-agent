@@ -181,11 +181,12 @@ func formatIO(fp *process.FilledProcess, lastIO *process.IOCountersStat, before 
 	if before.IsZero() || diff <= 0 {
 		return nil
 	}
+	// Reading 0 as a counter means the file could not be opened due to permissions. We distinguish this from a real 0 in rates.
 	return &model.IOStat{
-		ReadRate:       calculateRate(fp.IOStat.ReadCount, lastIO.ReadCount, before),
-		WriteRate:      calculateRate(fp.IOStat.WriteCount, lastIO.WriteCount, before),
-		ReadBytesRate:  calculateRate(fp.IOStat.ReadBytes, lastIO.ReadBytes, before),
-		WriteBytesRate: calculateRate(fp.IOStat.WriteBytes, lastIO.WriteBytes, before),
+		ReadRate:       fp.IOStat.ReadCount == 0 ? -1 : calculateRate(fp.IOStat.ReadCount, lastIO.ReadCount, before),
+		WriteRate:      fp.IOStat.WriteCount == 0 ? -1 : calculateRate(fp.IOStat.WriteCount, lastIO.WriteCount, before),
+		ReadBytesRate:  fp.IOStat.ReadBytes == 0 ? -1 : calculateRate(fp.IOStat.ReadBytes, lastIO.ReadBytes, before),
+		WriteBytesRate: fp.IOStat.WriteBytes == 0 ? -1 : calculateRate(fp.IOStat.WriteBytes, lastIO.WriteBytes, before),
 	}
 }
 
