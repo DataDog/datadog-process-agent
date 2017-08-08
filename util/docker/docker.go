@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/DataDog/gopsutil/process"
@@ -74,7 +75,7 @@ func (a dockerNetworks) Len() int           { return len(a) }
 func (a dockerNetworks) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a dockerNetworks) Less(i, j int) bool { return a[i].dockerName < a[j].dockerName }
 
-// dockerUtil wraps interactions with a local docker API. It is not thread-safe.
+// dockerUtil wraps interactions with a local docker API.
 type dockerUtil struct {
 	cli *client.Client
 	// tracks the last time we invalidate our internal caches
@@ -87,6 +88,7 @@ type dockerUtil struct {
 	// if enabled we will collect network statistics. this requires at least one
 	// call to container.Inspect for new containers and reads from the procfs for stats.
 	collectNetwork bool
+	sync.Mutex
 }
 
 //
@@ -189,15 +191,18 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 
 		if d.collectNetwork {
 			// FIXME: We might need to invalidate this cache if a containers networks are changed live.
+			d.Lock()
 			if _, ok := d.networkMappings[c.ID]; !ok {
 				if i.ID == "" {
 					i, err = d.cli.ContainerInspect(context.Background(), c.ID)
 					if err != nil && client.IsErrContainerNotFound(err) {
+						d.Unlock()
 						return nil, err
 					}
 				}
 				d.networkMappings[c.ID] = findDockerNetworks(c.ID, i.State.Pid, c.NetworkSettings)
 			}
+			d.Unlock()
 		}
 
 		var health string
@@ -255,7 +260,9 @@ func (d *dockerUtil) containers(pids []int32) ([]*Container, error) {
 		}
 
 		if d.collectNetwork {
+			d.Lock()
 			networks, ok := d.networkMappings[cgroup.ContainerID]
+			d.Unlock()
 			if ok && len(cgroup.Pids) > 0 {
 				netStat, err := collectNetworkStats(cgroup.ContainerID, int(cgroup.Pids[0]), networks)
 				if err != nil {
@@ -297,11 +304,13 @@ func (d *dockerUtil) invalidateCaches(containers []types.Container) {
 	for _, c := range containers {
 		liveContainers[c.ID] = struct{}{}
 	}
+	d.Lock()
 	for cid := range d.networkMappings {
 		if _, ok := liveContainers[cid]; !ok {
 			delete(d.networkMappings, cid)
 		}
 	}
+	d.Unlock()
 }
 
 func detectServerAPIVersion() (string, error) {
