@@ -16,6 +16,11 @@ import (
 	"github.com/go-ini/ini"
 )
 
+var (
+	processChecks   = []string{"process", "rtprocess"}
+	containerChecks = []string{"container", "rtcontainer"}
+)
+
 // AgentConfig is the global config for the process-agent. This information
 // is sourced from config files and the environment variables.
 type AgentConfig struct {
@@ -77,8 +82,10 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// This is a hardcoded URL so parsing it should not fail
 		panic(err)
 	}
+	isContainerized := os.Getenv("DOCKER_DD_AGENT") == "true"
 	ac := &AgentConfig{
-		Enabled:       false,
+		// We'll always run inside of a container.
+		Enabled:       isContainerized,
 		HostName:      hostname,
 		APIEndpoint:   u,
 		LogFile:       defaultLogFilePath,
@@ -89,7 +96,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		AllowRealTime: true,
 
 		// Check config
-		EnabledChecks: []string{"process", "rtprocess"},
+		EnabledChecks: containerChecks,
 		CheckIntervals: map[string]time.Duration{
 			"process":     10 * time.Second,
 			"rtprocess":   2 * time.Second,
@@ -106,6 +113,16 @@ func NewDefaultAgentConfig() *AgentConfig {
 		CollectKubernetesMetadata:  true,
 		KubernetesHTTPKubeletPort:  10255,
 		KubernetesHTTPSKubeletPort: 10250,
+	}
+
+	// Set default values for proc/sys paths if unset.
+	if isContainerized {
+		if v := os.Getenv("HOST_PROC"); v == "" {
+			os.Setenv("HOST_PROC", "/host/proc")
+		}
+		if v := os.Getenv("HOST_SYS"); v == "" {
+			os.Setenv("HOST_SYS", "/host/sys")
+		}
 	}
 
 	return ac
@@ -141,9 +158,12 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid endpoint URL: %s", err)
 		}
-		if v, _ := agentConf.Get("Main", "process_agent_enabled"); v == "true" {
-			cfg.Enabled = true
+		if v, _ := agentConf.Get("Main", "process_agent_enabled"); v == "false" {
+			cfg.Enabled = false
+		} else if v == "true" {
+			cfg.EnabledChecks = processChecks
 		}
+
 		cfg.APIEndpoint = u
 	}
 
@@ -228,10 +248,10 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 
 // mergeEnv applies overrides from environment variables to the trace agent configuration
 func mergeEnv(c *AgentConfig) *AgentConfig {
-	if v := os.Getenv("DD_PROCESS_AGENT_ENABLED"); v == "true" {
-		c.Enabled = true
-	} else if v == "false" {
+	if v := os.Getenv("DD_PROCESS_AGENT_ENABLED"); v == "false" {
 		c.Enabled = false
+	} else if v == "true" {
+		c.EnabledChecks = processChecks
 	}
 
 	if v := os.Getenv("DD_HOSTNAME"); v != "" {

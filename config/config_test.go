@@ -112,16 +112,30 @@ func TestDefaultConfig(t *testing.T) {
 	agentConfig := NewDefaultAgentConfig()
 
 	// assert that some sane defaults are set
-	assert.Equal(agentConfig.Enabled, false)
-	assert.Equal(agentConfig.LogLevel, "info")
-	assert.Equal(agentConfig.AllowRealTime, true)
+	assert.Equal(false, agentConfig.Enabled)
+	assert.Equal("info", agentConfig.LogLevel)
+	assert.Equal(true, agentConfig.AllowRealTime)
+	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+
+	os.Setenv("DOCKER_DD_AGENT", "true")
+	agentConfig = NewDefaultAgentConfig()
+	assert.Equal(agentConfig.Enabled, true)
+	assert.Equal(os.Getenv("HOST_PROC"), "/host/proc")
+	assert.Equal(os.Getenv("HOST_SYS"), "/host/sys")
+	os.Setenv("DOCKER_DD_AGENT", "false")
+	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 }
 
 func TestDDAgentConfigWithLegacy(t *testing.T) {
 	assert := assert.New(t)
 
 	// Check that legacy conf file overrides dd-agent.conf
-	dd, _ := ini.Load([]byte("[Main]\n\nhostname=thing\napi_key=apikey_12"))
+	dd, _ := ini.Load([]byte(strings.Join([]string{
+		"[Main]",
+		"hostname=thing",
+		"api_key=apikey_12",
+		"process_agent_enabled=true",
+	}, "\n")))
 	legacy, _ := ini.Load([]byte(strings.Join([]string{
 		"[dd-process-agent]",
 		"server_url = https://process.datadoghq.com/api/v1/collector",
@@ -138,6 +152,7 @@ func TestDDAgentConfigWithLegacy(t *testing.T) {
 	u, _ := url.Parse("https://process.datadoghq.com/api/v1/collector")
 	assert.Equal(u, agentConfig.APIEndpoint)
 	assert.Equal("apikey_13", agentConfig.APIKey)
+	assert.Equal(agentConfig.EnabledChecks, processChecks)
 }
 
 func TestDDAgentConfigWithNewOpts(t *testing.T) {
@@ -156,8 +171,9 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 	agentConfig, err := NewAgentConfig(conf, nil)
 	assert.NoError(err)
 
-	// ExtraAggregators contains Datadog defaults + user-specified aggregators
 	assert.Equal("apikey_12", agentConfig.APIKey)
 	assert.Equal(5, agentConfig.QueueSize)
 	assert.Equal(false, agentConfig.AllowRealTime)
+	assert.Equal(false, agentConfig.Enabled)
+	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 }
