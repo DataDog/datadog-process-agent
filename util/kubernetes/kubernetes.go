@@ -14,7 +14,6 @@ import (
 	agentkubernetes "github.com/DataDog/datadog-agent/pkg/metadata/kubernetes"
 	log "github.com/cihub/seelog"
 
-	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/util/cache"
 	"github.com/DataDog/datadog-process-agent/util/docker"
 )
@@ -25,12 +24,12 @@ var (
 )
 
 // InitKubeUtil initializes a global kubeUtil used by later function calls.
-func InitKubeUtil(cfg *config.AgentConfig) error {
+func InitKubeUtil(kubeletHost string, httpKubeletePort, httpsKubeletPort int) error {
 	if os.Getenv("KUBERNETES_SERVICE_HOST") == "" {
 		return ErrKubernetesNotAvailable
 	}
 
-	kubeletURL, err := locateKubelet(cfg)
+	kubeletURL, err := locateKubelet(kubeletHost, httpKubeletePort, httpsKubeletPort)
 	if err != nil {
 		return err
 	}
@@ -45,6 +44,11 @@ func GetMetadata() *agentpayload.KubeMetadataPayload {
 		return globalKubeUtil.getKubernetesMeta()
 	}
 	return nil
+}
+
+// IsKubernetes returns true if we're running inside a Kubernetes container.
+func IsKubernetes() bool {
+	return os.Getenv("KUBERNETES_SERVICE_HOST") != ""
 }
 
 // Kubelet constants
@@ -248,25 +252,23 @@ func setPodCreator(pod *agentpayload.KubeMetadataPayload_Pod, ownerRefs []*Owner
 }
 
 // Try and find the hostname to query the kubelet
-func locateKubelet(cfg *config.AgentConfig) (string, error) {
-	hostname := cfg.KubernetesKubeletHost
+func locateKubelet(kubeletHost string, httpKubeletePort, httpsKubeletPort int) (string, error) {
 	var err error
-	if hostname == "" {
+	hostname := kubeletHost
+	if kubeletHost == "" {
 		hostname, err = docker.GetHostname()
 		if err != nil {
 			return "", fmt.Errorf("Unable to get hostname from docker: %s", err)
 		}
 	}
 
-	port := cfg.KubernetesHTTPKubeletPort
-	url := fmt.Sprintf("http://%s:%d", hostname, port)
+	url := fmt.Sprintf("http://%s:%d", hostname, httpKubeletePort)
 	if _, err := performKubeletQuery(url); err == nil {
 		return url, nil
 	}
 	log.Debugf("Couldn't query kubelet over HTTP, assuming it's not in no_auth mode.")
 
-	port = cfg.KubernetesHTTPSKubeletPort
-	url = fmt.Sprintf("https://%s:%d", hostname, port)
+	url = fmt.Sprintf("https://%s:%d", hostname, httpsKubeletPort)
 	if _, err := performKubeletQuery(url); err == nil {
 		return url, nil
 	}

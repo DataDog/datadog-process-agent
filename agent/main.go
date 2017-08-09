@@ -142,12 +142,16 @@ func main() {
 }
 
 func initMetadataProviders(cfg *config.AgentConfig) {
-	err := docker.InitDockerUtil(cfg.CollectDockerHealth, cfg.CollectDockerNetwork)
-	if err != nil && err != docker.ErrDockerNotAvailable {
+	if err := docker.InitDockerUtil(&docker.DockerConfig{
+		CollectHealth:  cfg.CollectDockerHealth,
+		CollectNetwork: cfg.CollectDockerNetwork,
+		Whitelist:      cfg.ContainerWhitelist,
+		Blacklist:      cfg.ContainerBlacklist,
+	}); err != nil && err != docker.ErrDockerNotAvailable {
 		log.Errorf("unable to initialize docker collection: %s", err)
 	}
 
-	err = kubernetes.InitKubeUtil(cfg)
+	err := kubernetes.InitKubeUtil(cfg.KubernetesKubeletHost, cfg.KubernetesHTTPKubeletPort, cfg.KubernetesHTTPSKubeletPort)
 	if err != nil && err != kubernetes.ErrKubernetesNotAvailable {
 		log.Errorf("unable to initialize kubernetes collection: %s", err)
 	}
