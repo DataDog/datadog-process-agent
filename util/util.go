@@ -2,10 +2,10 @@ package util
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // ErrNotImplemented is the "not implemented" error given by `gopsutil` when an
@@ -22,17 +22,11 @@ func ReadLines(filename string) ([]string, error) {
 	defer f.Close()
 
 	var ret []string
-
-	r := bufio.NewReader(f)
-	for {
-		line, err := r.ReadString('\n')
-		if err != nil {
-			break
-		}
-		ret = append(ret, strings.Trim(line, "\n"))
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		ret = append(ret, scanner.Text())
 	}
-
-	return ret, nil
+	return ret, scanner.Err()
 }
 
 // GetEnv retrieves the environment variable key. If it does not exist it returns the default.
@@ -48,10 +42,13 @@ func GetEnv(key string, dfault string, combineWith ...string) string {
 	case 1:
 		return filepath.Join(value, combineWith[0])
 	default:
-		all := make([]string, len(combineWith)+1)
-		all[0] = value
-		copy(all[1:], combineWith)
-		return filepath.Join(all...)
+		var b bytes.Buffer
+		b.WriteString(value)
+		for _, v := range combineWith {
+			b.WriteRune('/')
+			b.WriteString(v)
+		}
+		return b.String()
 	}
 }
 

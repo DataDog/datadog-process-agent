@@ -70,3 +70,12 @@ func TestContainerChunking(t *testing.T) {
 
 	}
 }
+
+func BenchmarkAllContainers(b *testing.B) {
+	docker.InitDockerUtil(true, true)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		docker.AllContainers()
+	}
+}

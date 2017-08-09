@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"math"
@@ -362,62 +363,46 @@ func cgroupMountPoints() (map[string]string, error) {
 	if !util.PathExists(mountsFile) {
 		return nil, fmt.Errorf("/proc/mounts does not exist")
 	}
-
-	// Get all cgroup entries
-	lines, err := util.ReadLines(mountsFile)
+	f, err := os.Open(mountsFile)
 	if err != nil {
 		return nil, err
 	}
-	return parseCgroupMountPoints(lines), nil
-}
+	defer f.Close()
 
-func parseCgroupMountPoints(lines []string) map[string]string {
-	mounts := []string{}
-	for _, l := range lines {
-		if strings.HasPrefix(l, "cgroup ") {
-			mounts = append(mounts, l)
-		}
-	}
-
-	// Parse as target => path
 	mountPoints := make(map[string]string)
-	for _, mount := range mounts {
-		tokens := strings.Split(mount, " ")
-		// Target can be comma-separate values like cpu,cpuacct
-		tsp := strings.Split(path.Base(tokens[1]), ",")
-		for _, target := range tsp {
-			mountPoints[target] = tokens[1]
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		mount := scanner.Text()
+		if strings.HasPrefix(mount, "cgroup ") {
+			tokens := strings.Split(mount, " ")
+			// Target can be comma-separate values like cpu,cpuacct
+			tsp := strings.Split(path.Base(tokens[1]), ",")
+			for _, target := range tsp {
+				mountPoints[target] = tokens[1]
+			}
 		}
 	}
-	return mountPoints
+	return mountPoints, nil
 }
 
 // CgroupsForPids returns ContainerCgroup for every container that's in a Cgroup.
 // We return as a map[containerID]Cgroup for easy look-up.
 func CgroupsForPids(pids []int32) (map[string]*ContainerCgroup, error) {
-	mounts, err := cgroupMountPoints()
+	mountPoints, err := cgroupMountPoints()
 	if err != nil {
 		return nil, err
 	}
+
 	cgs := make(map[string]*ContainerCgroup)
 	for _, pid := range pids {
 		cgPath := util.HostProc(strconv.Itoa(int(pid)), "cgroup")
-		if !util.PathExists(cgPath) {
-			continue
-		}
-
-		lines, err := util.ReadLines(cgPath)
-		if err != nil {
-			continue
-		}
-		if len(lines) == 0 {
-			continue
-		}
-		containerID, paths := parseCgroupPaths(lines)
+		containerID, paths, err := parseCgroupPaths(cgPath)
 		if containerID == "" {
 			continue
 		}
-
+		if err != nil {
+			return nil, err
+		}
 		if cg, ok := cgs[containerID]; ok {
 			// Assumes that the paths will always be the same for a container id.
 			cg.Pids = append(cg.Pids, pid)
@@ -426,7 +411,7 @@ func CgroupsForPids(pids []int32) (map[string]*ContainerCgroup, error) {
 				ContainerID: containerID,
 				Pids:        []int32{pid},
 				Paths:       paths,
-				Mounts:      mounts}
+				Mounts:      mountPoints}
 		}
 	}
 	return cgs, nil
@@ -443,15 +428,29 @@ func CgroupsForPids(pids []int32) (map[string]*ContainerCgroup, error) {
 //
 // Returns the common containerID and a mapping of target => path
 // If the first line doesn't have a valid container ID we will return an empty string
-func parseCgroupPaths(lines []string) (string, map[string]string) {
-	// Check if this process running inside a container.
-	containerID, ok := containerIDFromCgroup(lines[0])
-	if !ok {
-		return "", nil
+func parseCgroupPaths(cgroupPath string) (string, map[string]string, error) {
+	var ok bool
+	f, err := os.Open(cgroupPath)
+	if os.IsNotExist(err) {
+		return "", nil, err
+	} else if err != nil {
+		return "", nil, err
 	}
+	defer f.Close()
 
+	var containerID string
 	paths := make(map[string]string)
-	for _, l := range lines {
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		l := scanner.Text()
+		if containerID == "" {
+			// Check if this process running inside a container.
+			containerID, ok = containerIDFromCgroup(l)
+			if !ok {
+				return "", nil, nil
+			}
+		}
+
 		sp := strings.SplitN(l, ":", 3)
 		if len(sp) < 3 {
 			continue
@@ -462,6 +461,9 @@ func parseCgroupPaths(lines []string) (string, map[string]string) {
 			paths[target] = sp[2]
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return "", nil, err
+	}
 
 	// In Ubuntu Xenial, we've encountered containers with no `cpu`
 	_, cpuok := paths["cpu"]
@@ -470,7 +472,7 @@ func parseCgroupPaths(lines []string) (string, map[string]string) {
 		paths["cpu"] = cpuacct
 	}
 
-	return containerID, paths
+	return containerID, paths, nil
 }
 
 func containerIDFromCgroup(cgroup string) (string, bool) {
