@@ -26,7 +26,7 @@ type ProcessCheck struct {
 	sysInfo        *model.SystemInfo
 	lastCPUTime    cpu.TimesStat
 	lastProcs      map[int32]*process.FilledProcess
-	lastContainers map[int32]*docker.Container
+	lastContainers []*docker.Container
 	lastRun        time.Time
 }
 
@@ -34,7 +34,6 @@ type ProcessCheck struct {
 // Kubernetes (if appliable) and other zeoes-out information.
 func (p *ProcessCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
 	p.sysInfo = info
-	p.lastProcs = make(map[int32]*process.FilledProcess)
 }
 
 // Name returns the name of the ProcessCheck.
@@ -56,86 +55,54 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if err != nil {
 		return nil, err
 	}
-	fps, err := process.AllProcesses()
+	procs, err := process.AllProcesses()
 	if err != nil {
 		return nil, err
 	}
+	containers, err := docker.AllContainers()
+	if err != nil {
+		return nil, err
+	}
+
 	// End check early if this is our first run.
 	if p.lastProcs == nil {
-		p.lastProcs = fps
+		p.lastProcs = procs
 		p.lastCPUTime = cpuTimes[0]
+		p.lastContainers = containers
 		return nil, nil
 	}
 
-	// Pull in container metadata, where available.
-	pids := make([]int32, 0, len(fps))
-	for _, fp := range fps {
-		pids = append(pids, fp.Pid)
-	}
-	containerByPID := docker.ContainersForPIDs(pids)
+	// Fetch orchestrator metadata once per check.
 	ecsMeta := ecs.GetMetadata()
 	kubeMeta := kubernetes.GetMetadata()
 
-	// Pre-filter the list to get an accurate group size.
-	filteredFps := make([]*process.FilledProcess, 0, len(fps))
-	for _, fp := range fps {
-		if !p.skipProcess(cfg, fp) {
-			filteredFps = append(filteredFps, fp)
-		}
+	chunkedProcs := fmtProcesses(cfg, procs, p.lastProcs,
+		containers, cpuTimes[0], p.lastCPUTime, p.lastRun)
+	// In case we skip every process..
+	if len(chunkedProcs) == 0 {
+		return nil, nil
 	}
-	groupSize := len(filteredFps) / cfg.ProcLimit
-	if len(filteredFps) != cfg.ProcLimit {
-		groupSize++
-	}
-
+	groupSize := len(chunkedProcs)
+	chunkedContainers := fmtContainers(containers, p.lastContainers,
+		cpuTimes[0], p.lastCPUTime, p.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
-	procs := make([]*model.Process, 0, cfg.ProcLimit)
-	for _, fp := range filteredFps {
-		if len(procs) >= cfg.ProcLimit {
-			messages = append(messages, &model.CollectorProc{
-				HostName:   cfg.HostName,
-				Processes:  procs,
-				Info:       p.sysInfo,
-				GroupId:    groupID,
-				GroupSize:  int32(groupSize),
-				Kubernetes: kubeMeta,
-				Ecs:        ecsMeta,
-			})
-			procs = make([]*model.Process, 0, cfg.ProcLimit)
-		}
-
-		container, _ := containerByPID[fp.Pid]
-		lastContainer, _ := p.lastContainers[fp.Pid]
-		procs = append(procs, &model.Process{
-			Pid:         fp.Pid,
-			Command:     formatCommand(fp),
-			User:        formatUser(fp),
-			Memory:      formatMemory(fp),
-			Cpu:         formatCPU(fp, fp.CpuTime, p.lastProcs[fp.Pid].CpuTime, cpuTimes[0], p.lastCPUTime),
-			CreateTime:  fp.CreateTime,
-			Container:   formatContainer(container, lastContainer, cpuTimes[0], p.lastCPUTime, p.lastRun),
-			OpenFdCount: fp.OpenFdCount,
-			State:       model.ProcessState(model.ProcessState_value[fp.Status]),
-			IoStat:      formatIO(fp, p.lastProcs[fp.Pid].IOStat, p.lastRun),
+	for i := 0; i < groupSize; i++ {
+		messages = append(messages, &model.CollectorProc{
+			HostName:   cfg.HostName,
+			Info:       p.sysInfo,
+			Processes:  chunkedProcs[i],
+			Containers: chunkedContainers[i],
+			GroupId:    groupID,
+			GroupSize:  int32(groupSize),
+			Kubernetes: kubeMeta,
+			Ecs:        ecsMeta,
 		})
 	}
 
-	messages = append(messages, &model.CollectorProc{
-		HostName:  cfg.HostName,
-		Processes: procs,
-		Info:      p.sysInfo,
-		GroupId:   groupID,
-		GroupSize: int32(groupSize),
-		// FIXME: We should not send this in every payload. Long-term the container
-		// ID should be enough context to resolve this metadata on the backend.
-		Kubernetes: kubeMeta,
-		Ecs:        ecsMeta,
-	})
-
 	// Store the last state for comparison on the next run.
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
-	p.lastProcs = fps
-	p.lastContainers = containerByPID
+	p.lastProcs = procs
+	p.lastContainers = containers
 	p.lastCPUTime = cpuTimes[0]
 	p.lastRun = time.Now()
 
@@ -143,21 +110,52 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	return messages, nil
 }
 
-// skipProcess will skip a given process if it's blacklisted or hasn't existed
-// for multiple collections.
-func (p *ProcessCheck) skipProcess(cfg *config.AgentConfig, fp *process.FilledProcess) bool {
-	if len(fp.Cmdline) == 0 {
-		return true
+func fmtProcesses(
+	cfg *config.AgentConfig,
+	procs, lastProcs map[int32]*process.FilledProcess,
+	containers []*docker.Container,
+	syst2, syst1 cpu.TimesStat,
+	lastRun time.Time,
+) [][]*model.Process {
+	ctrByPid := make(map[int32]*docker.Container, len(containers))
+	for _, c := range containers {
+		for _, p := range c.Pids {
+			ctrByPid[p] = c
+		}
 	}
-	if config.IsBlacklisted(fp.Cmdline, cfg.Blacklist) {
-		return true
+
+	chunked := make([][]*model.Process, 0)
+	chunk := make([]*model.Process, 0, cfg.ProcLimit)
+	for _, fp := range procs {
+		if skipProcess(cfg, fp, lastProcs) {
+			continue
+		}
+
+		ctr, ok := ctrByPid[fp.Pid]
+		if !ok {
+			ctr = docker.NullContainer
+		}
+		chunk = append(chunk, &model.Process{
+			Pid:         fp.Pid,
+			Command:     formatCommand(fp),
+			User:        formatUser(fp),
+			Memory:      formatMemory(fp),
+			Cpu:         formatCPU(fp, fp.CpuTime, lastProcs[fp.Pid].CpuTime, syst2, syst1),
+			CreateTime:  fp.CreateTime,
+			OpenFdCount: fp.OpenFdCount,
+			State:       model.ProcessState(model.ProcessState_value[fp.Status]),
+			IoStat:      formatIO(fp, lastProcs[fp.Pid].IOStat, lastRun),
+			ContainerId: ctr.ID,
+		})
+		if len(chunk) == cfg.ProcLimit {
+			chunked = append(chunked, chunk)
+			chunk = make([]*model.Process, 0, cfg.ProcLimit)
+		}
 	}
-	if _, ok := p.lastProcs[fp.Pid]; !ok {
-		// Skipping any processes that didn't exist in the previous run.
-		// This means short-lived processes (<2s) will never be captured.
-		return true
+	if len(chunk) > 0 {
+		chunked = append(chunked, chunk)
 	}
-	return false
+	return chunked
 }
 
 func formatCommand(fp *process.FilledProcess) *model.Command {
@@ -259,4 +257,43 @@ func calculatePct(deltaProc, deltaTime, numCPU float64) float32 {
 
 	// In order to emulate top we multiply utilization by # of CPUs so a busy loop would be 100%.
 	return float32(overalPct * numCPU)
+}
+
+// skipProcess will skip a given process if it's blacklisted or hasn't existed
+// for multiple collections.
+func skipProcess(
+	cfg *config.AgentConfig,
+	fp *process.FilledProcess,
+	lastProcs map[int32]*process.FilledProcess,
+) bool {
+	if len(fp.Cmdline) == 0 {
+		return true
+	}
+	if config.IsBlacklisted(fp.Cmdline, cfg.Blacklist) {
+		return true
+	}
+	if _, ok := lastProcs[fp.Pid]; !ok {
+		// Skipping any processes that didn't exist in the previous run.
+		// This means short-lived processes (<2s) will never be captured.
+		return true
+	}
+	return false
+}
+
+// chunkProcesses chunks a slice of model.Process into `chunks` of equal size.
+func chunkProcesses(msgs []*model.Process, chunks int) [][]*model.Process {
+	perChunk := (len(msgs) / chunks) + 1
+	chunked := make([][]*model.Process, 0, chunks)
+	for i := 0; i < chunks; i++ {
+		start := perChunk * i
+		if start > len(msgs) {
+			start = len(msgs)
+		}
+		end := perChunk * (i + 1)
+		if end > len(msgs) {
+			end = len(msgs)
+		}
+		chunked = append(chunked, msgs[start:end])
+	}
+	return chunked
 }

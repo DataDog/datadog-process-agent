@@ -50,22 +50,17 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 		return nil, nil
 	}
 
-	formatted := fmtContainerStats(containers, r.lastContainers,
-		cpuTimes[0], r.lastCPUTime, r.lastRun)
-	groupSize := len(formatted) / cfg.ProcLimit
-	if len(formatted) != cfg.ProcLimit {
+	groupSize := len(containers) / cfg.ProcLimit
+	if len(containers) != cfg.ProcLimit {
 		groupSize++
 	}
-
+	chunked := fmtContainerStats(containers, r.lastContainers,
+		cpuTimes[0], r.lastCPUTime, r.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	for i := 0; i < groupSize; i++ {
-		end := groupSize * (i + 1)
-		if end > len(formatted) {
-			end = len(formatted)
-		}
 		messages = append(messages, &model.CollectorContainerRealTime{
 			HostName:    cfg.HostName,
-			Stats:       formatted[i*groupSize : end],
+			Stats:       chunked[i],
 			NumCpus:     int32(runtime.NumCPU()),
 			TotalMemory: r.sysInfo.TotalMemory,
 		})
@@ -78,17 +73,23 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 	return messages, nil
 }
 
+// fmtContainerStats formats and chunks the containers into a slice of chunks using a specific
+// number of chunks. len(result) MUST EQUAL chunks.
 func fmtContainerStats(
 	containers, lastContainers []*docker.Container,
 	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
-) []*model.ContainerStat {
+	chunks int,
+) [][]*model.ContainerStat {
 	lastByID := make(map[string]*docker.Container, len(containers))
 	for _, c := range lastContainers {
 		lastByID[c.ID] = c
 	}
 
-	stats := make([]*model.ContainerStat, 0, len(containers))
+	perChunk := (len(containers) / chunks) + 1
+	chunked := make([][]*model.ContainerStat, chunks)
+	chunk := make([]*model.ContainerStat, 0, perChunk)
+	i := 0
 	for _, ctr := range containers {
 		lastCtr, ok := lastByID[ctr.ID]
 		if !ok {
@@ -101,7 +102,7 @@ func fmtContainerStats(
 		deltaSys := ctr.CPU.System - lastCtr.CPU.System
 		// User and Sys times are in nanoseconds for cgroups, so we must adjust our system time.
 		deltaTime := uint64(syst2.Total()-syst1.Total()) * nanoSecondsPerSecond
-		stats = append(stats, &model.ContainerStat{
+		chunk = append(chunk, &model.ContainerStat{
 			Id:         ctr.ID,
 			UserPct:    calculateCtrPct(deltaUser, deltaTime, numCPU),
 			SystemPct:  calculateCtrPct(deltaSys, deltaTime, numCPU),
@@ -117,6 +118,15 @@ func fmtContainerStats(
 			NetRcvdBps: calculateRate(ctr.Network.BytesRcvd, lastCtr.Network.BytesRcvd, lastRun),
 			NetSentBps: calculateRate(ctr.Network.BytesSent, lastCtr.Network.BytesSent, lastRun),
 		})
+		if len(chunk) == perChunk {
+			chunked[i] = chunk
+			chunk = make([]*model.ContainerStat, 0, perChunk)
+			i++
+		}
 	}
-	return stats
+	// Add the last chunk if data remains.
+	if len(chunk) > 0 {
+		chunked[i] = chunk
+	}
+	return chunked
 }
