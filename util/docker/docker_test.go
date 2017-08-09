@@ -154,3 +154,13 @@ func detab(str string) string {
 	}
 	return strings.Join(detabbed, "\n")
 }
+
+// Sanity-check that all containers works with different settings.
+func TestAllContainers(t *testing.T) {
+	InitDockerUtil(true, true)
+	AllContainers()
+	InitDockerUtil(false, true)
+	AllContainers()
+	InitDockerUtil(true, false)
+	AllContainers()
+}
