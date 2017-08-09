@@ -180,6 +180,7 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 	}
 	ret := make([]*Container, 0, len(containers))
 	for _, c := range containers {
+		var health string
 		var i types.ContainerJSON
 		if d.collectHealth {
 			// We could have lost the container between list and inspect so ignore these errors.
@@ -187,13 +188,17 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 			if err != nil && client.IsErrContainerNotFound(err) {
 				return nil, err
 			}
+			// Healthcheck and status not available until >= 1.12
+			if i.State.Health != nil {
+				health = i.State.Health.Status
+			}
 		}
 
 		if d.collectNetwork {
 			// FIXME: We might need to invalidate this cache if a containers networks are changed live.
 			d.Lock()
 			if _, ok := d.networkMappings[c.ID]; !ok {
-				if i.ID == "" {
+				if i.ContainerJSONBase == nil {
 					i, err = d.cli.ContainerInspect(context.Background(), c.ID)
 					if err != nil && client.IsErrContainerNotFound(err) {
 						d.Unlock()
@@ -203,12 +208,6 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 				d.networkMappings[c.ID] = findDockerNetworks(c.ID, i.State.Pid, c.NetworkSettings)
 			}
 			d.Unlock()
-		}
-
-		var health string
-		// Healthcheck and status not available until >= 1.12
-		if i.State.Health != nil {
-			health = i.State.Health.Status
 		}
 
 		ret = append(ret, &Container{
