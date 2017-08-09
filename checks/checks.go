@@ -12,6 +12,7 @@ import (
 type Check interface {
 	Init(cfg *config.AgentConfig, info *model.SystemInfo)
 	Name() string
+	Endpoint() string
 	RealTime() bool
 	Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error)
 }

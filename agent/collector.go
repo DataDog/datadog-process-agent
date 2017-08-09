@@ -17,9 +17,14 @@ import (
 	"github.com/DataDog/datadog-process-agent/model"
 )
 
+type checkPayload struct {
+	messages []model.MessageBody
+	endpoint string
+}
+
 // Collector will collect metrics from the local system and ship to the backend.
 type Collector struct {
-	send          chan []model.MessageBody
+	send          chan checkPayload
 	rtIntervalCh  chan time.Duration
 	cfg           *config.AgentConfig
 	httpClient    http.Client
@@ -75,7 +80,7 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 	}
 
 	return Collector{
-		send:          make(chan []model.MessageBody, cfg.QueueSize),
+		send:          make(chan checkPayload, cfg.QueueSize),
 		rtIntervalCh:  make(chan time.Duration),
 		cfg:           cfg,
 		groupID:       rand.Int31(),
@@ -92,7 +97,7 @@ func (l *Collector) runCheck(c checks.Check) {
 	if messages, err := c.Run(l.cfg, atomic.AddInt32(&l.groupID, 1)); err != nil {
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
-		l.send <- messages
+		l.send <- checkPayload{messages, c.Endpoint()}
 	}
 }
 
@@ -103,14 +108,14 @@ func (l *Collector) run() {
 	go func() {
 		for {
 			select {
-			case messages := <-l.send:
+			case payload := <-l.send:
 				if len(l.send) >= l.cfg.QueueSize {
 					log.Info("Expiring payload from in-memory queue.")
 					// Limit number of items kept in memory while we wait.
 					<-l.send
 				}
-				for _, m := range messages {
-					l.postMessage(m)
+				for _, m := range payload.messages {
+					l.postMessage(payload.endpoint, m)
 				}
 			case <-exit:
 				return
@@ -150,7 +155,7 @@ func (l *Collector) run() {
 	<-exit
 }
 
-func (l *Collector) postMessage(m model.MessageBody) {
+func (l *Collector) postMessage(endpoint string, m model.MessageBody) {
 	msgType, err := model.DetectMessageType(m)
 	if err != nil {
 		log.Errorf("Unable to detect message type: %s", err)
@@ -166,7 +171,7 @@ func (l *Collector) postMessage(m model.MessageBody) {
 	if err != nil {
 		log.Errorf("Unable to encode message: %s", err)
 	}
-	l.cfg.APIEndpoint.Path = "/api/v1/collector"
+	l.cfg.APIEndpoint.Path = endpoint
 	url := l.cfg.APIEndpoint.String()
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	if err != nil {

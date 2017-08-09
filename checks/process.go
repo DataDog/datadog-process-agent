@@ -39,6 +39,9 @@ func (p *ProcessCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
 // Name returns the name of the ProcessCheck.
 func (p *ProcessCheck) Name() string { return "process" }
 
+// Endpoint returns the endpoint where this check is submitted.
+func (c *ProcessCheck) Endpoint() string { return "/api/v1/collector" }
+
 // RealTime indicates if this check only runs in real-time mode.
 func (c *ProcessCheck) RealTime() bool { return false }
 
