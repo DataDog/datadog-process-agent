@@ -23,17 +23,30 @@ var (
 	globalKubeUtil            *kubeUtil
 )
 
+type Config struct {
+	// KubeletHost is the hostname of the Kubelet, it is optional.
+	KubeletHost string
+	// KubeletHTTPPort is the port used by the Kubelet for HTTP listen.
+	KubeletHTTPPort int
+	// KubeletHTTPSPort is the port used by the Kubelet for HTTPS listen.
+	KubeletHTTPSPort int
+
+	// internal use only
+	kubeletAPIURL string
+}
+
 // InitKubeUtil initializes a global kubeUtil used by later function calls.
-func InitKubeUtil(kubeletHost string, httpKubeletePort, httpsKubeletPort int) error {
+func InitKubeUtil(cfg *Config) error {
 	if os.Getenv("KUBERNETES_SERVICE_HOST") == "" {
 		return ErrKubernetesNotAvailable
 	}
 
-	kubeletURL, err := locateKubelet(kubeletHost, httpKubeletePort, httpsKubeletPort)
+	var err error
+	cfg.kubeletAPIURL, err = locateKubelet(cfg)
 	if err != nil {
 		return err
 	}
-	globalKubeUtil = &kubeUtil{kubeletAPIURL: kubeletURL}
+	globalKubeUtil = &kubeUtil{cfg: cfg}
 
 	return nil
 }
@@ -118,8 +131,8 @@ type OwnerReference struct {
 // all calls should go through the module-level functions (e.g. GetMetadata)
 // that interact with the globalKubeUtil.
 type kubeUtil struct {
-	kubeletAPIURL string
-	lastKubeErr   string
+	cfg         *Config
+	lastKubeErr string
 }
 
 // GetKubernetesMeta returns a Kubernetes metadata payload using a mix of state from the
@@ -162,7 +175,7 @@ func (ku *kubeUtil) getKubernetesMeta() *agentpayload.KubeMetadataPayload {
 
 // getLocalPodList returns the list of pods running on the node where this pod is running
 func (ku *kubeUtil) getLocalPodList() ([]*Pod, error) {
-	data, err := performKubeletQuery(fmt.Sprintf("%s/pods", ku.kubeletAPIURL))
+	data, err := performKubeletQuery(fmt.Sprintf("%s/pods", ku.cfg.kubeletAPIURL))
 	if err != nil {
 		return nil, fmt.Errorf("Error performing kubelet query: %s", err)
 	}
@@ -252,23 +265,23 @@ func setPodCreator(pod *agentpayload.KubeMetadataPayload_Pod, ownerRefs []*Owner
 }
 
 // Try and find the hostname to query the kubelet
-func locateKubelet(kubeletHost string, httpKubeletePort, httpsKubeletPort int) (string, error) {
+func locateKubelet(cfg *Config) (string, error) {
 	var err error
-	hostname := kubeletHost
-	if kubeletHost == "" {
+	hostname := cfg.KubeletHost
+	if cfg.KubeletHost == "" {
 		hostname, err = docker.GetHostname()
 		if err != nil {
 			return "", fmt.Errorf("Unable to get hostname from docker: %s", err)
 		}
 	}
 
-	url := fmt.Sprintf("http://%s:%d", hostname, httpKubeletePort)
+	url := fmt.Sprintf("http://%s:%d", hostname, cfg.KubeletHTTPPort)
 	if _, err := performKubeletQuery(url); err == nil {
 		return url, nil
 	}
 	log.Debugf("Couldn't query kubelet over HTTP, assuming it's not in no_auth mode.")
 
-	url = fmt.Sprintf("https://%s:%d", hostname, httpsKubeletPort)
+	url = fmt.Sprintf("https://%s:%d", hostname, cfg.KubeletHTTPSPort)
 	if _, err := performKubeletQuery(url); err == nil {
 		return url, nil
 	}

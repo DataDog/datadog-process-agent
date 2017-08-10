@@ -167,9 +167,9 @@ func (a dockerNetworks) Len() int           { return len(a) }
 func (a dockerNetworks) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a dockerNetworks) Less(i, j int) bool { return a[i].dockerName < a[j].dockerName }
 
-// DockerConfig is an exported configuration object that is used when
+// Config is an exported configuration object that is used when
 // initializing the DockerUtil.
-type DockerConfig struct {
+type Config struct {
 	// CollectHealth enables health collection. This requires calling a
 	// container.Inspect for each container on every called to getContainers().
 	CollectHealth bool
@@ -189,7 +189,7 @@ type DockerConfig struct {
 
 // dockerUtil wraps interactions with a local docker API.
 type dockerUtil struct {
-	cfg *DockerConfig
+	cfg *Config
 	cli *client.Client
 	// tracks the last time we invalidate our internal caches
 	lastInvalidate time.Time
@@ -248,7 +248,7 @@ func IsContainerized() bool {
 
 // InitDockerUtil initializes the global dockerUtil singleton. This _must_ be
 // called before accessing any of the top-level docker calls.
-func InitDockerUtil(cfg *DockerConfig) error {
+func InitDockerUtil(cfg *Config) error {
 	// If we don't have a docker.sock then return a known error.
 	sockPath := util.GetEnv("DOCKER_SOCKET_PATH", "/var/run/docker.sock")
 	if !util.PathExists(sockPath) {

@@ -157,11 +157,11 @@ func detab(str string) string {
 
 // Sanity-check that all containers works with different settings.
 func TestAllContainers(t *testing.T) {
-	InitDockerUtil(&DockerConfig{CollectHealth: true, CollectNetwork: true})
+	InitDockerUtil(&Config{CollectHealth: true, CollectNetwork: true})
 	AllContainers()
-	InitDockerUtil(&DockerConfig{CollectHealth: false, CollectNetwork: true})
+	InitDockerUtil(&Config{CollectHealth: false, CollectNetwork: true})
 	AllContainers()
-	InitDockerUtil(&DockerConfig{CollectHealth: true, CollectNetwork: false})
+	InitDockerUtil(&Config{CollectHealth: true, CollectNetwork: false})
 	AllContainers()
 }
 
