@@ -142,17 +142,24 @@ func main() {
 }
 
 func initMetadataProviders(cfg *config.AgentConfig) {
-	err := docker.InitDockerUtil(cfg.CollectDockerHealth, cfg.CollectDockerNetwork)
-	if err != nil && err != docker.ErrDockerNotAvailable {
+	if err := docker.InitDockerUtil(&docker.Config{
+		CollectHealth:  cfg.CollectDockerHealth,
+		CollectNetwork: cfg.CollectDockerNetwork,
+		Whitelist:      cfg.ContainerWhitelist,
+		Blacklist:      cfg.ContainerBlacklist,
+	}); err != nil && err != docker.ErrDockerNotAvailable {
 		log.Errorf("unable to initialize docker collection: %s", err)
 	}
 
-	err = kubernetes.InitKubeUtil(cfg)
-	if err != nil && err != kubernetes.ErrKubernetesNotAvailable {
+	if err := kubernetes.InitKubeUtil(&kubernetes.Config{
+		KubeletHost:      cfg.KubernetesKubeletHost,
+		KubeletHTTPPort:  cfg.KubernetesHTTPKubeletPort,
+		KubeletHTTPSPort: cfg.KubernetesHTTPSKubeletPort,
+	}); err != nil && err != kubernetes.ErrKubernetesNotAvailable {
 		log.Errorf("unable to initialize kubernetes collection: %s", err)
 	}
 
-	err = ecs.InitECSUtil()
+	err := ecs.InitECSUtil()
 	if err != nil && err != ecs.ErrECSNotAvailable {
 		log.Errorf("unable to initialize ECS collection: %s", err)
 	}

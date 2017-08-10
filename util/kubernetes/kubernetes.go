@@ -14,7 +14,6 @@ import (
 	agentkubernetes "github.com/DataDog/datadog-agent/pkg/metadata/kubernetes"
 	log "github.com/cihub/seelog"
 
-	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/util/cache"
 	"github.com/DataDog/datadog-process-agent/util/docker"
 )
@@ -24,17 +23,30 @@ var (
 	globalKubeUtil            *kubeUtil
 )
 
+type Config struct {
+	// KubeletHost is the hostname of the Kubelet, it is optional.
+	KubeletHost string
+	// KubeletHTTPPort is the port used by the Kubelet for HTTP listen.
+	KubeletHTTPPort int
+	// KubeletHTTPSPort is the port used by the Kubelet for HTTPS listen.
+	KubeletHTTPSPort int
+
+	// internal use only
+	kubeletAPIURL string
+}
+
 // InitKubeUtil initializes a global kubeUtil used by later function calls.
-func InitKubeUtil(cfg *config.AgentConfig) error {
+func InitKubeUtil(cfg *Config) error {
 	if os.Getenv("KUBERNETES_SERVICE_HOST") == "" {
 		return ErrKubernetesNotAvailable
 	}
 
-	kubeletURL, err := locateKubelet(cfg)
+	var err error
+	cfg.kubeletAPIURL, err = locateKubelet(cfg)
 	if err != nil {
 		return err
 	}
-	globalKubeUtil = &kubeUtil{kubeletAPIURL: kubeletURL}
+	globalKubeUtil = &kubeUtil{cfg: cfg}
 
 	return nil
 }
@@ -45,6 +57,11 @@ func GetMetadata() *agentpayload.KubeMetadataPayload {
 		return globalKubeUtil.getKubernetesMeta()
 	}
 	return nil
+}
+
+// IsKubernetes returns true if we're running inside a Kubernetes container.
+func IsKubernetes() bool {
+	return os.Getenv("KUBERNETES_SERVICE_HOST") != ""
 }
 
 // Kubelet constants
@@ -114,8 +131,8 @@ type OwnerReference struct {
 // all calls should go through the module-level functions (e.g. GetMetadata)
 // that interact with the globalKubeUtil.
 type kubeUtil struct {
-	kubeletAPIURL string
-	lastKubeErr   string
+	cfg         *Config
+	lastKubeErr string
 }
 
 // GetKubernetesMeta returns a Kubernetes metadata payload using a mix of state from the
@@ -158,7 +175,7 @@ func (ku *kubeUtil) getKubernetesMeta() *agentpayload.KubeMetadataPayload {
 
 // getLocalPodList returns the list of pods running on the node where this pod is running
 func (ku *kubeUtil) getLocalPodList() ([]*Pod, error) {
-	data, err := performKubeletQuery(fmt.Sprintf("%s/pods", ku.kubeletAPIURL))
+	data, err := performKubeletQuery(fmt.Sprintf("%s/pods", ku.cfg.kubeletAPIURL))
 	if err != nil {
 		return nil, fmt.Errorf("Error performing kubelet query: %s", err)
 	}
@@ -248,25 +265,23 @@ func setPodCreator(pod *agentpayload.KubeMetadataPayload_Pod, ownerRefs []*Owner
 }
 
 // Try and find the hostname to query the kubelet
-func locateKubelet(cfg *config.AgentConfig) (string, error) {
-	hostname := cfg.KubernetesKubeletHost
+func locateKubelet(cfg *Config) (string, error) {
 	var err error
-	if hostname == "" {
+	hostname := cfg.KubeletHost
+	if cfg.KubeletHost == "" {
 		hostname, err = docker.GetHostname()
 		if err != nil {
 			return "", fmt.Errorf("Unable to get hostname from docker: %s", err)
 		}
 	}
 
-	port := cfg.KubernetesHTTPKubeletPort
-	url := fmt.Sprintf("http://%s:%d", hostname, port)
+	url := fmt.Sprintf("http://%s:%d", hostname, cfg.KubeletHTTPPort)
 	if _, err := performKubeletQuery(url); err == nil {
 		return url, nil
 	}
 	log.Debugf("Couldn't query kubelet over HTTP, assuming it's not in no_auth mode.")
 
-	port = cfg.KubernetesHTTPSKubeletPort
-	url = fmt.Sprintf("https://%s:%d", hostname, port)
+	url = fmt.Sprintf("https://%s:%d", hostname, cfg.KubeletHTTPSPort)
 	if _, err := performKubeletQuery(url); err == nil {
 		return url, nil
 	}

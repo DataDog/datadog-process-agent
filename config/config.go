@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-process-agent/util"
+	"github.com/DataDog/datadog-process-agent/util/docker"
+	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"
 )
@@ -19,6 +21,12 @@ import (
 var (
 	processChecks   = []string{"process", "rtprocess"}
 	containerChecks = []string{"container", "rtcontainer"}
+
+	// List of known Kubernetes images that we want to exclude by default.
+	defaultKubeBlacklist = []string{
+		"image:gcr.io/google_containers/pause.*",
+		"image:openshift/origin-pod",
+	}
 )
 
 // AgentConfig is the global config for the process-agent. This information
@@ -43,6 +51,8 @@ type AgentConfig struct {
 	CheckIntervals map[string]time.Duration
 
 	// Docker
+	ContainerBlacklist   []string
+	ContainerWhitelist   []string
 	CollectDockerHealth  bool
 	CollectDockerNetwork bool
 
@@ -82,10 +92,9 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// This is a hardcoded URL so parsing it should not fail
 		panic(err)
 	}
-	isContainerized := os.Getenv("DOCKER_DD_AGENT") == "true"
 	ac := &AgentConfig{
 		// We'll always run inside of a container.
-		Enabled:       isContainerized,
+		Enabled:       docker.IsContainerized(),
 		HostName:      hostname,
 		APIEndpoint:   u,
 		LogFile:       defaultLogFilePath,
@@ -116,13 +125,17 @@ func NewDefaultAgentConfig() *AgentConfig {
 	}
 
 	// Set default values for proc/sys paths if unset.
-	if isContainerized {
+	if docker.IsContainerized() {
 		if v := os.Getenv("HOST_PROC"); v == "" {
 			os.Setenv("HOST_PROC", "/host/proc")
 		}
 		if v := os.Getenv("HOST_SYS"); v == "" {
 			os.Setenv("HOST_SYS", "/host/sys")
 		}
+	}
+	// Kubernetes
+	if kubernetes.IsKubernetes() {
+		ac.ContainerBlacklist = defaultKubeBlacklist
 	}
 
 	return ac
@@ -234,6 +247,8 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		// Docker config
 		cfg.CollectDockerHealth = file.GetBool(ns, "allow_real_time", cfg.CollectDockerHealth)
 		cfg.CollectDockerNetwork = file.GetBool(ns, "collect_docker_network", cfg.CollectDockerNetwork)
+		cfg.ContainerBlacklist = file.GetStrArrayDefault(ns, "container_blacklist", ",", cfg.ContainerBlacklist)
+		cfg.ContainerWhitelist = file.GetStrArrayDefault(ns, "container_whitelist", ",", cfg.ContainerWhitelist)
 	}
 
 	cfg = mergeEnv(cfg)
@@ -307,6 +322,12 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 	}
 	if v := os.Getenv("DD_COLLECT_DOCKER_NETWORK"); v == "false" {
 		c.CollectDockerNetwork = false
+	}
+	if v := os.Getenv("DD_CONTAINER_BLACKLIST"); v != "" {
+		c.ContainerBlacklist = strings.Split(v, ",")
+	}
+	if v := os.Getenv("DD_CONTAINER_WHITELIST"); v != "" {
+		c.ContainerWhitelist = strings.Split(v, ",")
 	}
 
 	// Kubernetes config is set via environment only (for now).

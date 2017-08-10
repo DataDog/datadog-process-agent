@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -47,6 +48,97 @@ type NetworkStat struct {
 	PacketsRcvd uint64
 }
 
+type containerFilter struct {
+	Enabled        bool
+	ImageWhitelist []*regexp.Regexp
+	NameWhitelist  []*regexp.Regexp
+	ImageBlacklist []*regexp.Regexp
+	NameBlacklist  []*regexp.Regexp
+}
+
+// NewcontainerFilter creates a new container filter from a two slices of
+// regexp patterns for a whitelist and blacklist. Each pattern should have
+// the following format: "field:pattern" where field can be: [image, name].
+// An error is returned if any of the expression don't compile.
+func newContainerFilter(whitelist, blacklist []string) (*containerFilter, error) {
+	iwl, nwl, err := parseFilters(whitelist)
+	if err != nil {
+		return nil, err
+	}
+	ibl, nbl, err := parseFilters(blacklist)
+	if err != nil {
+		return nil, err
+	}
+
+	return &containerFilter{
+		Enabled:        len(whitelist) > 0 || len(blacklist) > 0,
+		ImageWhitelist: iwl,
+		NameWhitelist:  nwl,
+		ImageBlacklist: ibl,
+		NameBlacklist:  nbl,
+	}, nil
+}
+
+func parseFilters(filters []string) (imageFilters, nameFilters []*regexp.Regexp, err error) {
+	for _, filter := range filters {
+		switch {
+		case strings.HasPrefix(filter, "image:"):
+			pat := strings.TrimPrefix(filter, "image:")
+			r, err := regexp.Compile(strings.TrimPrefix(pat, "image:"))
+			if err != nil {
+				return nil, nil, fmt.Errorf("invalid regex '%s': %s", pat, err)
+			}
+			imageFilters = append(imageFilters, r)
+		case strings.HasPrefix(filter, "name:"):
+			pat := strings.TrimPrefix(filter, "name:")
+			r, err := regexp.Compile(pat)
+			if err != nil {
+				return nil, nil, fmt.Errorf("invalid regex '%s': %s", pat, err)
+			}
+			nameFilters = append(nameFilters, r)
+		}
+	}
+	return imageFilters, nameFilters, nil
+}
+
+// IsExcluded returns a bool indicating if the container should be excluded
+// based on the filters in the containerFilter instance.
+func (cf containerFilter) IsExcluded(container *Container) bool {
+	if !cf.Enabled {
+		return false
+	}
+
+	var excluded bool
+	for _, r := range cf.ImageBlacklist {
+		if r.MatchString(container.Image) {
+			excluded = true
+			break
+		}
+	}
+	for _, r := range cf.NameBlacklist {
+		if r.MatchString(container.Name) {
+			excluded = true
+			break
+		}
+	}
+
+	// Any excluded container could be whitelisted.
+	if excluded {
+		for _, r := range cf.ImageWhitelist {
+			if r.MatchString(container.Image) {
+				return false
+			}
+		}
+		for _, r := range cf.NameWhitelist {
+			if r.MatchString(container.Name) {
+				return false
+			}
+		}
+	}
+
+	return excluded
+}
+
 type Container struct {
 	Type    string
 	ID      string
@@ -75,19 +167,34 @@ func (a dockerNetworks) Len() int           { return len(a) }
 func (a dockerNetworks) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a dockerNetworks) Less(i, j int) bool { return a[i].dockerName < a[j].dockerName }
 
+// Config is an exported configuration object that is used when
+// initializing the DockerUtil.
+type Config struct {
+	// CollectHealth enables health collection. This requires calling a
+	// container.Inspect for each container on every called to getContainers().
+	CollectHealth bool
+	// CollectNetwork enables network stats collection. This requires at least
+	// one call to container.Inspect for new containers and reads from the
+	// procfs for stats.
+	CollectNetwork bool
+	// Whitelist is a slice of filter strings in the form of key:regex where key
+	// is either 'image' or 'name' and regex is a valid regular expression.
+	Whitelist []string
+	// Blacklist is the same as whitelist but for exclusion.
+	Blacklist []string
+
+	// internal use only
+	filter *containerFilter
+}
+
 // dockerUtil wraps interactions with a local docker API.
 type dockerUtil struct {
+	cfg *Config
 	cli *client.Client
 	// tracks the last time we invalidate our internal caches
 	lastInvalidate time.Time
 	// networkMappings by container id
 	networkMappings map[string][]dockerNetwork
-	// if enabled we will collect health. this requires calling a container.Inspect
-	// for each container on every called to getContainers().
-	collectHealth bool
-	// if enabled we will collect network statistics. this requires at least one
-	// call to container.Inspect for new containers and reads from the procfs for stats.
-	collectNetwork bool
 	sync.Mutex
 }
 
@@ -134,9 +241,14 @@ func GetHostname() (string, error) {
 	return globalDockerUtil.getHostname()
 }
 
+// IsContainerized returns True if we're running in the docker-dd-agent container.
+func IsContainerized() bool {
+	return os.Getenv("DOCKER_DD_AGENT") == "true"
+}
+
 // InitDockerUtil initializes the global dockerUtil singleton. This _must_ be
 // called before accessing any of the top-level docker calls.
-func InitDockerUtil(collectHealth, collectNetwork bool) error {
+func InitDockerUtil(cfg *Config) error {
 	// If we don't have a docker.sock then return a known error.
 	sockPath := util.GetEnv("DOCKER_SOCKET_PATH", "/var/run/docker.sock")
 	if !util.PathExists(sockPath) {
@@ -160,12 +272,17 @@ func InitDockerUtil(collectHealth, collectNetwork bool) error {
 		return err
 	}
 
+	// Pre-parse the filter and use that internally.
+	cfg.filter, err = newContainerFilter(cfg.Whitelist, cfg.Blacklist)
+	if err != nil {
+		return err
+	}
+
 	globalDockerUtil = &dockerUtil{
+		cfg:             cfg,
 		cli:             cli,
 		networkMappings: make(map[string][]dockerNetwork),
 		lastInvalidate:  time.Now(),
-		collectHealth:   collectHealth,
-		collectNetwork:  collectNetwork,
 	}
 	return nil
 }
@@ -182,7 +299,7 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 	for _, c := range containers {
 		var health string
 		var i types.ContainerJSON
-		if d.collectHealth {
+		if d.cfg.CollectHealth {
 			// We could have lost the container between list and inspect so ignore these errors.
 			i, err = d.cli.ContainerInspect(context.Background(), c.ID)
 			if err != nil && client.IsErrContainerNotFound(err) {
@@ -194,7 +311,7 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 			}
 		}
 
-		if d.collectNetwork {
+		if d.cfg.CollectNetwork {
 			// FIXME: We might need to invalidate this cache if a containers networks are changed live.
 			d.Lock()
 			if _, ok := d.networkMappings[c.ID]; !ok {
@@ -210,7 +327,7 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 			d.Unlock()
 		}
 
-		ret = append(ret, &Container{
+		container := &Container{
 			Type:    "Docker",
 			ID:      c.ID,
 			Name:    c.Names[0],
@@ -219,7 +336,10 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 			Created: c.Created,
 			State:   c.State,
 			Health:  health,
-		})
+		}
+		if !d.cfg.filter.IsExcluded(container) {
+			ret = append(ret, container)
+		}
 	}
 
 	if d.lastInvalidate.Add(invalidationInterval).After(time.Now()) {
@@ -258,7 +378,7 @@ func (d *dockerUtil) containers(pids []int32) ([]*Container, error) {
 			return nil, err
 		}
 
-		if d.collectNetwork {
+		if d.cfg.CollectNetwork {
 			d.Lock()
 			networks, ok := d.networkMappings[cgroup.ContainerID]
 			d.Unlock()
@@ -269,7 +389,10 @@ func (d *dockerUtil) containers(pids []int32) ([]*Container, error) {
 				}
 				container.Network = netStat
 			}
+		} else {
+			container.Network = NullContainer.Network
 		}
+
 		container.Pids = cgroup.Pids
 	}
 	return containers, nil
