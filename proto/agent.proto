@@ -180,6 +180,7 @@ message Container {
 	float totalPct = 20;
 	uint64 memRss = 21;
 	uint64 memCache = 22;
+	Host host = 23; // Used post-resolution
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
