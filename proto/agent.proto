@@ -82,6 +82,9 @@ message CollectorContainerRealTime {
 
 	// Post-resolved fields
 	int32 hostId = 5;
+
+	int32 groupId = 6;
+	int32 groupSize = 7;
 }
 
 

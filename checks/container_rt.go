@@ -66,6 +66,8 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 			Stats:       chunked[i],
 			NumCpus:     int32(runtime.NumCPU()),
 			TotalMemory: r.sysInfo.TotalMemory,
+			GroupId:     groupID,
+			GroupSize:   int32(groupSize),
 		})
 	}
 
