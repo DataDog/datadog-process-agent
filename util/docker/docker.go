@@ -135,7 +135,6 @@ func (cf containerFilter) IsExcluded(container *Container) bool {
 			}
 		}
 	}
-
 	return excluded
 }
 
@@ -195,6 +194,8 @@ type dockerUtil struct {
 	lastInvalidate time.Time
 	// networkMappings by container id
 	networkMappings map[string][]dockerNetwork
+	// image sha mapping cache
+	imageNameBySha map[string]string
 	sync.Mutex
 }
 
@@ -282,6 +283,7 @@ func InitDockerUtil(cfg *Config) error {
 		cfg:             cfg,
 		cli:             cli,
 		networkMappings: make(map[string][]dockerNetwork),
+		imageNameBySha:  make(map[string]string),
 		lastInvalidate:  time.Now(),
 	}
 	return nil
@@ -331,7 +333,7 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 			Type:    "Docker",
 			ID:      c.ID,
 			Name:    c.Names[0],
-			Image:   c.Image,
+			Image:   d.extractImageName(c.Image),
 			ImageID: c.ImageID,
 			Created: c.Created,
 			State:   c.State,
@@ -421,15 +423,56 @@ func (d *dockerUtil) getHostname() (string, error) {
 	return info.Name, nil
 }
 
+// extractImageName will resolve sha image name to their user-friendly name.
+// For non-sha names we will just return the name as-is.
+func (d *dockerUtil) extractImageName(image string) string {
+	if !strings.HasPrefix(image, "sha256:") {
+		return image
+	}
+
+	d.Lock()
+	defer d.Unlock()
+	if _, ok := d.imageNameBySha[image]; !ok {
+		r, _, err := d.cli.ImageInspectWithRaw(context.Background(), image)
+		if err != nil {
+			// Only log errors that aren't "not found" because some images may
+			// just not be available in docker inspect.
+			if !client.IsErrNotFound(err) {
+				log.Errorf("could not extract image %s name: %s", err)
+			}
+			d.imageNameBySha[image] = image
+		}
+
+		// Try RepoTags first and fall back to RepoDigest otherwise.
+		if len(r.RepoTags) > 0 {
+			d.imageNameBySha[image] = r.RepoTags[0]
+		} else if len(r.RepoDigests) > 0 {
+			// Digests formatted like quay.io/foo/bar@sha256:hash
+			sp := strings.SplitN(r.RepoDigests[0], "@", 2)
+			d.imageNameBySha[image] = sp[0]
+		} else {
+			d.imageNameBySha[image] = image
+		}
+	}
+	return d.imageNameBySha[image]
+}
+
 func (d *dockerUtil) invalidateCaches(containers []types.Container) {
 	liveContainers := make(map[string]struct{})
+	liveImages := make(map[string]struct{})
 	for _, c := range containers {
 		liveContainers[c.ID] = struct{}{}
+		liveImages[c.Image] = struct{}{}
 	}
 	d.Lock()
 	for cid := range d.networkMappings {
 		if _, ok := liveContainers[cid]; !ok {
 			delete(d.networkMappings, cid)
+		}
+	}
+	for image := range d.imageNameBySha {
+		if _, ok := liveImages[image]; !ok {
+			delete(d.imageNameBySha, image)
 		}
 	}
 	d.Unlock()
