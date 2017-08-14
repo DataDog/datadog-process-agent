@@ -14,8 +14,6 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
-const nanoSecondsPerSecond uint64 = 10e9
-
 var Container = &ContainerCheck{}
 
 // ContainerCheck is a check that returns container metadata and stats.
@@ -116,21 +114,19 @@ func fmtContainers(
 			lastCtr = docker.NullContainer
 		}
 
-		numCPU := float64(runtime.NumCPU())
-		deltaUser := ctr.CPU.User - lastCtr.CPU.User
-		deltaSys := ctr.CPU.System - lastCtr.CPU.System
-		// User and Sys times are in nanoseconds for cgroups, so we must adjust our system time.
-		deltaTime := uint64(syst2.Total()-syst1.Total()) * nanoSecondsPerSecond
+		cpus := runtime.NumCPU()
 		chunk = append(chunk, &model.Container{
 			Type:        ctr.Type,
 			Name:        ctr.Name,
 			Id:          ctr.ID,
 			Image:       ctr.Image,
 			CpuLimit:    float32(ctr.CPU.Limit),
-			UserPct:     calculateCtrPct(deltaUser, deltaTime, numCPU),
-			SystemPct:   calculateCtrPct(deltaSys, deltaTime, numCPU),
-			TotalPct:    calculateCtrPct(deltaUser+deltaSys, deltaTime, numCPU),
+			UserPct:     calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, cpus, lastRun),
+			SystemPct:   calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, cpus, lastRun),
+			TotalPct:    calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, cpus, lastRun),
 			MemoryLimit: ctr.Memory.MemLimitInBytes,
+			MemRss:      ctr.Memory.RSS,
+			MemCache:    ctr.Memory.Cache,
 			Created:     ctr.Created,
 			State:       model.ContainerState(model.ContainerState_value[ctr.State]),
 			Health:      model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
@@ -154,20 +150,19 @@ func fmtContainers(
 	return chunked
 }
 
-func calculateCtrPct(deltaProc, deltaTime uint64, numCPU float64) float32 {
-	if deltaTime == 0 {
+func calculateCtrPct(cur, prev uint64, numCPU int, before time.Time) float32 {
+	now := time.Now()
+	diff := now.Unix() - before.Unix()
+	if before.IsZero() || diff <= 0 {
 		return 0
 	}
 
-	// Calculates utilization split across all CPUs. A busy-loop process
-	// on a 2-CPU-core system would be reported as 50% instead of 100%.
-	overalPct := (deltaProc / deltaTime) * 100
-
+	overalPct := float32(cur-prev) / float32(diff)
 	// Sometimes we get values that don't make sense, so we clamp to 100%
 	if overalPct > 100 {
 		overalPct = 100
 	}
 
 	// In order to emulate top we multiply utilization by # of CPUs so a busy loop would be 100%.
-	return float32(overalPct * uint64(numCPU))
+	return overalPct * float32(numCPU)
 }

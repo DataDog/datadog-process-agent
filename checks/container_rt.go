@@ -102,16 +102,12 @@ func fmtContainerStats(
 			lastCtr = docker.NullContainer
 		}
 
-		numCPU := float64(runtime.NumCPU())
-		deltaUser := ctr.CPU.User - lastCtr.CPU.User
-		deltaSys := ctr.CPU.System - lastCtr.CPU.System
-		// User and Sys times are in nanoseconds for cgroups, so we must adjust our system time.
-		deltaTime := uint64(syst2.Total()-syst1.Total()) * nanoSecondsPerSecond
+		cpus := runtime.NumCPU()
 		chunk = append(chunk, &model.ContainerStat{
 			Id:         ctr.ID,
-			UserPct:    calculateCtrPct(deltaUser, deltaTime, numCPU),
-			SystemPct:  calculateCtrPct(deltaSys, deltaTime, numCPU),
-			TotalPct:   calculateCtrPct(deltaUser+deltaSys, deltaTime, numCPU),
+			UserPct:    calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, cpus, lastRun),
+			SystemPct:  calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, cpus, lastRun),
+			TotalPct:   calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, cpus, lastRun),
 			CpuLimit:   float32(ctr.CPU.Limit),
 			MemRss:     ctr.Memory.RSS,
 			MemCache:   ctr.Memory.Cache,
@@ -122,6 +118,8 @@ func fmtContainerStats(
 			NetSentPs:  calculateRate(ctr.Network.PacketsSent, lastCtr.Network.PacketsSent, lastRun),
 			NetRcvdBps: calculateRate(ctr.Network.BytesRcvd, lastCtr.Network.BytesRcvd, lastRun),
 			NetSentBps: calculateRate(ctr.Network.BytesSent, lastCtr.Network.BytesSent, lastRun),
+			State:      model.ContainerState(model.ContainerState_value[ctr.State]),
+			Health:     model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
 		})
 		if len(chunk) == perChunk {
 			chunked[i] = chunk
