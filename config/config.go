@@ -174,6 +174,7 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		if v, _ := agentConf.Get("Main", "process_agent_enabled"); v == "false" {
 			cfg.Enabled = false
 		} else if v == "true" {
+			cfg.Enabled = true
 			cfg.EnabledChecks = processChecks
 		}
 
@@ -266,6 +267,7 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 	if v := os.Getenv("DD_PROCESS_AGENT_ENABLED"); v == "false" {
 		c.Enabled = false
 	} else if v == "true" {
+		c.Enabled = true
 		c.EnabledChecks = processChecks
 	}
 
