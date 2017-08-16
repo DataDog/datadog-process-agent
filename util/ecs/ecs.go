@@ -17,7 +17,10 @@ var (
 // InitECSUtil initializes a global ecsUtil used by later function calls.
 func InitECSUtil() error {
 	_, err := agentecs.GetPayload()
-	if err != nil && agentecs.IsAgentNotDetected(err) {
+	if err != nil {
+		if !agentecs.IsAgentNotDetected(err) {
+			log.Errorf("unable to configure ECS metada collection: %s", err)
+		}
 		return ErrECSNotAvailable
 	}
 
