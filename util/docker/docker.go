@@ -244,7 +244,7 @@ func GetHostname() (string, error) {
 
 // IsContainerized returns True if we're running in the docker-dd-agent container.
 func IsContainerized() bool {
-	return os.Getenv("DOCKER_DD_AGENT") == "true"
+	return os.Getenv("DOCKER_DD_AGENT") == "yes"
 }
 
 // InitDockerUtil initializes the global dockerUtil singleton. This _must_ be
