@@ -154,10 +154,12 @@ type Container struct {
 	Health  string
 	Pids    []int32
 
-	CPU     *CgroupTimesStat
-	Memory  *CgroupMemStat
-	IO      *CgroupIOStat
-	Network *NetworkStat
+	CPULimit float64
+	MemLimit uint64
+	CPU      *CgroupTimesStat
+	Memory   *CgroupMemStat
+	IO       *CgroupIOStat
+	Network  *NetworkStat
 }
 
 type dockerNetwork struct {
@@ -382,6 +384,14 @@ func (d *dockerUtil) containers(pids []int32) ([]*Container, error) {
 			return nil, err
 		}
 		container.IO, err = cgroup.IO()
+		if err != nil {
+			return nil, err
+		}
+		container.CPULimit, err = cgroup.CPULimit()
+		if err != nil {
+			return nil, err
+		}
+		container.MemLimit, err = cgroup.MemLimit()
 		if err != nil {
 			return nil, err
 		}

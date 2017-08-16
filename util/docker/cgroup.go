@@ -54,8 +54,6 @@ type CgroupMemStat struct {
 	TotalActiveFile         uint64
 	TotalUnevictable        uint64
 	MemUsageInBytes         uint64
-	MemMaxUsageInBytes      uint64
-	MemLimitInBytes         uint64
 	MemFailCnt              uint64
 }
 
@@ -64,7 +62,6 @@ type CgroupTimesStat struct {
 	ContainerID string
 	System      uint64
 	User        uint64
-	Limit       float64
 }
 
 // CgroupIOStat store I/O statistics about a cgroup.
@@ -162,24 +159,35 @@ func (c ContainerCgroup) Mem() (*CgroupMemStat, error) {
 			ret.TotalUnevictable = v
 		}
 	}
-
-	r, err := c.readCgroupMemFile("memory.usage_in_bytes")
-	if err == nil {
-		ret.MemUsageInBytes = r
-	}
-	r, err = c.readCgroupMemFile("memory.max_usage_in_bytes")
-	if err == nil {
-		ret.MemMaxUsageInBytes = r
-	}
-	r, err = c.readCgroupMemFile("memory.limit_in_bytes")
-	if err == nil {
-		ret.MemLimitInBytes = r
-	}
-	r, err = c.readCgroupMemFile("memory.failcnt")
-	if err == nil {
-		ret.MemFailCnt = r
-	}
 	return ret, nil
+}
+
+// MemLimit returns the memory limit of the cgroup, if it exists. If the file does not
+// exist or there is no limit then this will default to 0.
+func (c ContainerCgroup) MemLimit() (uint64, error) {
+	statfile, err := c.cgroupFilePath("memory", "memory.limit_in_bytes")
+	if err != nil {
+		return 0, err
+	}
+	lines, err := util.ReadLines(statfile)
+	if os.IsNotExist(err) {
+		return 0, err
+	} else if err != nil {
+		return 0, err
+	}
+	if len(lines) != 1 {
+		return 0, fmt.Errorf("wrong format file: %s", statfile)
+	}
+	v, err := strconv.ParseUint(lines[0], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	// limit_in_bytes is a special case here, it's possible that it shows a ridiculous number,
+	// in which case it represents unlimited, so return 0 here
+	if v > uint64(math.Pow(2, 60)) {
+		v = 0
+	}
+	return v, nil
 }
 
 // CPU returns the CPU status for this cgroup instance
@@ -212,12 +220,6 @@ func (c ContainerCgroup) CPU() (*CgroupTimesStat, error) {
 			}
 		}
 	}
-	limit, err := c.CPULimit()
-	if err != nil {
-		return nil, err
-	}
-	ret.Limit = limit
-
 	return ret, nil
 }
 
