@@ -53,7 +53,6 @@ type AgentConfig struct {
 	// Docker
 	ContainerBlacklist     []string
 	ContainerWhitelist     []string
-	CollectDockerHealth    bool
 	CollectDockerNetwork   bool
 	ContainerCacheDuration time.Duration
 
@@ -118,7 +117,6 @@ func NewDefaultAgentConfig() *AgentConfig {
 		},
 
 		// Docker
-		CollectDockerHealth:  true,
 		CollectDockerNetwork: true,
 
 		// Kubernetes
@@ -249,7 +247,6 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		}
 
 		// Docker config
-		cfg.CollectDockerHealth = file.GetBool(ns, "allow_real_time", cfg.CollectDockerHealth)
 		cfg.CollectDockerNetwork = file.GetBool(ns, "collect_docker_network", cfg.CollectDockerNetwork)
 		cfg.ContainerBlacklist = file.GetStrArrayDefault(ns, "container_blacklist", ",", cfg.ContainerBlacklist)
 		cfg.ContainerWhitelist = file.GetStrArrayDefault(ns, "container_whitelist", ",", cfg.ContainerWhitelist)
@@ -323,9 +320,6 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 	}
 
 	// Docker config
-	if v := os.Getenv("DD_COLLECT_DOCKER_HEALTH"); v == "false" {
-		c.CollectDockerHealth = false
-	}
 	if v := os.Getenv("DD_COLLECT_DOCKER_NETWORK"); v == "false" {
 		c.CollectDockerNetwork = false
 	}

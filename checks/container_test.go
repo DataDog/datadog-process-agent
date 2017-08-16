@@ -74,7 +74,6 @@ func TestContainerChunking(t *testing.T) {
 func BenchmarkAllContainers(b *testing.B) {
 	docker.InitDockerUtil(&docker.Config{
 		CacheDuration:  10 * time.Second,
-		CollectHealth:  true,
 		CollectNetwork: true,
 	})
 	b.ReportAllocs()

@@ -184,9 +184,6 @@ type Config struct {
 	// containers and cgroups. The actual raw metrics (e.g. MemRSS) will _not_
 	// be cached but will be re-calculated on all calls to AllContainers.
 	CacheDuration time.Duration
-	// CollectHealth enables health collection. This requires calling a
-	// container.Inspect for each container on every called to dockerContainers().
-	CollectHealth bool
 	// CollectNetwork enables network stats collection. This requires at least
 	// one call to container.Inspect for new containers and reads from the
 	// procfs for stats.
@@ -296,30 +293,14 @@ func (d *dockerUtil) dockerContainers() ([]*Container, error) {
 	}
 	ret := make([]*Container, 0, len(containers))
 	for _, c := range containers {
-		var health string
-		var i types.ContainerJSON
-		if d.cfg.CollectHealth {
-			// We could have lost the container between list and inspect so ignore these errors.
-			i, err = d.cli.ContainerInspect(context.Background(), c.ID)
-			if err != nil && client.IsErrContainerNotFound(err) {
-				return nil, err
-			}
-			// Healthcheck and status not available until >= 1.12
-			if i.State.Health != nil {
-				health = i.State.Health.Status
-			}
-		}
-
 		if d.cfg.CollectNetwork {
 			// FIXME: We might need to invalidate this cache if a containers networks are changed live.
 			d.Lock()
 			if _, ok := d.networkMappings[c.ID]; !ok {
-				if i.ContainerJSONBase == nil {
-					i, err = d.cli.ContainerInspect(context.Background(), c.ID)
-					if err != nil && client.IsErrContainerNotFound(err) {
-						d.Unlock()
-						return nil, err
-					}
+				i, err := d.cli.ContainerInspect(context.Background(), c.ID)
+				if err != nil && client.IsErrContainerNotFound(err) {
+					d.Unlock()
+					return nil, err
 				}
 				d.networkMappings[c.ID] = findDockerNetworks(c.ID, i.State.Pid, c.NetworkSettings)
 			}
@@ -334,7 +315,7 @@ func (d *dockerUtil) dockerContainers() ([]*Container, error) {
 			ImageID: c.ImageID,
 			Created: c.Created,
 			State:   c.State,
-			Health:  health,
+			Health:  parseContainerHealth(c.Status),
 		}
 		if !d.cfg.filter.IsExcluded(container) {
 			ret = append(ret, container)
@@ -637,4 +618,22 @@ func collectNetworkStats(containerID string, pid int, networks []dockerNetwork) 
 		}
 	}
 	return stat, nil
+}
+
+var healthRe = regexp.MustCompile(`\(health: (\w+)\)`)
+
+// Parse the health out of a container status. The format is either:
+//  - 'Up 5 seconds (health: starting)'
+//  - 'Up about an hour'
+//
+func parseContainerHealth(status string) string {
+	// Avoid allocations in most cases by just checking for '('
+	if strings.IndexByte(status, '(') == -1 {
+		return ""
+	}
+	all := healthRe.FindAllStringSubmatch(status, -1)
+	if len(all) < 1 || len(all[0]) < 2 {
+		return ""
+	}
+	return all[0][1]
 }

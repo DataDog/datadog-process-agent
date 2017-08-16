@@ -144,7 +144,6 @@ func main() {
 func initMetadataProviders(cfg *config.AgentConfig) {
 	if err := docker.InitDockerUtil(&docker.Config{
 		CacheDuration:  cfg.ContainerCacheDuration,
-		CollectHealth:  cfg.CollectDockerHealth,
 		CollectNetwork: cfg.CollectDockerNetwork,
 		Whitelist:      cfg.ContainerWhitelist,
 		Blacklist:      cfg.ContainerBlacklist,
