@@ -117,12 +117,12 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(true, agentConfig.AllowRealTime)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 
-	os.Setenv("DOCKER_DD_AGENT", "true")
+	os.Setenv("DOCKER_DD_AGENT", "yes")
 	agentConfig = NewDefaultAgentConfig()
 	assert.Equal(agentConfig.Enabled, true)
 	assert.Equal(os.Getenv("HOST_PROC"), "/host/proc")
 	assert.Equal(os.Getenv("HOST_SYS"), "/host/sys")
-	os.Setenv("DOCKER_DD_AGENT", "false")
+	os.Setenv("DOCKER_DD_AGENT", "no")
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 }
 
