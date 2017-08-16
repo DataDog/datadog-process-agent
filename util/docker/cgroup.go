@@ -85,19 +85,19 @@ type ContainerCgroup struct {
 // availble then we return an empty stats file.
 func (c ContainerCgroup) Mem() (*CgroupMemStat, error) {
 	ret := &CgroupMemStat{ContainerID: c.ContainerID}
-	statfile, err := c.cgroupFilePath("memory", "memory.stat")
+	statfile := c.cgroupFilePath("memory", "memory.stat")
+
+	f, err := os.Open(statfile)
 	if os.IsNotExist(err) {
+		log.Debugf("missing cgroup file: %s", statfile)
 		return ret, nil
 	} else if err != nil {
 		return nil, err
 	}
-
-	lines, err := util.ReadLines(statfile)
-	if err != nil {
-		return nil, err
-	}
-	for _, line := range lines {
-		fields := strings.Split(line, " ")
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		fields := strings.Split(scanner.Text(), " ")
 		v, err := strconv.ParseUint(fields[1], 10, 64)
 		if err != nil {
 			continue
@@ -159,18 +159,16 @@ func (c ContainerCgroup) Mem() (*CgroupMemStat, error) {
 			ret.TotalUnevictable = v
 		}
 	}
-	return ret, nil
+	return ret, scanner.Err()
 }
 
 // MemLimit returns the memory limit of the cgroup, if it exists. If the file does not
 // exist or there is no limit then this will default to 0.
 func (c ContainerCgroup) MemLimit() (uint64, error) {
-	statfile, err := c.cgroupFilePath("memory", "memory.limit_in_bytes")
-	if err != nil {
-		return 0, err
-	}
+	statfile := c.cgroupFilePath("memory", "memory.limit_in_bytes")
 	lines, err := util.ReadLines(statfile)
 	if os.IsNotExist(err) {
+		log.Debugf("missing cgroup file: %s", statfile)
 		return 0, err
 	} else if err != nil {
 		return 0, err
@@ -194,19 +192,18 @@ func (c ContainerCgroup) MemLimit() (uint64, error) {
 // If the cgroup file does not exist then we just log debug return nothing.
 func (c ContainerCgroup) CPU() (*CgroupTimesStat, error) {
 	ret := &CgroupTimesStat{ContainerID: c.ContainerID}
-	statfile, err := c.cgroupFilePath("cpuacct", "cpuacct.stat")
+	statfile := c.cgroupFilePath("cpuacct", "cpuacct.stat")
+	f, err := os.Open(statfile)
 	if os.IsNotExist(err) {
+		log.Debugf("missing cgroup file: %s", statfile)
 		return ret, nil
 	} else if err != nil {
 		return nil, err
 	}
-
-	lines, err := util.ReadLines(statfile)
-	if err != nil {
-		return nil, err
-	}
-	for _, line := range lines {
-		fields := strings.Split(line, " ")
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		fields := strings.Split(scanner.Text(), " ")
 		if fields[0] == "user" {
 			user, err := strconv.ParseUint(fields[1], 10, 64)
 			if err == nil {
@@ -220,7 +217,7 @@ func (c ContainerCgroup) CPU() (*CgroupTimesStat, error) {
 			}
 		}
 	}
-	return ret, nil
+	return ret, scanner.Err()
 }
 
 // CPULimit would show CPU limit for this cgroup.
@@ -233,24 +230,20 @@ func (c ContainerCgroup) CPU() (*CgroupTimesStat, error) {
 // If the limits files aren't available (on older version) then
 // we'll return the default value of 100.
 func (c ContainerCgroup) CPULimit() (float64, error) {
-	periodFile, err := c.cgroupFilePath("cpu", "cpu.cfs_period_us")
-	if os.IsNotExist(err) {
-		return 100, nil
-	} else if err != nil {
-		return 0, err
-	}
-	quotaFile, err := c.cgroupFilePath("cpu", "cpu.cfs_quota_us")
-	if os.IsNotExist(err) {
-		return 100, nil
-	} else if err != nil {
-		return 0, err
-	}
+	periodFile := c.cgroupFilePath("cpu", "cpu.cfs_period_us")
+	quotaFile := c.cgroupFilePath("cpu", "cpu.cfs_quota_us")
 	plines, err := util.ReadLines(periodFile)
-	if err != nil {
+	if os.IsNotExist(err) {
+		log.Debugf("missing cgroup file: %s", periodFile)
+		return 100, nil
+	} else if err != nil {
 		return 0, err
 	}
 	qlines, err := util.ReadLines(quotaFile)
-	if err != nil {
+	if os.IsNotExist(err) {
+		log.Debugf("missing cgroup file: %s", quotaFile)
+		return 100, nil
+	} else if err != nil {
 		return 0, err
 	}
 	period, err := strconv.ParseFloat(plines[0], 64)
@@ -284,17 +277,20 @@ func (c ContainerCgroup) CPULimit() (float64, error) {
 // 252:0 Total 58945536
 //
 func (c ContainerCgroup) IO() (*CgroupIOStat, error) {
-	statfile, err := c.cgroupFilePath("blkio", "blkio.throttle.io_service_bytes")
-	if err != nil {
-		return nil, err
-	}
-	lines, err := util.ReadLines(statfile)
-	if err != nil {
-		return nil, err
-	}
 	ret := &CgroupIOStat{ContainerID: c.ContainerID}
-	for _, line := range lines {
-		fields := strings.Split(line, " ")
+	statfile := c.cgroupFilePath("blkio", "blkio.throttle.io_service_bytes")
+	f, err := os.Open(statfile)
+	if os.IsNotExist(err) {
+		log.Debugf("missing cgroup file: %s", statfile)
+		return ret, nil
+	} else if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		fields := strings.Split(scanner.Text(), " ")
 		if fields[1] == "Read" {
 			read, err := strconv.ParseUint(fields[2], 10, 64)
 			if err == nil {
@@ -307,51 +303,23 @@ func (c ContainerCgroup) IO() (*CgroupIOStat, error) {
 			}
 		}
 	}
-	return ret, nil
+	return ret, scanner.Err()
 }
 
 // cgroupFilePath constructs file path to get targetted stats file.
-func (c ContainerCgroup) cgroupFilePath(target, file string) (string, error) {
+func (c ContainerCgroup) cgroupFilePath(target, file string) string {
 	mount, ok := c.Mounts[target]
 	if !ok {
-		return "", fmt.Errorf("missing target %s from mounts", target)
+		log.Errorf("missing target %s from mounts", target)
+		return ""
 	}
 	targetPath, ok := c.Paths[target]
 	if !ok {
-		return "", fmt.Errorf("missing target %s from paths", target)
+		log.Errorf("missing target %s from paths", target)
+		return ""
 	}
 
-	statfile := filepath.Join(mount, targetPath, file)
-	if !util.PathExists(statfile) {
-		log.Debug("cgroup file does not exist: %s", statfile)
-		return "", os.ErrNotExist
-	}
-	return statfile, nil
-}
-
-// readCgroupMemFile reads a memory cgroup file and return the contents as uint64.
-func (c ContainerCgroup) readCgroupMemFile(file string) (uint64, error) {
-	statfile, err := c.cgroupFilePath("memory", file)
-	if err != nil {
-		return 0, err
-	}
-	lines, err := util.ReadLines(statfile)
-	if err != nil {
-		return 0, err
-	}
-	if len(lines) != 1 {
-		return 0, fmt.Errorf("wrong format file: %s", statfile)
-	}
-	v, err := strconv.ParseUint(lines[0], 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	// limit_in_bytes is a special case here, it's possible that it shows a ridiculous number,
-	// in which case it represents unlimited, so return 0 here
-	if (file == "memory.limit_in_bytes") && (v > uint64(math.Pow(2, 60))) {
-		v = 0
-	}
-	return v, nil
+	return filepath.Join(mount, targetPath, file)
 }
 
 // function to get the mount point of all cgroup. by default it should be under /sys/fs/cgroup but
