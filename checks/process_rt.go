@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/docker"
 )
 
+// RTProcess is a singleton RTProcessCheck.
 var RTProcess = &RTProcessCheck{}
 
 // RTProcessCheck collects numeric statistics about the live processes.
@@ -32,10 +33,10 @@ func (r *RTProcessCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
 func (r *RTProcessCheck) Name() string { return "rtprocess" }
 
 // Endpoint returns the endpoint where this check is submitted.
-func (c *RTProcessCheck) Endpoint() string { return "/api/v1/collector" }
+func (r *RTProcessCheck) Endpoint() string { return "/api/v1/collector" }
 
 // RealTime indicates if this check only runs in real-time mode.
-func (c *RTProcessCheck) RealTime() bool { return true }
+func (r *RTProcessCheck) RealTime() bool { return true }
 
 // Run runs the RTProcessCheck to collect statistics about the running processes.
 // On most POSIX systems these statistics are collected from procfs. The bulk

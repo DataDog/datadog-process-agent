@@ -23,6 +23,8 @@ import (
 )
 
 var (
+	// ErrDockerNotAvailable is returned if Docker is not running on the current machine.
+	// We'll use this when configuring the DockerUtil so we don't error on non-docker machines.
 	ErrDockerNotAvailable = errors.New("docker not available")
 
 	globalDockerUtil     *dockerUtil
@@ -41,6 +43,7 @@ var (
 	}
 )
 
+// NetworkStat stores network statistics about a Docker container.
 type NetworkStat struct {
 	BytesSent   uint64
 	BytesRcvd   uint64
@@ -138,6 +141,8 @@ func (cf containerFilter) IsExcluded(container *Container) bool {
 	return excluded
 }
 
+// Container represents a single Docker container on a machine
+// and includes Cgroup-level statistics about the container.
 type Container struct {
 	Type    string
 	ID      string
@@ -202,7 +207,7 @@ type dockerUtil struct {
 //
 // Expose module-level functions that will interact with a Singleton dockerUtil.
 
-// ContainersForPids gets a mapping of pids -> container for the given PIDs.
+// ContainersForPIDs gets a mapping of pids -> container for the given PIDs.
 func ContainersForPIDs(pids []int32) map[int32]*Container {
 	if globalDockerUtil != nil {
 		r, err := globalDockerUtil.containersForPIDs(pids)
@@ -235,6 +240,7 @@ func AllContainers() ([]*Container, error) {
 	return nil, nil
 }
 
+// GetHostname returns the Docker hostname.
 func GetHostname() (string, error) {
 	if globalDockerUtil != nil {
 		return "", ErrDockerNotAvailable
@@ -438,7 +444,7 @@ func (d *dockerUtil) extractImageName(image string) string {
 			// Only log errors that aren't "not found" because some images may
 			// just not be available in docker inspect.
 			if !client.IsErrNotFound(err) {
-				log.Errorf("could not extract image %s name: %s", err)
+				log.Errorf("could not extract image %s name: %s", image, err)
 			}
 			d.imageNameBySha[image] = image
 		}

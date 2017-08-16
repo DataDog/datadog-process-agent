@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/docker"
 )
 
+// RTContainer is a singleton RTContainerCheck.
 var RTContainer = &RTContainerCheck{}
 
 // RTContainerCheck collects numeric statistics about live containers.
@@ -30,11 +31,12 @@ func (r *RTContainerCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 func (r *RTContainerCheck) Name() string { return "rtcontainer" }
 
 // Endpoint returns the endpoint where this check is submitted.
-func (c *RTContainerCheck) Endpoint() string { return "/api/v1/container" }
+func (r *RTContainerCheck) Endpoint() string { return "/api/v1/container" }
 
 // RealTime indicates if this check only runs in real-time mode.
-func (c *RTContainerCheck) RealTime() bool { return false }
+func (r *RTContainerCheck) RealTime() bool { return false }
 
+// Run runs the real-time container check getting container-level stats from the Cgroups and Docker APIs.
 func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	cpuTimes, err := cpu.Times(false)
 	if err != nil {

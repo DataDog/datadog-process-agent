@@ -14,6 +14,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
+// Container is a singleton ContainerCheck.
 var Container = &ContainerCheck{}
 
 // ContainerCheck is a check that returns container metadata and stats.

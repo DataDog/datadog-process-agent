@@ -2,6 +2,7 @@ package docker
 
 import (
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -38,7 +39,8 @@ func TestParseCgroupMountPoints(t *testing.T) {
 			expected: map[string]string{},
 		},
 	} {
-		assert.Equal(t, tc.expected, parseCgroupMountPoints(tc.contents))
+		contents := strings.NewReader(strings.Join(tc.contents, "\n"))
+		assert.Equal(t, tc.expected, parseCgroupMountPoints(contents))
 	}
 }
 
@@ -89,7 +91,9 @@ func TestParseCgroupPaths(t *testing.T) {
 			},
 		},
 	} {
-		c, p := parseCgroupPaths(tc.contents)
+		contents := strings.NewReader(strings.Join(tc.contents, "\n"))
+		c, p, err := parseCgroupPaths(contents)
+		assert.NoError(t, err)
 		assert.Equal(t, c, tc.expectedContainer)
 		assert.Equal(t, p, tc.expectedPaths)
 	}

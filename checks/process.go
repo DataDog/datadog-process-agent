@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
+// Process is a singleton ProcessCheck.
 var Process = &ProcessCheck{}
 
 // ProcessCheck collects full state, including cmdline args and related metadata,
@@ -30,8 +31,7 @@ type ProcessCheck struct {
 	lastRun        time.Time
 }
 
-// NewProcessCheck returns a new ProcessCheck initialized with a connection to
-// Kubernetes (if appliable) and other zeoes-out information.
+// Init initializes the singleton ProcessCheck.
 func (p *ProcessCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
 	p.sysInfo = info
 }
@@ -40,10 +40,10 @@ func (p *ProcessCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
 func (p *ProcessCheck) Name() string { return "process" }
 
 // Endpoint returns the endpoint where this check is submitted.
-func (c *ProcessCheck) Endpoint() string { return "/api/v1/collector" }
+func (p *ProcessCheck) Endpoint() string { return "/api/v1/collector" }
 
 // RealTime indicates if this check only runs in real-time mode.
-func (c *ProcessCheck) RealTime() bool { return false }
+func (p *ProcessCheck) RealTime() bool { return false }
 
 // Run runs the ProcessCheck to collect a list of running processes and relevant
 // stats for each. On most POSIX systems this will use a mix of procfs and other
