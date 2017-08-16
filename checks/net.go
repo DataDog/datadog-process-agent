@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/util"
 )
 
+// Connections is a singleton ConnectionsCheck.
 var Connections = &ConnectionsCheck{}
 
 // ConnectionsCheck collects statistics about live TCP and UDP connections.

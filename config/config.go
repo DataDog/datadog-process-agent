@@ -63,10 +63,12 @@ type AgentConfig struct {
 	KubernetesHTTPSKubeletPort int
 }
 
+// CheckIsEnabled returns a bool indicating if the given check name is enabled.
 func (a AgentConfig) CheckIsEnabled(checkName string) bool {
 	return util.StringInSlice(a.EnabledChecks, checkName)
 }
 
+// CheckInterval returns the interval for the given check name, defaulting to 10s if not found.
 func (a AgentConfig) CheckInterval(checkName string) time.Duration {
 	d, ok := a.CheckIntervals[checkName]
 	if !ok {

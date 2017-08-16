@@ -9,9 +9,11 @@ import (
 )
 
 var (
+	// ErrECSNotAvailable is returned if ECS is not available on this machine.
 	ErrECSNotAvailable = errors.New("ecs not available")
-	lastErr            string
-	globalECSUtil      *ecsUtil
+
+	lastErr       string
+	globalECSUtil *ecsUtil
 )
 
 // InitECSUtil initializes a global ecsUtil used by later function calls.

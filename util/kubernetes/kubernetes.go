@@ -19,10 +19,14 @@ import (
 )
 
 var (
+	// ErrKubernetesNotAvailable if the machine is not running in Kubernetes.
 	ErrKubernetesNotAvailable = errors.New("kubernetes not available")
-	globalKubeUtil            *kubeUtil
+
+	globalKubeUtil *kubeUtil
 )
 
+// Config stores configuration for initializing a KubeUtil. This structure
+// will be sent to InitKubeUtil.
 type Config struct {
 	// KubeletHost is the hostname of the Kubelet, it is optional.
 	KubeletHost string
@@ -52,6 +56,8 @@ func InitKubeUtil(cfg *Config) error {
 }
 
 // Expose module-level functions that will interact with a Singleton KubeUtil.
+
+// GetMetadata returns the Kubernetes metadata for the current context.
 func GetMetadata() *agentpayload.KubeMetadataPayload {
 	if globalKubeUtil != nil {
 		return globalKubeUtil.getKubernetesMeta()
@@ -110,12 +116,12 @@ type ContainerStatus struct {
 	ImageID     string `json:"imageID,omitempty"`
 }
 
-// ObjectMetadata contains the fields for unmarshaling Kubernetes resource metadata
+// ObjectMeta contains the fields for unmarshaling Kubernetes resource metadata
 // limited to just those fields we use in our metadata collection.
 type ObjectMeta struct {
 	Name            string            `json:"name,omitempty"`
 	Namespace       string            `json:"namespace,omitempty"`
-	Uid             string            `json:"uid,omitempty"`
+	UID             string            `json:"uid,omitempty"`
 	Labels          map[string]string `json:"labels,omitempty"`
 	OwnerReferences []*OwnerReference `json:"ownerReferences,omitempty"`
 }
@@ -210,7 +216,7 @@ func parseLocalPods(
 		}
 
 		pod := &agentpayload.KubeMetadataPayload_Pod{
-			Uid:          p.Metadata.Uid,
+			Uid:          p.Metadata.UID,
 			Name:         p.Metadata.Name,
 			Namespace:    p.Metadata.Namespace,
 			HostIp:       p.Status.HostIP,

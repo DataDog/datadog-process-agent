@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path"
@@ -17,11 +18,12 @@ import (
 )
 
 var (
-	containerRe      = regexp.MustCompile("[0-9a-f]{64}")
+	containerRe = regexp.MustCompile("[0-9a-f]{64}")
+	// ErrMissingTarget is an error set when a cgroup target is missing.
 	ErrMissingTarget = errors.New("Missing cgroup target")
-	ErrFildNotFound  = errors.New("cgroup file is missing")
 )
 
+// CgroupMemStat stores memory statistics about a cgroup.
 type CgroupMemStat struct {
 	ContainerID             string
 	Cache                   uint64
@@ -57,6 +59,7 @@ type CgroupMemStat struct {
 	MemFailCnt              uint64
 }
 
+// CgroupTimesStat stores CPU times for a cgroup.
 type CgroupTimesStat struct {
 	ContainerID string
 	System      uint64
@@ -64,12 +67,16 @@ type CgroupTimesStat struct {
 	Limit       float64
 }
 
+// CgroupIOStat store I/O statistics about a cgroup.
 type CgroupIOStat struct {
 	ContainerID string
 	ReadBytes   uint64
 	WriteBytes  uint64
 }
 
+// ContainerCgroup is a structure that stores paths and mounts for a cgroup.
+// It provides several methods for collecting stats about the cgroup using the
+// paths and mounts metadata.
 type ContainerCgroup struct {
 	ContainerID string
 	Pids        []int32
@@ -309,7 +316,7 @@ func (c ContainerCgroup) cgroupFilePath(target, file string) (string, error) {
 	}
 	targetPath, ok := c.Paths[target]
 	if !ok {
-		return "", fmt.Errorf("missing target %s from paths")
+		return "", fmt.Errorf("missing target %s from paths", target)
 	}
 
 	statfile := filepath.Join(mount, targetPath, file)
@@ -368,9 +375,12 @@ func cgroupMountPoints() (map[string]string, error) {
 		return nil, err
 	}
 	defer f.Close()
+	return parseCgroupMountPoints(f), nil
+}
 
+func parseCgroupMountPoints(r io.Reader) map[string]string {
 	mountPoints := make(map[string]string)
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		mount := scanner.Text()
 		if strings.HasPrefix(mount, "cgroup ") {
@@ -382,7 +392,7 @@ func cgroupMountPoints() (map[string]string, error) {
 			}
 		}
 	}
-	return mountPoints, nil
+	return mountPoints
 }
 
 // CgroupsForPids returns ContainerCgroup for every container that's in a Cgroup.
@@ -396,7 +406,7 @@ func CgroupsForPids(pids []int32) (map[string]*ContainerCgroup, error) {
 	cgs := make(map[string]*ContainerCgroup)
 	for _, pid := range pids {
 		cgPath := util.HostProc(strconv.Itoa(int(pid)), "cgroup")
-		containerID, paths, err := parseCgroupPaths(cgPath)
+		containerID, paths, err := readCgroupPaths(cgPath)
 		if containerID == "" {
 			continue
 		}
@@ -417,6 +427,18 @@ func CgroupsForPids(pids []int32) (map[string]*ContainerCgroup, error) {
 	return cgs, nil
 }
 
+// readCgroupPaths reads the cgroups from a /sys/$pid/cgroup path.
+func readCgroupPaths(pidCgroupPath string) (string, map[string]string, error) {
+	f, err := os.Open(pidCgroupPath)
+	if os.IsNotExist(err) {
+		return "", nil, err
+	} else if err != nil {
+		return "", nil, err
+	}
+	defer f.Close()
+	return parseCgroupPaths(f)
+}
+
 // parseCgroupPaths parses out the cgroup paths from a /proc/$pid/cgroup file.
 // The file format will be something like:
 //
@@ -428,19 +450,11 @@ func CgroupsForPids(pids []int32) (map[string]*ContainerCgroup, error) {
 //
 // Returns the common containerID and a mapping of target => path
 // If the first line doesn't have a valid container ID we will return an empty string
-func parseCgroupPaths(cgroupPath string) (string, map[string]string, error) {
+func parseCgroupPaths(r io.Reader) (string, map[string]string, error) {
 	var ok bool
-	f, err := os.Open(cgroupPath)
-	if os.IsNotExist(err) {
-		return "", nil, err
-	} else if err != nil {
-		return "", nil, err
-	}
-	defer f.Close()
-
 	var containerID string
 	paths := make(map[string]string)
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		l := scanner.Text()
 		if containerID == "" {
