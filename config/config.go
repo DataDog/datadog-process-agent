@@ -51,10 +51,11 @@ type AgentConfig struct {
 	CheckIntervals map[string]time.Duration
 
 	// Docker
-	ContainerBlacklist   []string
-	ContainerWhitelist   []string
-	CollectDockerHealth  bool
-	CollectDockerNetwork bool
+	ContainerBlacklist     []string
+	ContainerWhitelist     []string
+	CollectDockerHealth    bool
+	CollectDockerNetwork   bool
+	ContainerCacheDuration time.Duration
 
 	// Kubernetes
 	CollectKubernetesMetadata  bool
@@ -252,6 +253,7 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		cfg.CollectDockerNetwork = file.GetBool(ns, "collect_docker_network", cfg.CollectDockerNetwork)
 		cfg.ContainerBlacklist = file.GetStrArrayDefault(ns, "container_blacklist", ",", cfg.ContainerBlacklist)
 		cfg.ContainerWhitelist = file.GetStrArrayDefault(ns, "container_whitelist", ",", cfg.ContainerWhitelist)
+		cfg.ContainerCacheDuration = file.GetDurationDefault(ns, "container_cache_duration", time.Second, 30*time.Second)
 	}
 
 	cfg = mergeEnv(cfg)
@@ -332,6 +334,10 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 	}
 	if v := os.Getenv("DD_CONTAINER_WHITELIST"); v != "" {
 		c.ContainerWhitelist = strings.Split(v, ",")
+	}
+	if v := os.Getenv("DD_CONTAINER_CACHE_DURATION"); v != "" {
+		durationS, _ := strconv.Atoi(v)
+		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
 	}
 
 	// Kubernetes config is set via environment only (for now).

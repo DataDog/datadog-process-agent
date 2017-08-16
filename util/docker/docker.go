@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/client"
 
 	"github.com/DataDog/datadog-process-agent/util"
+	"github.com/DataDog/datadog-process-agent/util/cache"
 )
 
 var (
@@ -160,6 +161,9 @@ type Container struct {
 	Memory   *CgroupMemStat
 	IO       *CgroupIOStat
 	Network  *NetworkStat
+
+	// For internal use only
+	cgroup *ContainerCgroup
 }
 
 type dockerNetwork struct {
@@ -176,8 +180,12 @@ func (a dockerNetworks) Less(i, j int) bool { return a[i].dockerName < a[j].dock
 // Config is an exported configuration object that is used when
 // initializing the DockerUtil.
 type Config struct {
+	// CacheDuration is the amount of time we will cache the active docker
+	// containers and cgroups. The actual raw metrics (e.g. MemRSS) will _not_
+	// be cached but will be re-calculated on all calls to AllContainers.
+	CacheDuration time.Duration
 	// CollectHealth enables health collection. This requires calling a
-	// container.Inspect for each container on every called to getContainers().
+	// container.Inspect for each container on every called to dockerContainers().
 	CollectHealth bool
 	// CollectNetwork enables network stats collection. This requires at least
 	// one call to container.Inspect for new containers and reads from the
@@ -209,29 +217,10 @@ type dockerUtil struct {
 //
 // Expose module-level functions that will interact with a Singleton dockerUtil.
 
-// ContainersForPIDs gets a mapping of pids -> container for the given PIDs.
-func ContainersForPIDs(pids []int32) map[int32]*Container {
-	if globalDockerUtil != nil {
-		r, err := globalDockerUtil.containersForPIDs(pids)
-		if err != nil && err.Error() != lastErr {
-			log.Warnf("unable to collect docker stats: %s", err)
-			lastErr = err.Error()
-		} else {
-			return r
-		}
-	}
-	return map[int32]*Container{}
-}
-
 // AllContainers returns a slice of all running containers.
 func AllContainers() ([]*Container, error) {
-	pids, err := process.Pids()
-	if err != nil {
-		return nil, fmt.Errorf("could not get pids: %s", err)
-	}
-
 	if globalDockerUtil != nil {
-		r, err := globalDockerUtil.containers(pids)
+		r, err := globalDockerUtil.containers()
 		if err != nil && err.Error() != lastErr {
 			log.Warnf("unable to collect docker stats: %s", err)
 			lastErr = err.Error()
@@ -297,10 +286,10 @@ func InitDockerUtil(cfg *Config) error {
 	return nil
 }
 
-// getContainers returns a list of Docker info for active containers using the
+// dockerContainers returns a list of Docker info for active containers using the
 // Docker API. This requires the running user to be in the "docker" user group
 // or have access to /tmp/docker.sock.
-func (d *dockerUtil) getContainers() ([]*Container, error) {
+func (d *dockerUtil) dockerContainers() ([]*Container, error) {
 	containers, err := d.cli.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		return nil, err
@@ -361,20 +350,60 @@ func (d *dockerUtil) getContainers() ([]*Container, error) {
 
 // containers gets a list of all containers on the current node using a mix of
 // the Docker APIs and cgroups stats. We attempt to limit syscalls where possible.
-func (d *dockerUtil) containers(pids []int32) ([]*Container, error) {
-	cgByContainer, err := CgroupsForPids(pids)
-	if err != nil {
-		return nil, err
-	}
-	containers, err := d.getContainers()
-	if err != nil {
-		return nil, err
-	}
-	for _, container := range containers {
-		cgroup, ok := cgByContainer[container.ID]
+func (d *dockerUtil) containers() ([]*Container, error) {
+	cacheKey := "dockerutil.containers"
+
+	// Get the containers either from our cache or with API queries.
+	var containers []*Container
+	cached, hit := cache.Get(cacheKey)
+	if hit {
+		var ok bool
+		containers, ok = cached.([]*Container)
 		if !ok {
+			log.Errorf("invalid cache format, forcing a cache miss")
+			hit = false
+		}
+	} else {
+		pids, err := process.Pids()
+		if err != nil {
+			return nil, fmt.Errorf("could not get pids: %s", err)
+		}
+
+		cgByContainer, err := CgroupsForPids(pids)
+		if err != nil {
+			return nil, err
+		}
+		containers, err := d.dockerContainers()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, container := range containers {
+			cgroup, ok := cgByContainer[container.ID]
+			if !ok {
+				continue
+			}
+			container.cgroup = cgroup
+			container.CPULimit, err = cgroup.CPULimit()
+			if err != nil {
+				return nil, err
+			}
+			container.MemLimit, err = cgroup.MemLimit()
+			if err != nil {
+				return nil, err
+			}
+		}
+		cache.SetWithTTL(cacheKey, containers, d.cfg.CacheDuration)
+	}
+
+	// Fill in the latest statistics from the cgroups
+	var err error
+	for _, container := range containers {
+		cgroup := container.cgroup
+		if cgroup == nil {
 			continue
 		}
+
 		container.Memory, err = cgroup.Mem()
 		if err != nil {
 			return nil, err
@@ -384,14 +413,6 @@ func (d *dockerUtil) containers(pids []int32) ([]*Container, error) {
 			return nil, err
 		}
 		container.IO, err = cgroup.IO()
-		if err != nil {
-			return nil, err
-		}
-		container.CPULimit, err = cgroup.CPULimit()
-		if err != nil {
-			return nil, err
-		}
-		container.MemLimit, err = cgroup.MemLimit()
 		if err != nil {
 			return nil, err
 		}
@@ -414,21 +435,6 @@ func (d *dockerUtil) containers(pids []int32) ([]*Container, error) {
 		container.Pids = cgroup.Pids
 	}
 	return containers, nil
-}
-
-// containersForPIDs generates a mapping of PIDs to container using containers()
-func (d *dockerUtil) containersForPIDs(pids []int32) (map[int32]*Container, error) {
-	containers, err := d.containers(pids)
-	if err != nil {
-		return nil, err
-	}
-	containerMap := make(map[int32]*Container)
-	for _, container := range containers {
-		for _, p := range container.Pids {
-			containerMap[p] = container
-		}
-	}
-	return containerMap, nil
 }
 
 func (d *dockerUtil) getHostname() (string, error) {
