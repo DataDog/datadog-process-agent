@@ -157,11 +157,9 @@ func detab(str string) string {
 
 // Sanity-check that all containers works with different settings.
 func TestAllContainers(t *testing.T) {
-	InitDockerUtil(&Config{CollectHealth: true, CollectNetwork: true})
+	InitDockerUtil(&Config{CollectNetwork: true})
 	AllContainers()
-	InitDockerUtil(&Config{CollectHealth: false, CollectNetwork: true})
-	AllContainers()
-	InitDockerUtil(&Config{CollectHealth: true, CollectNetwork: false})
+	InitDockerUtil(&Config{CollectNetwork: false})
 	AllContainers()
 }
 
@@ -220,5 +218,32 @@ func TestContainerFilter(t *testing.T) {
 			}
 		}
 		assert.Equal(tc.expectedIDs, allowed, "case %d", i)
+	}
+}
+
+func TestParseContainerHealth(t *testing.T) {
+	assert := assert.New(t)
+	for i, tc := range []struct {
+		input    string
+		expected string
+	}{
+		{
+			input:    "",
+			expected: "",
+		},
+		{
+			input:    "Up 2 minutes",
+			expected: "",
+		},
+		{
+			input:    "Up about 1 hour (health: starting)",
+			expected: "starting",
+		},
+		{
+			input:    "Up 1 minute (health: unhealthy)",
+			expected: "unhealthy",
+		},
+	} {
+		assert.Equal(tc.expected, parseContainerHealth(tc.input), "test %d failed", i)
 	}
 }
