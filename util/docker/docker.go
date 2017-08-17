@@ -354,7 +354,7 @@ func (d *dockerUtil) containers() ([]*Container, error) {
 		if err != nil {
 			return nil, err
 		}
-		containers, err := d.dockerContainers()
+		containers, err = d.dockerContainers()
 		if err != nil {
 			return nil, err
 		}
