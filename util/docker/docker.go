@@ -378,8 +378,14 @@ func (d *dockerUtil) containers() ([]*Container, error) {
 	}
 
 	// Fill in the latest statistics from the cgroups
+	// Creating a new list of containers with copies so we don't lose
+	// the previous state for calculations (e.g. last cpu).
 	var err error
-	for _, container := range containers {
+	newContainers := make([]*Container, 0, len(containers))
+	for _, lastContainer := range containers {
+		container := &Container{}
+		*container = *lastContainer
+
 		cgroup := container.cgroup
 		if cgroup == nil {
 			continue
@@ -414,8 +420,9 @@ func (d *dockerUtil) containers() ([]*Container, error) {
 		}
 
 		container.Pids = cgroup.Pids
+		newContainers = append(newContainers, container)
 	}
-	return containers, nil
+	return newContainers, nil
 }
 
 func (d *dockerUtil) getHostname() (string, error) {
