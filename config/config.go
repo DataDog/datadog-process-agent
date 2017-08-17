@@ -117,7 +117,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 		},
 
 		// Docker
-		CollectDockerNetwork: true,
+		ContainerCacheDuration: 10 * time.Second,
+		CollectDockerNetwork:   true,
 
 		// Kubernetes
 		CollectKubernetesMetadata:  true,
