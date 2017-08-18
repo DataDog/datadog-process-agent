@@ -121,17 +121,20 @@ func fmtProcessStats(
 		if !ok {
 			ctr = docker.NullContainer
 		}
+
 		chunk = append(chunk, &model.ProcessStat{
-			Pid:          fp.Pid,
-			CreateTime:   fp.CreateTime,
-			Memory:       formatMemory(fp),
-			Cpu:          formatCPU(fp, fp.CpuTime, lastProcs[fp.Pid].CpuTime, syst2, syst1),
-			Nice:         fp.Nice,
-			Threads:      fp.NumThreads,
-			OpenFdCount:  fp.OpenFdCount,
-			ProcessState: model.ProcessState(model.ProcessState_value[fp.Status]),
-			IoStat:       formatIO(fp, lastProcs[fp.Pid].IOStat, lastRun),
-			ContainerId:  ctr.ID,
+			Pid:                    fp.Pid,
+			CreateTime:             fp.CreateTime,
+			Memory:                 formatMemory(fp),
+			Cpu:                    formatCPU(fp, fp.CpuTime, lastProcs[fp.Pid].CpuTime, syst2, syst1),
+			Nice:                   fp.Nice,
+			Threads:                fp.NumThreads,
+			OpenFdCount:            fp.OpenFdCount,
+			ProcessState:           model.ProcessState(model.ProcessState_value[fp.Status]),
+			IoStat:                 formatIO(fp, lastProcs[fp.Pid].IOStat, lastRun),
+			VoluntaryCtxSwitches:   uint64(fp.CtxSwitches.Voluntary),
+			InvoluntaryCtxSwitches: uint64(fp.CtxSwitches.Involuntary),
+			ContainerId:            ctr.ID,
 		})
 		if len(chunk) == cfg.ProcLimit {
 			chunked = append(chunked, chunk)

@@ -15,9 +15,10 @@ import (
 
 func makeProcess(pid int32, cmdline string) *process.FilledProcess {
 	return &process.FilledProcess{
-		Pid:     pid,
-		Cmdline: strings.Split(cmdline, " "),
-		MemInfo: &process.MemoryInfoStat{},
+		Pid:         pid,
+		Cmdline:     strings.Split(cmdline, " "),
+		MemInfo:     &process.MemoryInfoStat{},
+		CtxSwitches: &process.NumCtxSwitchesStat{},
 	}
 }
 
