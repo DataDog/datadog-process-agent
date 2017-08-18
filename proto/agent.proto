@@ -118,6 +118,8 @@ message Process {
 	IOStat ioStat = 13;
 	string containerId = 14;
 	uint32 containerKey = 15;
+	uint64 voluntaryCtxSwitches = 16;
+	uint64 involuntaryCtxSwitches = 17;
 }
 
 message Command {
@@ -230,6 +232,10 @@ message ProcessStat {
 	float containerNetSentPs = 21;
 	float containerNetRcvdBps = 22;
 	float containerNetSentBps = 23;
+
+	uint64 voluntaryCtxSwitches = 24;
+	uint64 involuntaryCtxSwitches = 25;
+
 }
 
 // ContainerStat is used for real-time container messages. It should only contain
