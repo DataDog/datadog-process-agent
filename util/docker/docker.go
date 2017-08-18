@@ -230,7 +230,7 @@ func AllContainers() ([]*Container, error) {
 
 // GetHostname returns the Docker hostname.
 func GetHostname() (string, error) {
-	if globalDockerUtil != nil {
+	if globalDockerUtil == nil {
 		return "", ErrDockerNotAvailable
 	}
 	return globalDockerUtil.getHostname()
