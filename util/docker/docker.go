@@ -241,28 +241,52 @@ func IsContainerized() bool {
 	return os.Getenv("DOCKER_DD_AGENT") == "yes"
 }
 
-// InitDockerUtil initializes the global dockerUtil singleton. This _must_ be
-// called before accessing any of the top-level docker calls.
-func InitDockerUtil(cfg *Config) error {
+// connectToDocker connects to a local docker socket.
+// Returns ErrDockerNotAvailable if the socket or mounts file is missing
+// otherwise it returns either a valid client or an error.
+func connectToDocker() (*client.Client, error) {
 	// If we don't have a docker.sock then return a known error.
 	sockPath := util.GetEnv("DOCKER_SOCKET_PATH", "/var/run/docker.sock")
 	if !util.PathExists(sockPath) {
-		return ErrDockerNotAvailable
+		return nil, ErrDockerNotAvailable
 	}
-	// The /proc/mounts file won't be availble on non-Linux systems.
+	// The /proc/mounts file won't be availble on non-Linux systems
+	// and we only support Linux for now.
 	mountsFile := "/proc/mounts"
 	if !util.PathExists(mountsFile) {
-		return ErrDockerNotAvailable
+		return nil, ErrDockerNotAvailable
 	}
 
 	serverVersion, err := detectServerAPIVersion()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	os.Setenv("DOCKER_API_VERSION", serverVersion)
 
 	// Connect again using the known server version.
 	cli, err := client.NewEnvClient()
+	if err != nil {
+		return nil, err
+	}
+
+	return cli, err
+}
+
+// IsAvailable returns true if Docker is available on this machine via a socket.
+func IsAvailable() bool {
+	if _, err := connectToDocker(); err != nil {
+		if err != ErrDockerNotAvailable {
+			log.Warnf("unable to connect to docker: %s", err)
+		}
+		return false
+	}
+	return true
+}
+
+// InitDockerUtil initializes the global dockerUtil singleton. This _must_ be
+// called before accessing any of the top-level docker calls.
+func InitDockerUtil(cfg *Config) error {
+	cli, err := connectToDocker()
 	if err != nil {
 		return err
 	}
