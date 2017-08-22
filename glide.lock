@@ -8,7 +8,7 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: 76c93c3b2fd1af3ca21757e98bd0c8f873ae86f6
+  version: 666970d6277140b703619dc08bc658c09db8ee1a
   repo: git@github.com:DataDog/datadog-agent.git
   vcs: git
   subpackages:
