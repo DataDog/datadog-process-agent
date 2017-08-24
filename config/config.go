@@ -45,6 +45,8 @@ type AgentConfig struct {
 	AllowRealTime bool
 	Proxy         *url.URL
 	Logger        *LoggerConfig
+	DDAgentPy     string
+	DDAgentPyEnv  []string
 
 	// Check config
 	EnabledChecks  []string
@@ -85,10 +87,6 @@ const (
 
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
 func NewDefaultAgentConfig() *AgentConfig {
-	hostname, err := getHostname()
-	if err != nil {
-		hostname = ""
-	}
 	u, err := url.Parse(defaultEndpoint)
 	if err != nil {
 		// This is a hardcoded URL so parsing it should not fail
@@ -97,7 +95,6 @@ func NewDefaultAgentConfig() *AgentConfig {
 	ac := &AgentConfig{
 		// We'll always run inside of a container.
 		Enabled:       docker.IsContainerized() || docker.IsAvailable(),
-		HostName:      hostname,
 		APIEndpoint:   u,
 		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
@@ -105,6 +102,10 @@ func NewDefaultAgentConfig() *AgentConfig {
 		MaxProcFDs:    200,
 		ProcLimit:     100,
 		AllowRealTime: true,
+
+		// Path and environment for the dd-agent embedded python
+		DDAgentPy:    "/opt/datadog-agent/embedded/bin/python",
+		DDAgentPyEnv: []string{"PYTHONPATH=/opt/datadog-agent/agent"},
 
 		// Check config
 		EnabledChecks: containerChecks,
@@ -219,6 +220,8 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		cfg.MaxProcFDs = file.GetIntDefault(ns, "max_proc_fds", cfg.MaxProcFDs)
 		cfg.AllowRealTime = file.GetBool(ns, "allow_real_time", cfg.AllowRealTime)
 		cfg.LogFile = file.GetDefault(ns, "log_file", cfg.LogFile)
+		cfg.DDAgentPy = file.GetDefault(ns, "dd_agent_py", cfg.DDAgentPy)
+		cfg.DDAgentPyEnv = file.GetStrArrayDefault(ns, "dd_agent_py_env", ",", cfg.DDAgentPyEnv)
 
 		blacklistPats := file.GetStrArrayDefault(ns, "blacklist", ",", []string{})
 		blacklist := make([]*regexp.Regexp, 0, len(blacklistPats))
@@ -260,6 +263,12 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 	if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile); err != nil {
 		return nil, err
 	}
+
+	hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentPyEnv)
+	if err != nil {
+		hostname = ""
+	}
+	cfg.HostName = hostname
 
 	return cfg, nil
 }
@@ -320,6 +329,13 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 		}
 	}
 
+	if v := os.Getenv("DD_AGENT_PY"); v != "" {
+		c.DDAgentPy = v
+	}
+	if v := os.Getenv("DD_AGENT_PY_ENV"); v != "" {
+		c.DDAgentPyEnv = strings.Split(v, ",")
+	}
+
 	// Docker config
 	if v := os.Getenv("DD_COLLECT_DOCKER_NETWORK"); v == "false" {
 		c.CollectDockerNetwork = false
@@ -365,16 +381,12 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 
 // getHostname shells out to obtain the hostname used by the infra agent
 // falling back to os.Hostname() if it is unavailable
-func getHostname() (string, error) {
-	ddAgentPy := "/opt/datadog-agent/embedded/bin/python"
+func getHostname(ddAgentPy string, ddAgentEnv []string) (string, error) {
 	getHostnameCmd := "from utils.hostname import get_hostname; print get_hostname()"
 
 	cmd := exec.Command(ddAgentPy, "-c", getHostnameCmd)
 	dockerEnv := os.Getenv("DOCKER_DD_AGENT")
-	cmd.Env = []string{
-		"PYTHONPATH=/opt/datadog-agent/agent",
-		fmt.Sprintf("DOCKER_DD_AGENT=%s", dockerEnv),
-	}
+	cmd.Env = append(ddAgentEnv, fmt.Sprintf("DOCKER_DD_AGENT=%s", dockerEnv))
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
