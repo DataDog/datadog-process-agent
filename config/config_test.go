@@ -93,7 +93,8 @@ func TestConfigNewIfExists(t *testing.T) {
 }
 
 func TestGetHostname(t *testing.T) {
-	h, err := getHostname()
+	cfg := NewDefaultAgentConfig()
+	h, err := getHostname(cfg.DDAgentPy, cfg.DDAgentPyEnv)
 	assert.Nil(t, err)
 	assert.NotEqual(t, "", h)
 }
