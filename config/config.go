@@ -94,7 +94,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 	}
 	ac := &AgentConfig{
 		// We'll always run inside of a container.
-		Enabled:       docker.IsContainerized() || docker.IsAvailable(),
+		Enabled:       docker.IsAvailable(),
 		APIEndpoint:   u,
 		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
