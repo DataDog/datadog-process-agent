@@ -296,7 +296,7 @@ func NewLoggerLevel(logLevel, logFile string) error {
 		console = true
 	}
 	loggerConfig := &LoggerConfig{
-		LogLevel:    logLevel,
+		LogLevel:    strings.ToLower(logLevel),
 		Filename:    logFile,
 		SyslogLevel: "off",
 		Console:     console,
