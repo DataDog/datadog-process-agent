@@ -312,7 +312,7 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 	if v := os.Getenv("DD_LOG_LEVEL"); v != "" {
 		c.LogLevel = v
 	}
-	if v := os.Getenv("DD_LOGS_STDOUT"); v == "true" {
+	if v := os.Getenv("DD_LOGS_STDOUT"); v == "yes" {
 		// Empty log file implies logging to stdout and stdout
 		c.LogFile = ""
 	}
