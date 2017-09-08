@@ -9,6 +9,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
+	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util/docker"
 	"github.com/DataDog/datadog-process-agent/util/ecs"
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
@@ -87,6 +88,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	c.lastContainers = containers
 	c.lastRun = time.Now()
 
+	statsd.Client.Gauge("datadog.process.containers.count", float64(len(containers)), []string{}, 1)
 	log.Infof("collected containers in %s", time.Now().Sub(start))
 	return messages, nil
 }

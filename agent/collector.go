@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
+	"github.com/DataDog/datadog-process-agent/statsd"
 )
 
 type checkPayload struct {
@@ -105,6 +106,7 @@ func (l *Collector) run() {
 	log.Infof("Starting process-agent for host=%s, endpoint=%s", l.cfg.HostName, l.cfg.APIEndpoint)
 	exit := make(chan bool)
 	go handleSignals(exit)
+	heartbeat := time.NewTicker(15 * time.Second)
 	go func() {
 		for {
 			select {
@@ -117,6 +119,8 @@ func (l *Collector) run() {
 				for _, m := range payload.messages {
 					l.postMessage(payload.endpoint, m)
 				}
+			case <-heartbeat.C:
+				statsd.Client.Gauge("datadog.process.agent", 1, []string{}, 1)
 			case <-exit:
 				return
 			}

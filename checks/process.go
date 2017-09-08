@@ -12,6 +12,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
+	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util/docker"
 	"github.com/DataDog/datadog-process-agent/util/ecs"
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
@@ -110,6 +111,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	p.lastCPUTime = cpuTimes[0]
 	p.lastRun = time.Now()
 
+	statsd.Client.Gauge("datadog.process.processes.count", float64(len(procs)), []string{}, 1)
 	log.Infof("collected processes in %s", time.Now().Sub(start))
 	return messages, nil
 }

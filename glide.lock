@@ -27,6 +27,10 @@ imports:
   - pkg/util/ecs
   - pkg/util/gce
   - pkg/version
+- name: github.com/DataDog/datadog-go
+  version: a9c7a9896c1847c9cc2b068a2ae68e9d74540a5d
+  subpackages:
+  - statsd
 - name: github.com/DataDog/gohai
   version: 92686dde04c3c01d4b1268d21e31ecbfffd29606
   subpackages:

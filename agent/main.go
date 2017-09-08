@@ -16,6 +16,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
+	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util/docker"
 	"github.com/DataDog/datadog-process-agent/util/ecs"
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
@@ -103,6 +104,10 @@ func main() {
 	cfg, err := config.NewAgentConfig(agentConf, legacyConf)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
+		os.Exit(1)
+	}
+	if err := statsd.Configure(cfg); err != nil {
+		log.Criticalf("Error configuring statsd: %s", err)
 		os.Exit(1)
 	}
 
