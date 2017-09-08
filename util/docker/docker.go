@@ -313,7 +313,7 @@ func InitDockerUtil(cfg *Config) error {
 func (d *dockerUtil) dockerContainers() ([]*Container, error) {
 	containers, err := d.cli.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error listing containers: %s", err)
 	}
 	ret := make([]*Container, 0, len(containers))
 	for _, c := range containers {
@@ -324,7 +324,8 @@ func (d *dockerUtil) dockerContainers() ([]*Container, error) {
 				i, err := d.cli.ContainerInspect(context.Background(), c.ID)
 				if err != nil && client.IsErrContainerNotFound(err) {
 					d.Unlock()
-					return nil, err
+					log.Debugf("error inspecting container %s: %s", c.ID, err)
+					continue
 				}
 				d.networkMappings[c.ID] = findDockerNetworks(c.ID, i.State.Pid, c.NetworkSettings)
 			}
@@ -376,11 +377,11 @@ func (d *dockerUtil) containers() ([]*Container, error) {
 
 		cgByContainer, err := CgroupsForPids(pids)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not get cgroups for pids: %s", err)
 		}
 		containers, err = d.dockerContainers()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not get docker containers: %s", err)
 		}
 
 		for _, container := range containers {
@@ -391,11 +392,11 @@ func (d *dockerUtil) containers() ([]*Container, error) {
 			container.cgroup = cgroup
 			container.CPULimit, err = cgroup.CPULimit()
 			if err != nil {
-				return nil, err
+				log.Debugf("cgroup cpu limit: %s", err)
 			}
 			container.MemLimit, err = cgroup.MemLimit()
 			if err != nil {
-				return nil, err
+				log.Debugf("cgroup cpu limit: %s", err)
 			}
 		}
 		cache.SetWithTTL(cacheKey, containers, d.cfg.CacheDuration)
@@ -417,15 +418,18 @@ func (d *dockerUtil) containers() ([]*Container, error) {
 
 		container.Memory, err = cgroup.Mem()
 		if err != nil {
-			return nil, err
+			log.Debugf("cgroup memory: %s", err)
+			continue
 		}
 		container.CPU, err = cgroup.CPU()
 		if err != nil {
-			return nil, err
+			log.Debugf("cgroup cpu: %s", err)
+			continue
 		}
 		container.IO, err = cgroup.IO()
 		if err != nil {
-			return nil, err
+			log.Debugf("cgroup i/o: %s", err)
+			continue
 		}
 
 		if d.cfg.CollectNetwork {
@@ -435,7 +439,8 @@ func (d *dockerUtil) containers() ([]*Container, error) {
 			if ok && len(cgroup.Pids) > 0 {
 				netStat, err := collectNetworkStats(cgroup.ContainerID, int(cgroup.Pids[0]), networks)
 				if err != nil {
-					return nil, err
+					log.Debugf("could not collect network stats for container %s: %s", container.ID, err)
+					continue
 				}
 				container.Network = netStat
 			}

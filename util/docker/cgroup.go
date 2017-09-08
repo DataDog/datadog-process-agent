@@ -159,7 +159,7 @@ func (c ContainerCgroup) Mem() (*CgroupMemStat, error) {
 			ret.TotalUnevictable = v
 		}
 	}
-	return ret, scanner.Err()
+	return ret, fmt.Errorf("error reading %s: %s", statfile, scanner.Err())
 }
 
 // MemLimit returns the memory limit of the cgroup, if it exists. If the file does not
@@ -217,7 +217,7 @@ func (c ContainerCgroup) CPU() (*CgroupTimesStat, error) {
 			}
 		}
 	}
-	return ret, scanner.Err()
+	return ret, fmt.Errorf("error reading %s: %s", statfile, scanner.Err())
 }
 
 // CPULimit would show CPU limit for this cgroup.
@@ -303,7 +303,7 @@ func (c ContainerCgroup) IO() (*CgroupIOStat, error) {
 			}
 		}
 	}
-	return ret, scanner.Err()
+	return ret, fmt.Errorf("error reading %s: %s", statfile, scanner.Err())
 }
 
 // cgroupFilePath constructs file path to get targetted stats file.
@@ -381,7 +381,8 @@ func CgroupsForPids(pids []int32) (map[string]*ContainerCgroup, error) {
 			continue
 		}
 		if err != nil {
-			return nil, err
+			log.Debugf("error reading cgroup paths %s: %s", cgPath, err)
+			continue
 		}
 		if cg, ok := cgs[containerID]; ok {
 			// Assumes that the paths will always be the same for a container id.
@@ -403,7 +404,7 @@ func readCgroupPaths(pidCgroupPath string) (string, map[string]string, error) {
 	if os.IsNotExist(err) {
 		return "", nil, nil
 	} else if err != nil {
-		return "", nil, nil
+		return "", nil, err
 	}
 	defer f.Close()
 	return parseCgroupPaths(f)
