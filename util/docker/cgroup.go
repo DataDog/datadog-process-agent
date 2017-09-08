@@ -169,7 +169,7 @@ func (c ContainerCgroup) MemLimit() (uint64, error) {
 	lines, err := util.ReadLines(statfile)
 	if os.IsNotExist(err) {
 		log.Debugf("missing cgroup file: %s", statfile)
-		return 0, err
+		return 0, nil
 	} else if err != nil {
 		return 0, err
 	}
@@ -401,9 +401,9 @@ func CgroupsForPids(pids []int32) (map[string]*ContainerCgroup, error) {
 func readCgroupPaths(pidCgroupPath string) (string, map[string]string, error) {
 	f, err := os.Open(pidCgroupPath)
 	if os.IsNotExist(err) {
-		return "", nil, err
+		return "", nil, nil
 	} else if err != nil {
-		return "", nil, err
+		return "", nil, nil
 	}
 	defer f.Close()
 	return parseCgroupPaths(f)
