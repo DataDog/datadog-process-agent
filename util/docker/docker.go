@@ -541,6 +541,13 @@ func detectServerAPIVersion() (string, error) {
 var hostNetwork = dockerNetwork{"eth0", "bridge"}
 
 func findDockerNetworks(containerID string, pid int, netSettings *types.SummaryNetworkSettings) []dockerNetwork {
+	// Verify that we aren't using an older version of Docker that does
+	// not provider the network settings in container inspect.
+	if netSettings == nil || netSettings.Networks == nil {
+		log.Debugf("No network settings available from docker, defaulting to host network")
+		return []dockerNetwork{hostNetwork}
+	}
+
 	var err error
 	dockerGateways := make(map[string]int64)
 	for netName, netConf := range netSettings.Networks {
