@@ -47,6 +47,8 @@ type AgentConfig struct {
 	Logger        *LoggerConfig
 	DDAgentPy     string
 	DDAgentPyEnv  []string
+	StatsdHost    string
+	StatsdPort    int
 
 	// Check config
 	EnabledChecks  []string
@@ -102,6 +104,10 @@ func NewDefaultAgentConfig() *AgentConfig {
 		MaxProcFDs:    200,
 		ProcLimit:     100,
 		AllowRealTime: true,
+
+		// Statsd for internal instrumentation
+		StatsdHost: "localhost",
+		StatsdPort: 8125,
 
 		// Path and environment for the dd-agent embedded python
 		DDAgentPy:    "/opt/datadog-agent/embedded/bin/python",
@@ -180,6 +186,16 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 			cfg.Enabled = true
 			cfg.EnabledChecks = processChecks
 		}
+
+		cfg.StatsdHost = agentConf.GetDefault("Main", "bind_host", cfg.StatsdHost)
+		// non_local_traffic is a shorthand in dd-agent configuration that is
+		// equivalent to setting `bind_host: 0.0.0.0`. Respect this flag
+		// since it defaults to true in Docker and saves us a command-line param
+		v, _ := agentConf.Get("Main", "non_local_traffic")
+		if strings.ToLower(v) == "yes" || strings.ToLower(v) == "true" {
+			cfg.StatsdHost = "0.0.0.0"
+		}
+		cfg.StatsdPort = agentConf.GetIntDefault("Main", "dogstatsd_port", cfg.StatsdPort)
 
 		cfg.APIEndpoint = u
 	}
@@ -334,6 +350,19 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 	}
 	if v := os.Getenv("DD_AGENT_PY_ENV"); v != "" {
 		c.DDAgentPyEnv = strings.Split(v, ",")
+	}
+
+	if v := os.Getenv("DD_DOGSTATSD_PORT"); v != "" {
+		port, err := strconv.Atoi(v)
+		if err != nil {
+			log.Info("Failed to parse DD_DOGSTATSD_PORT: it should be a port number")
+		} else {
+			c.StatsdPort = port
+		}
+	}
+
+	if v := os.Getenv("DD_BIND_HOST"); v != "" {
+		c.StatsdHost = v
 	}
 
 	// Docker config
