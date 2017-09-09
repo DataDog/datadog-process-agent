@@ -159,7 +159,10 @@ func (c ContainerCgroup) Mem() (*CgroupMemStat, error) {
 			ret.TotalUnevictable = v
 		}
 	}
-	return ret, fmt.Errorf("error reading %s: %s", statfile, scanner.Err())
+	if err := scanner.Err(); err != nil {
+		return ret, fmt.Errorf("error reading %s: %s", statfile, err)
+	}
+	return ret, nil
 }
 
 // MemLimit returns the memory limit of the cgroup, if it exists. If the file does not
@@ -217,7 +220,10 @@ func (c ContainerCgroup) CPU() (*CgroupTimesStat, error) {
 			}
 		}
 	}
-	return ret, fmt.Errorf("error reading %s: %s", statfile, scanner.Err())
+	if err := scanner.Err(); err != nil {
+		return ret, fmt.Errorf("error reading %s: %s", statfile, err)
+	}
+	return ret, nil
 }
 
 // CPULimit would show CPU limit for this cgroup.
@@ -303,7 +309,10 @@ func (c ContainerCgroup) IO() (*CgroupIOStat, error) {
 			}
 		}
 	}
-	return ret, fmt.Errorf("error reading %s: %s", statfile, scanner.Err())
+	if err := scanner.Err(); err != nil {
+		return ret, fmt.Errorf("error reading %s: %s", statfile, err)
+	}
+	return ret, nil
 }
 
 // cgroupFilePath constructs file path to get targetted stats file.
@@ -355,10 +364,17 @@ func parseCgroupMountPoints(r io.Reader) map[string]string {
 		mount := scanner.Text()
 		if strings.HasPrefix(mount, "cgroup ") {
 			tokens := strings.Split(mount, " ")
+			cgroupPath := tokens[1]
+
+			// Re-point /sys cgroups to /proc/sys
+			if strings.HasPrefix(cgroupPath, "/sys") {
+				cgroupPath = util.HostSys(strings.TrimPrefix(cgroupPath, "/sys"))
+			}
+
 			// Target can be comma-separate values like cpu,cpuacct
-			tsp := strings.Split(path.Base(tokens[1]), ",")
+			tsp := strings.Split(path.Base(cgroupPath), ",")
 			for _, target := range tsp {
-				mountPoints[target] = tokens[1]
+				mountPoints[target] = cgroupPath
 			}
 		}
 	}
