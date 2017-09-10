@@ -120,7 +120,7 @@ func (l *Collector) run() {
 					l.postMessage(payload.endpoint, m)
 				}
 			case <-heartbeat.C:
-				statsd.Client.Gauge("datadog.process.agent", 1, []string{}, 1)
+				statsd.Client.Gauge("datadog.process.agent", 1, []string{"version:" + Version}, 1)
 			case <-exit:
 				return
 			}
