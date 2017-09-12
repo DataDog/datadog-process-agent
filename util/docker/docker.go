@@ -454,12 +454,12 @@ func (d *dockerUtil) containers() ([]*Container, error) {
 		// this should work because the cgroup dir for the container would be created only when it's started
 		cgroupDir := cgroup.cgroupFilePath("cpuacct", "")
 		if !util.PathExists(cgroupDir) {
-			log.Debugf("could not get cgroup file for container %s", container.ID)
+			log.Debugf("could not get cgroup dir for container %s", container.ID)
 			continue
 		}
 		stat, err := os.Stat(cgroupDir)
 		if err != nil {
-			log.Debugf("could not get stat of the cgroup file for container %s", err)
+			log.Debugf("could not get stat of the cgroup dir for container %s", err)
 			continue
 		}
 		mtime := stat.ModTime()
