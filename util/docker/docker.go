@@ -413,6 +413,7 @@ func (d *dockerUtil) containers() ([]*Container, error) {
 
 		cgroup := container.cgroup
 		if cgroup == nil {
+			log.Debugf("container id %s has an empty cgroup, skipping", container.ID)
 			continue
 		}
 

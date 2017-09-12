@@ -418,8 +418,10 @@ func CgroupsForPids(pids []int32) (map[string]*ContainerCgroup, error) {
 func readCgroupPaths(pidCgroupPath string) (string, map[string]string, error) {
 	f, err := os.Open(pidCgroupPath)
 	if os.IsNotExist(err) {
+		log.Debugf("cgroup path '%s' could not be read: %s", pidCgroupPath, err)
 		return "", nil, nil
 	} else if err != nil {
+		log.Debugf("cgroup path '%s' could not be read: %s", pidCgroupPath, err)
 		return "", nil, err
 	}
 	defer f.Close()
@@ -448,6 +450,7 @@ func parseCgroupPaths(r io.Reader) (string, map[string]string, error) {
 			// Check if this process running inside a container.
 			containerID, ok = containerIDFromCgroup(l)
 			if !ok {
+				log.Debugf("could not parse container id from path '%s'", l)
 				return "", nil, nil
 			}
 		}
