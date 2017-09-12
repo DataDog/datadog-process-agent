@@ -126,6 +126,7 @@ func main() {
 	// This will log any unknown errors
 	initMetadataProviders(cfg)
 
+	log.Debug("Running process-agent with DEBUG logging enabled")
 	if opts.check != "" {
 		err := debugCheckResults(cfg, opts.check)
 		if err != nil {
