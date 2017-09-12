@@ -155,12 +155,13 @@ type Container struct {
 	Health  string
 	Pids    []int32
 
-	CPULimit float64
-	MemLimit uint64
-	CPU      *CgroupTimesStat
-	Memory   *CgroupMemStat
-	IO       *CgroupIOStat
-	Network  *NetworkStat
+	CPULimit  float64
+	MemLimit  uint64
+	CPU       *CgroupTimesStat
+	Memory    *CgroupMemStat
+	IO        *CgroupIOStat
+	Network   *NetworkStat
+	StartedAt int64
 
 	// For internal use only
 	cgroup *ContainerCgroup
@@ -449,7 +450,22 @@ func (d *dockerUtil) containers() ([]*Container, error) {
 			container.Network = NullContainer.Network
 		}
 
+		// we get the stat for cgroup directory and use the mtime for that dir to determine the start time for the container
+		// this should work because the cgroup dir for the container would be created only when it's started
+		cgroupDir := cgroup.cgroupFilePath("cpuacct", "")
+		if !util.PathExists(cgroupDir) {
+			log.Debugf("could not get cgroup file for container %s", container.ID)
+			continue
+		}
+		stat, err := os.Stat(cgroupDir)
+		if err != nil {
+			log.Debugf("could not get stat of the cgroup file for container %s", err)
+			continue
+		}
+		mtime := stat.ModTime()
+		container.StartedAt = mtime.Unix()
 		container.Pids = cgroup.Pids
+
 		newContainers = append(newContainers, container)
 	}
 	return newContainers, nil
