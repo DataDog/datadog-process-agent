@@ -315,7 +315,7 @@ func (c ContainerCgroup) IO() (*CgroupIOStat, error) {
 	return ret, nil
 }
 
-// we get the stat for cgroup directory and use the mtime for that dir to determine the start time for the container
+// ContainerStartTime gets the stat for cgroup directory and use the mtime for that dir to determine the start time for the container
 // this should work because the cgroup dir for the container would be created only when it's started
 func (c ContainerCgroup) ContainerStartTime() (int64, error) {
 	cgroupDir := c.cgroupFilePath("cpuacct", "")
