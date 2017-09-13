@@ -450,20 +450,12 @@ func (d *dockerUtil) containers() ([]*Container, error) {
 			container.Network = NullContainer.Network
 		}
 
-		// we get the stat for cgroup directory and use the mtime for that dir to determine the start time for the container
-		// this should work because the cgroup dir for the container would be created only when it's started
-		cgroupDir := cgroup.cgroupFilePath("cpuacct", "")
-		if !util.PathExists(cgroupDir) {
-			log.Debugf("could not get cgroup dir for container %s", container.ID)
-			continue
-		}
-		stat, err := os.Stat(cgroupDir)
+		startedAt, err := cgroup.ContainerStartTime()
 		if err != nil {
-			log.Debugf("could not get stat of the cgroup dir for container %s", err)
+			log.Debugf("failed to get container start time: %s", err)
 			continue
 		}
-		mtime := stat.ModTime()
-		container.StartedAt = mtime.Unix()
+		container.StartedAt = startedAt
 		container.Pids = cgroup.Pids
 
 		newContainers = append(newContainers, container)

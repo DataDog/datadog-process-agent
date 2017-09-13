@@ -315,6 +315,20 @@ func (c ContainerCgroup) IO() (*CgroupIOStat, error) {
 	return ret, nil
 }
 
+// we get the stat for cgroup directory and use the mtime for that dir to determine the start time for the container
+// this should work because the cgroup dir for the container would be created only when it's started
+func (c ContainerCgroup) ContainerStartTime() (int64, error) {
+	cgroupDir := c.cgroupFilePath("cpuacct", "")
+	if !util.PathExists(cgroupDir) {
+		return 0, fmt.Errorf("could not get cgroup dir, directory doesn't exist")
+	}
+	stat, err := os.Stat(cgroupDir)
+	if err != nil {
+		return 0, fmt.Errorf("could not get stat of the cgroup dir: %s", err)
+	}
+	return stat.ModTime().Unix(), nil
+}
+
 // cgroupFilePath constructs file path to get targetted stats file.
 func (c ContainerCgroup) cgroupFilePath(target, file string) string {
 	mount, ok := c.Mounts[target]
