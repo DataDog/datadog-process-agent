@@ -120,6 +120,8 @@ message Process {
 	uint32 containerKey = 15;
 	uint64 voluntaryCtxSwitches = 16;
 	uint64 involuntaryCtxSwitches = 17;
+	bytes byteKey = 18;
+	bytes containerByteKey = 19;
 }
 
 message Command {
@@ -187,6 +189,7 @@ message Container {
 	uint64 memCache = 22;
 	Host host = 23; // Used post-resolution
 	int64 startedAt = 24;
+	bytes byteKey = 25;
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
@@ -236,7 +239,8 @@ message ProcessStat {
 
 	uint64 voluntaryCtxSwitches = 24;
 	uint64 involuntaryCtxSwitches = 25;
-
+	bytes byteKey = 26;
+	bytes containerByteKey = 27;
 }
 
 // ContainerStat is used for real-time container messages. It should only contain
@@ -263,6 +267,7 @@ message ContainerStat {
 	// Post-resolved fields
 	uint32 key = 17;
 	int64 startedAt = 18;
+	bytes byteKey = 19;
 }
 
 message SystemInfo {
