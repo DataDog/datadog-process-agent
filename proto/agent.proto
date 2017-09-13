@@ -186,6 +186,7 @@ message Container {
 	uint64 memRss = 21;
 	uint64 memCache = 22;
 	Host host = 23; // Used post-resolution
+	int64 startedAt = 24;
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
@@ -259,9 +260,9 @@ message ContainerStat {
 	float netSentBps = 14;
 	ContainerState state = 15;
 	ContainerHealth health = 16;
-
 	// Post-resolved fields
 	uint32 key = 17;
+	int64 startedAt = 18;
 }
 
 message SystemInfo {

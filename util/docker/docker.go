@@ -155,12 +155,13 @@ type Container struct {
 	Health  string
 	Pids    []int32
 
-	CPULimit float64
-	MemLimit uint64
-	CPU      *CgroupTimesStat
-	Memory   *CgroupMemStat
-	IO       *CgroupIOStat
-	Network  *NetworkStat
+	CPULimit  float64
+	MemLimit  uint64
+	CPU       *CgroupTimesStat
+	Memory    *CgroupMemStat
+	IO        *CgroupIOStat
+	Network   *NetworkStat
+	StartedAt int64
 
 	// For internal use only
 	cgroup *ContainerCgroup
@@ -449,7 +450,14 @@ func (d *dockerUtil) containers() ([]*Container, error) {
 			container.Network = NullContainer.Network
 		}
 
+		startedAt, err := cgroup.ContainerStartTime()
+		if err != nil {
+			log.Debugf("failed to get container start time: %s", err)
+			continue
+		}
+		container.StartedAt = startedAt
 		container.Pids = cgroup.Pids
+
 		newContainers = append(newContainers, container)
 	}
 	return newContainers, nil
