@@ -285,14 +285,14 @@ func locateKubelet(cfg *Config) (string, error) {
 	if _, err := performKubeletQuery(url); err == nil {
 		return url, nil
 	}
-	log.Debugf("Couldn't query kubelet over HTTP, assuming it's not in no_auth mode.")
+	log.Debugf("Couldn't query kubelet over HTTP (url:%s), assuming it's not in no_auth mode: %s", url, err)
 
 	url = fmt.Sprintf("https://%s:%d", hostname, cfg.KubeletHTTPSPort)
 	if _, err := performKubeletQuery(url); err == nil {
 		return url, nil
 	}
 
-	return "", fmt.Errorf("Could not find a method to connect to kubelet")
+	return "", fmt.Errorf("Could not find a method to connect to kubelet (url: %s): %s", url, err)
 }
 
 // performKubeletQuery performs a GET query against kubelet and return the response body
