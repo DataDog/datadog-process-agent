@@ -275,6 +275,11 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 
 	cfg = mergeEnv(cfg)
 
+	// Python-style log level has WARNING vs WARN
+	if strings.ToLower(cfg.LogLevel) == "warning" {
+		cfg.LogLevel = "warn"
+	}
+
 	// (Re)configure the logging from our configuration
 	if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile); err != nil {
 		return nil, err
