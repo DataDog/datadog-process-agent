@@ -526,10 +526,21 @@ func constructProxy(host, scheme string, port int, user, password string) *url.U
 	}
 
 	var path string
-	if userpass != nil {
-		path = fmt.Sprintf("%s://%s@%s:%v", scheme, userpass.String(), host, port)
+	// scheme is occasionally passed in as nil
+	if scheme != nil {
+		if userpass != nil {
+			path = fmt.Sprintf("%s://%s@%s:%v", scheme, userpass.String(), host, port)
+		} else {
+			path = fmt.Sprintf("%s://%s:%v", scheme, host, port)
+		}
 	} else {
 		path = fmt.Sprintf("%s://%s:%v", scheme, host, port)
+		if userpass != nil {
+			path = fmt.Sprintf("%s@%s:%v", userpass.String(), host, port)
+		} else {
+			path = fmt.Sprintf("%s:%v", host, port)
+
+		}
 	}
 
 	u, err := url.Parse(path)
