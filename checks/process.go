@@ -91,7 +91,10 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	chunkedContainers := fmtContainers(containers, p.lastContainers,
 		cpuTimes[0], p.lastCPUTime, p.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
+	totalProcs, totalContainers := float64(0), float64(0)
 	for i := 0; i < groupSize; i++ {
+		totalProcs += float64(len(chunkedProcs[i]))
+		totalContainers += float64(len(chunkedContainers[i]))
 		messages = append(messages, &model.CollectorProc{
 			HostName:   cfg.HostName,
 			Info:       p.sysInfo,
@@ -111,8 +114,8 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	p.lastCPUTime = cpuTimes[0]
 	p.lastRun = time.Now()
 
-	statsd.Client.Gauge("datadog.process.containers.count", float64(len(containers)), []string{}, 1)
-	statsd.Client.Gauge("datadog.process.processes.count", float64(len(procs)), []string{}, 1)
+	statsd.Client.Gauge("datadog.process.containers.host_count", totalProcs, []string{}, 1)
+	statsd.Client.Gauge("datadog.process.processes.host_count", totalContainers, []string{}, 1)
 	log.Infof("collected processes in %s", time.Now().Sub(start))
 	return messages, nil
 }

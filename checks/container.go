@@ -72,7 +72,9 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	chunked := fmtContainers(containers, c.lastContainers,
 		cpuTimes[0], c.lastCPUTime, c.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
+	totalContainers := float64(0)
 	for i := 0; i < groupSize; i++ {
+		totalContainers += float64(len(chunked[i]))
 		messages = append(messages, &model.CollectorContainer{
 			HostName:   cfg.HostName,
 			Info:       c.sysInfo,
@@ -88,7 +90,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	c.lastContainers = containers
 	c.lastRun = time.Now()
 
-	statsd.Client.Gauge("datadog.process.containers.count", float64(len(containers)), []string{}, 1)
+	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
 	log.Infof("collected containers in %s", time.Now().Sub(start))
 	return messages, nil
 }
