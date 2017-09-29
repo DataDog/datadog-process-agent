@@ -273,6 +273,7 @@ func connectToDocker() (*client.Client, error) {
 	return cli, err
 }
 
+// GetDockerSocketPath is only for exposing the sockpath out of the module
 func GetDockerSocketPath() (string, error) {
 	// If we don't have a docker.sock then return a known error.
 	sockPath := util.GetEnv("DOCKER_SOCKET_PATH", "/var/run/docker.sock")

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"expvar"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
+	"github.com/DataDog/dd-process-agent/util"
 )
 
 var (
@@ -40,14 +42,15 @@ const (
   Uptime: {{.Status.Uptime}} seconds
   Mem alloc: {{.Status.MemStats.Alloc}} bytes
 
-  Last collection time: {{.Status.LastCollectTime}}
-  Docker socket: {{.Status.DockerSocket}}
+  Last collection time: {{.Status.LastCollectTime}}{{if ne .Status.DockerSocket ""}}
+  Docker socket: {{.Status.DockerSocket}}{{end}}
   Number of processes: {{.Status.ProcessCount}}
   Number of containers: {{.Status.ContainerCount}}
+  Queue length: {{.Status.QueueSize}}
 
   Logs: {{.Status.Config.LogFile}}{{if .Status.Config.Proxy}}
-  HttpProxy: {{.Status.Config.Proxy}}{{end}}
-  Queue length: {{.Status.QueueSize}}
+  HttpProxy: {{.Status.Config.Proxy}}{{end}}{{if ne .Status.ContainerId ""}}
+  Container ID: {{.Status.ContainerId}}{{end}}
 
 `
 	infoNotRunningTmplSrc = `{{.Banner}}
@@ -157,6 +160,38 @@ func publishQueueSize() interface{} {
 	return infoQueueSize
 }
 
+func publishContainerId() interface{} {
+	cgroupFile := "/proc/self/cgroup"
+	if !util.PathExists(cgroupFile) {
+		return nil
+	}
+	f, err := os.Open(cgroupFile)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	// the content of the file should have "docker/" on each line, the last
+	// bit of each line after the "/" should be the container id, e.g.
+	//
+	// 	11:name=systemd:/docker/49de419da182a44f29659b9761a963543cdbf1dee8b51313b9104edec4461c58
+	//
+	// we could just extract that and treat it as current container id
+	containerId := ""
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "docker/") {
+			slices := strings.Split(line, "/")
+			// it's not totally safe to assume the format, but it's the only thing we can do for now
+			if len(slices) == 3 {
+				containerId = slices[len(slices)-1]
+				break
+			}
+		}
+	}
+	return containerId
+}
+
 func getProgramBanner(version string) (string, string) {
 	program := fmt.Sprintf("Processes and Containers Agent (v %s)", version)
 	banner := strings.Repeat("=", len(program))
@@ -186,6 +221,7 @@ type StatusInfo struct {
 	ProcessCount    int                    `json:"process_count"`
 	ContainerCount  int                    `json:"container_count"`
 	QueueSize       int                    `json:"queue_size"`
+	ContainerId     string                 `json:"container_id"`
 }
 
 func initInfo(conf *config.AgentConfig) error {
@@ -208,6 +244,7 @@ func initInfo(conf *config.AgentConfig) error {
 		expvar.Publish("process_count", expvar.Func(publishProcCount))
 		expvar.Publish("container_count", expvar.Func(publishContainerCount))
 		expvar.Publish("queue_size", expvar.Func(publishQueueSize))
+		expvar.Publish("container_id", expvar.Func(publishContainerId))
 
 		c := *conf
 		var buf []byte
@@ -236,6 +273,7 @@ func initInfo(conf *config.AgentConfig) error {
 
 func Info(w io.Writer, conf *config.AgentConfig) error {
 	var err error
+	// using the debug port to get info to work
 	url := "http://localhost:6062/debug/vars"
 	client := http.Client{Timeout: 2 * time.Second}
 	resp, err := client.Get(url)
@@ -254,9 +292,6 @@ func Info(w io.Writer, conf *config.AgentConfig) error {
 
 	var info StatusInfo
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-
-		fmt.Println("#################### error: ", err)
-
 		program, banner := getProgramBanner(Version)
 		_ = infoErrorTmpl.Execute(w, struct {
 			Banner  string
