@@ -95,10 +95,15 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 }
 
 func (l *Collector) runCheck(c checks.Check) {
+	// update the last collected timestamp for info
+	updateLastCollectTime(time.Now())
+
 	if messages, err := c.Run(l.cfg, atomic.AddInt32(&l.groupID, 1)); err != nil {
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
 		l.send <- checkPayload{messages, c.Endpoint()}
+		// update proc and container count for info
+		updateProcContainerCount(messages)
 	}
 }
 
@@ -107,6 +112,7 @@ func (l *Collector) run() {
 	exit := make(chan bool)
 	go handleSignals(exit)
 	heartbeat := time.NewTicker(15 * time.Second)
+	queueSizeTicker := time.NewTicker(10 * time.Second)
 	go func() {
 		for {
 			select {
@@ -121,6 +127,8 @@ func (l *Collector) run() {
 				}
 			case <-heartbeat.C:
 				statsd.Client.Gauge("datadog.process.agent", 1, []string{"version:" + Version}, 1)
+			case <-queueSizeTicker.C:
+				updateQueueSize(l.send)
 			case <-exit:
 				return
 			}

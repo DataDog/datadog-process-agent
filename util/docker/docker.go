@@ -273,6 +273,15 @@ func connectToDocker() (*client.Client, error) {
 	return cli, err
 }
 
+func GetDockerSocketPath() (string, error) {
+	// If we don't have a docker.sock then return a known error.
+	sockPath := util.GetEnv("DOCKER_SOCKET_PATH", "/var/run/docker.sock")
+	if !util.PathExists(sockPath) {
+		return "", ErrDockerNotAvailable
+	}
+	return sockPath, nil
+}
+
 // IsAvailable returns true if Docker is available on this machine via a socket.
 func IsAvailable() bool {
 	if _, err := connectToDocker(); err != nil {

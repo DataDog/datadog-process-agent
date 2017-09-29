@@ -28,6 +28,7 @@ var opts struct {
 	debug        bool
 	version      bool
 	check        string
+	info         bool
 }
 
 // version info sourced from build flags
@@ -71,6 +72,7 @@ Exiting.`
 func main() {
 	flag.StringVar(&opts.ddConfigPath, "ddconfig", "/etc/dd-agent/datadog.conf", "Path to dd-agent config")
 	flag.StringVar(&opts.configPath, "config", "/etc/dd-agent/dd-process-agent.ini", "DEPRECATED: Path to legacy config file. Prefer -ddconfig to point to the dd-agent config")
+	flag.BoolVar(&opts.info, "info", false, "Show info about running process agent and exit")
 	flag.BoolVar(&opts.version, "version", false, "Print the version and exit")
 	flag.StringVar(&opts.check, "check", "", "Run a specific check and print the results. Choose from: process, connections, realtime")
 	flag.Parse()
@@ -86,11 +88,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Run a profile server.
-	go func() {
-		http.ListenAndServe("localhost:6062", nil)
-	}()
-
 	agentConf, err := config.NewIfExists(opts.ddConfigPath)
 	if err != nil {
 		log.Criticalf("Error reading dd-agent config: %s", err)
@@ -104,6 +101,11 @@ func main() {
 	cfg, err := config.NewAgentConfig(agentConf, legacyConf)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
+		os.Exit(1)
+	}
+	err = initInfo(cfg)
+	if err != nil {
+		log.Criticalf("Error initializing info: %s", err)
 		os.Exit(1)
 	}
 	if err := statsd.Configure(cfg); err != nil {
@@ -126,6 +128,14 @@ func main() {
 	// This will log any unknown errors
 	initMetadataProviders(cfg)
 
+	// update docker socket path in info
+	dockerSock, err := docker.GetDockerSocketPath()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	updateDockerSocket(dockerSock)
+
 	log.Debug("Running process-agent with DEBUG logging enabled")
 	if opts.check != "" {
 		err := debugCheckResults(cfg, opts.check)
@@ -137,6 +147,18 @@ func main() {
 		}
 		return
 	}
+
+	if opts.info {
+		if err := Info(os.Stdout, cfg); err != nil {
+			os.Exit(1)
+		}
+		return
+	}
+
+	// Run a profile server.
+	go func() {
+		http.ListenAndServe("localhost:6062", nil)
+	}()
 
 	cl, err := NewCollector(cfg)
 	if err != nil {
