@@ -49,8 +49,8 @@ const (
   Queue length: {{.Status.QueueSize}}
 
   Logs: {{.Status.Config.LogFile}}{{if .Status.Config.Proxy}}
-  HttpProxy: {{.Status.Config.Proxy}}{{end}}{{if ne .Status.ContainerId ""}}
-  Container ID: {{.Status.ContainerId}}{{end}}
+  HttpProxy: {{.Status.Config.Proxy}}{{end}}{{if ne .Status.ContainerID ""}}
+  Container ID: {{.Status.ContainerID}}{{end}}
 
 `
 	infoNotRunningTmplSrc = `{{.Banner}}
@@ -160,7 +160,7 @@ func publishQueueSize() interface{} {
 	return infoQueueSize
 }
 
-func publishContainerId() interface{} {
+func publishContainerID() interface{} {
 	cgroupFile := "/proc/self/cgroup"
 	if !util.PathExists(cgroupFile) {
 		return nil
@@ -177,19 +177,19 @@ func publishContainerId() interface{} {
 	// 	11:name=systemd:/docker/49de419da182a44f29659b9761a963543cdbf1dee8b51313b9104edec4461c58
 	//
 	// we could just extract that and treat it as current container id
-	containerId := ""
+	containerID := ""
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.Contains(line, "docker/") {
 			slices := strings.Split(line, "/")
 			// it's not totally safe to assume the format, but it's the only thing we can do for now
 			if len(slices) == 3 {
-				containerId = slices[len(slices)-1]
+				containerID = slices[len(slices)-1]
 				break
 			}
 		}
 	}
-	return containerId
+	return containerID
 }
 
 func getProgramBanner(version string) (string, string) {
@@ -210,6 +210,7 @@ type infoVersion struct {
 	GoVersion string
 }
 
+// StatusInfo is a structure to get information from expvar and feed to template
 type StatusInfo struct {
 	Pid             int                    `json:"pid"`
 	Uptime          int                    `json:"uptime"`
@@ -221,7 +222,7 @@ type StatusInfo struct {
 	ProcessCount    int                    `json:"process_count"`
 	ContainerCount  int                    `json:"container_count"`
 	QueueSize       int                    `json:"queue_size"`
-	ContainerId     string                 `json:"container_id"`
+	ContainerID     string                 `json:"container_id"`
 }
 
 func initInfo(conf *config.AgentConfig) error {
@@ -244,7 +245,7 @@ func initInfo(conf *config.AgentConfig) error {
 		expvar.Publish("process_count", expvar.Func(publishProcCount))
 		expvar.Publish("container_count", expvar.Func(publishContainerCount))
 		expvar.Publish("queue_size", expvar.Func(publishQueueSize))
-		expvar.Publish("container_id", expvar.Func(publishContainerId))
+		expvar.Publish("container_id", expvar.Func(publishContainerID))
 
 		c := *conf
 		var buf []byte
@@ -271,6 +272,7 @@ func initInfo(conf *config.AgentConfig) error {
 	return err
 }
 
+// Info is called when --info flag is enabled when executing the agent binary
 func Info(w io.Writer, conf *config.AgentConfig) error {
 	var err error
 	// using the debug port to get info to work
