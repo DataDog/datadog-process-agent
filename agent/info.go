@@ -15,7 +15,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
-	"github.com/DataDog/dd-process-agent/util"
+	"github.com/DataDog/datadog-process-agent/util"
 )
 
 var (
