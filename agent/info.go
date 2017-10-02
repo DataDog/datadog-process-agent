@@ -119,33 +119,21 @@ func publishContainerCount() interface{} {
 }
 
 func updateProcContainerCount(msgs []model.MessageBody) {
-	var count int
-	// this is the flag to determine what type of collections are we dealing with
-	var isProc bool
+	var procCount, containerCount int
 	for _, m := range msgs {
 		switch msg := m.(type) {
-		case *model.CollectorContainerRealTime:
-			isProc = false
-			count += len(msg.Stats)
 		case *model.CollectorContainer:
-			isProc = false
-			count += len(msg.Containers)
-		case *model.CollectorRealTime:
-			isProc = true
-			count += len(msg.Stats)
+			containerCount += len(msg.Containers)
 		case *model.CollectorProc:
-			isProc = true
-			count += len(msg.Processes)
+			procCount += len(msg.Processes)
+			containerCount += len(msg.Containers)
 		}
 	}
 
 	infoMutex.Lock()
 	defer infoMutex.Unlock()
-	if isProc {
-		infoProcCount = count
-	} else {
-		infoContainerCount = count
-	}
+	infoProcCount = procCount
+	infoContainerCount = containerCount
 }
 
 func updateQueueSize(c chan checkPayload) {
