@@ -26,7 +26,7 @@ var (
 	infoTmpl            *template.Template
 	infoErrorTmpl       *template.Template
 	infoDockerSocket    string
-	infoLastCollectTime time.Time
+	infoLastCollectTime string
 	infoProcCount       int
 	infoContainerCount  int
 	infoQueueSize       int
@@ -103,7 +103,7 @@ func publishLastCollectTime() interface{} {
 func updateLastCollectTime(t time.Time) {
 	infoMutex.Lock()
 	defer infoMutex.Unlock()
-	infoLastCollectTime = t
+	infoLastCollectTime = t.Format("2006-01-02 15:04:05")
 }
 
 func publishProcCount() interface{} {
@@ -217,7 +217,7 @@ type StatusInfo struct {
 	Version         infoVersion            `json:"version"`
 	Config          config.AgentConfig     `json:"config"`
 	DockerSocket    string                 `json:"docker_socket"`
-	LastCollectTime time.Time              `json:"last_collect_time"`
+	LastCollectTime string                 `json:"last_collect_time"`
 	ProcessCount    int                    `json:"process_count"`
 	ContainerCount  int                    `json:"container_count"`
 	QueueSize       int                    `json:"queue_size"`
