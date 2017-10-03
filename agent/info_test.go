@@ -112,9 +112,9 @@ func TestNotRunning(t *testing.T) {
 	hostPort := strings.Split(url.Host, ":")
 	port, err := strconv.Atoi(hostPort[1])
 	assert.NoError(err)
-	newUrl := "http://" + hostPort[0] + ":" + strconv.Itoa(port+1)
+	newURL := "http://" + hostPort[0] + ":" + strconv.Itoa(port+1)
 
-	err = Info(&buf, conf, newUrl)
+	err = Info(&buf, conf, newURL)
 	assert.Error(err)
 	info := buf.String()
 	assert.Equal(notRunningInfo, info)
