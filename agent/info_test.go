@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/DataDog/datadog-process-agent/config"
@@ -27,6 +30,13 @@ Processes and Containers Agent (v 0.99.0)
   Queue length: 0
 
   Logs: /var/log/datadog/process-agent.log
+
+`
+	notRunningInfo = `=========================================
+Processes and Containers Agent (v 0.99.0)
+=========================================
+
+  Not running
 
 `
 )
@@ -74,4 +84,31 @@ func TestInfo(t *testing.T) {
 	info := buf.String()
 
 	assert.Equal(expectedInfo, info)
+}
+
+func TestNotRunning(t *testing.T) {
+	assert := assert.New(t)
+	conf := config.NewDefaultAgentConfig()
+	server := testServer(t)
+	assert.NotNil(server)
+	defer server.Close()
+
+	Version = "0.99.0"
+	err := initInfo(conf)
+	assert.NoError(err)
+	var buf bytes.Buffer
+	// we are going to use a different port so we got
+	// connection refused response, which is equal to
+	// agent is not running
+	url, err := url.Parse(server.URL)
+	assert.NoError(err)
+	hostPort := strings.Split(url.Host, ":")
+	port, err := strconv.Atoi(hostPort[1])
+	assert.NoError(err)
+	newUrl := "http://" + hostPort[0] + ":" + strconv.Itoa(port+1)
+
+	err = Info(&buf, conf, newUrl)
+	assert.Error(err)
+	info := buf.String()
+	assert.Equal(notRunningInfo, info)
 }
