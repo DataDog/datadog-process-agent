@@ -39,6 +39,13 @@ Processes and Containers Agent (v 0.99.0)
   Not running
 
 `
+	errInfo = `=========================================
+Processes and Containers Agent (v 0.99.0)
+=========================================
+
+  Error: EOF
+
+`
 )
 
 type testServerHandler struct {
@@ -111,4 +118,22 @@ func TestNotRunning(t *testing.T) {
 	assert.Error(err)
 	info := buf.String()
 	assert.Equal(notRunningInfo, info)
+}
+
+func TestError(t *testing.T) {
+	assert := assert.New(t)
+	conf := config.NewDefaultAgentConfig()
+	server := testServer(t)
+	assert.NotNil(server)
+	defer server.Close()
+
+	err := initInfo(conf)
+	assert.NoError(err)
+	var buf bytes.Buffer
+	// same port but a 404 response
+	err = Info(&buf, conf, server.URL+"/haha")
+	assert.Error(err)
+	info := buf.String()
+
+	assert.Equal(errInfo, info)
 }
