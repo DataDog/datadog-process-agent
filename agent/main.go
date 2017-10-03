@@ -150,7 +150,9 @@ func main() {
 	}
 
 	if opts.info {
-		if err := Info(os.Stdout, cfg); err != nil {
+		// using the debug port to get info to work
+		url := "http://localhost:6062/debug/vars"
+		if err := Info(os.Stdout, cfg, url); err != nil {
 			os.Exit(1)
 		}
 		return

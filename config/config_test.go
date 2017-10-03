@@ -328,3 +328,7 @@ func TestGetProxySettings(t *testing.T) {
 	pass, _ := s.User.Password()
 	assert.Equal("/:!?&=@éÔγλῶσσα", pass)
 }
+
+func NewDefaultAgentConfig() *AgentConfig {
+	return &AgentConfig{}
+}
