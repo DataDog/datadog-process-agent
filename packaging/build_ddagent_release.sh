@@ -25,7 +25,7 @@ fi
 echo "Building Agent v$PROCESS_AGENT_VERSION to $FILENAME"
 
 # Expects gimme to be installed
-eval "$(gimme 1.8.3)"
+eval "$(gimme 1.9.1)"
 
 export GOPATH=$WORKSPACE/go
 export PATH=$PATH:$GOPATH/bin
