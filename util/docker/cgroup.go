@@ -376,8 +376,8 @@ func parseCgroupMountPoints(r io.Reader) map[string]string {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		mount := scanner.Text()
-		if strings.HasPrefix(mount, "cgroup ") {
-			tokens := strings.Split(mount, " ")
+		tokens := strings.Split(mount, " ")
+		if len(tokens) >= 3 && tokens[2] == "cgroup" {
 			cgroupPath := tokens[1]
 
 			// Re-point /sys cgroups to /proc/sys
