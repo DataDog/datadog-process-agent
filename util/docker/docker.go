@@ -253,7 +253,7 @@ func connectToDocker() (*client.Client, error) {
 	}
 	// The /proc/mounts file won't be availble on non-Linux systems
 	// and we only support Linux for now.
-	mountsFile := "/proc/mounts"
+	mountsFile := util.HostProc("mounts")
 	if !util.PathExists(mountsFile) {
 		return nil, ErrDockerNotAvailable
 	}

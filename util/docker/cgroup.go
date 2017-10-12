@@ -359,7 +359,7 @@ func (c ContainerCgroup) cgroupFilePath(target, file string) string {
 //
 // Returns a map for every target (cpuset, cpu, cpuacct) => path
 func cgroupMountPoints() (map[string]string, error) {
-	mountsFile := "/proc/mounts"
+	mountsFile := util.HostProc("mounts")
 	if !util.PathExists(mountsFile) {
 		return nil, fmt.Errorf("/proc/mounts does not exist")
 	}
