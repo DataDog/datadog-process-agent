@@ -6,9 +6,9 @@ import (
 
 	"github.com/DataDog/gopsutil/cpu"
 
+	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
-	"github.com/DataDog/datadog-process-agent/util/docker"
 )
 
 // RTContainer is a singleton RTContainerCheck.
@@ -42,7 +42,7 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 	if err != nil {
 		return nil, err
 	}
-	containers, err := docker.AllContainers()
+	containers, err := docker.AllContainers(&docker.ContainerListConfig{})
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +104,8 @@ func fmtContainerStats(
 			lastCtr = docker.NullContainer
 		}
 
+		ifStats := ctr.Network.SumInterfaces()
+		lastIfStats := lastCtr.Network.SumInterfaces()
 		cpus := runtime.NumCPU()
 		chunk = append(chunk, &model.ContainerStat{
 			Id:         ctr.ID,
@@ -116,10 +118,10 @@ func fmtContainerStats(
 			MemLimit:   ctr.MemLimit,
 			Rbps:       calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun),
 			Wbps:       calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun),
-			NetRcvdPs:  calculateRate(ctr.Network.PacketsRcvd, lastCtr.Network.PacketsRcvd, lastRun),
-			NetSentPs:  calculateRate(ctr.Network.PacketsSent, lastCtr.Network.PacketsSent, lastRun),
-			NetRcvdBps: calculateRate(ctr.Network.BytesRcvd, lastCtr.Network.BytesRcvd, lastRun),
-			NetSentBps: calculateRate(ctr.Network.BytesSent, lastCtr.Network.BytesSent, lastRun),
+			NetRcvdPs:  calculateRate(ifStats.PacketsRcvd, lastIfStats.PacketsRcvd, lastRun),
+			NetSentPs:  calculateRate(ifStats.PacketsSent, lastIfStats.PacketsSent, lastRun),
+			NetRcvdBps: calculateRate(ifStats.BytesRcvd, lastIfStats.BytesRcvd, lastRun),
+			NetSentBps: calculateRate(ifStats.BytesSent, lastIfStats.BytesSent, lastRun),
 			State:      model.ContainerState(model.ContainerState_value[ctr.State]),
 			Health:     model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
 			StartedAt:  ctr.StartedAt,

@@ -12,10 +12,10 @@ import (
 
 	agentpayload "github.com/DataDog/agent-payload/gogen"
 	agentkubernetes "github.com/DataDog/datadog-agent/pkg/metadata/kubernetes"
+	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	log "github.com/cihub/seelog"
 
 	"github.com/DataDog/datadog-process-agent/util/cache"
-	"github.com/DataDog/datadog-process-agent/util/docker"
 )
 
 var (

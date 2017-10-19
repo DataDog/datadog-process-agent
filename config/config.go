@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/util"
-	"github.com/DataDog/datadog-process-agent/util/docker"
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"

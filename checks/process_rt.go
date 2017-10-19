@@ -6,9 +6,9 @@ import (
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 
+	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
-	"github.com/DataDog/datadog-process-agent/util/docker"
 )
 
 // RTProcess is a singleton RTProcessCheck.
@@ -53,7 +53,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if err != nil {
 		return nil, err
 	}
-	containers, err := docker.AllContainers()
+	containers, err := docker.AllContainers(&docker.ContainerListConfig{})
 	if err != nil {
 		return nil, err
 	}
