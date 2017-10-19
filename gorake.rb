@@ -8,7 +8,7 @@ def go_build(program, opts={})
     :cmd => default_cmd,
     :race => false,
     :add_build_vars => true,
-    :static => false
+    :static => false,
   }.merge(opts)
 
   dd = 'main'
@@ -31,6 +31,7 @@ def go_build(program, opts={})
 
   cmd = opts[:cmd]
   cmd += ' -race' if opts[:race]
+  cmd += ' -tags docker'
 
   if opts[:static]
     # Statically linked builds use musl-gcc for full support 
@@ -59,7 +60,7 @@ def go_vet(path)
 end
 
 def go_test(path, opts = {})
-  cmd = 'go test'
+  cmd = 'go test -tags docker'
   filter = ''
   if opts[:coverage_file]
     cmd += " -coverprofile=#{opts[:coverage_file]} -coverpkg=./..."

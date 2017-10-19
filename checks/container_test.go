@@ -4,18 +4,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-process-agent/util/docker"
+	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/stretchr/testify/assert"
 )
 
 func makeContainer(id string) *docker.Container {
 	return &docker.Container{
-		ID:      id,
-		CPU:     &docker.CgroupTimesStat{},
-		Memory:  &docker.CgroupMemStat{},
-		IO:      &docker.CgroupIOStat{},
-		Network: &docker.NetworkStat{},
+		ID:     id,
+		CPU:    &docker.CgroupTimesStat{},
+		Memory: &docker.CgroupMemStat{},
+		IO:     &docker.CgroupIOStat{},
 	}
 }
 
@@ -79,6 +78,6 @@ func BenchmarkAllContainers(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		docker.AllContainers()
+		docker.AllContainers(&docker.ContainerListConfig{})
 	}
 }

@@ -10,10 +10,10 @@ import (
 	"github.com/DataDog/gopsutil/process"
 	log "github.com/cihub/seelog"
 
+	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
-	"github.com/DataDog/datadog-process-agent/util/docker"
 	"github.com/DataDog/datadog-process-agent/util/ecs"
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
@@ -63,7 +63,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if err != nil {
 		return nil, err
 	}
-	containers, err := docker.AllContainers()
+	containers, err := docker.AllContainers(&docker.ContainerListConfig{})
 	if err != nil {
 		return nil, err
 	}

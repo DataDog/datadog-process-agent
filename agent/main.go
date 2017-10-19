@@ -14,10 +14,11 @@ import (
 
 	log "github.com/cihub/seelog"
 
+	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/statsd"
-	"github.com/DataDog/datadog-process-agent/util/docker"
+	"github.com/DataDog/datadog-process-agent/util"
 	"github.com/DataDog/datadog-process-agent/util/ecs"
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
@@ -129,7 +130,7 @@ func main() {
 	initMetadataProviders(cfg)
 
 	// update docker socket path in info
-	dockerSock, err := docker.GetDockerSocketPath()
+	dockerSock, err := util.GetDockerSocketPath()
 	if err != nil {
 		log.Infof("Docker is not available on this host")
 	}
