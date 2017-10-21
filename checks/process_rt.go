@@ -54,7 +54,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 		return nil, err
 	}
 	containers, err := docker.AllContainers(&docker.ContainerListConfig{})
-	if err != nil {
+	if err != nil && err != docker.ErrDockerNotAvailable {
 		return nil, err
 	}
 

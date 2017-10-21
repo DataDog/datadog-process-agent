@@ -132,7 +132,7 @@ func main() {
 	// update docker socket path in info
 	dockerSock, err := util.GetDockerSocketPath()
 	if err != nil {
-		log.Infof("Docker is not available on this host")
+		log.Debugf("Docker is not available on this host")
 	}
 	// we shouldn't quit because docker is not required. If no docker docket is available,
 	// we just pass down empty string
