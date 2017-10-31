@@ -110,7 +110,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		AllowRealTime: true,
 
 		// Statsd for internal instrumentation
-		StatsdHost: "localhost",
+		StatsdHost: "127.0.0.1",
 		StatsdPort: 8125,
 
 		// Path and environment for the dd-agent embedded python
