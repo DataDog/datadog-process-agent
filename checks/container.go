@@ -164,13 +164,5 @@ func calculateCtrPct(cur, prev uint64, numCPU int, before time.Time) float32 {
 	if before.IsZero() || diff <= 0 {
 		return 0
 	}
-
-	overalPct := float32(cur-prev) / float32(diff)
-	// Sometimes we get values that don't make sense, so we clamp to 100%
-	if overalPct > 100 {
-		overalPct = 100
-	}
-
-	// In order to emulate top we multiply utilization by # of CPUs so a busy loop would be 100%.
-	return overalPct * float32(numCPU)
+	return float32(cur-prev) / float32(diff)
 }
