@@ -5,6 +5,7 @@ import (
 
 	agentpayload "github.com/DataDog/agent-payload/gogen"
 	agentecs "github.com/DataDog/datadog-agent/pkg/metadata/ecs"
+	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
 	log "github.com/cihub/seelog"
 )
 
@@ -20,7 +21,7 @@ var (
 func InitECSUtil() error {
 	_, err := agentecs.GetPayload()
 	if err != nil {
-		if !agentecs.IsAgentNotDetected(err) {
+		if !ecsutil.IsAgentNotDetected(err) {
 			log.Errorf("unable to configure ECS metada collection: %s", err)
 		}
 		return ErrECSNotAvailable
