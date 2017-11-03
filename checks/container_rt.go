@@ -124,7 +124,7 @@ func fmtContainerStats(
 			NetSentBps: calculateRate(ifStats.BytesSent, lastIfStats.BytesSent, lastRun),
 			State:      model.ContainerState(model.ContainerState_value[ctr.State]),
 			Health:     model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
-			StartedAt:  ctr.StartedAt,
+			Started:    ctr.StartedAt,
 		})
 		if len(chunk) == perChunk {
 			chunked[i] = chunk

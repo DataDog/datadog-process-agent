@@ -143,7 +143,7 @@ func fmtContainers(
 			NetSentPs:   calculateRate(ifStats.PacketsSent, lastIfStats.PacketsSent, lastRun),
 			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastIfStats.BytesRcvd, lastRun),
 			NetSentBps:  calculateRate(ifStats.BytesSent, lastIfStats.BytesSent, lastRun),
-			StartedAt:   ctr.StartedAt,
+			Started:     ctr.StartedAt,
 		})
 
 		if len(chunk) == perChunk {

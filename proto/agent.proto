@@ -188,7 +188,7 @@ message Container {
 	uint64 memRss = 21;
 	uint64 memCache = 22;
 	Host host = 23; // Used post-resolution
-	int64 startedAt = 24;
+	int64 started = 24;
 	bytes byteKey = 25;
 }
 
@@ -266,7 +266,7 @@ message ContainerStat {
 	ContainerHealth health = 16;
 	// Post-resolved fields
 	uint32 key = 17;
-	int64 startedAt = 18;
+	int64 started = 18;
 	bytes byteKey = 19;
 }
 
