@@ -68,7 +68,7 @@ func TestOnlyEnvConfig(t *testing.T) {
 	// setting an API Key should be enough to generate valid config
 	os.Setenv("DD_API_KEY", "apikey_from_env")
 
-	agentConfig, _ := NewAgentConfig(nil, nil)
+	agentConfig, _ := NewAgentConfig(nil)
 	assert.Equal(t, "apikey_from_env", agentConfig.APIKey)
 
 	os.Setenv("DD_API_KEY", "")
@@ -105,7 +105,7 @@ func TestDDAgentMultiAPIKeys(t *testing.T) {
 	ddAgentConf, _ := ini.Load([]byte("[Main]\n\napi_key=foo, bar "))
 	configFile := &File{instance: ddAgentConf, Path: "whatever"}
 
-	agentConfig, _ := NewAgentConfig(configFile, nil)
+	agentConfig, _ := NewAgentConfig(configFile)
 	assert.Equal("foo", agentConfig.APIKey)
 }
 
@@ -128,35 +128,6 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 }
 
-func TestDDAgentConfigWithLegacy(t *testing.T) {
-	assert := assert.New(t)
-
-	// Check that legacy conf file overrides dd-agent.conf
-	dd, _ := ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"hostname=thing",
-		"api_key=apikey_12",
-		"process_agent_enabled=true",
-	}, "\n")))
-	legacy, _ := ini.Load([]byte(strings.Join([]string{
-		"[dd-process-agent]",
-		"server_url = https://process.datadoghq.com/api/v1/collector",
-		"api_key=apikey_13",
-		"",
-	}, "\n")))
-
-	agentConf := &File{instance: dd, Path: "whatever"}
-	legacyConf := &File{instance: legacy, Path: "whatever"}
-
-	agentConfig, err := NewAgentConfig(agentConf, legacyConf)
-	assert.NoError(err)
-
-	u, _ := url.Parse("https://process.datadoghq.com/api/v1/collector")
-	assert.Equal(u, agentConfig.APIEndpoint)
-	assert.Equal("apikey_13", agentConfig.APIKey)
-	assert.Equal(agentConfig.EnabledChecks, processChecks)
-}
-
 func TestDDAgentConfigWithNewOpts(t *testing.T) {
 	assert := assert.New(t)
 	// Check that providing process.* options in the dd-agent conf file works
@@ -170,7 +141,7 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 	}, "\n")))
 
 	conf := &File{instance: dd, Path: "whatever"}
-	agentConfig, err := NewAgentConfig(conf, nil)
+	agentConfig, err := NewAgentConfig(conf)
 	assert.NoError(err)
 
 	assert.Equal("apikey_12", agentConfig.APIKey)

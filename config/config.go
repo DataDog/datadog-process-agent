@@ -91,6 +91,14 @@ const (
 	maxProcLimit    = 100
 )
 
+// YamlAgentConfig is a sturcutre used for marshaling the datadog.yaml configuratio
+// available in Agent versions >= 6
+type YamlAgentConfig struct {
+	Process struct {
+		Endpoint string
+	}
+}
+
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
 func NewDefaultAgentConfig() *AgentConfig {
 	u, err := url.Parse(defaultEndpoint)
@@ -154,100 +162,64 @@ func NewDefaultAgentConfig() *AgentConfig {
 	return ac
 }
 
-// NewAgentConfig returns an AgentConfig using a conf and legacy configuration.
-// conf will be nil if there is no configuration available but legacyConf will
-// give an error if nil.
-func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
+// NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
+// if there is no file available. In this case we'll configure only via environment.
+func NewAgentConfig(agentIni *File) (*AgentConfig, error) {
 	cfg := NewDefaultAgentConfig()
 
 	var ns string
-	var file *File
 	var section *ini.Section
-	if agentConf != nil {
-		section, _ = agentConf.GetSection("Main")
+	if agentIni != nil {
+		section, _ = agentIni.GetSection("Main")
 	}
 
-	// Prefer the dd-agent config file.
+	// Pull from the ini Agent config by default.
 	if section != nil {
-		file = agentConf
-		ns = "process.config"
-		a, err := agentConf.Get("Main", "api_key")
+		a, err := agentIni.Get("Main", "api_key")
 		if err != nil {
 			return nil, err
 		}
 		ak := strings.Split(a, ",")
 		cfg.APIKey = ak[0]
-		cfg.LogLevel = strings.ToLower(agentConf.GetDefault("Main", "log_level", "INFO"))
+		cfg.LogLevel = strings.ToLower(agentIni.GetDefault("Main", "log_level", "INFO"))
 		cfg.Proxy, err = getProxySettings(section)
 		if err != nil {
 			log.Errorf("error parsing proxy settings, not using a proxy: %s", err)
 		}
 
-		e := agentConf.GetDefault(ns, "endpoint", defaultEndpoint)
-		u, err := url.Parse(e)
-		if err != nil {
-			return nil, fmt.Errorf("invalid endpoint URL: %s", err)
-		}
-		if v, _ := agentConf.Get("Main", "process_agent_enabled"); v == "false" {
+		if v, _ := agentIni.Get("Main", "process_agent_enabled"); v == "false" {
 			cfg.Enabled = false
 		} else if v == "true" {
 			cfg.Enabled = true
 			cfg.EnabledChecks = processChecks
 		}
 
-		cfg.StatsdHost = agentConf.GetDefault("Main", "bind_host", cfg.StatsdHost)
+		cfg.StatsdHost = agentIni.GetDefault("Main", "bind_host", cfg.StatsdHost)
 		// non_local_traffic is a shorthand in dd-agent configuration that is
 		// equivalent to setting `bind_host: 0.0.0.0`. Respect this flag
 		// since it defaults to true in Docker and saves us a command-line param
-		v, _ := agentConf.Get("Main", "non_local_traffic")
+		v, _ := agentIni.Get("Main", "non_local_traffic")
 		if strings.ToLower(v) == "yes" || strings.ToLower(v) == "true" {
 			cfg.StatsdHost = "0.0.0.0"
 		}
-		cfg.StatsdPort = agentConf.GetIntDefault("Main", "dogstatsd_port", cfg.StatsdPort)
+		cfg.StatsdPort = agentIni.GetIntDefault("Main", "dogstatsd_port", cfg.StatsdPort)
 
-		cfg.APIEndpoint = u
-	}
-
-	// But legacy conf will override dd-agent.
-	if legacyConf != nil {
-		file = legacyConf
-		ns = "dd-process-agent"
-		cfg.LogLevel = strings.ToLower(legacyConf.GetDefault(ns, "log_level", cfg.LogLevel))
-
-		s, err := legacyConf.Get(ns, "server_url")
+		// All process-agent specific config lives under [process.config] section.
+		ns = "process.config"
+		e := agentIni.GetDefault(ns, "endpoint", defaultEndpoint)
+		u, err := url.Parse(e)
 		if err != nil {
-			return nil, err
-		}
-		u, err := url.Parse(s)
-		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid endpoint URL: %s", err)
 		}
 		cfg.APIEndpoint = u
+		cfg.QueueSize = agentIni.GetIntDefault(ns, "queue_size", cfg.QueueSize)
+		cfg.MaxProcFDs = agentIni.GetIntDefault(ns, "max_proc_fds", cfg.MaxProcFDs)
+		cfg.AllowRealTime = agentIni.GetBool(ns, "allow_real_time", cfg.AllowRealTime)
+		cfg.LogFile = agentIni.GetDefault(ns, "log_file", cfg.LogFile)
+		cfg.DDAgentPy = agentIni.GetDefault(ns, "dd_agent_py", cfg.DDAgentPy)
+		cfg.DDAgentPyEnv = agentIni.GetStrArrayDefault(ns, "dd_agent_py_env", ",", cfg.DDAgentPyEnv)
 
-		a, err := legacyConf.Get(ns, "api_key")
-		if err != nil {
-			return nil, err
-		}
-		cfg.APIKey = a
-		proxy := legacyConf.GetDefault(ns, "proxy", "")
-		if proxy != "" {
-			cfg.Proxy, err = url.Parse(proxy)
-			if err != nil {
-				log.Errorf("Could not parse proxy url from configuration: %s", err)
-			}
-		}
-	}
-
-	// We can have no configuration in ENV-only case.
-	if file != nil {
-		cfg.QueueSize = file.GetIntDefault(ns, "queue_size", cfg.QueueSize)
-		cfg.MaxProcFDs = file.GetIntDefault(ns, "max_proc_fds", cfg.MaxProcFDs)
-		cfg.AllowRealTime = file.GetBool(ns, "allow_real_time", cfg.AllowRealTime)
-		cfg.LogFile = file.GetDefault(ns, "log_file", cfg.LogFile)
-		cfg.DDAgentPy = file.GetDefault(ns, "dd_agent_py", cfg.DDAgentPy)
-		cfg.DDAgentPyEnv = file.GetStrArrayDefault(ns, "dd_agent_py_env", ",", cfg.DDAgentPyEnv)
-
-		blacklistPats := file.GetStrArrayDefault(ns, "blacklist", ",", []string{})
+		blacklistPats := agentIni.GetStrArrayDefault(ns, "blacklist", ",", []string{})
 		blacklist := make([]*regexp.Regexp, 0, len(blacklistPats))
 		for _, b := range blacklistPats {
 			r, err := regexp.Compile(b)
@@ -256,7 +228,7 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 			}
 		}
 		cfg.Blacklist = blacklist
-		procLimit := file.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
+		procLimit := agentIni.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
 		if procLimit <= maxProcLimit {
 			cfg.ProcLimit = procLimit
 		} else {
@@ -267,7 +239,7 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		// Checks intervals can be overriden by configuration.
 		for checkName, defaultInterval := range cfg.CheckIntervals {
 			key := fmt.Sprintf("%s_interval", checkName)
-			interval := file.GetDurationDefault(ns, key, time.Second, defaultInterval)
+			interval := agentIni.GetDurationDefault(ns, key, time.Second, defaultInterval)
 			if interval != defaultInterval {
 				log.Infof("Overriding check interval for %s to %s", checkName, interval)
 				cfg.CheckIntervals[checkName] = interval
@@ -275,12 +247,13 @@ func NewAgentConfig(agentConf, legacyConf *File) (*AgentConfig, error) {
 		}
 
 		// Docker config
-		cfg.CollectDockerNetwork = file.GetBool(ns, "collect_docker_network", cfg.CollectDockerNetwork)
-		cfg.ContainerBlacklist = file.GetStrArrayDefault(ns, "container_blacklist", ",", cfg.ContainerBlacklist)
-		cfg.ContainerWhitelist = file.GetStrArrayDefault(ns, "container_whitelist", ",", cfg.ContainerWhitelist)
-		cfg.ContainerCacheDuration = file.GetDurationDefault(ns, "container_cache_duration", time.Second, 30*time.Second)
+		cfg.CollectDockerNetwork = agentIni.GetBool(ns, "collect_docker_network", cfg.CollectDockerNetwork)
+		cfg.ContainerBlacklist = agentIni.GetStrArrayDefault(ns, "container_blacklist", ",", cfg.ContainerBlacklist)
+		cfg.ContainerWhitelist = agentIni.GetStrArrayDefault(ns, "container_whitelist", ",", cfg.ContainerWhitelist)
+		cfg.ContainerCacheDuration = agentIni.GetDurationDefault(ns, "container_cache_duration", time.Second, 30*time.Second)
 	}
 
+	// Use environment to override any additional config.
 	cfg = mergeEnv(cfg)
 
 	// Python-style log level has WARNING vs WARN
