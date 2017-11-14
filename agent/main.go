@@ -25,7 +25,6 @@ import (
 
 var opts struct {
 	ddConfigPath string
-	configPath   string
 	debug        bool
 	version      bool
 	check        string
@@ -72,7 +71,6 @@ Exiting.`
 
 func main() {
 	flag.StringVar(&opts.ddConfigPath, "ddconfig", "/etc/dd-agent/datadog.conf", "Path to dd-agent config")
-	flag.StringVar(&opts.configPath, "config", "/etc/dd-agent/dd-process-agent.ini", "DEPRECATED: Path to legacy config file. Prefer -ddconfig to point to the dd-agent config")
 	flag.BoolVar(&opts.info, "info", false, "Show info about running process agent and exit")
 	flag.BoolVar(&opts.version, "version", false, "Print the version and exit")
 	flag.StringVar(&opts.check, "check", "", "Run a specific check and print the results. Choose from: process, connections, realtime")
@@ -94,12 +92,7 @@ func main() {
 		log.Criticalf("Error reading dd-agent config: %s", err)
 		os.Exit(1)
 	}
-	legacyConf, err := config.NewIfExists(opts.configPath)
-	if err != nil {
-		log.Criticalf("Error reading legacy config: %s", err)
-		os.Exit(1)
-	}
-	cfg, err := config.NewAgentConfig(agentConf, legacyConf)
+	cfg, err := config.NewAgentConfig(agentConf)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)
