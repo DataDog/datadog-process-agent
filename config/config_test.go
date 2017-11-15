@@ -8,9 +8,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-ini/ini"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v2"
 )
 
 func TestBlacklist(t *testing.T) {
@@ -68,7 +70,7 @@ func TestOnlyEnvConfig(t *testing.T) {
 	// setting an API Key should be enough to generate valid config
 	os.Setenv("DD_API_KEY", "apikey_from_env")
 
-	agentConfig, _ := NewAgentConfig(nil)
+	agentConfig, _ := NewAgentConfig(nil, nil)
 	assert.Equal(t, "apikey_from_env", agentConfig.APIKey)
 
 	os.Setenv("DD_API_KEY", "")
@@ -95,7 +97,7 @@ func TestConfigNewIfExists(t *testing.T) {
 
 func TestGetHostname(t *testing.T) {
 	cfg := NewDefaultAgentConfig()
-	h, err := getHostname(cfg.DDAgentPy, cfg.DDAgentPyEnv)
+	h, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv)
 	assert.Nil(t, err)
 	assert.NotEqual(t, "", h)
 }
@@ -105,7 +107,7 @@ func TestDDAgentMultiAPIKeys(t *testing.T) {
 	ddAgentConf, _ := ini.Load([]byte("[Main]\n\napi_key=foo, bar "))
 	configFile := &File{instance: ddAgentConf, Path: "whatever"}
 
-	agentConfig, _ := NewAgentConfig(configFile)
+	agentConfig, _ := NewAgentConfig(configFile, nil)
 	assert.Equal("foo", agentConfig.APIKey)
 }
 
@@ -141,7 +143,7 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 	}, "\n")))
 
 	conf := &File{instance: dd, Path: "whatever"}
-	agentConfig, err := NewAgentConfig(conf)
+	agentConfig, err := NewAgentConfig(conf, nil)
 	assert.NoError(err)
 
 	assert.Equal("apikey_12", agentConfig.APIKey)
@@ -149,6 +151,68 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 	assert.Equal(false, agentConfig.AllowRealTime)
 	assert.Equal(false, agentConfig.Enabled)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+}
+
+func TestDDAgentConfigBothVersions(t *testing.T) {
+	assert := assert.New(t)
+	// Check that providing process.* options in the dd-agent conf file works
+	dd, _ := ini.Load([]byte(strings.Join([]string{
+		"[Main]",
+		"hostname = thing",
+		"api_key = apikey_12",
+		"[process.config]",
+		"queue_size = 5",
+		"allow_real_time = false",
+	}, "\n")))
+
+	var ddy *YamlAgentConfig
+	err := yaml.Unmarshal([]byte(strings.Join([]string{
+		"api_key: apikey_20",
+		"process_dd_url: http://my-process-app.datadoghq.com",
+		"process_config:",
+		"  queue_size: 10",
+	}, "\n")), &ddy)
+	assert.NoError(err)
+
+	conf := &File{instance: dd, Path: "whatever"}
+	agentConfig, err := NewAgentConfig(conf, ddy)
+	assert.NoError(err)
+
+	assert.Equal("apikey_20", agentConfig.APIKey)
+	assert.Equal("my-process-app.datadoghq.com", agentConfig.APIEndpoint.Hostname())
+	assert.Equal(10, agentConfig.QueueSize)
+	assert.Equal(false, agentConfig.AllowRealTime)
+	assert.Equal(false, agentConfig.Enabled)
+	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+}
+
+func TestDDAgentConfigYamlOnly(t *testing.T) {
+	assert := assert.New(t)
+	var ddy *YamlAgentConfig
+	err := yaml.Unmarshal([]byte(strings.Join([]string{
+		"api_key: apikey_20",
+		"process_dd_url: http://my-process-app.datadoghq.com",
+		"process_agent_enabled: true",
+		"process_config:",
+		"  enabled: 'true'",
+		"  queue_size: 10",
+		"  intervals:",
+		"    container: 8",
+		"    process: 30",
+	}, "\n")), &ddy)
+	assert.NoError(err)
+
+	agentConfig, err := NewAgentConfig(nil, ddy)
+	assert.NoError(err)
+
+	assert.Equal("apikey_20", agentConfig.APIKey)
+	assert.Equal("my-process-app.datadoghq.com", agentConfig.APIEndpoint.Hostname())
+	assert.Equal(10, agentConfig.QueueSize)
+	assert.Equal(true, agentConfig.AllowRealTime)
+	assert.Equal(true, agentConfig.Enabled)
+	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
+	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
 }
 
 func TestProxyEnv(t *testing.T) {

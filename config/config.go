@@ -50,6 +50,7 @@ type AgentConfig struct {
 	Proxy         *url.URL
 	Logger        *LoggerConfig
 	DDAgentPy     string
+	DDAgentBin    string
 	DDAgentPyEnv  []string
 	StatsdHost    string
 	StatsdPort    int
@@ -90,14 +91,6 @@ const (
 	defaultEndpoint = "https://process.datadoghq.com"
 	maxProcLimit    = 100
 )
-
-// YamlAgentConfig is a sturcutre used for marshaling the datadog.yaml configuratio
-// available in Agent versions >= 6
-type YamlAgentConfig struct {
-	Process struct {
-		Endpoint string
-	}
-}
 
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
 func NewDefaultAgentConfig() *AgentConfig {
@@ -164,7 +157,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
-func NewAgentConfig(agentIni *File) (*AgentConfig, error) {
+func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, error) {
+	var err error
 	cfg := NewDefaultAgentConfig()
 
 	var ns string
@@ -253,6 +247,14 @@ func NewAgentConfig(agentIni *File) (*AgentConfig, error) {
 		cfg.ContainerCacheDuration = agentIni.GetDurationDefault(ns, "container_cache_duration", time.Second, 30*time.Second)
 	}
 
+	// For Agents >= 6 we will have a YAML config file to use.
+	if agentYaml != nil {
+		cfg, err = mergeYamlConfig(cfg, agentYaml)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Use environment to override any additional config.
 	cfg = mergeEnv(cfg)
 
@@ -266,7 +268,7 @@ func NewAgentConfig(agentIni *File) (*AgentConfig, error) {
 		return nil, err
 	}
 
-	hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentPyEnv)
+	hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv)
 	if err != nil {
 		hostname = ""
 	}
@@ -400,10 +402,16 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 
 // getHostname shells out to obtain the hostname used by the infra agent
 // falling back to os.Hostname() if it is unavailable
-func getHostname(ddAgentPy string, ddAgentEnv []string) (string, error) {
-	getHostnameCmd := "from utils.hostname import get_hostname; print get_hostname()"
+func getHostname(ddAgentPy, ddAgentBin string, ddAgentEnv []string) (string, error) {
+	var cmd *exec.Cmd
+	// In Agent 6 we will have an Agent binary defined.
+	if ddAgentBin != "" {
+		cmd = exec.Command(ddAgentBin, "hostname")
+	} else {
+		getHostnameCmd := "from utils.hostname import get_hostname; print get_hostname()"
+		cmd = exec.Command(ddAgentPy, "-c", getHostnameCmd)
+	}
 
-	cmd := exec.Command(ddAgentPy, "-c", getHostnameCmd)
 	dockerEnv := os.Getenv("DOCKER_DD_AGENT")
 	cmd.Env = append(ddAgentEnv, fmt.Sprintf("DOCKER_DD_AGENT=%s", dockerEnv))
 

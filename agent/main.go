@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -24,6 +26,7 @@ import (
 )
 
 var opts struct {
+	configPath   string
 	ddConfigPath string
 	debug        bool
 	version      bool
@@ -70,6 +73,7 @@ to your datadog.conf file.
 Exiting.`
 
 func main() {
+	flag.StringVar(&opts.configPath, "config", "/etc/datadog-agent/datadog.yaml", "Path to datadog.yaml config")
 	flag.StringVar(&opts.ddConfigPath, "ddconfig", "/etc/dd-agent/datadog.conf", "Path to dd-agent config")
 	flag.BoolVar(&opts.info, "info", false, "Show info about running process agent and exit")
 	flag.BoolVar(&opts.version, "version", false, "Print the version and exit")
@@ -92,7 +96,20 @@ func main() {
 		log.Criticalf("Error reading dd-agent config: %s", err)
 		os.Exit(1)
 	}
-	cfg, err := config.NewAgentConfig(agentConf)
+	var yamlConf config.YamlAgentConfig
+	if util.PathExists(opts.configPath) {
+		lines, err := util.ReadLines(opts.configPath)
+		if err != nil {
+			log.Criticalf("Error reading datadog.yaml config: %s", err)
+			os.Exit(1)
+		}
+		if err = yaml.Unmarshal([]byte(strings.Join(lines, "\n")), &yamlConf); err != nil {
+			log.Criticalf("Error parsing datadog.yaml config: %s", err)
+			os.Exit(1)
+		}
+	}
+
+	cfg, err := config.NewAgentConfig(agentConf, &yamlConf)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)
