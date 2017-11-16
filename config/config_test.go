@@ -188,7 +188,7 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 
 func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert := assert.New(t)
-	var ddy *YamlAgentConfig
+	var ddy YamlAgentConfig
 	err := yaml.Unmarshal([]byte(strings.Join([]string{
 		"api_key: apikey_20",
 		"process_dd_url: http://my-process-app.datadoghq.com",
@@ -202,7 +202,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	}, "\n")), &ddy)
 	assert.NoError(err)
 
-	agentConfig, err := NewAgentConfig(nil, ddy)
+	agentConfig, err := NewAgentConfig(nil, &ddy)
 	assert.NoError(err)
 
 	assert.Equal("apikey_20", agentConfig.APIKey)
@@ -210,9 +210,49 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(10, agentConfig.QueueSize)
 	assert.Equal(true, agentConfig.AllowRealTime)
 	assert.Equal(true, agentConfig.Enabled)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(processChecks, agentConfig.EnabledChecks)
 	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
 	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
+
+	err = yaml.Unmarshal([]byte(strings.Join([]string{
+		"api_key: apikey_20",
+		"process_dd_url: http://my-process-app.datadoghq.com",
+		"process_agent_enabled: true",
+		"process_config:",
+		"  enabled: 'false'",
+		"  queue_size: 10",
+		"  intervals:",
+		"    container: 8",
+		"    process: 30",
+	}, "\n")), &ddy)
+	assert.NoError(err)
+
+	agentConfig, err = NewAgentConfig(nil, &ddy)
+	assert.NoError(err)
+	assert.Equal("apikey_20", agentConfig.APIKey)
+	assert.Equal("my-process-app.datadoghq.com", agentConfig.APIEndpoint.Hostname())
+	assert.Equal(true, agentConfig.Enabled)
+	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+
+	err = yaml.Unmarshal([]byte(strings.Join([]string{
+		"api_key: apikey_20",
+		"process_dd_url: http://my-process-app.datadoghq.com",
+		"process_agent_enabled: true",
+		"process_config:",
+		"  enabled: 'disabled'",
+		"  queue_size: 10",
+		"  intervals:",
+		"    container: 8",
+		"    process: 30",
+	}, "\n")), &ddy)
+	assert.NoError(err)
+
+	agentConfig, err = NewAgentConfig(nil, &ddy)
+	assert.NoError(err)
+	assert.Equal("apikey_20", agentConfig.APIKey)
+	assert.Equal("my-process-app.datadoghq.com", agentConfig.APIEndpoint.Hostname())
+	assert.Equal(false, agentConfig.Enabled)
+	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 }
 
 func TestProxyEnv(t *testing.T) {

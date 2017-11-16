@@ -15,7 +15,10 @@ type YamlAgentConfig struct {
 	APIKey       string `yaml:"api_key"`
 	ProcessDDURL string `yaml:"process_dd_url"`
 	Process      struct {
-		// A string boolean indicating if the Agent is enabled.
+		// A string indicate the enabled state of the Agent.
+		// If "false" (the default) we will only collect containers.
+		// If "true" we will collect containers and processes.
+		// If "disabled" the agent will be disabled altogether and won't start.
 		Enabled string `yaml:"enabled"`
 		// The full path to the file where process-agent logs will be written.
 		LogFile string `yaml:"log_file"`
@@ -47,9 +50,15 @@ type YamlAgentConfig struct {
 
 func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig, error) {
 	agentConf.APIKey = yc.APIKey
-	if yc.Process.Enabled == "true" {
+	enabled := yc.Process.Enabled
+	switch enabled {
+	case "true":
 		agentConf.Enabled = true
-	} else if yc.Process.Enabled == "false" {
+		agentConf.EnabledChecks = processChecks
+	case "false":
+		agentConf.Enabled = true
+		agentConf.EnabledChecks = containerChecks
+	case "disabled":
 		agentConf.Enabled = false
 	}
 	if yc.ProcessDDURL != "" {
