@@ -4,9 +4,13 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 
 	log "github.com/cihub/seelog"
+	"gopkg.in/yaml.v2"
+
+	"github.com/DataDog/datadog-process-agent/util"
 )
 
 // YamlAgentConfig is a sturcutre used for marshaling the datadog.yaml configuratio
@@ -46,6 +50,22 @@ type YamlAgentConfig struct {
 		// Overrides of the environment we pass to fetch the hostname. The default is usually fine.
 		DDAgentEnv []string `yaml:"dd_agent_env"`
 	} `yaml:"process_config"`
+}
+
+// NewYamlIfExists returns a new YamlAgentConfig if the given configPath is exists.
+func NewYamlIfExists(configPath string) (*YamlAgentConfig, error) {
+	var yamlConf YamlAgentConfig
+	if util.PathExists(configPath) {
+		lines, err := util.ReadLines(configPath)
+		if err != nil {
+			return nil, fmt.Errorf("read error: %s", err)
+		}
+		if err = yaml.Unmarshal([]byte(strings.Join(lines, "\n")), &yamlConf); err != nil {
+			return nil, fmt.Errorf("parse error: %s", err)
+		}
+		return &yamlConf, nil
+	}
+	return nil, nil
 }
 
 func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig, error) {
