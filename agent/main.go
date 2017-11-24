@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -96,20 +94,13 @@ func main() {
 		log.Criticalf("Error reading dd-agent config: %s", err)
 		os.Exit(1)
 	}
-	var yamlConf config.YamlAgentConfig
-	if util.PathExists(opts.configPath) {
-		lines, err := util.ReadLines(opts.configPath)
-		if err != nil {
-			log.Criticalf("Error reading datadog.yaml config: %s", err)
-			os.Exit(1)
-		}
-		if err = yaml.Unmarshal([]byte(strings.Join(lines, "\n")), &yamlConf); err != nil {
-			log.Criticalf("Error parsing datadog.yaml config: %s", err)
-			os.Exit(1)
-		}
+	yamlConf, err := config.NewYamlIfExists(opts.configPath)
+	if err != nil {
+		log.Criticalf("Error reading datadog.yaml: %s", err)
+		os.Exit(1)
 	}
 
-	cfg, err := config.NewAgentConfig(agentConf, &yamlConf)
+	cfg, err := config.NewAgentConfig(agentConf, yamlConf)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)
