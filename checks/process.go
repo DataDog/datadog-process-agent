@@ -116,7 +116,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 
 	statsd.Client.Gauge("datadog.process.containers.host_count", totalProcs, []string{}, 1)
 	statsd.Client.Gauge("datadog.process.processes.host_count", totalContainers, []string{}, 1)
-	log.Infof("collected processes in %s", time.Now().Sub(start))
+	log.Debugf("collected processes in %s", time.Now().Sub(start))
 	return messages, nil
 }
 

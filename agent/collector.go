@@ -30,6 +30,7 @@ type Collector struct {
 	cfg           *config.AgentConfig
 	httpClient    http.Client
 	groupID       int32
+	runCounter    int64
 	enabledChecks []checks.Check
 
 	// Controls the real-time interval, can change live.
@@ -95,20 +96,33 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 }
 
 func (l *Collector) runCheck(c checks.Check) {
+	runCounter := atomic.AddInt64(&l.runCounter, 1)
+	s := time.Now()
 	// update the last collected timestamp for info
 	updateLastCollectTime(time.Now())
-
-	if messages, err := c.Run(l.cfg, atomic.AddInt32(&l.groupID, 1)); err != nil {
+	messages, err := c.Run(l.cfg, atomic.AddInt32(&l.groupID, 1))
+	if err != nil {
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
 		l.send <- checkPayload{messages, c.Endpoint()}
 		// update proc and container count for info
 		updateProcContainerCount(messages)
+		if !c.RealTime() {
+			d := time.Since(s)
+			switch {
+			case runCounter < 5:
+				log.Infof("Finished check #%d in %s", runCounter, d)
+			case runCounter == 5:
+				log.Infof("Finished check #%d in %s. First 5 check runs finished, next runs will be logged every 20 runs.", runCounter, d)
+			case runCounter%20 == 0:
+				log.Infof("Finish check #%d in %s", runCounter, d)
+			}
+		}
 	}
 }
 
 func (l *Collector) run() {
-	log.Infof("Starting process-agent for host=%s, endpoint=%s", l.cfg.HostName, l.cfg.APIEndpoint)
+	log.Infof("Starting process-agent for host=%s, endpoint=%s, enabled checks=%v", l.cfg.HostName, l.cfg.APIEndpoint, l.cfg.EnabledChecks)
 	exit := make(chan bool)
 	go handleSignals(exit)
 	heartbeat := time.NewTicker(15 * time.Second)
