@@ -275,9 +275,13 @@ func locateKubelet(cfg *Config) (string, error) {
 	var err error
 	hostname := cfg.KubeletHost
 	if cfg.KubeletHost == "" {
-		hostname, err = docker.GetHostname()
+		du, err := docker.GetDockerUtil()
 		if err != nil {
-			return "", fmt.Errorf("Unable to get hostname from docker: %s", err)
+			return "", fmt.Errorf("unable to get hostname from docker: %s", err)
+		}
+		hostname, err = du.GetHostname()
+		if err != nil {
+			return "", fmt.Errorf("unable to get hostname from docker: %s", err)
 		}
 	}
 
