@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/util"
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
@@ -101,7 +102,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 	}
 	ac := &AgentConfig{
 		// We'll always run inside of a container.
-		Enabled:       docker.IsAvailable(),
+		Enabled:       container.IsAvailable(),
 		APIEndpoint:   u,
 		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
