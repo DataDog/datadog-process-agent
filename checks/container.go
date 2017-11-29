@@ -113,15 +113,16 @@ func fmtContainers(
 		ifStats := ctr.Network.SumInterfaces()
 		lastIfStats := lastCtr.Network.SumInterfaces()
 		cpus := runtime.NumCPU()
+		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 		chunk = append(chunk, &model.Container{
 			Type:        ctr.Type,
 			Name:        ctr.Name,
 			Id:          ctr.ID,
 			Image:       ctr.Image,
 			CpuLimit:    float32(ctr.CPULimit),
-			UserPct:     calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, cpus, lastRun),
-			SystemPct:   calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, cpus, lastRun),
-			TotalPct:    calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, cpus, lastRun),
+			UserPct:     calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun),
+			SystemPct:   calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
+			TotalPct:    calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
 			MemoryLimit: ctr.MemLimit,
 			MemRss:      ctr.Memory.RSS,
 			MemCache:    ctr.Memory.Cache,
@@ -149,11 +150,19 @@ func fmtContainers(
 	return chunked
 }
 
-func calculateCtrPct(cur, prev uint64, numCPU int, before time.Time) float32 {
+func calculateCtrPct(cur, prev, sys2, sys1 uint64, numCPU int, before time.Time) float32 {
 	now := time.Now()
 	diff := now.Unix() - before.Unix()
 	if before.IsZero() || diff <= 0 {
 		return 0
+	}
+
+	// If we have system usage values then we need to calculate against those.
+	// XXX: Right now this only applies to ECS collection
+	if sys1 > 0 && sys2 > 0 {
+		cpuDelta := float32(cur - prev)
+		sysDelta := float32(sys2 - sys1)
+		return (cpuDelta / sysDelta) * float32(numCPU) * 100
 	}
 	return float32(cur-prev) / float32(diff)
 }

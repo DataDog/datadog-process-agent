@@ -97,11 +97,12 @@ func fmtContainerStats(
 		ifStats := ctr.Network.SumInterfaces()
 		lastIfStats := lastCtr.Network.SumInterfaces()
 		cpus := runtime.NumCPU()
+		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 		chunk = append(chunk, &model.ContainerStat{
 			Id:         ctr.ID,
-			UserPct:    calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, cpus, lastRun),
-			SystemPct:  calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, cpus, lastRun),
-			TotalPct:   calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, cpus, lastRun),
+			UserPct:    calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun),
+			SystemPct:  calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
+			TotalPct:   calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
 			CpuLimit:   float32(ctr.CPULimit),
 			MemRss:     ctr.Memory.RSS,
 			MemCache:   ctr.Memory.Cache,
