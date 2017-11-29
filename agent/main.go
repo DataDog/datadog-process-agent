@@ -99,7 +99,9 @@ func main() {
 		log.Criticalf("Error reading datadog.yaml: %s", err)
 		os.Exit(1)
 	}
-
+	if yamlConf != nil {
+		config.SetupDDAgentConfig(opts.configPath)
+	}
 	cfg, err := config.NewAgentConfig(agentConf, yamlConf)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)

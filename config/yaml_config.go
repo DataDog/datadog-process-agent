@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	log "github.com/cihub/seelog"
 	"gopkg.in/yaml.v2"
 
@@ -134,4 +135,21 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		agentConf.DDAgentBin = yc.Process.DDAgentBin
 	}
 	return agentConf, nil
+}
+
+// SetupDDAgentConfig initializes the datadog-agent config with a YAML file.
+// This is required for configuration to be available for container listeners.
+func SetupDDAgentConfig(configPath string) error {
+	ddconfig.Datadog.AddConfigPath(configPath)
+	// If they set a config file directly, let's try to honor that
+	if strings.HasSuffix(configPath, ".yaml") {
+		ddconfig.Datadog.SetConfigFile(configPath)
+	}
+
+	// load the configuration
+	err := ddconfig.Datadog.ReadInConfig()
+	if err != nil {
+		return fmt.Errorf("unable to load Datadog config file: %s", err)
+	}
+	return nil
 }
