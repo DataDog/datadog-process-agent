@@ -140,7 +140,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 	}
 
 	// Set default values for proc/sys paths if unset.
-	if docker.IsContainerized() {
+	// Don't set this is /host is not mounted to use context wihin container.
+	if docker.IsContainerized() && util.PathExists("/host") {
 		if v := os.Getenv("HOST_PROC"); v == "" {
 			os.Setenv("HOST_PROC", "/host/proc")
 		}
