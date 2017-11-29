@@ -4,7 +4,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/DataDog/gopsutil/cpu"
 	log "github.com/cihub/seelog"
 
 	"github.com/DataDog/datadog-agent/pkg/util/container"
@@ -22,7 +21,6 @@ var Container = &ContainerCheck{}
 // ContainerCheck is a check that returns container metadata and stats.
 type ContainerCheck struct {
 	sysInfo        *model.SystemInfo
-	lastCPUTime    cpu.TimesStat
 	lastContainers []*docker.Container
 	lastRun        time.Time
 }
@@ -45,10 +43,6 @@ func (c *ContainerCheck) RealTime() bool { return false }
 // stats for each container.
 func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
-	cpuTimes, err := cpu.Times(false)
-	if err != nil {
-		return nil, err
-	}
 	containers, err := container.GetContainers()
 	if err != nil && err != docker.ErrDockerNotAvailable {
 		return nil, err
@@ -57,7 +51,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	// End check early if this is our first run.
 	if c.lastContainers == nil {
 		c.lastContainers = containers
-		c.lastCPUTime = cpuTimes[0]
 		c.lastRun = time.Now()
 		return nil, nil
 	}
@@ -70,8 +63,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if len(containers) != cfg.ProcLimit {
 		groupSize++
 	}
-	chunked := fmtContainers(containers, c.lastContainers,
-		cpuTimes[0], c.lastCPUTime, c.lastRun, groupSize)
+	chunked := fmtContainers(containers, c.lastContainers, c.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	totalContainers := float64(0)
 	for i := 0; i < groupSize; i++ {
@@ -87,7 +79,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 		})
 	}
 
-	c.lastCPUTime = cpuTimes[0]
 	c.lastContainers = containers
 	c.lastRun = time.Now()
 
@@ -100,7 +91,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 // number of chunks. len(result) MUST EQUAL chunks.
 func fmtContainers(
 	containers, lastContainers []*docker.Container,
-	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.Container {

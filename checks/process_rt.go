@@ -71,8 +71,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	chunkedStats := fmtProcessStats(cfg, procs, r.lastProcs,
 		containers, cpuTimes[0], r.lastCPUTime, r.lastRun)
 	groupSize := len(chunkedStats)
-	chunkedCtrStats := fmtContainerStats(containers, r.lastContainers,
-		cpuTimes[0], r.lastCPUTime, r.lastRun, groupSize)
+	chunkedCtrStats := fmtContainerStats(containers, r.lastContainers, r.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	for i := 0; i < groupSize; i++ {
 		messages = append(messages, &model.CollectorRealTime{
