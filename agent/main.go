@@ -14,6 +14,7 @@ import (
 
 	log "github.com/cihub/seelog"
 
+	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
@@ -26,6 +27,7 @@ import (
 var opts struct {
 	configPath   string
 	ddConfigPath string
+	pidfilePath  string
 	debug        bool
 	version      bool
 	check        string
@@ -73,6 +75,7 @@ Exiting.`
 func main() {
 	flag.StringVar(&opts.configPath, "config", "/etc/datadog-agent/datadog.yaml", "Path to datadog.yaml config")
 	flag.StringVar(&opts.ddConfigPath, "ddconfig", "/etc/dd-agent/datadog.conf", "Path to dd-agent config")
+	flag.StringVar(&opts.pidfilePath, "pid", "", "Path to set pidfile for process")
 	flag.BoolVar(&opts.info, "info", false, "Show info about running process agent and exit")
 	flag.BoolVar(&opts.version, "version", false, "Print the version and exit")
 	flag.StringVar(&opts.check, "check", "", "Run a specific check and print the results. Choose from: process, connections, realtime")
@@ -87,6 +90,20 @@ func main() {
 	if opts.version {
 		fmt.Println(versionString())
 		os.Exit(0)
+	}
+
+	if opts.check == "" && !opts.info && opts.pidfilePath != "" {
+		err := pidfile.WritePID(opts.pidfilePath)
+		if err != nil {
+			log.Errorf("Error while writing PID file, exiting: %v", err)
+			os.Exit(1)
+		}
+
+		log.Infof("pid '%d' written to pid file '%s'", os.Getpid(), opts.pidfilePath)
+		defer func() {
+			// remove pidfile if set
+			os.Remove(opts.pidfilePath)
+		}()
 	}
 
 	agentConf, err := config.NewIfExists(opts.ddConfigPath)
