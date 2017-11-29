@@ -414,7 +414,11 @@ func getHostname(ddAgentPy, ddAgentBin string, ddAgentEnv []string) (string, err
 	}
 
 	dockerEnv := os.Getenv("DOCKER_DD_AGENT")
-	cmd.Env = append(ddAgentEnv, fmt.Sprintf("DOCKER_DD_AGENT=%s", dockerEnv))
+	hostnameEnv := os.Getenv("DD_HOSTNAME")
+	cmd.Env = append(ddAgentEnv,
+		fmt.Sprintf("DOCKER_DD_AGENT=%s", dockerEnv),
+		fmt.Sprintf("DD_HOSTNAME=%s", hostnameEnv),
+	)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
