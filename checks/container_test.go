@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
-	"github.com/DataDog/gopsutil/cpu"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +24,6 @@ func TestContainerChunking(t *testing.T) {
 		makeContainer("bim"),
 	}
 	lastRun := time.Now().Add(-5 * time.Second)
-	syst1, syst2 := cpu.TimesStat{}, cpu.TimesStat{}
 
 	for i, tc := range []struct {
 		cur, last []*docker.Container
