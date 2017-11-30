@@ -41,7 +41,8 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: 9676beb535caeab75556195425445a7cf690ade6
+  version: dcd78f558111cb1276a38c9ad9e79cecaed4388f
+  repo: git@github.com:DataDog/datadog-agent.git
   vcs: git
   subpackages:
   - cmd/agent/common/signals
