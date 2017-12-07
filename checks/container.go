@@ -4,9 +4,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/DataDog/gopsutil/cpu"
 	log "github.com/cihub/seelog"
 
+	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
@@ -21,7 +21,6 @@ var Container = &ContainerCheck{}
 // ContainerCheck is a check that returns container metadata and stats.
 type ContainerCheck struct {
 	sysInfo        *model.SystemInfo
-	lastCPUTime    cpu.TimesStat
 	lastContainers []*docker.Container
 	lastRun        time.Time
 }
@@ -44,11 +43,7 @@ func (c *ContainerCheck) RealTime() bool { return false }
 // stats for each container.
 func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
-	cpuTimes, err := cpu.Times(false)
-	if err != nil {
-		return nil, err
-	}
-	containers, err := docker.AllContainers(&docker.ContainerListConfig{})
+	containers, err := container.GetContainers()
 	if err != nil && err != docker.ErrDockerNotAvailable {
 		return nil, err
 	}
@@ -56,7 +51,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	// End check early if this is our first run.
 	if c.lastContainers == nil {
 		c.lastContainers = containers
-		c.lastCPUTime = cpuTimes[0]
 		c.lastRun = time.Now()
 		return nil, nil
 	}
@@ -69,8 +63,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if len(containers) != cfg.ProcLimit {
 		groupSize++
 	}
-	chunked := fmtContainers(containers, c.lastContainers,
-		cpuTimes[0], c.lastCPUTime, c.lastRun, groupSize)
+	chunked := fmtContainers(containers, c.lastContainers, c.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	totalContainers := float64(0)
 	for i := 0; i < groupSize; i++ {
@@ -86,7 +79,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 		})
 	}
 
-	c.lastCPUTime = cpuTimes[0]
 	c.lastContainers = containers
 	c.lastRun = time.Now()
 
@@ -99,7 +91,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 // number of chunks. len(result) MUST EQUAL chunks.
 func fmtContainers(
 	containers, lastContainers []*docker.Container,
-	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.Container {
@@ -122,15 +113,16 @@ func fmtContainers(
 		ifStats := ctr.Network.SumInterfaces()
 		lastIfStats := lastCtr.Network.SumInterfaces()
 		cpus := runtime.NumCPU()
+		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 		chunk = append(chunk, &model.Container{
 			Type:        ctr.Type,
 			Name:        ctr.Name,
 			Id:          ctr.ID,
 			Image:       ctr.Image,
 			CpuLimit:    float32(ctr.CPULimit),
-			UserPct:     calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, cpus, lastRun),
-			SystemPct:   calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, cpus, lastRun),
-			TotalPct:    calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, cpus, lastRun),
+			UserPct:     calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun),
+			SystemPct:   calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
+			TotalPct:    calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
 			MemoryLimit: ctr.MemLimit,
 			MemRss:      ctr.Memory.RSS,
 			MemCache:    ctr.Memory.Cache,
@@ -158,11 +150,19 @@ func fmtContainers(
 	return chunked
 }
 
-func calculateCtrPct(cur, prev uint64, numCPU int, before time.Time) float32 {
+func calculateCtrPct(cur, prev, sys2, sys1 uint64, numCPU int, before time.Time) float32 {
 	now := time.Now()
 	diff := now.Unix() - before.Unix()
 	if before.IsZero() || diff <= 0 {
 		return 0
+	}
+
+	// If we have system usage values then we need to calculate against those.
+	// XXX: Right now this only applies to ECS collection
+	if sys1 > 0 && sys2 > 0 {
+		cpuDelta := float32(cur - prev)
+		sysDelta := float32(sys2 - sys1)
+		return (cpuDelta / sysDelta) * float32(numCPU) * 100
 	}
 	return float32(cur-prev) / float32(diff)
 }

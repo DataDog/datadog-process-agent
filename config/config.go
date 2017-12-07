@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/util"
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
@@ -101,7 +102,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 	}
 	ac := &AgentConfig{
 		// We'll always run inside of a container.
-		Enabled:       docker.IsAvailable(),
+		Enabled:       container.IsAvailable(),
 		APIEndpoint:   u,
 		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
@@ -139,7 +140,9 @@ func NewDefaultAgentConfig() *AgentConfig {
 	}
 
 	// Set default values for proc/sys paths if unset.
-	if docker.IsContainerized() {
+	// Don't set this is /host is not mounted to use context within container.
+	// Generally only applicable for container-only cases like Fargate.
+	if docker.IsContainerized() && util.PathExists("/host") {
 		if v := os.Getenv("HOST_PROC"); v == "" {
 			os.Setenv("HOST_PROC", "/host/proc")
 		}
@@ -413,7 +416,11 @@ func getHostname(ddAgentPy, ddAgentBin string, ddAgentEnv []string) (string, err
 	}
 
 	dockerEnv := os.Getenv("DOCKER_DD_AGENT")
-	cmd.Env = append(ddAgentEnv, fmt.Sprintf("DOCKER_DD_AGENT=%s", dockerEnv))
+	hostnameEnv := os.Getenv("DD_HOSTNAME")
+	cmd.Env = append(ddAgentEnv,
+		fmt.Sprintf("DOCKER_DD_AGENT=%s", dockerEnv),
+		fmt.Sprintf("DD_HOSTNAME=%s", hostnameEnv),
+	)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

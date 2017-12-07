@@ -124,8 +124,8 @@ func TestDefaultConfig(t *testing.T) {
 	os.Setenv("DOCKER_DD_AGENT", "yes")
 	agentConfig = NewDefaultAgentConfig()
 	assert.Equal(agentConfig.Enabled, false)
-	assert.Equal(os.Getenv("HOST_PROC"), "/host/proc")
-	assert.Equal(os.Getenv("HOST_SYS"), "/host/sys")
+	assert.Equal(os.Getenv("HOST_PROC"), "")
+	assert.Equal(os.Getenv("HOST_SYS"), "")
 	os.Setenv("DOCKER_DD_AGENT", "no")
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 }

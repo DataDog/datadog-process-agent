@@ -6,6 +6,7 @@ import (
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 
+	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
@@ -53,7 +54,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if err != nil {
 		return nil, err
 	}
-	containers, err := docker.AllContainers(&docker.ContainerListConfig{})
+	containers, err := container.GetContainers()
 	if err != nil && err != docker.ErrDockerNotAvailable {
 		return nil, err
 	}
@@ -70,8 +71,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	chunkedStats := fmtProcessStats(cfg, procs, r.lastProcs,
 		containers, cpuTimes[0], r.lastCPUTime, r.lastRun)
 	groupSize := len(chunkedStats)
-	chunkedCtrStats := fmtContainerStats(containers, r.lastContainers,
-		cpuTimes[0], r.lastCPUTime, r.lastRun, groupSize)
+	chunkedCtrStats := fmtContainerStats(containers, r.lastContainers, r.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	for i := 0; i < groupSize; i++ {
 		messages = append(messages, &model.CollectorRealTime{

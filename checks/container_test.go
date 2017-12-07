@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
-	"github.com/DataDog/gopsutil/cpu"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +24,6 @@ func TestContainerChunking(t *testing.T) {
 		makeContainer("bim"),
 	}
 	lastRun := time.Now().Add(-5 * time.Second)
-	syst1, syst2 := cpu.TimesStat{}, cpu.TimesStat{}
 
 	for i, tc := range []struct {
 		cur, last []*docker.Container
@@ -51,7 +49,7 @@ func TestContainerChunking(t *testing.T) {
 			expected: 2,
 		},
 	} {
-		chunked := fmtContainers(tc.cur, tc.last, syst2, syst1, lastRun, tc.chunks)
+		chunked := fmtContainers(tc.cur, tc.last, lastRun, tc.chunks)
 		assert.Len(t, chunked, tc.chunks, "len test %d", i)
 		total := 0
 		for _, c := range chunked {
@@ -59,7 +57,7 @@ func TestContainerChunking(t *testing.T) {
 		}
 		assert.Equal(t, tc.expected, total, "total test %d", i)
 
-		chunkedStat := fmtContainerStats(tc.cur, tc.last, syst2, syst1, lastRun, tc.chunks)
+		chunkedStat := fmtContainerStats(tc.cur, tc.last, lastRun, tc.chunks)
 		assert.Len(t, chunkedStat, tc.chunks, "len stat test %d", i)
 		total = 0
 		for _, c := range chunked {
@@ -67,17 +65,5 @@ func TestContainerChunking(t *testing.T) {
 		}
 		assert.Equal(t, tc.expected, total, "total test %d", i)
 
-	}
-}
-
-func BenchmarkAllContainers(b *testing.B) {
-	docker.InitDockerUtil(&docker.Config{
-		CacheDuration:  10 * time.Second,
-		CollectNetwork: true,
-	})
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		docker.AllContainers(&docker.ContainerListConfig{})
 	}
 }
