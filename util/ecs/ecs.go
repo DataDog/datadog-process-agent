@@ -61,6 +61,8 @@ type ecsUtil struct {
 	metadataSource string
 }
 
+// getMetadata will fetch the ECS metadata from either ecs-agent running in a separate
+// container or a local API when we're running in Fargate.
 func (e *ecsUtil) getMetadata() *agentpayload.ECSMetadataPayload {
 	switch e.metadataSource {
 	case "agent":

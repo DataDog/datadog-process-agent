@@ -140,7 +140,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 	}
 
 	// Set default values for proc/sys paths if unset.
-	// Don't set this is /host is not mounted to use context wihin container.
+	// Don't set this is /host is not mounted to use context within container.
+	// Generally only applicable for container-only cases like Fargate.
 	if docker.IsContainerized() && util.PathExists("/host") {
 		if v := os.Getenv("HOST_PROC"); v == "" {
 			os.Setenv("HOST_PROC", "/host/proc")
