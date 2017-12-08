@@ -17,6 +17,25 @@ func makeContainer(id string) *docker.Container {
 	}
 }
 
+func TestContainerLabelsToTagFormat(t *testing.T) {
+	ctrs := []*docker.Container{
+		makeContainer("foo"),
+		makeContainer("bar"),
+	}
+
+	ctrs[0].Labels = map[string]string{
+		"com.docker.test":     "value",
+		"org.docker.test-key": "test-value",
+	}
+
+	chunks := fmtContainers(ctrs, make([]*docker.Container, 0), time.Now(), 1)
+
+	expectedTags := []string{"com.docker.test:value", "org.docker.test-key:test-value"}
+	assert.Equal(t, expectedTags, chunks[0][0].Labels)
+
+	assert.Equal(t, 0, len(chunks[0][1].Labels))
+}
+
 func TestContainerChunking(t *testing.T) {
 	ctrs := []*docker.Container{
 		makeContainer("foo"),
