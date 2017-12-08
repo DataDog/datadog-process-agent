@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"fmt"
 	"runtime"
 	"time"
 
@@ -114,6 +115,13 @@ func fmtContainers(
 		lastIfStats := lastCtr.Network.SumInterfaces()
 		cpus := runtime.NumCPU()
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
+
+		labels := make([]string, 0, len(ctr.Labels))
+		for k, v := range ctr.Labels {
+			// Pre-formatting labels in the tag format <key>:<value>
+			labels = append(labels, fmt.Sprintf("%s:%s", k, v))
+		}
+
 		chunk = append(chunk, &model.Container{
 			Type:        ctr.Type,
 			Name:        ctr.Name,
@@ -136,6 +144,7 @@ func fmtContainers(
 			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastIfStats.BytesRcvd, lastRun),
 			NetSentBps:  calculateRate(ifStats.BytesSent, lastIfStats.BytesSent, lastRun),
 			Started:     ctr.StartedAt,
+			Labels:      labels,
 		})
 
 		if len(chunk) == perChunk {
