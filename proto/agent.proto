@@ -190,6 +190,7 @@ message Container {
 	Host host = 23; // Used post-resolution
 	int64 started = 24;
 	bytes byteKey = 25;
+	repeated string labels = 26;
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
