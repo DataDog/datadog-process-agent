@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"sort"
 	"testing"
 	"time"
 
@@ -28,8 +29,8 @@ func TestContainerLabelsToTagFormat(t *testing.T) {
 	}
 
 	chunks := fmtContainers(ctrs, make([]*docker.Container, 0), time.Now(), 1)
-
 	expectedTags := []string{"com.docker.test:value", "org.docker.test-key:test-value"}
+	sort.Strings(chunks[0][0].Labels)
 	assert.Equal(t, expectedTags, chunks[0][0].Labels)
 	assert.Equal(t, 0, len(chunks[0][1].Labels))
 }
