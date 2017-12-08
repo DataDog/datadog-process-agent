@@ -22,7 +22,6 @@ func TestContainerLabelsToTagFormat(t *testing.T) {
 		makeContainer("foo"),
 		makeContainer("bar"),
 	}
-
 	ctrs[0].Labels = map[string]string{
 		"com.docker.test":     "value",
 		"org.docker.test-key": "test-value",
@@ -32,7 +31,6 @@ func TestContainerLabelsToTagFormat(t *testing.T) {
 
 	expectedTags := []string{"com.docker.test:value", "org.docker.test-key:test-value"}
 	assert.Equal(t, expectedTags, chunks[0][0].Labels)
-
 	assert.Equal(t, 0, len(chunks[0][1].Labels))
 }
 
