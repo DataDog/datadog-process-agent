@@ -1,12 +1,12 @@
 package checks
 
 import (
-	"fmt"
 	"runtime"
 	"time"
 
 	log "github.com/cihub/seelog"
 
+	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
@@ -116,10 +116,9 @@ func fmtContainers(
 		cpus := runtime.NumCPU()
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 
-		labels := make([]string, 0, len(ctr.Labels))
-		for k, v := range ctr.Labels {
-			// Pre-formatting labels in the tag format <key>:<value>
-			labels = append(labels, fmt.Sprintf("%s:%s", k, v))
+		tags, err := tagger.Tag(docker.ContainerIDToEntityName(ctr.ID), true)
+		if err != nil {
+			tags = make([]string, 0)
 		}
 
 		chunk = append(chunk, &model.Container{
@@ -144,7 +143,7 @@ func fmtContainers(
 			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastIfStats.BytesRcvd, lastRun),
 			NetSentBps:  calculateRate(ifStats.BytesSent, lastIfStats.BytesSent, lastRun),
 			Started:     ctr.StartedAt,
-			Labels:      labels,
+			Tags:        tags,
 		})
 
 		if len(chunk) == perChunk {

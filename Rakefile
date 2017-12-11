@@ -81,7 +81,7 @@ task :protobuf do
   if protocv != 'libprotoc 3.3.0'
     fail "Requires protoc version 3.3.0"
   end
-  sh "protoc proto/agent.proto -I $GOPATH/src -I proto --gogofaster_out $GOPATH/src"
+  sh "protoc proto/agent.proto -I $GOPATH/src -I vendor -I proto --gogofaster_out $GOPATH/src"
 end
 
 desc "Datadog Process Agent CI script (fmt, vet, etc)"

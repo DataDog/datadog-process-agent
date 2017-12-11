@@ -15,6 +15,7 @@ import (
 	log "github.com/cihub/seelog"
 
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
+	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
@@ -117,7 +118,9 @@ func main() {
 		os.Exit(1)
 	}
 	if yamlConf != nil {
-		config.SetupDDAgentConfig(opts.configPath)
+		if err := config.SetupDDAgentConfig(opts.configPath); err == nil {
+			defer tagger.Stop()
+		}
 	}
 	cfg, err := config.NewAgentConfig(agentConf, yamlConf)
 	if err != nil {
