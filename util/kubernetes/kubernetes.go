@@ -15,6 +15,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	log "github.com/cihub/seelog"
 
+	"crypto/tls"
+	"crypto/x509"
 	"github.com/DataDog/datadog-process-agent/util/cache"
 )
 
@@ -72,7 +74,9 @@ func IsKubernetes() bool {
 
 // Kubelet constants
 const (
-	authTokenPath     = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	authTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	authCertPath  = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+
 	kubernetesMetaTTL = 3 * time.Minute
 
 	// Kube creator types, from owner reference.
@@ -274,6 +278,7 @@ func setPodCreator(pod *agentpayload.KubeMetadataPayload_Pod, ownerRefs []*Owner
 func locateKubelet(cfg *Config) (string, error) {
 	var err error
 	hostname := cfg.KubeletHost
+
 	if cfg.KubeletHost == "" {
 		du, err := docker.GetDockerUtil()
 		if err != nil {
@@ -286,13 +291,13 @@ func locateKubelet(cfg *Config) (string, error) {
 	}
 
 	url := fmt.Sprintf("http://%s:%d", hostname, cfg.KubeletHTTPPort)
-	if _, err := performKubeletQuery(url); err == nil {
+	if _, err = performKubeletQuery(url); err == nil {
 		return url, nil
 	}
 	log.Debugf("Couldn't query kubelet over HTTP (url:%s), assuming it's not in no_auth mode: %s", url, err)
 
 	url = fmt.Sprintf("https://%s:%d", hostname, cfg.KubeletHTTPSPort)
-	if _, err := performKubeletQuery(url); err == nil {
+	if _, err = performKubeletQuery(url); err == nil {
 		return url, nil
 	}
 
@@ -301,6 +306,8 @@ func locateKubelet(cfg *Config) (string, error) {
 
 // performKubeletQuery performs a GET query against kubelet and return the response body
 func performKubeletQuery(url string) ([]byte, error) {
+	var client *http.Client
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Could not create request: %s", err)
@@ -308,9 +315,22 @@ func performKubeletQuery(url string) ([]byte, error) {
 
 	if strings.HasPrefix(url, "https") {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", getAuthToken()))
+
+		cert, err := getCACert()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to load ca cert: %s", err)
+		}
+
+		certPool := x509.NewCertPool()
+		certPool.AppendCertsFromPEM(cert)
+
+		tr := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: certPool}}
+		client = &http.Client{Transport: tr}
+	} else {
+		client = http.DefaultClient
 	}
 
-	res, err := http.Get(url)
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("Error executing request to %s: %s", url, err)
 	}
@@ -331,4 +351,12 @@ func getAuthToken() string {
 		return ""
 	}
 	return string(token)
+}
+
+func getCACert() ([]byte, error) {
+	token, err := ioutil.ReadFile(authCertPath)
+	if err != nil {
+		return []byte{}, log.Errorf("Could not read cert from %s: %s", authTokenPath, err)
+	}
+	return token, nil
 }
