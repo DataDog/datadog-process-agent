@@ -139,14 +139,14 @@ func NewDefaultAgentConfig() *AgentConfig {
 		}
 	}
 
-	if IsRunningInKubernetes() {
+	if isRunningInKubernetes() {
 		ac.ContainerBlacklist = defaultKubeBlacklist
 	}
 
 	return ac
 }
 
-func IsRunningInKubernetes() bool {
+func isRunningInKubernetes() bool {
 	return os.Getenv("KUBERNETES_SERVICE_HOST") != ""
 }
 

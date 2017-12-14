@@ -113,6 +113,7 @@ func fmtContainers(
 		cpus := runtime.NumCPU()
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 
+		// Retrieves metadata tags
 		tags, err := tagger.Tag(docker.ContainerIDToEntityName(ctr.ID), true)
 		if err != nil {
 			tags = []string{}
@@ -120,9 +121,7 @@ func fmtContainers(
 
 		chunk = append(chunk, &model.Container{
 			Type:        ctr.Type,
-			Name:        ctr.Name,
 			Id:          ctr.ID,
-			Image:       ctr.Image,
 			CpuLimit:    float32(ctr.CPULimit),
 			UserPct:     calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun),
 			SystemPct:   calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
