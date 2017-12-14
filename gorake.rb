@@ -46,7 +46,7 @@ def go_build(program, opts={})
     puts msgcmd
     sh msgcmd
 
-    ver_array = agentversion.split(".")
+    ver_array = "0.99.0".split(".")
     rescmd = "windres --define MAJ_VER=#{ver_array[0]} --define MIN_VER=#{ver_array[1]} --define PATCH_VER=#{ver_array[2]} "
     rescmd += "-i agent/windows_resources/process-agent.rc --target=pe-x86-64 -O coff -o agent/rsrc.syso"
     sh rescmd
