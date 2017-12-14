@@ -10,6 +10,12 @@ import "github.com/DataDog/agent-payload/agent_payload.proto";
 // Message Types
 //
 
+message WatchedProcess {
+	string hostname = 1;
+	int32 pid = 2;
+	string watching = 3;
+}
+
 message ResCollector {
 	// Header must exist at position 1 for compatibility
 	// with older version of the Agent. We should be able
@@ -100,6 +106,7 @@ message CollectorReqStatus {
 message CollectorStatus {
 	int32 activeClients = 1;
 	int32 interval = 2;
+	repeated WatchedProcess watched = 3;
 }
 
 message Process {
