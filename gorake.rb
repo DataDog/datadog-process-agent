@@ -14,7 +14,7 @@ def go_build(program, opts={})
   dd = 'main'
   commit = `git rev-parse --short HEAD`.strip
   branch = `git rev-parse --abbrev-ref HEAD`.strip
-  date = `date +%FT%T%z`.strip
+  date = `date /T `.strip
   goversion = `go version`.strip
   agentversion = ENV["PROCESS_AGENT_VERSION"] || "0.99.0"
 
@@ -40,7 +40,18 @@ def go_build(program, opts={})
     ldflags << '-linkmode external'
     ldflags << '-extldflags \'-static\''
   end
+  if ENV['windres'] then
+    # first compile the message table, as it's an input to the resource file
+    msgcmd = "windmc --target pe-x86-64 -r agent/windows_resources agent/windows_resources/process-agent-msg.mc"
+    puts msgcmd
+    sh msgcmd
 
+    ver_array = agentversion.split(".")
+    rescmd = "windres --define MAJ_VER=#{ver_array[0]} --define MIN_VER=#{ver_array[1]} --define PATCH_VER=#{ver_array[2]} "
+    rescmd += "-i agent/windows_resources/process-agent.rc --target=pe-x86-64 -O coff -o agent/rsrc.syso"
+    sh rescmd
+
+  end
   sh "#{cmd} -ldflags \"#{ldflags.join(' ')}\" #{program}"
 end
 
