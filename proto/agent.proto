@@ -31,7 +31,7 @@ message CollectorProc {
 	int32 groupSize = 7;
 
 	// Optional metadata fields
-	datadog.agentpayload.KubeMetadataPayload kubernetes = 8;
+	datadog.agentpayload.KubeMetadataPayload kubernetes = 8; // DEPRECATED - left in place to support previous versions
 	datadog.agentpayload.ECSMetadataPayload ecs = 9;
 
 	repeated Container containers = 10;
@@ -65,7 +65,7 @@ message CollectorContainer {
 	int32 groupSize = 5;
 
 	// Optional metadata fields
-	datadog.agentpayload.KubeMetadataPayload kubernetes = 6;
+	datadog.agentpayload.KubeMetadataPayload kubernetes = 6; // DEPRECATED - left in place to support previous versions
 	datadog.agentpayload.ECSMetadataPayload ecs = 7;
 
 	// Post-resolved fields
@@ -166,9 +166,9 @@ enum ContainerHealth {
 
 message Container {
 	string type = 1;
-	string id = 2;
-	string name = 3;
-	string image = 4;
+	string id = 2; // DEPRECATED - left in place to support previous versions
+	string name = 3; // DEPRECATED - left in place to support previous versions
+	string image = 4; // DEPRECATED - left in place to support previous versions
 	float  cpuLimit = 5;
 	uint64 memoryLimit = 6;
 	// 7 is removed, do not use.

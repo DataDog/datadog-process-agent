@@ -121,7 +121,6 @@ func fmtContainers(
 
 		chunk = append(chunk, &model.Container{
 			Type:        ctr.Type,
-			Id:          ctr.ID,
 			CpuLimit:    float32(ctr.CPULimit),
 			UserPct:     calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun),
 			SystemPct:   calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
