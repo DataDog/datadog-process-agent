@@ -14,7 +14,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/util"
-	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"
 )
@@ -65,12 +64,6 @@ type AgentConfig struct {
 	ContainerWhitelist     []string
 	CollectDockerNetwork   bool
 	ContainerCacheDuration time.Duration
-
-	// Kubernetes
-	CollectKubernetesMetadata  bool
-	KubernetesKubeletHost      string
-	KubernetesHTTPKubeletPort  int
-	KubernetesHTTPSKubeletPort int
 }
 
 // CheckIsEnabled returns a bool indicating if the given check name is enabled.
@@ -132,11 +125,6 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Docker
 		ContainerCacheDuration: 10 * time.Second,
 		CollectDockerNetwork:   true,
-
-		// Kubernetes
-		CollectKubernetesMetadata:  true,
-		KubernetesHTTPKubeletPort:  10255,
-		KubernetesHTTPSKubeletPort: 10250,
 	}
 
 	// Set default values for proc/sys paths if unset.
@@ -150,12 +138,16 @@ func NewDefaultAgentConfig() *AgentConfig {
 			os.Setenv("HOST_SYS", "/host/sys")
 		}
 	}
-	// Kubernetes
-	if kubernetes.IsKubernetes() {
+
+	if IsRunningInKubernetes() {
 		ac.ContainerBlacklist = defaultKubeBlacklist
 	}
 
 	return ac
+}
+
+func IsRunningInKubernetes() bool {
+	return os.Getenv("KUBERNETES_SERVICE_HOST") != ""
 }
 
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
@@ -373,20 +365,6 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 	if v := os.Getenv("DD_CONTAINER_CACHE_DURATION"); v != "" {
 		durationS, _ := strconv.Atoi(v)
 		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
-	}
-
-	// Kubernetes config is set via environment only (for now).
-	if v := os.Getenv("DD_COLLECT_KUBERNETES_METADATA"); v == "false" {
-		c.CollectKubernetesMetadata = false
-	}
-	if v := os.Getenv("DD_KUBERNETES_KUBELET_HOST"); v != "" {
-		c.KubernetesKubeletHost = v
-	}
-	if v := os.Getenv("DD_KUBERNETES_KUBELET_HTTP_PORT"); v != "" {
-		c.KubernetesHTTPKubeletPort, _ = strconv.Atoi(v)
-	}
-	if v := os.Getenv("DD_KUBERNETES_KUBELET_HTTPS_PORT"); v == "false" {
-		c.KubernetesHTTPSKubeletPort, _ = strconv.Atoi(v)
 	}
 
 	return c

@@ -31,10 +31,10 @@ def go_build(program, opts={})
 
   cmd = opts[:cmd]
   cmd += ' -race' if opts[:race]
-  cmd += ' -tags docker'
+  cmd += ' -tags \'docker kubelet\''
 
   if opts[:static]
-    # Statically linked builds use musl-gcc for full support 
+    # Statically linked builds use musl-gcc for full support
     # of alpine and other machines with different gcc versions.
     ENV['CC'] = '/usr/local/musl/bin/musl-gcc'
     ldflags << '-linkmode external'
