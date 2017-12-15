@@ -33,6 +33,9 @@ type Collector struct {
 	runCounter    int64
 	enabledChecks []checks.Check
 
+	// watcher and profiling
+	watcher *checks.ProcessWatcher
+
 	// Controls the real-time interval, can change live.
 	realTimeInterval time.Duration
 	// Set to 1 if enabled 0 is not. We're using an integer
@@ -73,10 +76,11 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 		return Collector{}, err
 	}
 
+	watcher := checks.NewProcessWatcher()
 	enabledChecks := make([]checks.Check, 0)
 	for _, c := range checks.All {
 		if cfg.CheckIsEnabled(c.Name()) {
-			c.Init(cfg, sysInfo)
+			c.Init(cfg, sysInfo, watcher)
 			enabledChecks = append(enabledChecks, c)
 		}
 	}
@@ -88,6 +92,7 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 		groupID:       rand.Int31(),
 		httpClient:    http.Client{Transport: transport},
 		enabledChecks: enabledChecks,
+		watcher:       watcher,
 
 		// Defaults for real-time on start
 		realTimeInterval: 2 * time.Second,
@@ -259,6 +264,8 @@ func (l *Collector) updateStatus(s *model.CollectorStatus) {
 		atomic.StoreInt64(&l.realTimeEnabled, 0)
 	}
 
+	log.Infof("Status from intake: %#v", s)
+
 	interval := time.Duration(s.Interval) * time.Second
 	if interval != l.realTimeInterval {
 		l.realTimeInterval = interval
@@ -271,5 +278,11 @@ func (l *Collector) updateStatus(s *model.CollectorStatus) {
 			l.rtIntervalCh <- l.realTimeInterval
 		}
 		log.Infof("real time interval updated to %s", l.realTimeInterval)
+	}
+
+	for _, wp := range s.Watched {
+		if wp.Hostname == l.cfg.HostName {
+			l.watcher.In <- wp
+		}
 	}
 }

@@ -26,7 +26,7 @@ type ContainerCheck struct {
 }
 
 // Init initializes a ContainerCheck instance.
-func (c *ContainerCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
+func (c *ContainerCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo, watcher *ProcessWatcher) {
 	c.sysInfo = info
 }
 

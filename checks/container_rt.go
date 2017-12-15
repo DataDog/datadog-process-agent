@@ -21,7 +21,7 @@ type RTContainerCheck struct {
 }
 
 // Init initializes a RTContainerCheck instance.
-func (r *RTContainerCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
+func (r *RTContainerCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo, watcher *ProcessWatcher) {
 	r.sysInfo = sysInfo
 }
 

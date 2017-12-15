@@ -18,7 +18,8 @@ var Connections = &ConnectionsCheck{}
 type ConnectionsCheck struct{}
 
 // Init initializes a ConnectionsCheck instance.
-func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {}
+func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo, watcher *ProcessWatcher) {
+}
 
 // Name returns the name of the ConnectionsCheck.
 func (c *ConnectionsCheck) Name() string { return "connections" }

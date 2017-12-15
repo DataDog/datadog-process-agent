@@ -23,11 +23,13 @@ type RTProcessCheck struct {
 	lastProcs      map[int32]*process.FilledProcess
 	lastContainers []*docker.Container
 	lastRun        time.Time
+	watcher        *ProcessWatcher
 }
 
 // Init initializes a new RTProcessCheck instance.
-func (r *RTProcessCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
+func (r *RTProcessCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo, watcher *ProcessWatcher) {
 	r.sysInfo = info
+	r.watcher = watcher
 }
 
 // Name returns the name of the RTProcessCheck.
@@ -82,6 +84,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 			GroupSize:      int32(groupSize),
 			NumCpus:        int32(len(r.sysInfo.Cpus)),
 			TotalMemory:    r.sysInfo.TotalMemory,
+			WatchedResults: r.watcher.Results(),
 		})
 	}
 

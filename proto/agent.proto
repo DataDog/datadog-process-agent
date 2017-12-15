@@ -61,6 +61,13 @@ message CollectorRealTime {
 	int64 totalMemory = 9;
 
 	repeated ContainerStat containerStats = 10;
+	repeated WatchedResult watchedResults = 11;
+}
+
+message WatchedResult {
+	WatchedProcess process = 1;
+	string result = 2;
+	int64 lastSeen = 3;
 }
 
 message CollectorContainer {

@@ -10,7 +10,7 @@ import (
 // processed in another way (e.g. printed for debugging).
 // Before checks are used you must called Init.
 type Check interface {
-	Init(cfg *config.AgentConfig, info *model.SystemInfo)
+	Init(cfg *config.AgentConfig, info *model.SystemInfo, watcher *ProcessWatcher)
 	Name() string
 	Endpoint() string
 	RealTime() bool
