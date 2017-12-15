@@ -15,7 +15,7 @@ import (
 	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
 	"golang.org/x/sys/windows/svc/mgr"
-
+	log "github.com/cihub/seelog"
 )
 
 var elog debug.Log
@@ -119,9 +119,19 @@ func runService(isDebug bool) {
 	}
 	elog.Info(0x40000004, ServiceName)
 }
-
+func EnableLoggingToFile() {
+	seeConfig := `
+	<seelog minlevel="debug">
+	<outputs>
+		<rollingfile type="size" filename="c:\\ProgramData\\DataDog\\Logs\\process.log" maxsize="1000000" maxrolls="2" />
+	</outputs>
+</seelog>`
+	logger, _ := log.LoggerFromConfigAsBytes([]byte(seeConfig))
+	log.ReplaceLogger(logger)
+}
 // main is the main application entry point
 func main() {
+	EnableLoggingToFile()
 	isIntSess, err := svc.IsAnInteractiveSession()
 	if err != nil {
 		fmt.Printf("failed to determine if we are running in an interactive session: %v", err)

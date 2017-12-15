@@ -153,11 +153,8 @@ func printResults(cfg *config.AgentConfig, ch checks.Check) error {
 
 func runAgent(exit chan bool){
 // Set up a default config before parsing config so we log errors nicely.
-	// The default will be stdout since we can't assume any file is writeable.
-	if err := config.NewLoggerLevel("info", ""); err != nil {
-		panic(err)
-	}
-
+	log.Info("Running agent")
+	log.Flush()
 	if opts.version {
 		fmt.Println(versionString())
 		os.Exit(0)
