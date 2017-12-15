@@ -15,13 +15,13 @@ import (
 	log "github.com/cihub/seelog"
 
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
+	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util"
 	"github.com/DataDog/datadog-process-agent/util/ecs"
-	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
 var opts struct {
@@ -117,7 +117,9 @@ func main() {
 		os.Exit(1)
 	}
 	if yamlConf != nil {
-		config.SetupDDAgentConfig(opts.configPath)
+		if err := config.SetupDDAgentConfig(opts.configPath); err == nil {
+			defer tagger.Stop()
+		}
 	}
 	cfg, err := config.NewAgentConfig(agentConf, yamlConf)
 	if err != nil {
@@ -196,14 +198,6 @@ func main() {
 func initMetadataProviders(cfg *config.AgentConfig) {
 	if _, err := docker.GetDockerUtil(); err != nil && err != docker.ErrDockerNotAvailable {
 		log.Errorf("unable to initialize docker collection: %s", err)
-	}
-
-	if err := kubernetes.InitKubeUtil(&kubernetes.Config{
-		KubeletHost:      cfg.KubernetesKubeletHost,
-		KubeletHTTPPort:  cfg.KubernetesHTTPKubeletPort,
-		KubeletHTTPSPort: cfg.KubernetesHTTPSKubeletPort,
-	}); err != nil && err != kubernetes.ErrKubernetesNotAvailable {
-		log.Errorf("unable to initialize kubernetes collection: %s", err)
 	}
 
 	err := ecs.InitECSUtil()

@@ -6,13 +6,13 @@ import (
 
 	log "github.com/cihub/seelog"
 
+	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util/ecs"
-	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
 // Container is a singleton ContainerCheck.
@@ -57,7 +57,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 
 	// Fetch orchestrator metadata once per check.
 	ecsMeta := ecs.GetMetadata()
-	kubeMeta := kubernetes.GetMetadata()
 
 	groupSize := len(containers) / cfg.ProcLimit
 	if len(containers) != cfg.ProcLimit {
@@ -74,7 +73,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 			Containers: chunked[i],
 			GroupId:    groupID,
 			GroupSize:  int32(groupSize),
-			Kubernetes: kubeMeta,
 			Ecs:        ecsMeta,
 		})
 	}
@@ -114,11 +112,15 @@ func fmtContainers(
 		lastIfStats := lastCtr.Network.SumInterfaces()
 		cpus := runtime.NumCPU()
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
+
+		// Retrieves metadata tags
+		tags, err := tagger.Tag(docker.ContainerIDToEntityName(ctr.ID), true)
+		if err != nil {
+			tags = []string{}
+		}
+
 		chunk = append(chunk, &model.Container{
 			Type:        ctr.Type,
-			Name:        ctr.Name,
-			Id:          ctr.ID,
-			Image:       ctr.Image,
 			CpuLimit:    float32(ctr.CPULimit),
 			UserPct:     calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun),
 			SystemPct:   calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
@@ -136,6 +138,7 @@ func fmtContainers(
 			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastIfStats.BytesRcvd, lastRun),
 			NetSentBps:  calculateRate(ifStats.BytesSent, lastIfStats.BytesSent, lastRun),
 			Started:     ctr.StartedAt,
+			Tags:        tags,
 		})
 
 		if len(chunk) == perChunk {
