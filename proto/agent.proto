@@ -166,7 +166,7 @@ enum ContainerHealth {
 
 message Container {
 	string type = 1;
-	string id = 2; // DEPRECATED - left in place to support previous versions
+	string id = 2;
 	string name = 3; // DEPRECATED - left in place to support previous versions
 	string image = 4; // DEPRECATED - left in place to support previous versions
 	float  cpuLimit = 5;
