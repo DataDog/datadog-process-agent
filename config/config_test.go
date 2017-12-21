@@ -116,14 +116,12 @@ func TestDefaultConfig(t *testing.T) {
 	agentConfig := NewDefaultAgentConfig()
 
 	// assert that some sane defaults are set
-	assert.Equal(false, agentConfig.Enabled)
 	assert.Equal("info", agentConfig.LogLevel)
 	assert.Equal(true, agentConfig.AllowRealTime)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 
 	os.Setenv("DOCKER_DD_AGENT", "yes")
 	agentConfig = NewDefaultAgentConfig()
-	assert.Equal(agentConfig.Enabled, false)
 	assert.Equal(os.Getenv("HOST_PROC"), "")
 	assert.Equal(os.Getenv("HOST_SYS"), "")
 	os.Setenv("DOCKER_DD_AGENT", "no")
@@ -149,7 +147,6 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 	assert.Equal("apikey_12", agentConfig.APIKey)
 	assert.Equal(5, agentConfig.QueueSize)
 	assert.Equal(false, agentConfig.AllowRealTime)
-	assert.Equal(false, agentConfig.Enabled)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 }
 
@@ -182,7 +179,6 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 	assert.Equal("my-process-app.datadoghq.com", agentConfig.APIEndpoint.Hostname())
 	assert.Equal(10, agentConfig.QueueSize)
 	assert.Equal(false, agentConfig.AllowRealTime)
-	assert.Equal(false, agentConfig.Enabled)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 }
 

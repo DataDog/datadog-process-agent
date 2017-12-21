@@ -93,9 +93,13 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// This is a hardcoded URL so parsing it should not fail
 		panic(err)
 	}
+
+	_, err = container.GetContainers()
+	canAccessContainers := err == nil
+
 	ac := &AgentConfig{
 		// We'll always run inside of a container.
-		Enabled:       container.IsAvailable(),
+		Enabled:       canAccessContainers,
 		APIEndpoint:   u,
 		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
