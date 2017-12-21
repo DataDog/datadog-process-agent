@@ -11,7 +11,6 @@ import (
 	log "github.com/cihub/seelog"
 	"gopkg.in/yaml.v2"
 
-	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-process-agent/util"
 )
 
@@ -151,9 +150,14 @@ func SetupDDAgentConfig(configPath string) error {
 	if err := ddconfig.Datadog.ReadInConfig(); err != nil {
 		return fmt.Errorf("unable to load Datadog config file: %s", err)
 	}
-	if err := tagger.Init(); err != nil {
-		return fmt.Errorf("unable to initialize Datadog entity tagger: %s", err)
-	}
 
 	return nil
+}
+
+func init() {
+	defaultListeners := []ddconfig.Listeners{
+		{Name: "docker"},
+		{Name: "ecs"},
+	}
+	ddconfig.Datadog.SetDefault("listeners", defaultListeners)
 }

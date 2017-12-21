@@ -111,16 +111,22 @@ func main() {
 		log.Criticalf("Error reading dd-agent config: %s", err)
 		os.Exit(1)
 	}
+
 	yamlConf, err := config.NewYamlIfExists(opts.configPath)
 	if err != nil {
 		log.Criticalf("Error reading datadog.yaml: %s", err)
 		os.Exit(1)
 	}
 	if yamlConf != nil {
-		if err := config.SetupDDAgentConfig(opts.configPath); err == nil {
-			defer tagger.Stop()
-		}
+		config.SetupDDAgentConfig(opts.configPath)
 	}
+
+	if err := tagger.Init(); err == nil {
+		defer tagger.Stop()
+	} else {
+		log.Errorf("unable to initialize Datadog entity tagger: %s", err)
+	}
+
 	cfg, err := config.NewAgentConfig(agentConf, yamlConf)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
