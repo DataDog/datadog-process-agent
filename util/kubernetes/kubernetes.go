@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -18,34 +19,44 @@ const (
 	kubernetesMetaTTL          = 3 * time.Minute
 )
 
-var lastKubeErr string
+var (
+	// ErrKubernetesNotAvailable if the machine is not running in Kubernetes.
+	ErrKubernetesNotAvailable = errors.New("kubernetes not available")
+
+	globalKubeUtil *agentkubelet.KubeUtil
+	lastKubeErr    string
+)
+
+// InitKubeUtil initializes a global kubeUtil used by later function calls.
+// We keep track of our own global kubeUtil even though the agentkubelet already does to prevent a noisy log
+func InitKubeUtil() error {
+	if ku, err := agentkubelet.GetKubeUtil(); err == nil {
+		globalKubeUtil = ku
+		return nil
+	}
+	return ErrKubernetesNotAvailable
+}
 
 // GetContainerServiceTags returns a map of container ID to list of kubernetes service names.
 // Tags are prefixed with the identifier "kube_service:"
 func GetContainerServiceTags() (containerServices map[string][]string) {
 	containerServices = make(map[string][]string)
-	kubeMeta := getKubernetesMeta()
-	if kubeMeta == nil {
+	if globalKubeUtil == nil {
 		return
 	}
 
-	ku, err := agentkubelet.GetKubeUtil()
-	if err != nil {
-		return
-	}
-	localPods, err := ku.GetLocalPodList()
-	if err != nil {
-		log.Errorf("Unable to get local pods from kubelet: %s", err)
-		return
-	}
-
-	for _, p := range localPods {
-		services := findServicesTagsForPod(p, kubeMeta)
-		for _, c := range p.Status.Containers {
-			if len(services) > 0 {
-				containerServices[c.ID] = services
+	localPods, err := globalKubeUtil.GetLocalPodList()
+	if kubeMeta := getKubernetesMeta(); kubeMeta != nil && err == nil {
+		for _, p := range localPods {
+			services := findServicesTagsForPod(p, kubeMeta)
+			for _, c := range p.Status.Containers {
+				if len(services) > 0 {
+					containerServices[c.ID] = services
+				}
 			}
 		}
+	} else if err != nil {
+		log.Errorf("Unable to get local pods from kubelet: %s", err)
 	}
 	return
 }

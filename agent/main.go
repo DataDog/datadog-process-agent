@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util"
+	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
 var opts struct {
@@ -203,6 +204,10 @@ func main() {
 func initMetadataProviders() {
 	if _, err := docker.GetDockerUtil(); err != nil && err != docker.ErrDockerNotAvailable {
 		log.Errorf("unable to initialize docker collection: %s", err)
+	}
+
+	if err := kubernetes.InitKubeUtil(); err != nil {
+		log.Errorf("unable to initialize kubernetes collection: %s", err)
 	}
 }
 
