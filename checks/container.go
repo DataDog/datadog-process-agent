@@ -12,7 +12,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
-	"github.com/DataDog/datadog-process-agent/util/ecs"
+	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
 // Container is a singleton ContainerCheck.
@@ -55,9 +55,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 		return nil, nil
 	}
 
-	// Fetch orchestrator metadata once per check.
-	ecsMeta := ecs.GetMetadata()
-
 	groupSize := len(containers) / cfg.ProcLimit
 	if len(containers) != cfg.ProcLimit {
 		groupSize++
@@ -73,7 +70,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 			Containers: chunked[i],
 			GroupId:    groupID,
 			GroupSize:  int32(groupSize),
-			Ecs:        ecsMeta,
 		})
 	}
 
@@ -97,6 +93,8 @@ func fmtContainers(
 		lastByID[c.ID] = c
 	}
 
+	serviceTagsByID := kubernetes.GetServiceTagsByID()
+
 	perChunk := (len(containers) / chunks) + 1
 	chunked := make([][]*model.Container, chunks)
 	chunk := make([]*model.Container, 0, perChunk)
@@ -114,9 +112,15 @@ func fmtContainers(
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 
 		// Retrieves metadata tags
-		tags, err := tagger.Tag(docker.ContainerIDToEntityName(ctr.ID), true)
+		entityID := docker.ContainerIDToEntityName(ctr.ID)
+		tags, err := tagger.Tag(entityID, true)
 		if err != nil {
+			log.Error("Error retrieving tags for container: %s", err)
 			tags = []string{}
+		}
+
+		if services, ok := serviceTagsByID[entityID]; ok {
+			tags = append(tags, services...)
 		}
 
 		chunk = append(chunk, &model.Container{

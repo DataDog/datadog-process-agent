@@ -37,7 +37,7 @@ end
 
 desc "Test Datadog Process agent"
 task :test do
-  sh "go list ./... | grep -v vendor | xargs go test -tags docker"
+  sh "go list ./... | grep -v vendor | xargs go test -tags 'docker kubelet'"
 end
 
 desc "Run Datadog Process agent"

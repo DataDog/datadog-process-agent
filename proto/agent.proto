@@ -32,7 +32,7 @@ message CollectorProc {
 
 	// Optional metadata fields
 	datadog.agentpayload.KubeMetadataPayload kubernetes = 8; // DEPRECATED - left in place to support previous versions
-	datadog.agentpayload.ECSMetadataPayload ecs = 9;
+	datadog.agentpayload.ECSMetadataPayload ecs = 9; // DEPRECATED - left in place to support previous versions
 
 	repeated Container containers = 10;
 }
@@ -66,7 +66,7 @@ message CollectorContainer {
 
 	// Optional metadata fields
 	datadog.agentpayload.KubeMetadataPayload kubernetes = 6; // DEPRECATED - left in place to support previous versions
-	datadog.agentpayload.ECSMetadataPayload ecs = 7;
+	datadog.agentpayload.ECSMetadataPayload ecs = 7; // DEPRECATED - left in place to support previous versions
 
 	// Post-resolved fields
 	Host host = 8;
