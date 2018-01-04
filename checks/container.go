@@ -93,7 +93,7 @@ func fmtContainers(
 		lastByID[c.ID] = c
 	}
 
-	containerServiceTags := kubernetes.GetContainerServiceTags()
+	serviceTagsByID := kubernetes.GetServiceTagsByID()
 
 	perChunk := (len(containers) / chunks) + 1
 	chunked := make([][]*model.Container, chunks)
@@ -115,12 +115,12 @@ func fmtContainers(
 		entityID := docker.ContainerIDToEntityName(ctr.ID)
 		tags, err := tagger.Tag(entityID, true)
 		if err != nil {
-			log.Infof("Error retrieving tags for container: %s", err)
+			log.Error("Error retrieving tags for container: %s", err)
 			tags = []string{}
 		}
 
-		if _, isPresent := containerServiceTags[entityID]; isPresent {
-			tags = append(tags, containerServiceTags[entityID]...)
+		if services, ok := serviceTagsByID[entityID]; ok {
+			tags = append(tags, services...)
 		}
 
 		chunk = append(chunk, &model.Container{

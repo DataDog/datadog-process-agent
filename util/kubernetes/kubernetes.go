@@ -30,16 +30,18 @@ var (
 // InitKubeUtil initializes a global kubeUtil used by later function calls.
 // We keep track of our own global kubeUtil even though the agentkubelet already does to prevent a noisy log
 func InitKubeUtil() error {
-	if ku, err := agentkubelet.GetKubeUtil(); err == nil {
+	ku, err := agentkubelet.GetKubeUtil()
+	if err == nil {
 		globalKubeUtil = ku
 		return nil
 	}
+	log.Debugf("Failed to initialize kube util: %s", err)
 	return ErrKubernetesNotAvailable
 }
 
-// GetContainerServiceTags returns a map of container ID to list of kubernetes service names.
+// GetServiceTagsByID returns a map of container ID to list of kubernetes service names.
 // Tags are prefixed with the identifier "kube_service:"
-func GetContainerServiceTags() (containerServices map[string][]string) {
+func GetServiceTagsByID() (containerServices map[string][]string) {
 	containerServices = make(map[string][]string)
 	if globalKubeUtil == nil {
 		return
