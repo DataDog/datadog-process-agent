@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"fmt"
 	"time"
 
 	agentpayload "github.com/DataDog/agent-payload/gogen"
@@ -12,16 +13,17 @@ import (
 )
 
 const (
-	cacheKey          = "kubernetes_meta"
-	kubernetesMetaTTL = 3 * time.Minute
+	cacheKey                   = "kubernetes_meta"
+	kubernetesServiceTagPrefix = "kube_service:"
+	kubernetesMetaTTL          = 3 * time.Minute
 )
 
 var lastKubeErr string
 
-// GetKubernetesServices returns a mapping of container ID to list of service names
-func GetKubernetesServices() (containerServices map[string][]string) {
+// GetContainerServiceTags returns a map of container ID to list of kubernetes service names.
+// Tags are prefixed with the identifier "kube_service:"
+func GetContainerServiceTags() (containerServices map[string][]string) {
 	containerServices = make(map[string][]string)
-
 	kubeMeta := getKubernetesMeta()
 	if kubeMeta == nil {
 		return
@@ -38,16 +40,17 @@ func GetKubernetesServices() (containerServices map[string][]string) {
 	}
 
 	for _, p := range localPods {
-		services := findServicesForPod(p, kubeMeta)
+		services := findServicesTagsForPod(p, kubeMeta)
 		for _, c := range p.Status.Containers {
-			containerServices[c.ID] = services
+			if len(services) > 0 {
+				containerServices[c.ID] = services
+			}
 		}
 	}
-
 	return
 }
 
-func findServicesForPod(pod *agentkubelet.Pod, kubeMeta *agentpayload.KubeMetadataPayload) []string {
+func findServicesTagsForPod(pod *agentkubelet.Pod, kubeMeta *agentpayload.KubeMetadataPayload) []string {
 	names := make([]string, 0)
 	for _, s := range kubeMeta.Services {
 		if s.Namespace != pod.Metadata.Namespace {
@@ -61,7 +64,7 @@ func findServicesForPod(pod *agentkubelet.Pod, kubeMeta *agentpayload.KubeMetada
 			}
 		}
 		if match {
-			names = append(names, s.Name)
+			names = append(names, fmt.Sprintf("%s%s", kubernetesServiceTagPrefix, s.Name))
 		}
 	}
 	return names
