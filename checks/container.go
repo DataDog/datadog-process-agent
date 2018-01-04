@@ -12,7 +12,6 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
-	"github.com/DataDog/datadog-process-agent/util/ecs"
 )
 
 // Container is a singleton ContainerCheck.
@@ -55,9 +54,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 		return nil, nil
 	}
 
-	// Fetch orchestrator metadata once per check.
-	ecsMeta := ecs.GetMetadata()
-
 	groupSize := len(containers) / cfg.ProcLimit
 	if len(containers) != cfg.ProcLimit {
 		groupSize++
@@ -73,7 +69,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 			Containers: chunked[i],
 			GroupId:    groupID,
 			GroupSize:  int32(groupSize),
-			Ecs:        ecsMeta,
 		})
 	}
 

@@ -21,7 +21,6 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util"
-	"github.com/DataDog/datadog-process-agent/util/ecs"
 )
 
 var opts struct {
@@ -155,7 +154,7 @@ func main() {
 
 	// Initialize the metadata providers so the singletons are available.
 	// This will log any unknown errors
-	initMetadataProviders(cfg)
+	initMetadataProviders()
 
 	// update docker socket path in info
 	dockerSock, err := util.GetDockerSocketPath()
@@ -201,14 +200,9 @@ func main() {
 	cl.run()
 }
 
-func initMetadataProviders(cfg *config.AgentConfig) {
+func initMetadataProviders() {
 	if _, err := docker.GetDockerUtil(); err != nil && err != docker.ErrDockerNotAvailable {
 		log.Errorf("unable to initialize docker collection: %s", err)
-	}
-
-	err := ecs.InitECSUtil()
-	if err != nil && err != ecs.ErrECSNotAvailable {
-		log.Errorf("unable to initialize ECS collection: %s", err)
 	}
 }
 

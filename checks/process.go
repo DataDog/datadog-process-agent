@@ -15,7 +15,6 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
-	"github.com/DataDog/datadog-process-agent/util/ecs"
 )
 
 // Process is a singleton ProcessCheck.
@@ -77,9 +76,6 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		return nil, nil
 	}
 
-	// Fetch orchestrator metadata once per check.
-	ecsMeta := ecs.GetMetadata()
-
 	chunkedProcs := fmtProcesses(cfg, procs, p.lastProcs,
 		containers, cpuTimes[0], p.lastCPUTime, p.lastRun)
 	// In case we skip every process..
@@ -100,7 +96,6 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 			Containers: chunkedContainers[i],
 			GroupId:    groupID,
 			GroupSize:  int32(groupSize),
-			Ecs:        ecsMeta,
 		})
 	}
 
