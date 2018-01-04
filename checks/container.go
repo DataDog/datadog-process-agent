@@ -112,15 +112,15 @@ func fmtContainers(
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 
 		// Retrieves metadata tags
-		entityId := docker.ContainerIDToEntityName(ctr.ID)
-		tags, err := tagger.Tag(entityId, true)
+		entityID := docker.ContainerIDToEntityName(ctr.ID)
+		tags, err := tagger.Tag(entityID, true)
 		if err != nil {
 			log.Infof("Error retrieving tags for container: %s", err)
 			tags = []string{}
 		}
 
-		if _, isPresent := containerServiceTags[entityId]; isPresent {
-			tags = append(tags, containerServiceTags[entityId]...)
+		if _, isPresent := containerServiceTags[entityID]; isPresent {
+			tags = append(tags, containerServiceTags[entityID]...)
 		}
 
 		chunk = append(chunk, &model.Container{
