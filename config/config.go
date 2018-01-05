@@ -13,6 +13,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
+	"github.com/DataDog/datadog-agent/pkg/util/ecs"
 	"github.com/DataDog/datadog-process-agent/util"
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"
@@ -267,11 +268,13 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		return nil, err
 	}
 
-	hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv)
-	if err != nil {
-		hostname = ""
+	if ecs.IsFargateInstance() { // Fargate tasks should have no concept of host names.
+		cfg.HostName = ""
+	} else if hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv); err == nil {
+		cfg.HostName = hostname
+	} else {
+		cfg.HostName = ""
 	}
-	cfg.HostName = hostname
 
 	return cfg, nil
 }
