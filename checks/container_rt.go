@@ -4,10 +4,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
+	"github.com/DataDog/datadog-process-agent/util/container"
 )
 
 // RTContainer is a singleton RTContainerCheck.

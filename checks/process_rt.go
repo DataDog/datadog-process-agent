@@ -5,11 +5,12 @@ import (
 
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
+	log "github.com/cihub/seelog"
 
-	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
+	"github.com/DataDog/datadog-process-agent/util/container"
 )
 
 // RTProcess is a singleton RTProcessCheck.
@@ -56,7 +57,8 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	}
 	containers, err := container.GetContainers()
 	if err != nil && err != docker.ErrDockerNotAvailable {
-		return nil, err
+		containers = []*docker.Container{}
+		log.Warn("Omitting container info for process check due to error: %s", err)
 	}
 
 	// End check early if this is our first run.
