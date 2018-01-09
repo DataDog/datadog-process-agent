@@ -274,6 +274,8 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		// Fargate tasks should have no concept of host names, so we're using the task ARN.
 		if taskMeta, err := ecsutil.GetTaskMetadata(); err == nil {
 			cfg.HostName = fmt.Sprintf("fargate_task:%s", taskMeta.TaskARN)
+		} else {
+			log.Errorf("Failed to retrieve Fargate task metadata: %s", err)
 		}
 	} else if hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv); err == nil {
 		cfg.HostName = hostname
