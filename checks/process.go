@@ -62,9 +62,11 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if err != nil {
 		return nil, err
 	}
+
 	containers, err := container.GetContainers()
 	if err != nil && err != docker.ErrDockerNotAvailable {
-		return nil, err
+		containers = []*docker.Container{}
+		log.Warn("Omitting container info for process check due to error: %s", err)
 	}
 
 	// End check early if this is our first run.

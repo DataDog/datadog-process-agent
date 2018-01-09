@@ -13,7 +13,9 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
+	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
 	"github.com/DataDog/datadog-process-agent/util"
+
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"
 )
@@ -267,11 +269,17 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		return nil, err
 	}
 
-	hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv)
-	if err != nil {
-		hostname = ""
+	cfg.HostName = ""
+	if ecsutil.IsFargateInstance() {
+		// Fargate tasks should have no concept of host names, so we're using the task ARN.
+		if taskMeta, err := ecsutil.GetTaskMetadata(); err == nil {
+			cfg.HostName = fmt.Sprintf("fargate_task:%s", taskMeta.TaskARN)
+		} else {
+			log.Errorf("Failed to retrieve Fargate task metadata: %s", err)
+		}
+	} else if hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv); err == nil {
+		cfg.HostName = hostname
 	}
-	cfg.HostName = hostname
 
 	return cfg, nil
 }
