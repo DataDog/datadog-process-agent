@@ -131,6 +131,7 @@ func EnableLoggingToFile() {
 }
 // main is the main application entry point
 func main() {
+	fmt.Printf("Main()")
 	EnableLoggingToFile()
 	isIntSess, err := svc.IsAnInteractiveSession()
 	if err != nil {
