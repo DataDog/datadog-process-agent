@@ -1,5 +1,19 @@
 require "./gorake.rb"
 
+def os
+    case RUBY_PLATFORM
+    when /linux/
+      "linux"
+    when /darwin/
+      "darwin"
+    when /x64-mingw32/
+      "windows"
+    else
+      fail 'Unsupported OS'
+    end
+  end
+  
+  
 desc "Setup dependencies"
 task :deps do
   system("go get github.com/Masterminds/glide")
@@ -11,11 +25,18 @@ task :default => [:ci]
 
 desc "Build Datadog Process agent"
 task :build do
+  case os
+  when "windows"
+    bin = "process-agent.exe"
+  else 
+    bin = "process-agent"
+  end
   go_build("github.com/DataDog/datadog-process-agent/agent", {
-    :cmd => "go build -a -o process-agent",
+    :cmd => "go build -a -o #{bin}",
     :race => ENV['GO_RACE'] == 'true',
     :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
-    :static => ENV['PROCESS_AGENT_STATIC'] == 'true'
+    :static => ENV['PROCESS_AGENT_STATIC'] == 'true',
+    :os => os
   })
 end
 
@@ -32,7 +53,13 @@ end
 
 desc "Install Datadog Process agent"
 task :install do
-  go_build("github.com/DataDog/datadog-process-agent/agent", :cmd=> "go build -i -o $GOPATH/bin/dd-process-agent")
+  case os
+  when "windows"
+    bin = "process-agent.exe"
+  else 
+    bin = "process-agent"
+  end    
+  go_build("github.com/DataDog/datadog-process-agent/agent", :cmd=> "go build -i -o $GOPATH/bin/#{bin}")
 end
 
 desc "Test Datadog Process agent"

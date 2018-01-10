@@ -121,9 +121,8 @@ func (l *Collector) runCheck(c checks.Check) {
 	}
 }
 
-func (l *Collector) run() {
+func (l *Collector) run(exit chan bool) {
 	log.Infof("Starting process-agent for host=%s, endpoint=%s, enabled checks=%v", l.cfg.HostName, l.cfg.APIEndpoint, l.cfg.EnabledChecks)
-	exit := make(chan bool)
 	go handleSignals(exit)
 	heartbeat := time.NewTicker(15 * time.Second)
 	queueSizeTicker := time.NewTicker(10 * time.Second)
