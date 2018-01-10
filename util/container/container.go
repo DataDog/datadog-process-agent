@@ -66,11 +66,12 @@ func GetContainers() ([]*docker.Container, []error) {
 	}
 
 	if succeeded { // Some container access method succeeded so drop errors from other access methods
-		return containers, []error{}
-	} else {
-		for _, e := range errs {
-			log.Error(e)
-		}
-		return containers, errs
+		errs = []error{}
 	}
+
+	for _, e := range errs {
+		log.Error(e)
+	}
+
+	return containers, errs
 }
