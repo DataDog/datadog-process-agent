@@ -55,10 +55,10 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if err != nil {
 		return nil, err
 	}
-	containers, err := container.GetContainers()
-	if err != nil && err != docker.ErrDockerNotAvailable {
+	containers, errs := container.GetContainers()
+	if len(errs) != 0 {
 		containers = []*docker.Container{}
-		log.Warn("Omitting container info for process check due to error: %s", err)
+		log.Warn("omitting container info for process check due to retrieval errors")
 	}
 
 	// End check early if this is our first run.

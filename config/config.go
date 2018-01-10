@@ -96,8 +96,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 		panic(err)
 	}
 
-	_, err = container.GetContainers()
-	canAccessContainers := err == nil
+	_, errs := container.GetContainers()
+	canAccessContainers := len(errs) == 0
 
 	ac := &AgentConfig{
 		// We'll always run inside of a container.
