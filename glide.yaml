@@ -1,28 +1,33 @@
 package: github.com/DataDog/datadog-process-agent
 import:
   - package: github.com/DataDog/datadog-agent
-    vcs: git
-    version: master
-    repo: git@github.com:DataDog/datadog-agent.git
+    version: f27f9c7a60207120c8ee50427d93a84050740a89
   - package: github.com/DataDog/agent-payload
-  - package: github.com/DataDog/gopsutil
+    version: fb25fcedf155de94e762080a914adb5436d45b9c
     subpackages:
-    - cpu
-    - host
-    - mem
-    - net
-    - process
+    - gogen
+  - package: github.com/DataDog/gopsutil
+    version: df069044fce2744779f4ba1fb60c12938b4f2951
+  - package: github.com/shirou/gopsutil
+    version: e30b7839cd6161b2fbef5f187377a345157abe04
   - package: github.com/DataDog/zstd
+    version: 2bf71ec4836011b92dc78df3b9ace6b40e65f7df
   - package: github.com/cihub/seelog
+    version: f561c5e57575bb1e0a2167028b7339b3a8d16fb4
   - package: github.com/gogo/protobuf
+    version: d76fbc1373015ced59b43ac267f28d546b955683
     subpackages:
     - proto
   - package: github.com/go-ini/ini
+    version: d3de07a94d22b4a0972deb4b96d790c2c0ce8333
   - package: github.com/ericchiang/k8s
-  - package: github.com/DataDog/datadog-go/statsd
+    version: 860d64039a0d98e149452f9687f26eb3636d5038
+  - package: github.com/DataDog/datadog-go
+    version: a9c7a9896c1847c9cc2b068a2ae68e9d74540a5d
+    subpackages:
+    - statsd
 testImport:
   - package: github.com/stretchr/testify
-    version: ^1.1.3
     subpackages:
     - assert
 
