@@ -48,6 +48,29 @@ func fmtContainers(
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.Container {
-	chunked := make([][]*model.Container, 0)
+	lastByID := make(map[string]*docker.Container, len(containers))
+	for _, c := range lastContainers {
+		lastByID[c.ID] = c
+	}
+
+	perChunk := (len(containers) / chunks) + 1
+	chunked := make([][]*model.Container, chunks)
+	chunk := make([]*model.Container, 0, perChunk)
+	i := 0
+	for _, _ = range containers {
+
+		chunk = append(chunk, &model.Container{
+			
+		})
+
+		if len(chunk) == perChunk {
+			chunked[i] = chunk
+			chunk = make([]*model.Container, 0, perChunk)
+			i++
+		}
+	}
+	if len(chunk) > 0 {
+		chunked[i] = chunk
+	}
 	return chunked
 }

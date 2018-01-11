@@ -37,20 +37,7 @@ var winopts struct {
 }
 
 func init() {
-	flag.StringVar(&opts.configPath, "config", defaultConfigPath, "Path to datadog.yaml config")
-	flag.StringVar(&opts.ddConfigPath, "ddconfig", defaultOldConfigPath, "Path to dd-agent config")
-	flag.BoolVar(&opts.info, "info", false, "Show info about running process agent and exit")
-	flag.BoolVar(&opts.version, "version", false, "Print the version and exit")
-	flag.StringVar(&opts.check, "check", "", "Run a specific check and print the results. Choose from: process, connections, realtime")
-
-	// windows-specific options for installing the service, uninstalling the service, etc.
-	flag.BoolVar(&winopts.installService, "install-service", false, "Install the trace agent to the Service Control Manager")
-	flag.BoolVar(&winopts.uninstallService, "uninstall-service", false, "Remove the trace agent from the Service Control Manager")
-	flag.BoolVar(&winopts.startService, "start-service", false, "Starts the trace agent service")
-	flag.BoolVar(&winopts.stopService, "stop-service", false, "Stops the trace agent service")
-	
-	flag.Parse()
-
+	fmt.Printf("main_windows.init()")
 	
 }
 
@@ -88,9 +75,7 @@ func (m *myservice) Execute(args []string, r <-chan svc.ChangeRequest, changes c
 	}()
 	elog.Info(0x40000003, ServiceName)
 	runAgent(exit)
-	for _ = range exit {
-
-	}
+	
 	changes <- svc.Status{State: svc.Stopped}
 	return
 }
@@ -131,7 +116,19 @@ func EnableLoggingToFile() {
 }
 // main is the main application entry point
 func main() {
-	fmt.Printf("Main()")
+	flag.StringVar(&opts.configPath, "config", defaultConfigPath, "Path to datadog.yaml config")
+	flag.StringVar(&opts.ddConfigPath, "ddconfig", defaultOldConfigPath, "Path to dd-agent config")
+	flag.BoolVar(&opts.info, "info", false, "Show info about running process agent and exit")
+	flag.BoolVar(&opts.version, "version", false, "Print the version and exit")
+	flag.StringVar(&opts.check, "check", "", "Run a specific check and print the results. Choose from: process, connections, realtime")
+
+	// windows-specific options for installing the service, uninstalling the service, etc.
+	flag.BoolVar(&winopts.installService, "install-service", false, "Install the trace agent to the Service Control Manager")
+	flag.BoolVar(&winopts.uninstallService, "uninstall-service", false, "Remove the trace agent from the Service Control Manager")
+	flag.BoolVar(&winopts.startService, "start-service", false, "Starts the trace agent service")
+	flag.BoolVar(&winopts.stopService, "stop-service", false, "Stops the trace agent service")
+	
+	flag.Parse()
 	EnableLoggingToFile()
 	isIntSess, err := svc.IsAnInteractiveSession()
 	if err != nil {
@@ -145,7 +142,10 @@ func main() {
 	// make sure more than one wasn't specified
 	optcount := 0
 	if winopts.installService {
+		fmt.Printf("Installservice")
 		optcount++
+	} else {
+		fmt.Printf("no Installservice")
 	}
 	if winopts.uninstallService {
 		optcount++
@@ -193,9 +193,6 @@ func main() {
 	// Invoke the Agent
 	runAgent(exit)
 
-	for _ = range exit {
-
-	}
 }
 
 func startService() error {

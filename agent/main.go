@@ -19,14 +19,18 @@ func main() {
 	flag.StringVar(&opts.check, "check", "", "Run a specific check and print the results. Choose from: process, connections, realtime")
 	flag.Parse()
 
+	// Set up a default config before parsing config so we log errors nicely.
+	// The default will be stdout since we can't assume any file is writeable.
+	if err := config.NewLoggerLevel("info", ""); err != nil {
+		panic(err)
+	}
+	
 	exit := make(chan struct{})
 	
 	// Invoke the Agent
 	runAgent(exit)
 
-	for _ = range exit {
-
-	}
+	
 	
 }
 

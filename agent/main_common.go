@@ -68,11 +68,7 @@ Exiting.`
 
 
 func runAgent(exit chan bool){
-// Set up a default config before parsing config so we log errors nicely.
-	// The default will be stdout since we can't assume any file is writeable.
-	if err := config.NewLoggerLevel("info", ""); err != nil {
-		panic(err)
-	}
+
 
 	if opts.version {
 		fmt.Println(versionString())
@@ -186,6 +182,9 @@ func runAgent(exit chan bool){
 		return
 	}
 	cl.run(exit)
+	for _ = range exit {
+
+	}
 }
 
 

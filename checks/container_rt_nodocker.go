@@ -46,6 +46,27 @@ func fmtContainerStats(
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.ContainerStat {
-	chunked := make([][]*model.ContainerStat, 0)
+	lastByID := make(map[string]*docker.Container, len(containers))
+	for _, c := range lastContainers {
+		lastByID[c.ID] = c
+	}
+
+	perChunk := (len(containers) / chunks) + 1
+	chunked := make([][]*model.ContainerStat, chunks)
+	chunk := make([]*model.ContainerStat, 0, perChunk)
+	i := 0
+	for _, _ = range containers {
+		chunk = append(chunk, &model.ContainerStat{
+		})
+		if len(chunk) == perChunk {
+			chunked[i] = chunk
+			chunk = make([]*model.ContainerStat, 0, perChunk)
+			i++
+		}
+	}
+	// Add the last chunk if data remains.
+	if len(chunk) > 0 {
+		chunked[i] = chunk
+	}
 	return chunked
 }
