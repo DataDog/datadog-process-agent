@@ -182,19 +182,20 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 			log.Errorf("error parsing proxy settings, not using a proxy: %s", err)
 		}
 
-		if v, _ := agentIni.Get("Main", "process_agent_enabled"); v == "false" {
-			cfg.Enabled = false
-		} else if v == "true" {
+		v, _ := agentIni.Get("Main", "process_agent_enabled")
+		if enabled, err := isAffirmative(v); enabled {
 			cfg.Enabled = true
 			cfg.EnabledChecks = processChecks
+		} else if !enabled && err == nil {
+			cfg.Enabled = false
 		}
 
 		cfg.StatsdHost = agentIni.GetDefault("Main", "bind_host", cfg.StatsdHost)
 		// non_local_traffic is a shorthand in dd-agent configuration that is
 		// equivalent to setting `bind_host: 0.0.0.0`. Respect this flag
 		// since it defaults to true in Docker and saves us a command-line param
-		v, _ := agentIni.Get("Main", "non_local_traffic")
-		if strings.ToLower(v) == "yes" || strings.ToLower(v) == "true" {
+		v, _ = agentIni.Get("Main", "non_local_traffic")
+		if enabled, _ := isAffirmative(v); enabled {
 			cfg.StatsdHost = "0.0.0.0"
 		}
 		cfg.StatsdPort = agentIni.GetIntDefault("Main", "dogstatsd_port", cfg.StatsdPort)
@@ -287,11 +288,11 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 // mergeEnv applies overrides from environment variables to the trace agent configuration
 func mergeEnv(c *AgentConfig) *AgentConfig {
 	var err error
-	if v := os.Getenv("DD_PROCESS_AGENT_ENABLED"); v == "false" {
-		c.Enabled = false
-	} else if v == "true" {
+	if enabled, err := isAffirmative(os.Getenv("DD_PROCESS_AGENT_ENABLED")); enabled {
 		c.Enabled = true
 		c.EnabledChecks = processChecks
+	} else if !enabled && err == nil {
+		c.Enabled = false
 	}
 
 	if v := os.Getenv("DD_HOSTNAME"); v != "" {
@@ -391,6 +392,14 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 		}
 	}
 	return false
+}
+
+func isAffirmative(value string) (bool, error) {
+	if value == "" {
+		return false, fmt.Errorf("value is empty")
+	}
+	v := strings.ToLower(value)
+	return v == "true" || v == "yes" || v == "1", nil
 }
 
 // getHostname shells out to obtain the hostname used by the infra agent

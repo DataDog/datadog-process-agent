@@ -1,8 +1,41 @@
-hash: 0b37d87882e4d7bf17af4b762864d4703faf28ade3bbf3d56b0c52b9c4e25686
-updated: 2017-06-27T14:55:21.947132712-04:00
+hash: cbd5cd00625ad500dcb52bb7af74ad810d2623577d271ddd92baf6f8fef30334
+updated: 2018-01-11T12:02:20.996978309-05:00
 imports:
+- name: github.com/aws/aws-sdk-go
+  version: 49c3892b61af1d4996292a3025f36e4dfa25eaee
+  subpackages:
+  - aws
+  - aws/awserr
+  - aws/awsutil
+  - aws/client
+  - aws/client/metadata
+  - aws/corehandlers
+  - aws/credentials
+  - aws/credentials/ec2rolecreds
+  - aws/defaults
+  - aws/ec2metadata
+  - aws/request
+  - aws/session
+  - private/endpoints
+  - private/protocol
+  - private/protocol/ec2query
+  - private/protocol/query
+  - private/protocol/query/queryutil
+  - private/protocol/rest
+  - private/protocol/restxml
+  - private/protocol/xml/xmlutil
+  - private/signer/v4
+  - private/waiter
+  - service/cloudfront/sign
+  - service/ec2
+  - service/s3
 - name: github.com/cihub/seelog
   version: f561c5e57575bb1e0a2167028b7339b3a8d16fb4
+  subpackages:
+  - archive
+  - archive/gzip
+  - archive/tar
+  - archive/zip
 - name: github.com/DataDog/agent-payload
   version: fb25fcedf155de94e762080a914adb5436d45b9c
   subpackages:
@@ -10,7 +43,10 @@ imports:
 - name: github.com/DataDog/datadog-agent
   version: f27f9c7a60207120c8ee50427d93a84050740a89
   subpackages:
+  - cmd/agent/common/signals
+  - pkg/collector/check
   - pkg/config
+  - pkg/diagnose/diagnosis
   - pkg/forwarder
   - pkg/metadata
   - pkg/metadata/common
@@ -19,11 +55,27 @@ imports:
   - pkg/metadata/kubernetes
   - pkg/metadata/resources
   - pkg/metadata/v5
+  - pkg/pidfile
+  - pkg/serializer
+  - pkg/serializer/marshaler
+  - pkg/serializer/split
+  - pkg/tagger
+  - pkg/tagger/collectors
+  - pkg/tagger/utils
   - pkg/util
+  - pkg/util/azure
+  - pkg/util/cache
+  - pkg/util/cloudfoundry
+  - pkg/util/compression
+  - pkg/util/container
   - pkg/util/docker
   - pkg/util/ec2
   - pkg/util/ecs
   - pkg/util/gce
+  - pkg/util/hostname
+  - pkg/util/kubernetes
+  - pkg/util/kubernetes/kubelet
+  - pkg/util/retry
   - pkg/version
 - name: github.com/DataDog/datadog-go
   version: a9c7a9896c1847c9cc2b068a2ae68e9d74540a5d
@@ -129,8 +181,10 @@ imports:
 - name: github.com/gogo/protobuf
   version: d76fbc1373015ced59b43ac267f28d546b955683
   subpackages:
+  - gogoproto
   - jsonpb
   - proto
+  - protoc-gen-gogo/descriptor
 - name: github.com/golang/protobuf
   version: c9c7427a2a70d2eb3bafa0ab2dc163e45f143317
   subpackages:
@@ -146,6 +200,8 @@ imports:
   - json/parser
   - json/scanner
   - json/token
+- name: github.com/jmespath/go-jmespath
+  version: 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
 - name: github.com/magiconair/properties
   version: 51463bfca2576e06c62a8504b5c0f06d61312647
 - name: github.com/Microsoft/go-winio
@@ -168,10 +224,8 @@ imports:
   version: e30b7839cd6161b2fbef5f187377a345157abe04
   subpackages:
   - cpu
-  - disk
   - host
   - internal/common
-  - load
   - mem
   - net
   - process
@@ -198,7 +252,7 @@ imports:
 - name: github.com/stretchr/objx
   version: cbeaeb16a013161a98496fad62933b1d21786672
 - name: github.com/stretchr/testify
-  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  version: b91bfb9ebec76498946beb6af7c0230c7cc7ba6c
   subpackages:
   - assert
   - mock
