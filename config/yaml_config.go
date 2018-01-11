@@ -71,16 +71,15 @@ func NewYamlIfExists(configPath string) (*YamlAgentConfig, error) {
 
 func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig, error) {
 	agentConf.APIKey = yc.APIKey
-	enabled := yc.Process.Enabled
-	switch enabled {
-	case "true":
+
+	if enabled, err := isAffirmative(yc.Process.Enabled); enabled {
 		agentConf.Enabled = true
 		agentConf.EnabledChecks = processChecks
-	case "false":
+	} else if strings.ToLower(yc.Process.Enabled) == "disabled" {
+		agentConf.Enabled = false
+	} else if !enabled && err == nil {
 		agentConf.Enabled = true
 		agentConf.EnabledChecks = containerChecks
-	case "disabled":
-		agentConf.Enabled = false
 	}
 	if yc.ProcessDDURL != "" {
 		u, err := url.Parse(yc.ProcessDDURL)
