@@ -3,6 +3,7 @@
 package container
 
 import (
+	"errors"
 	"fmt"
 
 	log "github.com/cihub/seelog"
@@ -31,7 +32,7 @@ func initContainerListeners() {
 // GetContainers is the unique method that returns all containers on the host (or in the task)
 // and that other agents can consume so that we don't have to convert all containers to the format.
 // NOTE: This is a modified copy of datadog-agent/pkg/util/container to prevent noisy logging
-func GetContainers() ([]*docker.Container, []error) {
+func GetContainers() ([]*docker.Container, error) {
 	if listeners == nil {
 		initContainerListeners()
 	}
@@ -68,12 +69,12 @@ func GetContainers() ([]*docker.Container, []error) {
 	}
 
 	if succeeded { // Some container access method succeeded so drop errors from other access methods
-		errs = []error{}
+		return containers, nil
 	}
 
 	for _, e := range errs {
 		log.Error(e)
 	}
 
-	return containers, errs
+	return containers, errors.New("failed to get containers from any source")
 }

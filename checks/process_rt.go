@@ -5,7 +5,6 @@ import (
 
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
-	log "github.com/cihub/seelog"
 
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
@@ -55,11 +54,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if err != nil {
 		return nil, err
 	}
-	containers, errs := container.GetContainers()
-	if len(errs) != 0 {
-		containers = []*docker.Container{}
-		log.Warn("omitting container info for process check due to retrieval errors")
-	}
+	containers, _ := container.GetContainers()
 
 	// End check early if this is our first run.
 	if r.lastProcs == nil {

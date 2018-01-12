@@ -1,7 +1,6 @@
 package checks
 
 import (
-	"errors"
 	"runtime"
 	"time"
 
@@ -44,9 +43,9 @@ func (c *ContainerCheck) RealTime() bool { return false }
 // stats for each container.
 func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
-	containers, errs := container.GetContainers()
-	if len(errs) != 0 {
-		return nil, errors.New("failed to retrieve list of containers")
+	containers, err := container.GetContainers()
+	if err != nil {
+		return nil, err
 	}
 
 	// End check early if this is our first run.

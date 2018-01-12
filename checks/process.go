@@ -62,12 +62,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if err != nil {
 		return nil, err
 	}
-
-	containers, errs := container.GetContainers()
-	if len(errs) != 0 {
-		containers = []*docker.Container{}
-		log.Warn("omitting container info for process check due to retrieval errors")
-	}
+	containers, _ := container.GetContainers()
 
 	// End check early if this is our first run.
 	if p.lastProcs == nil {

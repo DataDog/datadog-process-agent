@@ -1,7 +1,6 @@
 package checks
 
 import (
-	"errors"
 	"runtime"
 	"time"
 
@@ -37,9 +36,9 @@ func (r *RTContainerCheck) RealTime() bool { return true }
 
 // Run runs the real-time container check getting container-level stats from the Cgroups and Docker APIs.
 func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
-	containers, errs := container.GetContainers()
-	if len(errs) != 0 {
-		return nil, errors.New("failed to retrieve list of containers")
+	containers, err := container.GetContainers()
+	if err != nil {
+		return nil, err
 	}
 
 	// End check early if this is our first run.
