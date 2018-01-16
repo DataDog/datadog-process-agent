@@ -5,8 +5,8 @@ package checks
 import (
 	"time"
 
-	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
+	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 )
 
@@ -37,7 +37,7 @@ func (c *ContainerCheck) RealTime() bool { return false }
 // Run runs the ContainerCheck to collect a list of running containers and the
 // stats for each container.
 func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
-	
+
 	return nil, nil
 }
 
@@ -59,9 +59,7 @@ func fmtContainers(
 	i := 0
 	for _, _ = range containers {
 
-		chunk = append(chunk, &model.Container{
-			
-		})
+		chunk = append(chunk, &model.Container{})
 
 		if len(chunk) == perChunk {
 			chunked[i] = chunk

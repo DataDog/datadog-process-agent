@@ -56,8 +56,7 @@ func fmtContainerStats(
 	chunk := make([]*model.ContainerStat, 0, perChunk)
 	i := 0
 	for _, _ = range containers {
-		chunk = append(chunk, &model.ContainerStat{
-		})
+		chunk = append(chunk, &model.ContainerStat{})
 		if len(chunk) == perChunk {
 			chunked[i] = chunk
 			chunk = make([]*model.ContainerStat, 0, perChunk)

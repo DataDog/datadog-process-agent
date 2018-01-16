@@ -5,9 +5,6 @@ package main
 import (
 	"flag"
 	_ "net/http/pprof"
-
-
-	
 )
 
 func main() {
@@ -24,13 +21,10 @@ func main() {
 	if err := config.NewLoggerLevel("info", ""); err != nil {
 		panic(err)
 	}
-	
+
 	exit := make(chan struct{})
-	
+
 	// Invoke the Agent
 	runAgent(exit)
 
-	
-	
 }
-

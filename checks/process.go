@@ -207,7 +207,6 @@ func formatIO(fp *process.FilledProcess, lastIO *process.IOCountersStat, before 
 	}
 }
 
-
 func formatMemory(fp *process.FilledProcess) *model.MemoryStat {
 	ms := &model.MemoryStat{
 		Rss:  fp.MemInfo.RSS,
@@ -224,7 +223,6 @@ func formatMemory(fp *process.FilledProcess) *model.MemoryStat {
 	}
 	return ms
 }
-
 
 // skipProcess will skip a given process if it's blacklisted or hasn't existed
 // for multiple collections.

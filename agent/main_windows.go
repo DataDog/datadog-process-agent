@@ -5,17 +5,17 @@ package main
 import (
 	"flag"
 	"fmt"
-//	"log"
+	//	"log"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"time"
 
+	log "github.com/cihub/seelog"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
 	"golang.org/x/sys/windows/svc/mgr"
-	log "github.com/cihub/seelog"
 )
 
 var elog debug.Log
@@ -38,7 +38,7 @@ var winopts struct {
 
 func init() {
 	fmt.Printf("main_windows.init()")
-	
+
 }
 
 type myservice struct{}
@@ -75,7 +75,7 @@ func (m *myservice) Execute(args []string, r <-chan svc.ChangeRequest, changes c
 	}()
 	elog.Info(0x40000003, ServiceName)
 	runAgent(exit)
-	
+
 	changes <- svc.Status{State: svc.Stopped}
 	return
 }
@@ -114,6 +114,7 @@ func EnableLoggingToFile() {
 	logger, _ := log.LoggerFromConfigAsBytes([]byte(seeConfig))
 	log.ReplaceLogger(logger)
 }
+
 // main is the main application entry point
 func main() {
 	flag.StringVar(&opts.configPath, "config", defaultConfigPath, "Path to datadog.yaml config")
@@ -127,7 +128,7 @@ func main() {
 	flag.BoolVar(&winopts.uninstallService, "uninstall-service", false, "Remove the trace agent from the Service Control Manager")
 	flag.BoolVar(&winopts.startService, "start-service", false, "Starts the trace agent service")
 	flag.BoolVar(&winopts.stopService, "stop-service", false, "Stops the trace agent service")
-	
+
 	flag.Parse()
 	EnableLoggingToFile()
 	isIntSess, err := svc.IsAnInteractiveSession()

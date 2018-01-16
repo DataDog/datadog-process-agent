@@ -267,8 +267,8 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 
 	// (Re)configure the logging from our configuration
 	//if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile); err != nil {
-//		return nil, err
-//	}
+	//		return nil, err
+	//	}
 
 	cfg.HostName = ""
 	if ecsutil.IsFargateInstance() {

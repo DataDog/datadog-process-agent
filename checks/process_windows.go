@@ -5,10 +5,9 @@ package checks
 import (
 	"runtime"
 
+	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
-	"github.com/DataDog/datadog-process-agent/model"
-	
 )
 
 func formatUser(fp *process.FilledProcess) *model.ProcessUser {
@@ -25,9 +24,9 @@ func formatCPU(fp *process.FilledProcess, t2, t1, syst2, syst1 cpu.TimesStat) *m
 	// is in nanoseconds.
 	return &model.CPUStat{
 		LastCpu:    t2.CPU,
-		TotalPct:   calculatePct(((t2.User-t1.User)+(t2.System-t1.System)) * 100, deltaSys, numCPU),
-		UserPct:    calculatePct((t2.User-t1.User) * 100, deltaSys, numCPU),
-		SystemPct:  calculatePct((t2.System-t1.System) * 100, deltaSys, numCPU),
+		TotalPct:   calculatePct(((t2.User-t1.User)+(t2.System-t1.System))*100, deltaSys, numCPU),
+		UserPct:    calculatePct((t2.User-t1.User)*100, deltaSys, numCPU),
+		SystemPct:  calculatePct((t2.System-t1.System)*100, deltaSys, numCPU),
 		NumThreads: fp.NumThreads,
 		Cpus:       []*model.SingleCPUStat{},
 		Nice:       fp.Nice,
@@ -49,9 +48,8 @@ func calculatePct(deltaProc, deltaTime, numCPU float64) float32 {
 		overalPct = 100
 	}
 
-	// In order to emulate task mgr, we divide by number of CPUs.  
+	// In order to emulate task mgr, we divide by number of CPUs.
 	// Task mgr displays percentage of available CPU (so a busy loop process
 	// on a 2 core CPU is 50%)
 	return float32(overalPct / numCPU)
 }
-

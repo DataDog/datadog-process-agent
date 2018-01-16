@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util"
 )
+
 var opts struct {
 	configPath   string
 	ddConfigPath string
@@ -59,16 +60,14 @@ func versionString() string {
 
 	return buf.String()
 }
+
 const agentDisabledMessage = `process-agent not enabled.
 Set env var DD_PROCESS_AGENT_ENABLED=true or add
 process_agent_enabled: true
 to your datadog.conf file.
 Exiting.`
 
-
-
-func runAgent(exit chan bool){
-
+func runAgent(exit chan bool) {
 
 	if opts.version {
 		fmt.Println(versionString())
@@ -186,7 +185,6 @@ func runAgent(exit chan bool){
 
 	}
 }
-
 
 func debugCheckResults(cfg *config.AgentConfig, check string) error {
 	sysInfo, err := checks.CollectSystemInfo(cfg)

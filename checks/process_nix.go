@@ -14,7 +14,6 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
-	
 )
 
 func formatUser(fp *process.FilledProcess) *model.ProcessUser {
@@ -71,4 +70,3 @@ func calculatePct(deltaProc, deltaTime, numCPU float64) float32 {
 	// In order to emulate top we multiply utilization by # of CPUs so a busy loop would be 100%.
 	return float32(overalPct * numCPU)
 }
-
