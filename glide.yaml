@@ -10,8 +10,6 @@ import:
     version: db/add_windows_checks
     subpackages:
     - gogen
-  - package: github.com/DataDog/gopsutil
-    version: df069044fce2744779f4ba1fb60c12938b4f2951
   - package: github.com/shirou/gopsutil
     version: e30b7839cd6161b2fbef5f187377a345157abe04
   - package: github.com/DataDog/zstd
