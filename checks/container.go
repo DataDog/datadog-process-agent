@@ -9,11 +9,11 @@ import (
 	log "github.com/cihub/seelog"
 
 	"github.com/DataDog/datadog-agent/pkg/tagger"
-	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
+	"github.com/DataDog/datadog-process-agent/util/container"
 	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
@@ -46,7 +46,7 @@ func (c *ContainerCheck) RealTime() bool { return false }
 func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
 	containers, err := container.GetContainers()
-	if err != nil && err != docker.ErrDockerNotAvailable {
+	if err != nil {
 		return nil, err
 	}
 
