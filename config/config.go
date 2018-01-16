@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
 	"github.com/DataDog/datadog-process-agent/util"
+	"github.com/DataDog/datadog-process-agent/util/container"
 
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"

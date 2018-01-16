@@ -10,11 +10,11 @@ import (
 	"github.com/DataDog/gopsutil/process"
 	log "github.com/cihub/seelog"
 
-	"github.com/DataDog/datadog-agent/pkg/util/container"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
+	"github.com/DataDog/datadog-process-agent/util/container"
 )
 
 // Process is a singleton ProcessCheck.
@@ -62,12 +62,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if err != nil {
 		return nil, err
 	}
-
-	containers, err := container.GetContainers()
-	if err != nil && err != docker.ErrDockerNotAvailable {
-		containers = []*docker.Container{}
-		log.Warn("Omitting container info for process check due to error: %s", err)
-	}
+	containers, _ := container.GetContainers()
 
 	// End check early if this is our first run.
 	if p.lastProcs == nil {
