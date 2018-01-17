@@ -1,5 +1,5 @@
-hash: cbd5cd00625ad500dcb52bb7af74ad810d2623577d271ddd92baf6f8fef30334
-updated: 2018-01-11T12:02:20.996978309-05:00
+hash: 8bb4b913f261578705dcded7ce6b8b4ee61dc126ba191949d1f173324a495ea5
+updated: 2018-01-17T11:23:13.10243856-05:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: 49c3892b61af1d4996292a3025f36e4dfa25eaee
@@ -41,7 +41,7 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: f27f9c7a60207120c8ee50427d93a84050740a89
+  version: f1d63c176a934c8b8aefa31e2c7d938b0e50e348
   subpackages:
   - cmd/agent/common/signals
   - pkg/collector/check
@@ -67,7 +67,6 @@ imports:
   - pkg/util/cache
   - pkg/util/cloudfoundry
   - pkg/util/compression
-  - pkg/util/container
   - pkg/util/docker
   - pkg/util/ec2
   - pkg/util/ecs
