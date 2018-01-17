@@ -29,3 +29,8 @@ func handleSignals(exit chan bool) {
 		}
 	}
 }
+
+func debugCgroups() {
+	os.Exit(1)
+	return
+}

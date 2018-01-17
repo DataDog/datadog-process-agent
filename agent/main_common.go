@@ -27,6 +27,7 @@ var opts struct {
 	version      bool
 	check        string
 	info         bool
+	debugCgroups bool
 }
 
 // version info sourced from build flags
@@ -157,6 +158,10 @@ func runAgent(exit chan bool) {
 			os.Exit(0)
 		}
 		return
+	}
+
+	if opts.debugCgroups {
+		debugCgroups()
 	}
 
 	if opts.info {

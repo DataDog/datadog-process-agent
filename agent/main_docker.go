@@ -41,3 +41,9 @@ func handleSignals(exit chan bool) {
 		}
 	}
 }
+
+func debugCgroups() {
+	docker.DebugCgroups()
+	os.Exit(0)
+	return
+}

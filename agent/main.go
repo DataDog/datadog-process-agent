@@ -16,6 +16,7 @@ func main() {
 	flag.BoolVar(&opts.info, "info", false, "Show info about running process agent and exit")
 	flag.BoolVar(&opts.version, "version", false, "Print the version and exit")
 	flag.StringVar(&opts.check, "check", "", "Run a specific check and print the results. Choose from: process, connections, realtime")
+	flag.BoolVar(&opts.debugCgroups, "debug_cgroups", false, "Output debugging info for the cgroups")
 	flag.Parse()
 
 	// Set up a default config before parsing config so we log errors nicely.
