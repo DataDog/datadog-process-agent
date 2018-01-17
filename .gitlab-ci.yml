@@ -27,14 +27,15 @@ build_windows_executable:
     - xcopy /q/h/e/s * %GOPATH%\src\github.com\DataDog\datadog-process-agent
     - cd %GOPATH%\src\github.com\DataDog\datadog-process-agent
   stage: binary_build
-  tags: ["runner:windows-agent6"]
+  tags: ["runner:windows-process-agent"]
   script:
     - cd %GOPATH%\src\github.com\DataDog\datadog-process-agent
-    - rake deps
-    - rake build
-#  after_script:
+    - call rake deps
+    - call rake build windres=true
+  after_script:
+    - copy %GOPATH%\src\github.com\DataDog\datadog-process-agent\process-agent.exe
 #    - '"C:\Program Files\Amazon\AWSCLI\aws.exe" s3 cp --profile ci-datadog-agent %S3_CP_OPTIONS% --recursive --exclude "*" --include "*.msi" .omnibus/pkg/ %S3_ARTEFACTS_URI%/'
   artifacts:
     expire_in: 2 weeks
     paths:
-      - ./datadog-process-agent.exe
+      - ./process-agent.exe

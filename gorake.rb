@@ -63,6 +63,10 @@ def go_build(program, opts={})
 
   end
   sh "#{cmd} -ldflags \"#{ldflags.join(' ')}\" #{program}"
+  if ENV['SIGN_WINDOWS'] then
+    signcmd = "signtool sign /v /t http://timestamp.verisign.com/scripts/timestamp.dll /fd SHA256 /sm /s \"My\" /sha1 ECCDAE36FDCB654D2CBAB3E8975AA55469F96E4C process-agent.exe"
+    sh signcmd
+  end
 end
 
 
