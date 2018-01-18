@@ -10,6 +10,7 @@ import (
 	log "github.com/cihub/seelog"
 
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
+	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
 func initMetadataProviders() {

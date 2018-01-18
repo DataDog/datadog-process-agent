@@ -6,11 +6,10 @@ import (
 	"os/user"
 	"runtime"
 	"strconv"
-	
+
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 
-	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 )
 

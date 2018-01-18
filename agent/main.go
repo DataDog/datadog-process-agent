@@ -4,6 +4,7 @@ package main
 
 import (
 	"flag"
+	"github.com/DataDog/datadog-process-agent/config"
 	_ "net/http/pprof"
 )
 
@@ -22,7 +23,7 @@ func main() {
 		panic(err)
 	}
 
-	exit := make(chan struct{})
+	exit := make(chan bool)
 
 	// Invoke the Agent
 	runAgent(exit)

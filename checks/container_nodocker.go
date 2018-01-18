@@ -57,7 +57,7 @@ func fmtContainers(
 	chunked := make([][]*model.Container, chunks)
 	chunk := make([]*model.Container, 0, perChunk)
 	i := 0
-	for _, _ = range containers {
+	for range containers {
 
 		chunk = append(chunk, &model.Container{})
 

@@ -181,7 +181,7 @@ func runAgent(exit chan bool) {
 		return
 	}
 	cl.run(exit)
-	for _ = range exit {
+	for range exit {
 
 	}
 }
