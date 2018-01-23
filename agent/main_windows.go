@@ -27,8 +27,6 @@ var defaultConfigPath = "c:\\programdata\\datadog\\datadog.yaml"
 var defaultOldConfigPath = "c:\\programdata\\datadog\\datadog.conf"
 var defaultConfdPath = "c:\\programdata\\datadog\\conf.d"
 
-var ddconfigPath string //= flag.String("ddconfig", "", "Path to the datadog.yaml configuration file")
-var ddconfdPath string  //= flag.String("ddconfd", "", "Path to the conf.d directory that contains all integration config files")
 var winopts struct {
 	installService   bool
 	uninstallService bool
