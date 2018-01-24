@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/DataDog/datadog-process-agent/util"
+	"github.com/DataDog/datadog-process-agent/util/container"
 )
 
 // YamlAgentConfig is a sturcutre used for marshaling the datadog.yaml configuratio
@@ -154,9 +155,5 @@ func SetupDDAgentConfig(configPath string) error {
 }
 
 func init() {
-	defaultListeners := []ddconfig.Listeners{
-		{Name: "docker"},
-		{Name: "ecs"},
-	}
-	ddconfig.Datadog.SetDefault("listeners", defaultListeners)
+	ddconfig.Datadog.SetDefault("listeners", container.GetDefaultListeners())
 }
