@@ -156,7 +156,6 @@ func SetupDDAgentConfig(configPath string) error {
 func init() {
 	defaultListeners := []ddconfig.Listeners{
 		{Name: "docker"},
-		{Name: "ecs"},
 	}
 	ddconfig.Datadog.SetDefault("listeners", defaultListeners)
 }

@@ -5,6 +5,7 @@ package container
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	log "github.com/cihub/seelog"
 
@@ -15,18 +16,20 @@ import (
 
 var (
 	listeners []config.Listeners
+	// hasFatalError stores whether a listener has fatally error'd or not
+	hasFatalError map[string]bool
 )
 
 // Unmarshal the listeners once and store the result
 func initContainerListeners() {
 	if err := config.Datadog.UnmarshalKey("listeners", &listeners); err != nil {
-		log.Errorf("unable to parse listeners from the datadog config - %s", err)
-		// Default to all known listeners on parse failure
+		log.Errorf("unable to parse listeners from the datadog config, using default docker listener - %s", err)
+		// Default to only docker on parse failure
 		listeners = []config.Listeners{
-			{Name: "ecs"},
 			{Name: "docker"},
 		}
 	}
+	hasFatalError = make(map[string]bool)
 }
 
 // GetContainers is the unique method that returns all containers on the host (or in the task)
@@ -46,6 +49,10 @@ func GetContainers() ([]*docker.Container, error) {
 	succeeded := false
 
 	for _, l := range listeners {
+		if hasFatalError[l.Name] {
+			continue
+		}
+
 		switch l.Name {
 		case "docker":
 			if du, err := docker.GetDockerUtil(); err == nil {
@@ -56,6 +63,10 @@ func GetContainers() ([]*docker.Container, error) {
 				}
 				errs = append(errs, fmt.Errorf("failed to get container list from docker - %s", err))
 			} else {
+				// If connecting permanently fails, we should skip further attempts (and its subsequent logging)
+				if strings.HasPrefix(err.Error(), "permanent failure") {
+					hasFatalError[l.Name] = true
+				}
 				errs = append(errs, fmt.Errorf("unable to connect to docker - %s", err))
 			}
 		case "ecs":
