@@ -7,6 +7,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 )
 
+// GetDefaultListeners returns the default auto-discovery listeners, for use in container retrieval
 func GetDefaultListeners() []config.Listeners {
 	return nil
 }
