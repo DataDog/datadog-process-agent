@@ -16,7 +16,7 @@ import (
 
 var (
 	listeners []config.Listeners
-	// hasFatalError stores whether a listener has fatally error'd or not
+	// hasFatalError stores whether a listener has fatally error'd, to see if we should keep accessing its containers
 	hasFatalError map[string]bool
 )
 
