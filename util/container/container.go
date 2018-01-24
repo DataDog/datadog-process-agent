@@ -23,13 +23,20 @@ var (
 // Unmarshal the listeners once and store the result
 func initContainerListeners() {
 	if err := config.Datadog.UnmarshalKey("listeners", &listeners); err != nil {
-		log.Errorf("unable to parse listeners from the datadog config, using default docker listener - %s", err)
-		// Default to only docker on parse failure
-		listeners = []config.Listeners{
-			{Name: "docker"},
-		}
+		log.Errorf("unable to parse listeners from the datadog config, using default listeners - %s", err)
+		listeners = GetDefaultListeners()
 	}
 	hasFatalError = make(map[string]bool)
+}
+
+// GetDefaultListeners returns the default auto-discovery listeners, for use in container retrieval
+func GetDefaultListeners() []config.Listeners {
+	l := []config.Listeners{{Name: "docker"}}
+	// If we can detect that this is an ecs or fargate instance, lets add it as well
+	if ecs.IsInstance() || ecs.IsFargateInstance() {
+		l = append(l, config.Listeners{Name: "ecs"})
+	}
+	return l
 }
 
 // GetContainers is the unique method that returns all containers on the host (or in the task)

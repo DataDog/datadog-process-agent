@@ -2,7 +2,14 @@
 
 package container
 
-import "github.com/DataDog/datadog-agent/pkg/util/docker"
+import (
+	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/util/docker"
+)
+
+func GetDefaultListeners() []config.Listeners {
+	return nil
+}
 
 // GetContainers is the unique method that returns all containers on the host (or in the task)
 // and that other agents can consume so that we don't have to convert all containers to the format.
