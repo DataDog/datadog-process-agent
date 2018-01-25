@@ -9,12 +9,17 @@ def go_build(program, opts={})
     :race => false,
     :add_build_vars => true,
     :static => false,
+    :os => "",
   }.merge(opts)
 
   dd = 'main'
   commit = `git rev-parse --short HEAD`.strip
   branch = `git rev-parse --abbrev-ref HEAD`.strip
-  date = `date +%FT%T%z`.strip
+  if os == "windows"
+    date = `date /T `.strip
+  else
+    date = `date +%FT%T%z`.strip
+  end
   goversion = `go version`.strip
   agentversion = ENV["PROCESS_AGENT_VERSION"] || "0.99.0"
 
@@ -31,7 +36,12 @@ def go_build(program, opts={})
 
   cmd = opts[:cmd]
   cmd += ' -race' if opts[:race]
-  cmd += ' -tags \'docker kubelet\''
+  if os != "windows"
+    cmd += ' -tags \'docker kubelet\''
+  else
+    cmd += ' -tags \'kubelet\''
+  end
+  print "cmd"
 
   if opts[:static]
     # Statically linked builds use musl-gcc for full support
@@ -40,8 +50,23 @@ def go_build(program, opts={})
     ldflags << '-linkmode external'
     ldflags << '-extldflags \'-static\''
   end
+  if ENV['windres'] then
+    # first compile the message table, as it's an input to the resource file
+    msgcmd = "windmc --target pe-x86-64 -r agent/windows_resources agent/windows_resources/process-agent-msg.mc"
+    puts msgcmd
+    sh msgcmd
 
+    ver_array = "0.99.0".split(".")
+    rescmd = "windres --define MAJ_VER=#{ver_array[0]} --define MIN_VER=#{ver_array[1]} --define PATCH_VER=#{ver_array[2]} "
+    rescmd += "-i agent/windows_resources/process-agent.rc --target=pe-x86-64 -O coff -o agent/rsrc.syso"
+    sh rescmd
+
+  end
   sh "#{cmd} -ldflags \"#{ldflags.join(' ')}\" #{program}"
+  if ENV['SIGN_WINDOWS'] then
+    signcmd = "signtool sign /v /t http://timestamp.verisign.com/scripts/timestamp.dll /fd SHA256 /sm /s \"My\" /sha1 ECCDAE36FDCB654D2CBAB3E8975AA55469F96E4C process-agent.exe"
+    sh signcmd
+  end
 end
 
 

@@ -41,7 +41,8 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: f1d63c176a934c8b8aefa31e2c7d938b0e50e348
+  version: 9676beb535caeab75556195425445a7cf690ade6
+  vcs: git
   subpackages:
   - cmd/agent/common/signals
   - pkg/collector/check
@@ -91,7 +92,8 @@ imports:
   - processes
   - processes/gops
 - name: github.com/DataDog/gopsutil
-  version: df069044fce2744779f4ba1fb60c12938b4f2951
+  version: 060f159dde21afe2b303d4ede882b7eb23765ce3
+  vcs: git
   subpackages:
   - cpu
   - host
@@ -106,7 +108,7 @@ imports:
   subpackages:
   - spew
 - name: github.com/docker/distribution
-  version: cd27f179f2c10c5d300e6d09025b538c475b0d51
+  version: f4118485915abb8b163442717326597908eee6aa
   subpackages:
   - digest
   - reference

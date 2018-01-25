@@ -1,13 +1,15 @@
 package: github.com/DataDog/datadog-process-agent
 import:
   - package: github.com/DataDog/datadog-agent
-    version: f1d63c176a934c8b8aefa31e2c7d938b0e50e348
+    vcs: git
+    version: master
+    repo: git@github.com:DataDog/datadog-agent.git
   - package: github.com/DataDog/agent-payload
-    version: fb25fcedf155de94e762080a914adb5436d45b9c
+  - package: github.com/DataDog/gopsutil
+    vcs: git
+    version: dd
     subpackages:
     - gogen
-  - package: github.com/DataDog/gopsutil
-    version: df069044fce2744779f4ba1fb60c12938b4f2951
   - package: github.com/shirou/gopsutil
     version: e30b7839cd6161b2fbef5f187377a345157abe04
   - package: github.com/DataDog/zstd
