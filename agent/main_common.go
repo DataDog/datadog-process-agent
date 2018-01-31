@@ -68,7 +68,6 @@ to your datadog.conf file.
 Exiting.`
 
 func runAgent(exit chan bool) {
-
 	if opts.version {
 		fmt.Println(versionString())
 		os.Exit(0)
