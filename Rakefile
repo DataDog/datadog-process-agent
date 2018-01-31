@@ -13,7 +13,6 @@ def os
     end
   end
   
-  
 desc "Setup dependencies"
 task :deps do
   system("go get github.com/Masterminds/glide")

@@ -4,8 +4,9 @@ package main
 
 import (
 	"flag"
-	"github.com/DataDog/datadog-process-agent/config"
 	_ "net/http/pprof"
+
+	"github.com/DataDog/datadog-process-agent/config"
 )
 
 func main() {
@@ -27,5 +28,4 @@ func main() {
 
 	// Invoke the Agent
 	runAgent(exit)
-
 }

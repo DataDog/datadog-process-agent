@@ -5,7 +5,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	//	"log"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
@@ -36,7 +35,6 @@ var winopts struct {
 
 func init() {
 	fmt.Printf("main_windows.init()")
-
 }
 
 type myservice struct{}
@@ -102,6 +100,7 @@ func runService(isDebug bool) {
 	}
 	elog.Info(0x40000004, ServiceName)
 }
+
 func EnableLoggingToFile() {
 	seeConfig := `
 	<seelog minlevel="debug">
@@ -185,13 +184,10 @@ func main() {
 
 	}
 
-	// if we are an interactive session, then just invoke the agent on the command line.
-
 	exit := make(chan bool)
 
 	// Invoke the Agent
 	runAgent(exit)
-
 }
 
 func startService() error {
