@@ -134,6 +134,11 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	if yc.Process.DDAgentBin != "" {
 		agentConf.DDAgentBin = yc.Process.DDAgentBin
 	}
+
+	// Pull additional parameters from the global config file.
+	agentConf.LogLevel = ddconfig.Datadog.GetString("log_level")
+	agentConf.StatsdPort = ddconfig.Datadog.GetInt("dogstatsd_port")
+
 	return agentConf, nil
 }
 
