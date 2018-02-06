@@ -414,10 +414,10 @@ func getHostname(ddAgentPy, ddAgentBin string, ddAgentEnv []string) (string, err
 		cmd = exec.Command(ddAgentPy, "-c", getHostnameCmd)
 	}
 
+	// Copying all environment variables to child process
 	// Windows: Required, so the child process can load DLLs, etc.
 	// Linux:   Optional, but will make use of DD_HOSTNAME and DOCKER_DD_AGENT if they exist
 	osEnv := os.Environ()
-
 	cmd.Env = append(ddAgentEnv, osEnv...)
 
 	var stdout, stderr bytes.Buffer
