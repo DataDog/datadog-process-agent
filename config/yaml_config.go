@@ -130,7 +130,7 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 			log.Warn("Overriding the configured process limit because it exceeds maximum")
 		}
 	}
-	agentConf.DDAgentBin = "/opt/datadog-agent/bin/agent/agent"
+	agentConf.DDAgentBin = defaultDDAgentBin
 	if yc.Process.DDAgentBin != "" {
 		agentConf.DDAgentBin = yc.Process.DDAgentBin
 	}

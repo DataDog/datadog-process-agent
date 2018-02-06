@@ -115,8 +115,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 		StatsdPort: 8125,
 
 		// Path and environment for the dd-agent embedded python
-		DDAgentPy:    "/opt/datadog-agent/embedded/bin/python",
-		DDAgentPyEnv: []string{"PYTHONPATH=/opt/datadog-agent/agent"},
+		DDAgentPy:    defaultDDAgentPy,
+		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
 
 		// Check config
 		EnabledChecks: containerChecks,
@@ -414,12 +414,11 @@ func getHostname(ddAgentPy, ddAgentBin string, ddAgentEnv []string) (string, err
 		cmd = exec.Command(ddAgentPy, "-c", getHostnameCmd)
 	}
 
-	dockerEnv := os.Getenv("DOCKER_DD_AGENT")
-	hostnameEnv := os.Getenv("DD_HOSTNAME")
-	cmd.Env = append(ddAgentEnv,
-		fmt.Sprintf("DOCKER_DD_AGENT=%s", dockerEnv),
-		fmt.Sprintf("DD_HOSTNAME=%s", hostnameEnv),
-	)
+	// Windows: Required, so the child process can load DLLs, etc.
+	// Linux:   Optional, but will make use of DD_HOSTNAME and DOCKER_DD_AGENT if they exist
+	osEnv := os.Environ()
+
+	cmd.Env = append(ddAgentEnv, osEnv...)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
