@@ -17,8 +17,6 @@ const (
 	DefaultLogLevel    = "info"
 	DefaultSyslogHost  = "localhost:514"
 	DefaultSyslogLevel = "error"
-
-	defaultLogFilePath = "/var/log/datadog/process-agent.log"
 )
 
 var (
