@@ -37,7 +37,7 @@ def go_build(program, opts={})
   cmd = opts[:cmd]
   cmd += ' -race' if opts[:race]
   if os != "windows"
-    cmd += ' -tags \'docker kubelet\''
+    cmd += ' -tags \'docker kubelet kubeapiserver\''
   else
     cmd += ' -tags \'kubelet\''
   end

@@ -1,5 +1,5 @@
-hash: 8bb4b913f261578705dcded7ce6b8b4ee61dc126ba191949d1f173324a495ea5
-updated: 2018-01-17T11:23:13.10243856-05:00
+hash: 809801858ed2da6de78bc2241bf87f34b49dc7e62003f2b033055e6edd602e24
+updated: 2018-02-07T17:20:21.68149485-05:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: 49c3892b61af1d4996292a3025f36e4dfa25eaee
@@ -19,16 +19,12 @@ imports:
   - private/endpoints
   - private/protocol
   - private/protocol/ec2query
-  - private/protocol/query
   - private/protocol/query/queryutil
   - private/protocol/rest
-  - private/protocol/restxml
   - private/protocol/xml/xmlutil
   - private/signer/v4
   - private/waiter
-  - service/cloudfront/sign
   - service/ec2
-  - service/s3
 - name: github.com/cihub/seelog
   version: f561c5e57575bb1e0a2167028b7339b3a8d16fb4
   subpackages:
@@ -41,7 +37,8 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: 9676beb535caeab75556195425445a7cf690ade6
+  version: 27106fd5edc8a52ead1927db5208fb1735a647c4
+  repo: git@github.com:DataDog/datadog-agent.git
   vcs: git
   subpackages:
   - cmd/agent/common/signals
@@ -51,6 +48,7 @@ imports:
   - pkg/forwarder
   - pkg/metadata
   - pkg/metadata/common
+  - pkg/metadata/externalhost
   - pkg/metadata/gohai
   - pkg/metadata/host
   - pkg/metadata/kubernetes
@@ -60,6 +58,7 @@ imports:
   - pkg/serializer
   - pkg/serializer/marshaler
   - pkg/serializer/split
+  - pkg/status/health
   - pkg/tagger
   - pkg/tagger/collectors
   - pkg/tagger/utils
@@ -74,6 +73,7 @@ imports:
   - pkg/util/gce
   - pkg/util/hostname
   - pkg/util/kubernetes
+  - pkg/util/kubernetes/apiserver
   - pkg/util/kubernetes/kubelet
   - pkg/util/retry
   - pkg/version
@@ -92,10 +92,11 @@ imports:
   - processes
   - processes/gops
 - name: github.com/DataDog/gopsutil
-  version: 060f159dde21afe2b303d4ede882b7eb23765ce3
+  version: df069044fce2744779f4ba1fb60c12938b4f2951
   vcs: git
   subpackages:
   - cpu
+  - gogen
   - host
   - internal/common
   - mem
@@ -110,7 +111,7 @@ imports:
 - name: github.com/docker/distribution
   version: f4118485915abb8b163442717326597908eee6aa
   subpackages:
-  - digest
+  - digestset
   - reference
 - name: github.com/docker/docker
   version: 092cba3727bb9b4a2f0e922cd6c0f93ea270e363
@@ -209,6 +210,8 @@ imports:
   version: fff283ad5116362ca252298cfc9b95828956d85d
 - name: github.com/mitchellh/mapstructure
   version: 482a9fd5fa83e8c4e7817413b80f3eb8feec03ef
+- name: github.com/opencontainers/go-digest
+  version: 279bed98673dd5bef374d3b6e4b09e2af76183bf
 - name: github.com/patrickmn/go-cache
   version: 1881a9bccb818787f68c52bfba648c6cf34c34fa
 - name: github.com/pelletier/go-buffruneio
@@ -234,8 +237,6 @@ imports:
   version: bb4de0191aa41b5507caa14b0650cdbddcd9280b
 - name: github.com/Sirupsen/logrus
   version: 55eb11d21d2a31a3cc93838241d04800f52e823d
-  subpackages:
-  - formatters/logstash
 - name: github.com/spf13/afero
   version: 9be650865eab0c12963d8753212f4f9c66cdcf12
   subpackages:
@@ -271,6 +272,10 @@ imports:
   - unix
   - windows
   - windows/registry
+  - windows/svc
+  - windows/svc/debug
+  - windows/svc/eventlog
+  - windows/svc/mgr
 - name: golang.org/x/text
   version: 2910a502d2bf9e43193af9d68ca516529614eed3
   subpackages:
