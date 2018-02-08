@@ -186,7 +186,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		if enabled, err := isAffirmative(v); enabled {
 			cfg.Enabled = true
 			cfg.EnabledChecks = processChecks
-		} else if !enabled || err != nil {
+		} else if !enabled && err == nil { // Only want to disable the process agent if it's explicitly disabled
 			cfg.Enabled = false
 		}
 
