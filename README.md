@@ -18,7 +18,7 @@ dd-process-agent -config $PATH_TO_PROCESS_CONFIG_FILE
 
 Pre-requisites:
 
-* `go >= 1.9.1`
+* `go >= 1.9.4`
 * `rake`
 
 Check out the repo in your `$GOPATH`
