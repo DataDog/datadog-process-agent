@@ -18,9 +18,8 @@ import (
 // YamlAgentConfig is a sturcutre used for marshaling the datadog.yaml configuratio
 // available in Agent versions >= 6
 type YamlAgentConfig struct {
-	APIKey       string `yaml:"api_key"`
-	ProcessDDURL string `yaml:"process_dd_url"`
-	Process      struct {
+	APIKey  string `yaml:"api_key"`
+	Process struct {
 		// A string indicate the enabled state of the Agent.
 		// If "false" (the default) we will only collect containers.
 		// If "true" we will collect containers and processes.
@@ -51,6 +50,8 @@ type YamlAgentConfig struct {
 		DDAgentBin string `yaml:"dd_agent_bin"`
 		// Overrides of the environment we pass to fetch the hostname. The default is usually fine.
 		DDAgentEnv []string `yaml:"dd_agent_env"`
+		// Overrides the submission endpoint URL from the default
+		ProcessDDURL string `yaml:"process_dd_url"`
 	} `yaml:"process_config"`
 }
 
@@ -82,8 +83,8 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		agentConf.Enabled = true
 		agentConf.EnabledChecks = containerChecks
 	}
-	if yc.ProcessDDURL != "" {
-		u, err := url.Parse(yc.ProcessDDURL)
+	if yc.Process.ProcessDDURL != "" {
+		u, err := url.Parse(yc.Process.ProcessDDURL)
 		if err != nil {
 			return nil, fmt.Errorf("invalid process_dd_url: %s", err)
 		}
