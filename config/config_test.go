@@ -165,8 +165,8 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 	var ddy *YamlAgentConfig
 	err := yaml.Unmarshal([]byte(strings.Join([]string{
 		"api_key: apikey_20",
-		"process_dd_url: http://my-process-app.datadoghq.com",
 		"process_config:",
+		"  process_dd_url: http://my-process-app.datadoghq.com",
 		"  queue_size: 10",
 	}, "\n")), &ddy)
 	assert.NoError(err)
@@ -187,10 +187,10 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	var ddy YamlAgentConfig
 	err := yaml.Unmarshal([]byte(strings.Join([]string{
 		"api_key: apikey_20",
-		"process_dd_url: http://my-process-app.datadoghq.com",
 		"process_agent_enabled: true",
 		"process_config:",
 		"  enabled: 'true'",
+		"  process_dd_url: http://my-process-app.datadoghq.com",
 		"  queue_size: 10",
 		"  intervals:",
 		"    container: 8",
@@ -212,10 +212,10 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 
 	err = yaml.Unmarshal([]byte(strings.Join([]string{
 		"api_key: apikey_20",
-		"process_dd_url: http://my-process-app.datadoghq.com",
 		"process_agent_enabled: true",
 		"process_config:",
 		"  enabled: 'false'",
+		"  process_dd_url: http://my-process-app.datadoghq.com",
 		"  queue_size: 10",
 		"  intervals:",
 		"    container: 8",
@@ -232,10 +232,10 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 
 	err = yaml.Unmarshal([]byte(strings.Join([]string{
 		"api_key: apikey_20",
-		"process_dd_url: http://my-process-app.datadoghq.com",
 		"process_agent_enabled: true",
 		"process_config:",
 		"  enabled: 'disabled'",
+		"  process_dd_url: http://my-process-app.datadoghq.com",
 		"  queue_size: 10",
 		"  intervals:",
 		"    container: 8",
