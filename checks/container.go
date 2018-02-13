@@ -14,7 +14,6 @@ import (
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util/container"
-	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
 // Container is a singleton ContainerCheck.
@@ -95,8 +94,6 @@ func fmtContainers(
 		lastByID[c.ID] = c
 	}
 
-	serviceTagsByID := kubernetes.GetServiceTagsByID()
-
 	perChunk := (len(containers) / chunks) + 1
 	chunked := make([][]*model.Container, chunks)
 	chunk := make([]*model.Container, 0, perChunk)
@@ -117,12 +114,8 @@ func fmtContainers(
 		entityID := docker.ContainerIDToEntityName(ctr.ID)
 		tags, err := tagger.Tag(entityID, true)
 		if err != nil {
-			log.Error("Error retrieving tags for container: %s", err)
+			log.Errorf("unable to retrieve tags for container: %s", err)
 			tags = []string{}
-		}
-
-		if services, ok := serviceTagsByID[entityID]; ok {
-			tags = append(tags, services...)
 		}
 
 		chunk = append(chunk, &model.Container{

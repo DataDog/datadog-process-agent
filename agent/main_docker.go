@@ -10,16 +10,11 @@ import (
 	log "github.com/cihub/seelog"
 
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
-	"github.com/DataDog/datadog-process-agent/util/kubernetes"
 )
 
 func initMetadataProviders() {
 	if _, err := docker.GetDockerUtil(); err != nil && err != docker.ErrDockerNotAvailable {
 		log.Errorf("unable to initialize docker collection: %s", err)
-	}
-
-	if err := kubernetes.InitKubeUtil(); err != nil {
-		log.Errorf("unable to initialize kubernetes collection: %s", err)
 	}
 }
 
