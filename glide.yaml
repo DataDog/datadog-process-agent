@@ -1,9 +1,7 @@
 package: github.com/DataDog/datadog-process-agent
 import:
   - package: github.com/DataDog/datadog-agent
-    vcs: git
     version: d03901700f5b01213fbf21c57e65ef2a87e26afb
-    repo: git@github.com:DataDog/datadog-agent.git
   - package: github.com/DataDog/agent-payload
   - package: github.com/DataDog/gopsutil
     vcs: git

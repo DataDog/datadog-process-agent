@@ -1,5 +1,5 @@
-hash: 21e13a65b07fedf796ac7bd97a397ab1ec591db3e984495cc0bd72d5c572a8cc
-updated: 2018-02-13T10:13:05.801566285-05:00
+hash: fcae92d42124f638bef4c6f622a646bde8f7131b4d4f5c747cd1c857a3860cb6
+updated: 2018-02-13T14:57:09.47184051-05:00
 imports:
 - name: github.com/cihub/seelog
   version: f561c5e57575bb1e0a2167028b7339b3a8d16fb4
@@ -14,8 +14,6 @@ imports:
   - gogen
 - name: github.com/DataDog/datadog-agent
   version: d03901700f5b01213fbf21c57e65ef2a87e26afb
-  repo: git@github.com:DataDog/datadog-agent.git
-  vcs: git
   subpackages:
   - pkg/config
   - pkg/diagnose/diagnosis
