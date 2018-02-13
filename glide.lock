@@ -1,5 +1,5 @@
-hash: 152461f10ca9e6049b0b272ef4dd9e3fe0c8297ab599acfe568e295f888d225e
-updated: 2018-02-09T17:30:05.352210469-05:00
+hash: 21e13a65b07fedf796ac7bd97a397ab1ec591db3e984495cc0bd72d5c572a8cc
+updated: 2018-02-13T10:13:05.801566285-05:00
 imports:
 - name: github.com/cihub/seelog
   version: f561c5e57575bb1e0a2167028b7339b3a8d16fb4
@@ -13,7 +13,7 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: 6e22070bc5c207cd470fe6426a0987eac9fc9bb6
+  version: d03901700f5b01213fbf21c57e65ef2a87e26afb
   repo: git@github.com:DataDog/datadog-agent.git
   vcs: git
   subpackages:
@@ -232,7 +232,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 670d4cfef0544295bc27a114dbac37980d83185a
 - name: k8s.io/api
-  version: beab4da9671e79815b7876363175af45aa180eb5
+  version: 2694da5be9c4ab4f3fd826112d4c3f71b8bf4b23
   subpackages:
   - admissionregistration/v1alpha1
   - admissionregistration/v1beta1
@@ -264,7 +264,7 @@ imports:
   - storage/v1alpha1
   - storage/v1beta1
 - name: k8s.io/apimachinery
-  version: 6212319467788d635606616d5c6d87ded0321d8c
+  version: 616b23029fa3dc3e0ccefd47963f5651a6543d94
   subpackages:
   - pkg/api/equality
   - pkg/api/errors
@@ -320,7 +320,7 @@ imports:
   - third_party/forked/golang/netutil
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
-  version: 33bd23f75b6de861994706a322b0afab824b2171
+  version: 7cd1d3291b7d9b1e2d54d4b69eb65995eaf8888e
   subpackages:
   - kubernetes/scheme
   - kubernetes/typed/core/v1
