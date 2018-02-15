@@ -1,5 +1,5 @@
-hash: fcae92d42124f638bef4c6f622a646bde8f7131b4d4f5c747cd1c857a3860cb6
-updated: 2018-02-13T14:57:09.47184051-05:00
+hash: 1b75b2f6d5da183aad80d32e1c60d59a3ce274d3d3074b80f96d84c38bbec99e
+updated: 2018-02-15T10:27:02.410237615-05:00
 imports:
 - name: github.com/cihub/seelog
   version: f561c5e57575bb1e0a2167028b7339b3a8d16fb4
@@ -9,11 +9,11 @@ imports:
   - archive/tar
   - archive/zip
 - name: github.com/DataDog/agent-payload
-  version: fb25fcedf155de94e762080a914adb5436d45b9c
+  version: 3b793015ecfa5b829e8a466bd7cce836891502cc
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: d03901700f5b01213fbf21c57e65ef2a87e26afb
+  version: c759e9955f99cc15ad6cf098bf99eb726fafe560
   subpackages:
   - pkg/config
   - pkg/diagnose/diagnosis
@@ -48,7 +48,7 @@ imports:
 - name: github.com/DataDog/zstd
   version: 2bf71ec4836011b92dc78df3b9ace6b40e65f7df
 - name: github.com/docker/distribution
-  version: f4118485915abb8b163442717326597908eee6aa
+  version: 6664ec703991875e14419ff4960921cce7678bab
   subpackages:
   - digestset
   - reference
@@ -72,13 +72,13 @@ imports:
   - client
   - pkg/tlsconfig
 - name: github.com/docker/go-connections
-  version: e15c02316c12de00874640cd76311849de2aeed5
+  version: 7beb39f0b969b075d1325fecb092faf27fd357b6
   subpackages:
   - nat
   - sockets
   - tlsconfig
 - name: github.com/docker/go-units
-  version: 0dadbb0345b35ec7ef35e228dabb8de89a65bf52
+  version: 47565b4f722fb6ceae66b95f853feed578a4a51c
 - name: github.com/ericchiang/k8s
   version: 860d64039a0d98e149452f9687f26eb3636d5038
   subpackages:
@@ -112,13 +112,13 @@ imports:
   - util/intstr
   - watch/versioned
 - name: github.com/fsnotify/fsnotify
-  version: 629574ca2a5df945712d3079857300b5e4da0236
+  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: github.com/ghodss/yaml
   version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - name: github.com/go-ini/ini
   version: d3de07a94d22b4a0972deb4b96d790c2c0ce8333
 - name: github.com/go-ole/go-ole
-  version: de8695c8edbf8236f30d6e1376e20b198a028d42
+  version: a1ec82a652ebc7e784d7df887cfb31061aeabbcc
   subpackages:
   - oleutil
 - name: github.com/gogo/protobuf
@@ -138,10 +138,11 @@ imports:
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
 - name: github.com/hashicorp/hcl
-  version: 7fa7fff964d035e8a162cce3a164b3ad02ad651b
+  version: 23c074d0eceb2b8a5bfdbb271ab780cde70f05a8
   subpackages:
   - hcl/ast
   - hcl/parser
+  - hcl/printer
   - hcl/scanner
   - hcl/strconv
   - hcl/token
@@ -155,41 +156,37 @@ imports:
 - name: github.com/json-iterator/go
   version: 13f86432b882000a51c6e610c620974462691a97
 - name: github.com/magiconair/properties
-  version: 51463bfca2576e06c62a8504b5c0f06d61312647
+  version: c3beff4c2358b44d0493c7dda585e7db7ff28ae6
 - name: github.com/Microsoft/go-winio
-  version: fff283ad5116362ca252298cfc9b95828956d85d
+  version: 7da180ee92d8bd8bb8c37fc560e673e6557c392f
 - name: github.com/mitchellh/mapstructure
-  version: 482a9fd5fa83e8c4e7817413b80f3eb8feec03ef
+  version: a4e142e9c047c904fa2f1e144d9a84e6133024bc
 - name: github.com/opencontainers/go-digest
   version: 279bed98673dd5bef374d3b6e4b09e2af76183bf
 - name: github.com/patrickmn/go-cache
-  version: 1881a9bccb818787f68c52bfba648c6cf34c34fa
-- name: github.com/pelletier/go-buffruneio
-  version: c37440a7cf42ac63b919c752ca73a85067e05992
+  version: a3647f8e31d79543b2d0f0ae2fe5c379d72cedc0
 - name: github.com/pelletier/go-toml
-  version: fe206efb84b2bc8e8cfafe6b4c1826622be969e3
+  version: acdc4509485b587f5e675510c4f2c63e90ff68a8
 - name: github.com/pkg/errors
-  version: ff09b135c25aae272398c51a07235b90a75aa4f0
+  version: 30136e27e2ac8d167177e8a583aa4c3fea5be833
 - name: github.com/shirou/gopsutil
   version: e30b7839cd6161b2fbef5f187377a345157abe04
 - name: github.com/shirou/w32
   version: bb4de0191aa41b5507caa14b0650cdbddcd9280b
-- name: github.com/Sirupsen/logrus
-  version: 55eb11d21d2a31a3cc93838241d04800f52e823d
 - name: github.com/spf13/afero
-  version: 9be650865eab0c12963d8753212f4f9c66cdcf12
+  version: bbf41cb36dffe15dff5bf7e18c447801e7ffe163
   subpackages:
   - mem
 - name: github.com/spf13/cast
-  version: acbeb36b902d72a7a4c18e8f3241075e7ab763e4
+  version: 8965335b8c7107321228e3e3702cab9832751bac
 - name: github.com/spf13/jwalterweatherman
-  version: fa7ca7e836cf3a8bb4ebf799f472c12d7e903d66
+  version: 7c0cea34c8ece3fbeb2b27ab9b59511d360fb394
 - name: github.com/spf13/pflag
   version: 4c012f6dcd9546820e378d0bdda4d8fc772cdfea
 - name: github.com/spf13/viper
-  version: 0967fc9aceab2ce9da34061253ac10fb99bba5b2
+  version: aafc9e6bc7b7bb53ddaa75a5ef49a17d6e654be5
 - name: github.com/StackExchange/wmi
-  version: ea383cf3ba6ec950874b8486cd72356d007c768f
+  version: 5d049714c4a64225c3c79a7cf7d02f7fb5b96338
 - name: golang.org/x/crypto
   version: 81e90905daefcd6fd217b62423c0908922eadb30
   subpackages:
@@ -230,7 +227,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 670d4cfef0544295bc27a114dbac37980d83185a
 - name: k8s.io/api
-  version: 2694da5be9c4ab4f3fd826112d4c3f71b8bf4b23
+  version: 0d0b2f481328d8bae556061a08a02175054059f4
   subpackages:
   - admissionregistration/v1alpha1
   - admissionregistration/v1beta1
@@ -262,7 +259,7 @@ imports:
   - storage/v1alpha1
   - storage/v1beta1
 - name: k8s.io/apimachinery
-  version: 616b23029fa3dc3e0ccefd47963f5651a6543d94
+  version: da3b134bab57ebf23dedfec7e0004614dd4b5a24
   subpackages:
   - pkg/api/equality
   - pkg/api/errors
@@ -318,7 +315,7 @@ imports:
   - third_party/forked/golang/netutil
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
-  version: 7cd1d3291b7d9b1e2d54d4b69eb65995eaf8888e
+  version: 3bf59c62ad4eec87ccad4dbb46f569c134f71448
   subpackages:
   - kubernetes/scheme
   - kubernetes/typed/core/v1
@@ -347,6 +344,6 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: b91bfb9ebec76498946beb6af7c0230c7cc7ba6c
+  version: be8372ae8ec5c6daaed3cc28ebf73c54b737c240
   subpackages:
   - assert
