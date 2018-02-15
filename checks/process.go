@@ -55,11 +55,13 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if err != nil {
 		return nil, err
 	}
+	log.Debugf("Starting process check...")
 	procs, err := process.AllProcesses()
 	if err != nil {
 		return nil, err
 	}
 	containers, _ := container.GetContainers()
+	log.Debugf("Collected %d processes from AllProcesses", len(procs))
 
 	// End check early if this is our first run.
 	if p.lastProcs == nil {
@@ -80,6 +82,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	chunkedContainers := fmtContainers(containers, p.lastContainers, p.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	totalProcs, totalContainers := float64(0), float64(0)
+	log.Debugf("Chunking processes into %d groups", groupSize)
 	for i := 0; i < groupSize; i++ {
 		totalProcs += float64(len(chunkedProcs[i]))
 		totalContainers += float64(len(chunkedContainers[i]))
