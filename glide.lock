@@ -13,7 +13,7 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: c759e9955f99cc15ad6cf098bf99eb726fafe560
+  version: 31f1ff65541b2e6b17cf98a545a8168a8a708cb5
   subpackages:
   - pkg/config
   - pkg/diagnose/diagnosis
