@@ -22,10 +22,7 @@ var (
 
 // Unmarshal the listeners once and store the result
 func initContainerListeners() {
-	if err := config.Datadog.UnmarshalKey("listeners", &listeners); err != nil {
-		log.Errorf("unable to parse listeners from the datadog config, using default listeners - %s", err)
-		listeners = GetDefaultListeners()
-	}
+	listeners = GetDefaultListeners()
 	hasFatalError = make(map[string]bool)
 }
 
