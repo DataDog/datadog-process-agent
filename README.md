@@ -2,17 +2,9 @@
 
 [![CircleCI](https://circleci.com/gh/DataDog/datadog-process-agent.svg?style=svg)](https://circleci.com/gh/DataDog/datadog-process-agent)
 
-## Run on Linux, Docker or Kubernetes
+## Installation
 
-Follow the installation steps on [http://docs.datadoghq.com/guides/process/](http://docs.datadoghq.com/guides/process/) for your OS version.
-
-OR
-
-Grab the latest release from the [releases page](https://github.com/DataDog/datadog-process-agent/releases) and run from the command line:
-
-```
-dd-process-agent -config $PATH_TO_PROCESS_CONFIG_FILE
-```
+See the [Live Processes docs](https://docs.datadoghq.com/graphing/infrastructure/process/#installation) for installation instructions.
 
 ## Development or running from source
 
@@ -49,10 +41,4 @@ rake protobuf
 ## Contributing
 
 In order for your contributions you will be required to sign a CLA. When a PR is opened a bot will prompt you to sign the CLA. Once signed you will be set for all contributions going forward.
-
-
-## Run on Mac or Windows
-
-Coming soon...
-
 
