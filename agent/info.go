@@ -48,8 +48,8 @@ const (
   Number of containers: {{.Status.ContainerCount}}
   Queue length: {{.Status.QueueSize}}
 
-  Logs: {{.Status.Config.LogFile}}{{if .Status.Config.Proxy}}
-  HttpProxy: {{.Status.Config.Proxy}}{{end}}{{if ne .Status.ContainerID ""}}
+  Logs: {{.Status.Config.LogFile}}{{if .Status.ProxyURL}}
+  HttpProxy: {{.Status.ProxyURL}}{{end}}{{if ne .Status.ContainerID ""}}
   Container ID: {{.Status.ContainerID}}{{end}}
 
 `
@@ -211,6 +211,7 @@ type StatusInfo struct {
 	ContainerCount  int                    `json:"container_count"`
 	QueueSize       int                    `json:"queue_size"`
 	ContainerID     string                 `json:"container_id"`
+	ProxyURL        string                 `json:"proxy_url"`
 }
 
 func initInfo(conf *config.AgentConfig) error {
@@ -234,6 +235,15 @@ func initInfo(conf *config.AgentConfig) error {
 		expvar.Publish("container_count", expvar.Func(publishContainerCount))
 		expvar.Publish("queue_size", expvar.Func(publishQueueSize))
 		expvar.Publish("container_id", expvar.Func(publishContainerID))
+
+		var proxyURL string
+		if conf != nil && conf.Transport.Proxy != nil {
+			u, err := conf.Transport.Proxy(&http.Request{})
+			if err == nil {
+				proxyURL = u.String()
+			}
+		}
+		expvar.NewString("proxy_url").Set(proxyURL)
 
 		c := *conf
 		var buf []byte

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"regexp"
@@ -253,7 +254,6 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 
 func TestProxyEnv(t *testing.T) {
 	assert := assert.New(t)
-	var defaultVal *url.URL
 	for i, tc := range []struct {
 		host     string
 		port     int
@@ -291,8 +291,10 @@ func TestProxyEnv(t *testing.T) {
 		}
 		os.Setenv("PROXY_USER", tc.user)
 		os.Setenv("PROXY_PASSWORD", tc.pass)
-		u, err := proxyFromEnv(defaultVal)
+		pf, err := proxyFromEnv(nil)
 		assert.NoError(err, "proxy case %d had error", i)
+		u, err := pf(&http.Request{})
+		assert.NoError(err)
 		assert.Equal(tc.expected, u.String())
 	}
 }
@@ -303,7 +305,11 @@ func getURL(f *ini.File) (*url.URL, error) {
 		"some/path",
 	}
 	m, _ := conf.GetSection("Main")
-	return getProxySettings(m)
+	pf, err := getProxySettings(m)
+	if err != nil {
+		return nil, err
+	}
+	return pf(&http.Request{})
 }
 
 func TestGetProxySettings(t *testing.T) {

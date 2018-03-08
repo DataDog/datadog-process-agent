@@ -8,6 +8,7 @@ import (
 	"time"
 
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+	ddutil "github.com/DataDog/datadog-agent/pkg/util"
 	log "github.com/cihub/seelog"
 	"gopkg.in/yaml.v2"
 
@@ -139,6 +140,7 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	// Pull additional parameters from the global config file.
 	agentConf.LogLevel = ddconfig.Datadog.GetString("log_level")
 	agentConf.StatsdPort = ddconfig.Datadog.GetInt("dogstatsd_port")
+	agentConf.Transport = ddutil.CreateHTTPTransport()
 
 	return agentConf, nil
 }
