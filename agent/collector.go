@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
-	"net"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -42,32 +41,6 @@ type Collector struct {
 
 // NewCollector creates a new Collectr
 func NewCollector(cfg *config.AgentConfig) (Collector, error) {
-	transport := &http.Transport{
-		MaxIdleConns:    5,
-		IdleConnTimeout: 90 * time.Second,
-		Dial: (&net.Dialer{
-			Timeout:   10 * time.Second,
-			KeepAlive: 10 * time.Second,
-		}).Dial,
-		TLSHandshakeTimeout:   5 * time.Second,
-		ResponseHeaderTimeout: 5 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-
-	if cfg.Proxy != nil {
-		proxy := cfg.Proxy
-		userInfo := ""
-		if cfg.Proxy.User != nil {
-			if _, isSet := proxy.User.Password(); isSet {
-				userInfo = "*****:*****@"
-			} else {
-				userInfo = "*****@"
-			}
-		}
-		log.Infof("Using proxy from configuration: %s://%s%s", proxy.Scheme, userInfo, proxy.Host)
-		transport.Proxy = http.ProxyURL(proxy)
-	}
-
 	sysInfo, err := checks.CollectSystemInfo(cfg)
 	if err != nil {
 		return Collector{}, err
@@ -86,7 +59,7 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 		rtIntervalCh:  make(chan time.Duration),
 		cfg:           cfg,
 		groupID:       rand.Int31(),
-		httpClient:    http.Client{Transport: transport},
+		httpClient:    http.Client{Transport: cfg.Transport},
 		enabledChecks: enabledChecks,
 
 		// Defaults for real-time on start

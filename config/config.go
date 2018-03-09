@@ -3,6 +3,8 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -35,6 +37,8 @@ var (
 	}
 )
 
+type proxyFunc func(*http.Request) (*url.URL, error)
+
 // AgentConfig is the global config for the process-agent. This information
 // is sourced from config files and the environment variables.
 type AgentConfig struct {
@@ -49,7 +53,7 @@ type AgentConfig struct {
 	MaxProcFDs    int
 	ProcLimit     int
 	AllowRealTime bool
-	Proxy         *url.URL
+	Transport     *http.Transport `json:"-"`
 	Logger        *LoggerConfig
 	DDAgentPy     string
 	DDAgentBin    string
@@ -66,6 +70,9 @@ type AgentConfig struct {
 	ContainerWhitelist     []string
 	CollectDockerNetwork   bool
 	ContainerCacheDuration time.Duration
+
+	// Internal store of a proxy used for generating the Transport
+	proxy proxyFunc
 }
 
 // CheckIsEnabled returns a bool indicating if the given check name is enabled.
@@ -109,6 +116,17 @@ func NewDefaultAgentConfig() *AgentConfig {
 		MaxProcFDs:    200,
 		ProcLimit:     100,
 		AllowRealTime: true,
+		Transport: &http.Transport{
+			MaxIdleConns:    5,
+			IdleConnTimeout: 90 * time.Second,
+			Dial: (&net.Dialer{
+				Timeout:   10 * time.Second,
+				KeepAlive: 10 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   5 * time.Second,
+			ResponseHeaderTimeout: 5 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
 
 		// Statsd for internal instrumentation
 		StatsdHost: "127.0.0.1",
@@ -177,7 +195,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		ak := strings.Split(a, ",")
 		cfg.APIKey = ak[0]
 		cfg.LogLevel = strings.ToLower(agentIni.GetDefault("Main", "log_level", "INFO"))
-		cfg.Proxy, err = getProxySettings(section)
+		cfg.proxy, err = getProxySettings(section)
 		if err != nil {
 			log.Errorf("error parsing proxy settings, not using a proxy: %s", err)
 		}
@@ -282,6 +300,10 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		cfg.HostName = hostname
 	}
 
+	if cfg.proxy != nil {
+		cfg.Transport.Proxy = cfg.proxy
+	}
+
 	return cfg, nil
 }
 
@@ -330,9 +352,9 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 		c.LogFile = ""
 	}
 
-	if c.Proxy, err = proxyFromEnv(c.Proxy); err != nil {
+	if c.proxy, err = proxyFromEnv(c.proxy); err != nil {
 		log.Errorf("error parsing proxy settings, not using a proxy: %s", err)
-		c.Proxy = nil
+		c.proxy = nil
 	}
 
 	if v := os.Getenv("DD_PROCESS_AGENT_URL"); v != "" {
@@ -443,7 +465,7 @@ func getHostname(ddAgentPy, ddAgentBin string, ddAgentEnv []string) (string, err
 // getProxySettings returns a url.Url for the proxy configuration from datadog.conf, if available.
 // In the case of invalid settings an error is logged and nil is returned. If settings are missing,
 // meaning we don't want a proxy, then nil is returned with no error.
-func getProxySettings(m *ini.Section) (*url.URL, error) {
+func getProxySettings(m *ini.Section) (proxyFunc, error) {
 	var host string
 	scheme := "http"
 	if v := m.Key("proxy_host").MustString(""); v != "" {
@@ -479,7 +501,7 @@ func getProxySettings(m *ini.Section) (*url.URL, error) {
 // similar way to getProxySettings and, if enough values are available, returns
 // a new proxy URL value. If the environment is not set for this then the
 // `defaultVal` is returned.
-func proxyFromEnv(defaultVal *url.URL) (*url.URL, error) {
+func proxyFromEnv(defaultVal proxyFunc) (proxyFunc, error) {
 	var host string
 	scheme := "http"
 	if v := os.Getenv("PROXY_HOST"); v != "" {
@@ -515,7 +537,7 @@ func proxyFromEnv(defaultVal *url.URL) (*url.URL, error) {
 // constructProxy constructs a *url.Url for a proxy given the parts of a
 // Note that we assume we have at least a non-empty host for this call but
 // all other values can be their defaults (empty string or 0).
-func constructProxy(host, scheme string, port int, user, password string) (*url.URL, error) {
+func constructProxy(host, scheme string, port int, user, password string) (proxyFunc, error) {
 	var userpass *url.Userinfo
 	if user != "" {
 		if password != "" {
@@ -535,5 +557,9 @@ func constructProxy(host, scheme string, port int, user, password string) (*url.
 		path = fmt.Sprintf("%s://%s", scheme, path)
 	}
 
-	return url.Parse(path)
+	u, err := url.Parse(path)
+	if err != nil {
+		return nil, err
+	}
+	return http.ProxyURL(u), nil
 }
