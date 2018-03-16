@@ -43,13 +43,9 @@ func calculatePct(deltaProc, deltaTime, numCPU float64) float32 {
 	// on a 2-CPU-core system would be reported as 50% instead of 100%.
 	overalPct := (deltaProc / deltaTime) * 100
 
-	// Sometimes we get values that don't make sense, so we clamp to 100%
-	if overalPct > 100 {
-		overalPct = 100
+	// In cases where we get values that don't make sense, clamp to (100% * number of CPUS)
+	if overalPct > (numCPU * 100) {
+		overalPct = numCPU * 100
 	}
-
-	// In order to emulate task mgr, we divide by number of CPUs.
-	// Task mgr displays percentage of available CPU (so a busy loop process
-	// on a 2 core CPU is 50%)
-	return float32(overalPct / numCPU)
+	return overalPct
 }
