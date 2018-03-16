@@ -47,5 +47,5 @@ func calculatePct(deltaProc, deltaTime, numCPU float64) float32 {
 	if overalPct > (numCPU * 100) {
 		overalPct = numCPU * 100
 	}
-	return overalPct
+	return float32(overalPct)
 }
