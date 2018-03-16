@@ -108,3 +108,21 @@ func TestProcessChunking(t *testing.T) {
 
 	}
 }
+
+func TestPercentCalculation(t *testing.T) {
+	// Capping at NUM CPU * 100 if we get odd values for delta-{Proc,Time}
+	assert.True(t, floatEquals(calculatePct(100, 50, 1), 100))
+
+	// Zero deltaTime case
+	assert.True(t, floatEquals(calculatePct(100, 0, 8), 0.0))
+
+	assert.True(t, floatEquals(calculatePct(100, 200, 2), 100))
+	assert.True(t, floatEquals(calculatePct(0, 8.08, 8), 0.0))
+	assert.True(t, floatEquals(calculatePct(0.04, 8.08, 8), 3.960396))
+	assert.True(t, floatEquals(calculatePct(1.09, 8.08, 8), 107.920792))
+}
+
+func floatEquals(a, b float32) bool {
+	var e float32 = 0.00000001 // Difference less than some epsilon
+	return a-b < e && b-a < e
+}

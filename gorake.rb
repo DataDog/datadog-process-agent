@@ -20,8 +20,12 @@ def go_build(program, opts={})
   else
     date = `date +%FT%T%z`.strip
   end
+
   goversion = `go version`.strip
   agentversion = ENV["PROCESS_AGENT_VERSION"] || "0.99.0"
+
+  # NOTE: This value is currently hardcoded and needs to be manually incremented during release
+  winversion = "6.1.0".split(".")
 
   vars = {}
   vars["#{dd}.Version"] = agentversion
@@ -54,11 +58,9 @@ def go_build(program, opts={})
     puts msgcmd
     sh msgcmd
 
-    ver_array = "0.99.0".split(".")
-    rescmd = "windres --define MAJ_VER=#{ver_array[0]} --define MIN_VER=#{ver_array[1]} --define PATCH_VER=#{ver_array[2]} "
+    rescmd = "windres --define MAJ_VER=#{winversion[0]} --define MIN_VER=#{winversion[1]} --define PATCH_VER=#{winversion[2]} "
     rescmd += "-i agent/windows_resources/process-agent.rc --target=pe-x86-64 -O coff -o agent/rsrc.syso"
     sh rescmd
-
   end
   sh "#{cmd} -ldflags \"#{ldflags.join(' ')}\" #{program}"
   if ENV['SIGN_WINDOWS'] then

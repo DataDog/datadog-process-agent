@@ -33,3 +33,19 @@ func formatCPU(fp *process.FilledProcess, t2, t1, syst2, syst1 cpu.TimesStat) *m
 		SystemTime: int64(t2.System),
 	}
 }
+
+func calculatePct(deltaProc, deltaTime, numCPU float64) float32 {
+	if deltaTime == 0 {
+		return 0
+	}
+
+	// Calculates utilization split across all CPUs. A busy-loop process
+	// on a 2-CPU-core system would be reported as 50% instead of 100%.
+	overalPct := (deltaProc / deltaTime) * 100
+
+	// In cases where we get values that don't make sense, clamp to (100% * number of CPUS)
+	if overalPct > (numCPU * 100) {
+		overalPct = numCPU * 100
+	}
+	return float32(overalPct)
+}
