@@ -29,8 +29,8 @@ func initContainerListeners() {
 // GetDefaultListeners returns the default auto-discovery listeners, for use in container retrieval
 func GetDefaultListeners() []config.Listeners {
 	l := []config.Listeners{{Name: "docker"}}
-	// If we can detect that this is an ecs or fargate instance, lets add it as well
-	if ecs.IsInstance() || ecs.IsFargateInstance() {
+	// If we can detect that this is a fargate instance, lets add it as well
+	if ecs.IsFargateInstance() {
 		l = append(l, config.Listeners{Name: "ecs"})
 	}
 	return l
@@ -73,9 +73,9 @@ func GetContainers() ([]*docker.Container, error) {
 				}
 				errs = append(errs, fmt.Errorf("unable to connect to docker - %s", err))
 			}
-		case "ecs":
+		case "ecs": // Fargate containers
 			if ctrs, err := ecs.GetContainers(); err != nil {
-				errs = append(errs, fmt.Errorf("failed to get container list from ecs - %s", err))
+				errs = append(errs, fmt.Errorf("failed to get container list from fargate - %s", err))
 			} else {
 				succeeded = true
 				containers = append(containers, ctrs...)
