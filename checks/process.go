@@ -127,6 +127,9 @@ func fmtProcesses(
 			continue
 		}
 
+		// fmt.Println("blocked args ", cfg.BlackListedArgs)
+		// config.HideBlacklistedArgs(fp.Cmdline, cfg.BlackListedArgs)
+
 		ctr, ok := ctrByPid[fp.Pid]
 		if !ok {
 			ctr = docker.NullContainer

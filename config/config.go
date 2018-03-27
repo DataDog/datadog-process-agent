@@ -42,24 +42,25 @@ type proxyFunc func(*http.Request) (*url.URL, error)
 // AgentConfig is the global config for the process-agent. This information
 // is sourced from config files and the environment variables.
 type AgentConfig struct {
-	Enabled       bool
-	APIKey        string
-	HostName      string
-	APIEndpoint   *url.URL
-	LogFile       string
-	LogLevel      string
-	QueueSize     int
-	Blacklist     []*regexp.Regexp
-	MaxProcFDs    int
-	ProcLimit     int
-	AllowRealTime bool
-	Transport     *http.Transport `json:"-"`
-	Logger        *LoggerConfig
-	DDAgentPy     string
-	DDAgentBin    string
-	DDAgentPyEnv  []string
-	StatsdHost    string
-	StatsdPort    int
+	Enabled         bool
+	APIKey          string
+	HostName        string
+	APIEndpoint     *url.URL
+	LogFile         string
+	LogLevel        string
+	QueueSize       int
+	Blacklist       []*regexp.Regexp
+	BlacklistedArgs []*regexp.Regexp
+	MaxProcFDs      int
+	ProcLimit       int
+	AllowRealTime   bool
+	Transport       *http.Transport `json:"-"`
+	Logger          *LoggerConfig
+	DDAgentPy       string
+	DDAgentBin      string
+	DDAgentPyEnv    []string
+	StatsdHost      string
+	StatsdPort      int
 
 	// Check config
 	EnabledChecks  []string
@@ -242,6 +243,10 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 			}
 		}
 		cfg.Blacklist = blacklist
+
+		// blacklistedArgs := agentIni.GetStrArrayDefault(ns, "blacklisted_args", ",", []string{})
+		// fmt.Println("BlacklistedArgs", blacklistedArgs)
+
 		procLimit := agentIni.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
 		if procLimit <= maxProcLimit {
 			cfg.ProcLimit = procLimit
@@ -414,6 +419,13 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 		}
 	}
 	return false
+}
+
+func HideBlacklistedArgs(cmdline []string, blackListedArgs []*regexp.Regexp) {
+	// fmt.Println("FROM PROCESS ", pid)
+	// for _, c := range cmdline {
+	// 	fmt.Println("command line = ", c)
+	// }
 }
 
 func isAffirmative(value string) (bool, error) {

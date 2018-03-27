@@ -39,6 +39,8 @@ type YamlAgentConfig struct {
 		} `yaml:"intervals"`
 		// A list of regex patterns that will exclude a process if matched.
 		BlacklistPatterns []string `yaml:"blacklist_patterns"`
+		// A list of regex patterns that will exclude process args from a process CmdLine if matched
+		BlacklistedArgs []string `yaml:"blacklisted_args,omitempty"`
 		// How many check results to buffer in memory when POST fails. The default is usually fine.
 		QueueSize int `yaml:"queue_size"`
 		// The maximum number of file descriptors to open when collecting net connections.
