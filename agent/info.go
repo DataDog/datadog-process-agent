@@ -235,16 +235,6 @@ func initInfo(conf *config.AgentConfig) error {
 		expvar.Publish("container_count", expvar.Func(publishContainerCount))
 		expvar.Publish("queue_size", expvar.Func(publishQueueSize))
 		expvar.Publish("container_id", expvar.Func(publishContainerID))
-
-		var proxyURL string
-		if conf != nil && conf.Transport.Proxy != nil {
-			u, err := conf.Transport.Proxy(&http.Request{})
-			if err == nil {
-				proxyURL = u.String()
-			}
-		}
-		expvar.NewString("proxy_url").Set(proxyURL)
-
 		c := *conf
 		var buf []byte
 		buf, err = json.Marshal(&c)
