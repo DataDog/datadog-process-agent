@@ -69,12 +69,39 @@ func TestBlacklist(t *testing.T) {
 
 func TestArgsBlacklist(t *testing.T) {
 	customArgsBlacklist := []string{
-		"^-{1,2}consul_config",
+		"^-{1,2}consul_token",
 		"^-{1,2}dd_password",
 	}
 
 	defaultRegexs := CompileStringsToRegex(defaultArgsBlacklist)
 	customRegexs := CompileStringsToRegex(customArgsBlacklist)
+	mergedRegexs := append(defaultRegexs, customRegexs...)
+	t.Log("default regexp", defaultRegexs)
+	t.Log("custom regexp", customRegexs)
+	t.Log("merged regexp", mergedRegexs)
+
+	cases := []struct {
+		cmdline       []string
+		parsedCmdline []string
+	}{
+		{[]string{"agent", "-password", "1234"}, []string{"agent", "-password", "********"}},
+		{[]string{"agent", "--password", "1234"}, []string{"agent", "--password", "********"}},
+		{[]string{"agent", "-password=1234"}, []string{"agent", "-password=********"}},
+		{[]string{"agent", "--password=1234"}, []string{"agent", "--password=********"}},
+		{[]string{"spidly", "-debug_port=2043"}, []string{"spidly", "-debug_port=2043"}},
+		{[]string{"agent", "start", "-p", "config.cfg"}, []string{"agent", "start", "-p", "config.cfg"}},
+		{[]string{"p1", "-openpassword=admin"}, []string{"p1", "-openpassword=admin"}},
+		{[]string{"p1", "-openpassword", "admin"}, []string{"p1", "-openpassword", "admin"}},
+		{[]string{"fitz", "‑consul_token=1234567890"}, []string{"fitz", "‑consul_token=********"}},
+		{[]string{"fitz", "‑-consul_token=1234567890"}, []string{"fitz", "‑-consul_token=********"}},
+		{[]string{"fitz", "‑consul_token", "1234567890"}, []string{"fitz", "‑consul_token", "********"}},
+		{[]string{"fitz", "‑-consul_token", "1234567890"}, []string{"fitz", "-‑consul_token", "********"}},
+	}
+
+	for _, c := range cases {
+		HideBlacklistedArgs(c.cmdline, mergedRegexs)
+		assert.Equal(t, c.parsedCmdline, c.cmdline)
+	}
 
 }
 

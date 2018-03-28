@@ -12,6 +12,8 @@ import (
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util/container"
+
+	"fmt" /// REMOVE IT
 )
 
 // Process is a singleton ProcessCheck.
@@ -129,6 +131,9 @@ func fmtProcesses(
 
 		// fmt.Println("blocked args ", cfg.BlackListedArgs)
 		// config.HideBlacklistedArgs(fp.Cmdline, cfg.BlackListedArgs)
+		// for _, arg := range fp.Cmdline {
+		// 	fmt.Println("one arg = ", arg)
+		// }
 
 		ctr, ok := ctrByPid[fp.Pid]
 		if !ok {

@@ -442,15 +442,22 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 
 func HideBlacklistedArgs(cmdline []string, argsBlacklist []*regexp.Regexp) {
 	replacement := "********"
-	for _, blacklistedArg := range argsBlacklist {
-		for i, arg := range cmdline {
-			if blacklistedArg.MatchString(arg) {
-				if replBeg := strings.Index(arg, "="); replBeg != -1 {
-					newString := arg[:replBeg+1] + replacement
+	for i := 0; i < len(cmdline); i++ {
+		for _, blacklistedArg := range argsBlacklist {
+			fmt.Printf("arg: %s", cmdline[i])
+			if blacklistedArg.MatchString(cmdline[i]) {
+				fmt.Println(" matched ")
+				if replBeg := strings.Index(cmdline[i], "="); replBeg != -1 {
+					newString := cmdline[i][:replBeg+1] + replacement
 					cmdline[i] = newString
+					break
 				} else if i+1 < len(cmdline) {
 					cmdline[i+1] = replacement
+					i++
+					break
 				}
+			} else {
+				fmt.Println()
 			}
 		}
 	}
