@@ -37,30 +37,35 @@ var (
 	}
 )
 
+var (
+	defBlockedArgsPats = []string{"-{1,2}password", "-{1,2}passwd", "-{1,2}mysql_pwd", "-{1,2}access_token", "-{1,2}auth_token", "-{1,2}api_key", "-{1,2}apikey", "-{1,2}secret", "-{1,2}credentials", "-{1,2}stripetoken"}
+)
+
 type proxyFunc func(*http.Request) (*url.URL, error)
 
 // AgentConfig is the global config for the process-agent. This information
 // is sourced from config files and the environment variables.
 type AgentConfig struct {
-	Enabled         bool
-	APIKey          string
-	HostName        string
-	APIEndpoint     *url.URL
-	LogFile         string
-	LogLevel        string
-	QueueSize       int
-	Blacklist       []*regexp.Regexp
-	BlacklistedArgs []*regexp.Regexp
-	MaxProcFDs      int
-	ProcLimit       int
-	AllowRealTime   bool
-	Transport       *http.Transport `json:"-"`
-	Logger          *LoggerConfig
-	DDAgentPy       string
-	DDAgentBin      string
-	DDAgentPyEnv    []string
-	StatsdHost      string
-	StatsdPort      int
+	Enabled        bool
+	APIKey         string
+	HostName       string
+	APIEndpoint    *url.URL
+	LogFile        string
+	LogLevel       string
+	QueueSize      int
+	Blacklist      []*regexp.Regexp
+	DefBlockedArgs []*regexp.Regexp
+	BlockedArgs    []*regexp.Regexp
+	MaxProcFDs     int
+	ProcLimit      int
+	AllowRealTime  bool
+	Transport      *http.Transport `json:"-"`
+	Logger         *LoggerConfig
+	DDAgentPy      string
+	DDAgentBin     string
+	DDAgentPyEnv   []string
+	StatsdHost     string
+	StatsdPort     int
 
 	// Check config
 	EnabledChecks  []string
@@ -244,16 +249,12 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		}
 		cfg.Blacklist = blacklist
 
-		blacklistedArgsPats := agentIni.GetStrArrayDefault(ns, "blacklisted_args", ",", []string{})
-		blacklistedArgs := make([]*regexp.Regexp, 0, len(blacklistedArgsPats))
-		for _, arg := range blacklistedArgsPats {
-			r, err := regexp.Compile(arg)
-			if err == nil {
-				blacklistedArgs = append(blacklistedArgs, r)
-			}
-		}
-		cfg.BlacklistedArgs = blacklistedArgs
-		fmt.Println("BlacklistedArgs = ", cfg.BlacklistedArgs)
+		// Default blacklisted args
+		cfg.DefBlockedArgs = compileStringsToRegex(defBlockedArgsPats)
+
+		// Custom blacklisted args
+		blockedArgsPats := agentIni.GetStrArrayDefault(ns, "blacklisted_args", ",", []string{})
+		cfg.BlockedArgs = compileStringsToRegex(blockedArgsPats)
 
 		procLimit := agentIni.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
 		if procLimit <= maxProcLimit {
@@ -318,6 +319,18 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 	}
 
 	return cfg, nil
+}
+
+func compileStringsToRegex(patterns []string) []*regexp.Regexp {
+	compiledRegexps := make([]*regexp.Regexp, 0, len(patterns))
+	for _, pattern := range patterns {
+		r, err := regexp.Compile(pattern)
+		if err == nil {
+			compiledRegexps = append(compiledRegexps, r)
+		}
+	}
+
+	return compiledRegexps
 }
 
 // mergeEnv applies overrides from environment variables to the trace agent configuration
@@ -429,13 +442,13 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 	return false
 }
 
-func HideBlacklistedArgs(cmdline []string, blacklistedArgs []*regexp.Regexp) {
+func (cfg *AgentConfig) HideDefaultBlacklistedArgs(cmdline []string) {
 	replacement := "********"
-	for _, blacklistedArg := range blacklistedArgs {
+	for _, blacklistedArg := range cfg.DefBlockedArgs {
 		for i, arg := range cmdline {
 			if blacklistedArg.MatchString(arg) {
 				if replBeg := strings.Index(arg, "="); replBeg != -1 {
-					newString := arg[:replBeg+1] + replamcement
+					newString := arg[:replBeg+1] + replacement
 					cmdline[i] = newString
 				} else if i+1 < len(cmdline) {
 					cmdline[i+1] = replacement
