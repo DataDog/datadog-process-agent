@@ -244,8 +244,16 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		}
 		cfg.Blacklist = blacklist
 
-		// blacklistedArgs := agentIni.GetStrArrayDefault(ns, "blacklisted_args", ",", []string{})
-		// fmt.Println("BlacklistedArgs", blacklistedArgs)
+		blacklistedArgsPats := agentIni.GetStrArrayDefault(ns, "blacklisted_args", ",", []string{})
+		blacklistedArgs := make([]*regexp.Regexp, 0, len(blacklistedArgsPats))
+		for _, arg := range blacklistedArgsPats {
+			r, err := regexp.Compile(arg)
+			if err == nil {
+				blacklistedArgs = append(blacklistedArgs, r)
+			}
+		}
+		cfg.BlacklistedArgs = blacklistedArgs
+		fmt.Println("BlacklistedArgs = ", cfg.BlacklistedArgs)
 
 		procLimit := agentIni.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
 		if procLimit <= maxProcLimit {
@@ -421,11 +429,20 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 	return false
 }
 
-func HideBlacklistedArgs(cmdline []string, blackListedArgs []*regexp.Regexp) {
-	// fmt.Println("FROM PROCESS ", pid)
-	// for _, c := range cmdline {
-	// 	fmt.Println("command line = ", c)
-	// }
+func HideBlacklistedArgs(cmdline []string, blacklistedArgs []*regexp.Regexp) {
+	replacement := "********"
+	for _, blacklistedArg := range blacklistedArgs {
+		for i, arg := range cmdline {
+			if blacklistedArg.MatchString(arg) {
+				if replBeg := strings.Index(arg, "="); replBeg != -1 {
+					newString := arg[:replBeg+1] + replamcement
+					cmdline[i] = newString
+				} else if i+1 < len(cmdline) {
+					cmdline[i+1] = replacement
+				}
+			}
+		}
+	}
 }
 
 func isAffirmative(value string) (bool, error) {
