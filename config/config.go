@@ -38,7 +38,7 @@ var (
 )
 
 var (
-	defBlockedArgsPats = []string{"-{1,2}password", "-{1,2}passwd", "-{1,2}mysql_pwd", "-{1,2}access_token", "-{1,2}auth_token", "-{1,2}api_key", "-{1,2}apikey", "-{1,2}secret", "-{1,2}credentials", "-{1,2}stripetoken"}
+	defaultArgsBlacklist = []string{"-{1,2}password", "-{1,2}passwd", "-{1,2}mysql_pwd", "-{1,2}access_token", "-{1,2}auth_token", "-{1,2}api_key", "-{1,2}apikey", "-{1,2}secret", "-{1,2}credentials", "-{1,2}stripetoken"}
 )
 
 type proxyFunc func(*http.Request) (*url.URL, error)
@@ -46,26 +46,26 @@ type proxyFunc func(*http.Request) (*url.URL, error)
 // AgentConfig is the global config for the process-agent. This information
 // is sourced from config files and the environment variables.
 type AgentConfig struct {
-	Enabled        bool
-	APIKey         string
-	HostName       string
-	APIEndpoint    *url.URL
-	LogFile        string
-	LogLevel       string
-	QueueSize      int
-	Blacklist      []*regexp.Regexp
-	DefBlockedArgs []*regexp.Regexp
-	BlockedArgs    []*regexp.Regexp
-	MaxProcFDs     int
-	ProcLimit      int
-	AllowRealTime  bool
-	Transport      *http.Transport `json:"-"`
-	Logger         *LoggerConfig
-	DDAgentPy      string
-	DDAgentBin     string
-	DDAgentPyEnv   []string
-	StatsdHost     string
-	StatsdPort     int
+	Enabled              bool
+	APIKey               string
+	HostName             string
+	APIEndpoint          *url.URL
+	LogFile              string
+	LogLevel             string
+	QueueSize            int
+	Blacklist            []*regexp.Regexp
+	DefaultArgsBlacklist []*regexp.Regexp
+	CustomArgsBlacklist  []*regexp.Regexp
+	MaxProcFDs           int
+	ProcLimit            int
+	AllowRealTime        bool
+	Transport            *http.Transport `json:"-"`
+	Logger               *LoggerConfig
+	DDAgentPy            string
+	DDAgentBin           string
+	DDAgentPyEnv         []string
+	StatsdHost           string
+	StatsdPort           int
 
 	// Check config
 	EnabledChecks  []string
@@ -249,12 +249,10 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		}
 		cfg.Blacklist = blacklist
 
-		// Default blacklisted args
-		cfg.DefBlockedArgs = compileStringsToRegex(defBlockedArgsPats)
+		cfg.DefaultArgsBlacklist = CompileStringsToRegex(defaultArgsBlacklist)
 
-		// Custom blacklisted args
-		blockedArgsPats := agentIni.GetStrArrayDefault(ns, "blacklisted_args", ",", []string{})
-		cfg.BlockedArgs = compileStringsToRegex(blockedArgsPats)
+		customArgsBlacklist := agentIni.GetStrArrayDefault(ns, "args_blacklist", ",", []string{})
+		cfg.CustomArgsBlacklist = CompileStringsToRegex(customArgsBlacklist)
 
 		procLimit := agentIni.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
 		if procLimit <= maxProcLimit {
@@ -321,7 +319,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 	return cfg, nil
 }
 
-func compileStringsToRegex(patterns []string) []*regexp.Regexp {
+func CompileStringsToRegex(patterns []string) []*regexp.Regexp {
 	compiledRegexps := make([]*regexp.Regexp, 0, len(patterns))
 	for _, pattern := range patterns {
 		r, err := regexp.Compile(pattern)
@@ -442,9 +440,9 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 	return false
 }
 
-func (cfg *AgentConfig) HideDefaultBlacklistedArgs(cmdline []string) {
+func HideBlacklistedArgs(cmdline []string, argsBlacklist []*regexp.Regexp) {
 	replacement := "********"
-	for _, blacklistedArg := range cfg.DefBlockedArgs {
+	for _, blacklistedArg := range argsBlacklist {
 		for i, arg := range cmdline {
 			if blacklistedArg.MatchString(arg) {
 				if replBeg := strings.Index(arg, "="); replBeg != -1 {

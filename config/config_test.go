@@ -67,6 +67,17 @@ func TestBlacklist(t *testing.T) {
 	}
 }
 
+func TestArgsBlacklist(t *testing.T) {
+	customArgsBlacklist := []string{
+		"^-{1,2}consul_config",
+		"^-{1,2}dd_password",
+	}
+
+	defaultRegexs := CompileStringsToRegex(defaultArgsBlacklist)
+	customRegexs := CompileStringsToRegex(customArgsBlacklist)
+
+}
+
 func TestOnlyEnvConfig(t *testing.T) {
 	// setting an API Key should be enough to generate valid config
 	os.Setenv("DD_API_KEY", "apikey_from_env")
