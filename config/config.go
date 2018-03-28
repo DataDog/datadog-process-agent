@@ -38,7 +38,7 @@ var (
 )
 
 var (
-	defaultArgsBlacklist = []string{"-{1,2}password", "-{1,2}passwd", "-{1,2}mysql_pwd", "-{1,2}access_token", "-{1,2}auth_token", "-{1,2}api_key", "-{1,2}apikey", "-{1,2}secret", "-{1,2}credentials", "-{1,2}stripetoken"}
+	defaultArgsBlacklist = []string{"^-{1,2}password", "^-{1,2}passwd", "^-{1,2}mysql_pwd", "^-{1,2}access_token", "^-{1,2}auth_token", "^-{1,2}api_key", "^-{1,2}apikey", "^-{1,2}secret", "^-{1,2}credentials", "^-{1,2}stripetoken"}
 )
 
 type proxyFunc func(*http.Request) (*url.URL, error)
@@ -444,9 +444,9 @@ func HideBlacklistedArgs(cmdline []string, argsBlacklist []*regexp.Regexp) {
 	replacement := "********"
 	for i := 0; i < len(cmdline); i++ {
 		for _, blacklistedArg := range argsBlacklist {
-			fmt.Printf("arg: %s", cmdline[i])
+			// fmt.Printf("arg: %s", cmdline[i])
 			if blacklistedArg.MatchString(cmdline[i]) {
-				fmt.Println(" matched ")
+				// fmt.Println(" matched ")
 				if replBeg := strings.Index(cmdline[i], "="); replBeg != -1 {
 					newString := cmdline[i][:replBeg+1] + replacement
 					cmdline[i] = newString
@@ -457,7 +457,7 @@ func HideBlacklistedArgs(cmdline []string, argsBlacklist []*regexp.Regexp) {
 					break
 				}
 			} else {
-				fmt.Println()
+				// fmt.Println()
 			}
 		}
 	}
