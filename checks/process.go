@@ -7,7 +7,7 @@ import (
 	"github.com/DataDog/gopsutil/process"
 	log "github.com/cihub/seelog"
 
-	"fmt" /// REMOVE IT
+	// "fmt" /// REMOVE IT
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
@@ -129,7 +129,7 @@ func fmtProcesses(
 		}
 
 		// Hide the blacklisted args
-		HideBlacklistedArgs(fp.Cmdline, cfg.ArgsBlacklist)
+		config.HideBlacklistedArgs(fp.Cmdline, cfg.ArgsBlacklist)
 
 		// fmt.Println("blocked args ", cfg.BlackListedArgs)
 		// config.HideBlacklistedArgs(fp.Cmdline, cfg.BlackListedArgs)
