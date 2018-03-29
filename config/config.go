@@ -54,6 +54,7 @@ type AgentConfig struct {
 	LogLevel             string
 	QueueSize            int
 	Blacklist            []*regexp.Regexp
+	ArgsBlacklist        []*regexp.Regexp
 	DefaultArgsBlacklist []*regexp.Regexp
 	CustomArgsBlacklist  []*regexp.Regexp
 	MaxProcFDs           int
@@ -249,10 +250,14 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		}
 		cfg.Blacklist = blacklist
 
+		// Args Blacklist
 		cfg.DefaultArgsBlacklist = CompileStringsToRegex(defaultArgsBlacklist)
 
 		customArgsBlacklist := agentIni.GetStrArrayDefault(ns, "args_blacklist", ",", []string{})
 		cfg.CustomArgsBlacklist = CompileStringsToRegex(customArgsBlacklist)
+
+		// Verify if the user chose to use de default args blacklist
+		cfg.ArgsBlacklist = append(cfg.DefaultArgsBLacklist, cfg.CustomArgsBlacklist...)
 
 		procLimit := agentIni.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
 		if procLimit <= maxProcLimit {

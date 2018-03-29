@@ -75,7 +75,7 @@ func TestArgsBlacklist(t *testing.T) {
 
 	defaultRegexs := CompileStringsToRegex(defaultArgsBlacklist)
 	customRegexs := CompileStringsToRegex(customArgsBlacklist)
-	mergedRegexs := append(customRegexs, defaultRegexs...)
+	mergedRegexs := append(defaultRegexs, customRegexs...)
 	t.Log("default regexp", defaultRegexs)
 	t.Log("custom regexp", customRegexs)
 	t.Log("merged regexp", mergedRegexs)
@@ -102,7 +102,6 @@ func TestArgsBlacklist(t *testing.T) {
 		HideBlacklistedArgs(c.cmdline, mergedRegexs)
 		assert.Equal(t, c.parsedCmdline, c.cmdline)
 	}
-
 }
 
 func TestOnlyEnvConfig(t *testing.T) {

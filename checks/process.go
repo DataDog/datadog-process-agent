@@ -7,13 +7,12 @@ import (
 	"github.com/DataDog/gopsutil/process"
 	log "github.com/cihub/seelog"
 
+	"fmt" /// REMOVE IT
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util/container"
-
-	"fmt" /// REMOVE IT
 )
 
 // Process is a singleton ProcessCheck.
@@ -128,6 +127,9 @@ func fmtProcesses(
 		if skipProcess(cfg, fp, lastProcs) {
 			continue
 		}
+
+		// Hide the blacklisted args
+		HideBlacklistedArgs(fp.Cmdline, cfg.ArgsBlacklist)
 
 		// fmt.Println("blocked args ", cfg.BlackListedArgs)
 		// config.HideBlacklistedArgs(fp.Cmdline, cfg.BlackListedArgs)
