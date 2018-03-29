@@ -56,6 +56,7 @@ type AgentConfig struct {
 	Blacklist            []*regexp.Regexp
 	ArgsBlacklist        []*regexp.Regexp
 	DefaultArgsBlacklist []*regexp.Regexp
+	UseDefArgsBlacklist  bool
 	CustomArgsBlacklist  []*regexp.Regexp
 	MaxProcFDs           int
 	ProcLimit            int
@@ -156,6 +157,11 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Docker
 		ContainerCacheDuration: 10 * time.Second,
 		CollectDockerNetwork:   true,
+
+		// Args BlackList
+		UseDefArgsBlacklist:  true,
+		DefaultArgsBlacklist: CompileStringsToRegex(defaultArgsBlacklist),
+		CustomArgsBlacklist:  make([]*regexp.Regexp, 0, 0),
 	}
 
 	// Set default values for proc/sys paths if unset.
@@ -250,7 +256,8 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		}
 		cfg.Blacklist = blacklist
 
-		// Custom args blacklist from the conf file
+		// Args Blacklist
+		cfg.UseDefArgsBlacklist = agentIni.GetBool(ns, "use_def_args_blacklist", true)
 		customArgsBlacklist := agentIni.GetStrArrayDefault(ns, "args_blacklist", ",", []string{})
 		cfg.CustomArgsBlacklist = CompileStringsToRegex(customArgsBlacklist)
 		fmt.Println("custom blocked args from conf: ", cfg.CustomArgsBlacklist)
@@ -288,13 +295,13 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		}
 	}
 
-	// Default Args Blacklist
-	cfg.DefaultArgsBlacklist = CompileStringsToRegex(defaultArgsBlacklist)
-
-	// Verify if the user chose to use de default args blacklist
-	//TODO
-	// Create a unified ArgsBlacklist
-	cfg.ArgsBlacklist = append(cfg.DefaultArgsBlacklist, cfg.CustomArgsBlacklist...)
+	// Verify if the user chose to use de default args blacklist and create an unified one
+	fmt.Println("use default args blacklist", cfg.UseDefArgsBlacklist)
+	if cfg.UseDefArgsBlacklist {
+		cfg.ArgsBlacklist = append(cfg.DefaultArgsBlacklist, cfg.CustomArgsBlacklist...)
+	} else {
+		cfg.ArgsBlacklist = cfg.CustomArgsBlacklist
+	}
 	fmt.Println("all blocked args: ", cfg.ArgsBlacklist)
 
 	// Use environment to override any additional config.

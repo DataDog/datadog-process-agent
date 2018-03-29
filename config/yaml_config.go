@@ -41,6 +41,8 @@ type YamlAgentConfig struct {
 		BlacklistPatterns []string `yaml:"blacklist_patterns"`
 		// A list of regex patterns that will exclude process args from a process CmdLine if matched
 		ArgsBlacklistPat []string `yaml:"args_blacklist,omitempty"`
+		// Use the default values to obfuscate process args
+		UseDefArgsBlacklist bool `yaml:"use_def_args_blacklist"`
 		// How many check results to buffer in memory when POST fails. The default is usually fine.
 		QueueSize int `yaml:"queue_size"`
 		// The maximum number of file descriptors to open when collecting net connections.
@@ -61,6 +63,7 @@ type YamlAgentConfig struct {
 // NewYamlIfExists returns a new YamlAgentConfig if the given configPath is exists.
 func NewYamlIfExists(configPath string) (*YamlAgentConfig, error) {
 	var yamlConf YamlAgentConfig
+	yamlConf.Process.UseDefArgsBlacklist = true
 	if util.PathExists(configPath) {
 		lines, err := util.ReadLines(configPath)
 		if err != nil {
@@ -122,6 +125,8 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	}
 	agentConf.Blacklist = blacklist
 
+	// Args Blacklist
+	agentConf.UseDefArgsBlacklist = yc.Process.UseDefArgsBlacklist
 	agentConf.CustomArgsBlacklist = CompileStringsToRegex(yc.Process.ArgsBlacklistPat)
 	fmt.Println("custom blocked args from yaml: ", agentConf.CustomArgsBlacklist)
 
