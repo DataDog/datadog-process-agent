@@ -463,10 +463,6 @@ func HideBlacklistedArgs(cmdline []string, argsBlacklist []*regexp.Regexp) []str
 		rawCmdline = pattern.ReplaceAllString(rawCmdline, `$1********`)
 	}
 
-	if rawCmdline != strings.Join(cmdline, " ") {
-		fmt.Println("matched ", rawCmdline)
-	}
-
 	return strings.Split(rawCmdline, " ")
 }
 
