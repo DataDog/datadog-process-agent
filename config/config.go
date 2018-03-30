@@ -338,10 +338,8 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
 	for _, word := range words {
 		pattern := `(-{1,2}` + word + `[^= ]*[ =])([^ \n]*)`
-		r, err := regexp.Compile(pattern)
-		if err == nil {
-			compiledRegexps = append(compiledRegexps, r)
-		}
+		r := regexp.MustCompile(pattern)
+		compiledRegexps = append(compiledRegexps, r)
 	}
 
 	return compiledRegexps

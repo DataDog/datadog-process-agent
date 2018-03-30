@@ -67,7 +67,7 @@ func TestBlacklist(t *testing.T) {
 	}
 }
 
-func TestArgsBlacklist(t *testing.T) {
+func setArgsBlacklistPatterns(t *testing.T) []*regexp.Regexp {
 	customArgsBlacklist := []string{
 		"consul_token",
 		"dd_password",
@@ -81,6 +81,10 @@ func TestArgsBlacklist(t *testing.T) {
 	t.Log("custom regexp", customRegexs)
 	t.Log("merged regexp", mergedRegexs)
 
+	return mergedRegexs
+}
+
+func TestBlacklistedArgs(t *testing.T) {
 	cases := []struct {
 		cmdline       []string
 		parsedCmdline []string
@@ -89,10 +93,6 @@ func TestArgsBlacklist(t *testing.T) {
 		{[]string{"agent", "--password", "1234"}, []string{"agent", "--password", "********"}},
 		{[]string{"agent", "-password=1234"}, []string{"agent", "-password=********"}},
 		{[]string{"agent", "--password=1234"}, []string{"agent", "--password=********"}},
-		{[]string{"spidly", "-debug_port=2043"}, []string{"spidly", "-debug_port=2043"}},
-		{[]string{"agent", "start", "-p", "config.cfg"}, []string{"agent", "start", "-p", "config.cfg"}},
-		{[]string{"p1", "-openpassword=admin"}, []string{"p1", "-openpassword=admin"}},
-		{[]string{"p1", "-openpassword", "admin"}, []string{"p1", "-openpassword", "admin"}},
 		{[]string{"fitz", "-consul_token=1234567890"}, []string{"fitz", "-consul_token=********"}},
 		{[]string{"fitz", "--consul_token=1234567890"}, []string{"fitz", "--consul_token=********"}},
 		{[]string{"fitz", "-consul_token", "1234567890"}, []string{"fitz", "-consul_token", "********"}},
@@ -101,10 +101,58 @@ func TestArgsBlacklist(t *testing.T) {
 			[]string{"python", "~/test/run.py", "--password=********", "-password", "********", "-open_password=admin", "-consul_token", "********", "-blocked_from_yaml=********", "&"}},
 	}
 
+	regexPatterns := setArgsBlacklistPatterns(t)
+
 	for i, _ := range cases {
-		cases[i].cmdline = HideBlacklistedArgs(cases[i].cmdline, mergedRegexs)
+		cases[i].cmdline = HideBlacklistedArgs(cases[i].cmdline, regexPatterns)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
+}
+
+func TestNoBlacklistedArgs(t *testing.T) {
+	cases := []struct {
+		cmdline       []string
+		parsedCmdline []string
+	}{
+		{[]string{"spidly", "-debug_port=2043"}, []string{"spidly", "-debug_port=2043"}},
+		{[]string{"agent", "start", "-p", "config.cfg"}, []string{"agent", "start", "-p", "config.cfg"}},
+		{[]string{"p1", "-openpassword=admin"}, []string{"p1", "-openpassword=admin"}},
+		{[]string{"p1", "-openpassword", "admin"}, []string{"p1", "-openpassword", "admin"}},
+	}
+
+	regexPatterns := setArgsBlacklistPatterns(t)
+
+	for i, _ := range cases {
+		cases[i].cmdline = HideBlacklistedArgs(cases[i].cmdline, regexPatterns)
+		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
+	}
+
+}
+
+func BenchmarkRegexMatching1(b *testing.B)       { benchmarckRegexMatching(1, b) }
+func BenchmarkRegexMatching10(b *testing.B)      { benchmarckRegexMatching(10, b) }
+func BenchmarkRegexMatching100(b *testing.B)     { benchmarckRegexMatching(100, b) }
+func BenchmarkRegexMatching1000(b *testing.B)    { benchmarckRegexMatching(1000, b) }
+func BenchmarkRegexMatching10000(b *testing.B)   { benchmarckRegexMatching(10000, b) }
+func BenchmarkRegexMatching100000(b *testing.B)  { benchmarckRegexMatching(100000, b) }
+func BenchmarkRegexMatching1000000(b *testing.B) { benchmarckRegexMatching(1000000, b) }
+
+var avoidOptimization []string
+
+func benchmarckRegexMatching(nbProcesses int, b *testing.B) {
+	runningProcesses := make([][]string, nbProcesses)
+	foolCmdline := []string{"python ~/test/run.py --password=1234 -password 1234 -open_password=admin -consul_token 2345 -blocked_from_yaml=1234 &"}
+
+	for i := 0; i < nbProcesses; i++ {
+		runningProcesses = append(runningProcesses, foolCmdline)
+	}
+
+	regexPatterns := CompileStringsToRegex([]string{"password", "passwd", "mysql_pwd", "access_token", "auth_token", "api_key", "apikey", "secret", "credentials", "stripetoken"})
+	var r []string
+	for _, p := range runningProcesses {
+		r = HideBlacklistedArgs(p, regexPatterns)
+	}
+	avoidOptimization = r
 }
 
 func TestOnlyEnvConfig(t *testing.T) {
