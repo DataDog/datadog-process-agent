@@ -129,10 +129,11 @@ func fmtProcesses(
 		}
 
 		// Hide the blacklisted args
-		config.HideBlacklistedArgs(fp.Cmdline, cfg.ArgsBlacklist)
+		fp.Cmdline = config.HideBlacklistedArgs(fp.Cmdline, cfg.ArgsBlacklist)
 
 		// fmt.Println("blocked args ", cfg.BlackListedArgs)
 		// config.HideBlacklistedArgs(fp.Cmdline, cfg.BlackListedArgs)
+		// fmt.Printf("size: %d ", len(fp.Cmdline))
 		// for _, arg := range fp.Cmdline {
 		// 	fmt.Println("one arg = ", arg)
 		// }

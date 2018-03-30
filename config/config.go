@@ -38,7 +38,7 @@ var (
 )
 
 var (
-	defaultArgsBlacklist = []string{"^-{1,2}password", "^-{1,2}passwd", "^-{1,2}mysql_pwd", "^-{1,2}access_token", "^-{1,2}auth_token", "^-{1,2}api_key", "^-{1,2}apikey", "^-{1,2}secret", "^-{1,2}credentials", "^-{1,2}stripetoken"}
+	defaultArgsBlacklist = []string{"password", "passwd", "mysql_pwd", "access_token", "auth_token", "api_key", "apikey", "secret", "credentials", "stripetoken"}
 )
 
 type proxyFunc func(*http.Request) (*url.URL, error)
@@ -336,9 +336,10 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 	return cfg, nil
 }
 
-func CompileStringsToRegex(patterns []string) []*regexp.Regexp {
-	compiledRegexps := make([]*regexp.Regexp, 0, len(patterns))
-	for _, pattern := range patterns {
+func CompileStringsToRegex(words []string) []*regexp.Regexp {
+	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
+	for _, word := range words {
+		pattern := `(-{1,2}` + word + `[^= ]*[ =])([^ \n]*)`
 		r, err := regexp.Compile(pattern)
 		if err == nil {
 			compiledRegexps = append(compiledRegexps, r)
@@ -457,29 +458,17 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 	return false
 }
 
-func HideBlacklistedArgs(cmdline []string, argsBlacklist []*regexp.Regexp) {
-	replacement := "********"
-	for i := 0; i < len(cmdline); i++ {
-		for _, blacklistedArg := range argsBlacklist {
-			// fmt.Printf("arg: %s", cmdline[i])
-			if blacklistedArg.MatchString(cmdline[i]) {
-				fmt.Print(" matched: ", cmdline[i])
-				if replBeg := strings.Index(cmdline[i], "="); replBeg != -1 {
-					fmt.Println(" => replaced in = ")
-					newString := cmdline[i][:replBeg+1] + replacement
-					cmdline[i] = newString
-					break
-				} else if i+1 < len(cmdline) {
-					fmt.Println(" => replaced in i+1")
-					cmdline[i+1] = replacement
-					i++
-					break
-				}
-			} else {
-				// fmt.Println()
-			}
-		}
+func HideBlacklistedArgs(cmdline []string, argsBlacklist []*regexp.Regexp) []string {
+	rawCmdline := strings.Join(cmdline, " ")
+	for _, pattern := range argsBlacklist {
+		rawCmdline = pattern.ReplaceAllString(rawCmdline, `$1********`)
 	}
+
+	if rawCmdline != strings.Join(cmdline, " ") {
+		fmt.Println("matched ", rawCmdline)
+	}
+
+	return strings.Split(rawCmdline, " ")
 }
 
 func isAffirmative(value string) (bool, error) {
