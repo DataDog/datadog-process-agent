@@ -260,7 +260,6 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		cfg.UseDefArgsBlacklist = agentIni.GetBool(ns, "use_def_args_blacklist", true)
 		customArgsBlacklist := agentIni.GetStrArrayDefault(ns, "args_blacklist", ",", []string{})
 		cfg.CustomArgsBlacklist = CompileStringsToRegex(customArgsBlacklist)
-		fmt.Println("custom blocked args from conf: ", cfg.CustomArgsBlacklist)
 
 		procLimit := agentIni.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
 		if procLimit <= maxProcLimit {
@@ -296,13 +295,11 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 	}
 
 	// Verify if the user chose to use de default args blacklist and create an unified one
-	fmt.Println("use default args blacklist", cfg.UseDefArgsBlacklist)
 	if cfg.UseDefArgsBlacklist {
 		cfg.ArgsBlacklist = append(cfg.DefaultArgsBlacklist, cfg.CustomArgsBlacklist...)
 	} else {
 		cfg.ArgsBlacklist = cfg.CustomArgsBlacklist
 	}
-	fmt.Println("all blocked args: ", cfg.ArgsBlacklist)
 
 	// Use environment to override any additional config.
 	cfg = mergeEnv(cfg)
@@ -336,6 +333,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 	return cfg, nil
 }
 
+// Compile each word in the list into a regex pattern to match against the cmdline arguments
 func CompileStringsToRegex(words []string) []*regexp.Regexp {
 	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
 	for _, word := range words {
@@ -458,6 +456,7 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 	return false
 }
 
+// Hide any cmdline argument value whose key matchs one of the patterns on the argsBlacklist vector
 func HideBlacklistedArgs(cmdline []string, argsBlacklist []*regexp.Regexp) []string {
 	rawCmdline := strings.Join(cmdline, " ")
 	for _, pattern := range argsBlacklist {

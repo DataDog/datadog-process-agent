@@ -39,7 +39,7 @@ type YamlAgentConfig struct {
 		} `yaml:"intervals"`
 		// A list of regex patterns that will exclude a process if matched.
 		BlacklistPatterns []string `yaml:"blacklist_patterns"`
-		// A list of regex patterns that will exclude process args from a process CmdLine if matched
+		// A list of words used to exclude process args from a process CmdLine if matched
 		ArgsBlacklistPat []string `yaml:"args_blacklist,omitempty"`
 		// Use the default values to obfuscate process args
 		UseDefArgsBlacklist bool `yaml:"use_def_args_blacklist"`
