@@ -132,25 +132,24 @@ func TestNoBlacklistedArgs(t *testing.T) {
 
 }
 
-func BenchmarkRegexMatching1(b *testing.B)      { benchmarckRegexMatching(1, b) }
-func BenchmarkRegexMatching10(b *testing.B)     { benchmarckRegexMatching(10, b) }
-func BenchmarkRegexMatching100(b *testing.B)    { benchmarckRegexMatching(100, b) }
-func BenchmarkRegexMatching1000(b *testing.B)   { benchmarckRegexMatching(1000, b) }
-func BenchmarkRegexMatching10000(b *testing.B)  { benchmarckRegexMatching(10000, b) }
-func BenchmarkRegexMatching100000(b *testing.B) { benchmarckRegexMatching(100000, b) }
+func BenchmarkRegexMatching1(b *testing.B)    { benchmarkRegexMatching(1, b) }
+func BenchmarkRegexMatching10(b *testing.B)   { benchmarkRegexMatching(10, b) }
+func BenchmarkRegexMatching100(b *testing.B)  { benchmarkRegexMatching(100, b) }
+func BenchmarkRegexMatching1000(b *testing.B) { benchmarkRegexMatching(1000, b) }
 
 var avoidOptimization []string
 
-func benchmarckRegexMatching(nbProcesses int, b *testing.B) {
+func benchmarkRegexMatching(nbProcesses int, b *testing.B) {
 	runningProcesses := make([][]string, nbProcesses)
-	foolCmdline := []string{"python ~/test/run.py --pass=1234 -pass 1234 -pass=admin -open_password 2345 -consul=1234 -p 2808 &"}
+	foolCmdline := []string{"python ~/test/run.py --password=1234 -password 1234 -password=admin -open_password 2345 -consul=1234 -p 2808 &"}
+	regexPatterns := CompileStringsToRegex([]string{"password", "passwd", "mysql_pwd", "access_token", "auth_token", "api_key", "apikey", "secret", "credentials", "stripetoken"})
 
 	for i := 0; i < nbProcesses; i++ {
 		runningProcesses = append(runningProcesses, foolCmdline)
 	}
 
-	regexPatterns := CompileStringsToRegex([]string{"password", "passwd", "mysql_pwd", "access_token", "auth_token", "api_key", "apikey", "secret", "credentials", "stripetoken"})
 	var r []string
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		for _, p := range runningProcesses {
 			r = HideBlacklistedArgs(p, regexPatterns)
@@ -160,29 +159,39 @@ func benchmarckRegexMatching(nbProcesses int, b *testing.B) {
 	avoidOptimization = r
 }
 
-func BenchmarkRegexMatchingOld1(b *testing.B)      { benchmarckOldRegexMatching(1, b) }
-func BenchmarkRegexMatchingOld10(b *testing.B)     { benchmarckOldRegexMatching(10, b) }
-func BenchmarkRegexMatchingOld100(b *testing.B)    { benchmarckOldRegexMatching(100, b) }
-func BenchmarkRegexMatchingOld1000(b *testing.B)   { benchmarckOldRegexMatching(1000, b) }
-func BenchmarkRegexMatchingOld10000(b *testing.B)  { benchmarckOldRegexMatching(10000, b) }
-func BenchmarkRegexMatchingOld100000(b *testing.B) { benchmarckOldRegexMatching(100000, b) }
+func BenchmarkRegexMatchingOld1(b *testing.B)    { benchmarkOldRegexMatching(1, b) }
+func BenchmarkRegexMatchingOld10(b *testing.B)   { benchmarkOldRegexMatching(10, b) }
+func BenchmarkRegexMatchingOld100(b *testing.B)  { benchmarkOldRegexMatching(100, b) }
+func BenchmarkRegexMatchingOld1000(b *testing.B) { benchmarkOldRegexMatching(1000, b) }
 
-func benchmarckOldRegexMatching(nbProcesses int, b *testing.B) {
+func benchmarkOldRegexMatching(nbProcesses int, b *testing.B) {
 	runningProcesses := make([][]string, nbProcesses)
-	foolCmdline := []string{"python", "~/test/run.py", "--pass=1234", "-pass", "1234", "-pass=admin", "-open_password", "2345", "-consul=1234", "-p", "2808", "&"}
+	foolCmdline := []string{"python", "~/test/run.py", "--password=1234", "-password", "1234", "-password=admin", "-open_password", "2345", "-consul=1234", "-p", "2808", "&"}
+	regexPatterns := CompileStringsToRegex([]string{"password", "passwd", "mysql_pwd", "access_token", "auth_token", "api_key", "apikey", "secret", "credentials", "stripetoken"})
 
 	for i := 0; i < nbProcesses; i++ {
 		runningProcesses = append(runningProcesses, foolCmdline)
 	}
 
-	regexPatterns := CompileStringsToRegex([]string{"password", "passwd", "mysql_pwd", "access_token", "auth_token", "api_key", "apikey", "secret", "credentials", "stripetoken"})
-	var r []string
+	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		for _, p := range runningProcesses {
 			HideBlacklistedArgs(p, regexPatterns)
 		}
 	}
+}
+
+func BenchmarkRegexCall(b *testing.B) {
+	foolCmdline := []string{"python ~/test/run.py --password=1234 -password 1234 -password=admin -open_password 2345 -consul=1234 -p 2808 &"}
+	regexPatterns := CompileStringsToRegex([]string{"password", "passwd", "mysql_pwd", "access_token", "auth_token", "api_key", "apikey", "secret", "credentials", "stripetoken"})
+
+	var r []string
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		r = HideBlacklistedArgs(foolCmdline, regexPatterns)
+	}
 	avoidOptimization = r
+
 }
 
 func TestOnlyEnvConfig(t *testing.T) {
