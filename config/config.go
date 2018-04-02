@@ -472,6 +472,31 @@ func isAffirmative(value string) (bool, error) {
 	return v == "true" || v == "yes" || v == "1", nil
 }
 
+func HideBlacklistedArgsOld(cmdline []string, argsBlacklist []*regexp.Regexp) {
+	replacement := "********"
+	for i := 0; i < len(cmdline); i++ {
+		for _, blacklistedArg := range argsBlacklist {
+			// fmt.Printf("arg: %s", cmdline[i])
+			if blacklistedArg.MatchString(cmdline[i]) {
+				// fmt.Print(" matched: ", cmdline[i])
+				if replBeg := strings.Index(cmdline[i], "="); replBeg != -1 {
+					// fmt.Println(" => replaced in = ")
+					newString := cmdline[i][:replBeg+1] + replacement
+					cmdline[i] = newString
+					break
+				} else if i+1 < len(cmdline) {
+					// fmt.Println(" => replaced in i+1")
+					cmdline[i+1] = replacement
+					i++
+					break
+				}
+			} else {
+				// fmt.Println()
+			}
+		}
+	}
+}
+
 // getHostname shells out to obtain the hostname used by the infra agent
 // falling back to os.Hostname() if it is unavailable
 func getHostname(ddAgentPy, ddAgentBin string, ddAgentEnv []string) (string, error) {

@@ -132,19 +132,18 @@ func TestNoBlacklistedArgs(t *testing.T) {
 
 }
 
-func BenchmarkRegexMatching1(b *testing.B)       { benchmarckRegexMatching(1, b) }
-func BenchmarkRegexMatching10(b *testing.B)      { benchmarckRegexMatching(10, b) }
-func BenchmarkRegexMatching100(b *testing.B)     { benchmarckRegexMatching(100, b) }
-func BenchmarkRegexMatching1000(b *testing.B)    { benchmarckRegexMatching(1000, b) }
-func BenchmarkRegexMatching10000(b *testing.B)   { benchmarckRegexMatching(10000, b) }
-func BenchmarkRegexMatching100000(b *testing.B)  { benchmarckRegexMatching(100000, b) }
-func BenchmarkRegexMatching1000000(b *testing.B) { benchmarckRegexMatching(1000000, b) }
+func BenchmarkRegexMatching1(b *testing.B)      { benchmarckRegexMatching(1, b) }
+func BenchmarkRegexMatching10(b *testing.B)     { benchmarckRegexMatching(10, b) }
+func BenchmarkRegexMatching100(b *testing.B)    { benchmarckRegexMatching(100, b) }
+func BenchmarkRegexMatching1000(b *testing.B)   { benchmarckRegexMatching(1000, b) }
+func BenchmarkRegexMatching10000(b *testing.B)  { benchmarckRegexMatching(10000, b) }
+func BenchmarkRegexMatching100000(b *testing.B) { benchmarckRegexMatching(100000, b) }
 
 var avoidOptimization []string
 
 func benchmarckRegexMatching(nbProcesses int, b *testing.B) {
 	runningProcesses := make([][]string, nbProcesses)
-	foolCmdline := []string{"python ~/test/run.py --password=1234 -password 1234 -open_password=admin -consul_token 2345 -blocked_from_yaml=1234 &"}
+	foolCmdline := []string{"python ~/test/run.py --pass=1234 -pass 1234 -pass=admin -open_password 2345 -consul=1234 -p 2808 &"}
 
 	for i := 0; i < nbProcesses; i++ {
 		runningProcesses = append(runningProcesses, foolCmdline)
@@ -152,8 +151,36 @@ func benchmarckRegexMatching(nbProcesses int, b *testing.B) {
 
 	regexPatterns := CompileStringsToRegex([]string{"password", "passwd", "mysql_pwd", "access_token", "auth_token", "api_key", "apikey", "secret", "credentials", "stripetoken"})
 	var r []string
-	for _, p := range runningProcesses {
-		r = HideBlacklistedArgs(p, regexPatterns)
+	for n := 0; n < b.N; n++ {
+		for _, p := range runningProcesses {
+			r = HideBlacklistedArgs(p, regexPatterns)
+		}
+	}
+
+	avoidOptimization = r
+}
+
+func BenchmarkRegexMatchingOld1(b *testing.B)      { benchmarckOldRegexMatching(1, b) }
+func BenchmarkRegexMatchingOld10(b *testing.B)     { benchmarckOldRegexMatching(10, b) }
+func BenchmarkRegexMatchingOld100(b *testing.B)    { benchmarckOldRegexMatching(100, b) }
+func BenchmarkRegexMatchingOld1000(b *testing.B)   { benchmarckOldRegexMatching(1000, b) }
+func BenchmarkRegexMatchingOld10000(b *testing.B)  { benchmarckOldRegexMatching(10000, b) }
+func BenchmarkRegexMatchingOld100000(b *testing.B) { benchmarckOldRegexMatching(100000, b) }
+
+func benchmarckOldRegexMatching(nbProcesses int, b *testing.B) {
+	runningProcesses := make([][]string, nbProcesses)
+	foolCmdline := []string{"python", "~/test/run.py", "--pass=1234", "-pass", "1234", "-pass=admin", "-open_password", "2345", "-consul=1234", "-p", "2808", "&"}
+
+	for i := 0; i < nbProcesses; i++ {
+		runningProcesses = append(runningProcesses, foolCmdline)
+	}
+
+	regexPatterns := CompileStringsToRegex([]string{"password", "passwd", "mysql_pwd", "access_token", "auth_token", "api_key", "apikey", "secret", "credentials", "stripetoken"})
+	var r []string
+	for n := 0; n < b.N; n++ {
+		for _, p := range runningProcesses {
+			HideBlacklistedArgs(p, regexPatterns)
+		}
 	}
 	avoidOptimization = r
 }
