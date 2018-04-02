@@ -99,6 +99,9 @@ func TestBlacklistedArgs(t *testing.T) {
 		{[]string{"fitz", "--consul_token", "1234567890"}, []string{"fitz", "--consul_token", "********"}},
 		{[]string{"python ~/test/run.py --password=1234 -password 1234 -open_password=admin -consul_token 2345 -blocked_from_yaml=1234 &"},
 			[]string{"python", "~/test/run.py", "--password=********", "-password", "********", "-open_password=admin", "-consul_token", "********", "-blocked_from_yaml=********", "&"}},
+		{[]string{"agent", "-PASSWORD", "1234"}, []string{"agent", "-PASSWORD", "********"}},
+		{[]string{"agent", "--PASSword", "1234"}, []string{"agent", "--PASSword", "********"}},
+		{[]string{"agent", "--PaSsWoRd=1234"}, []string{"agent", "--PaSsWoRd=********"}},
 	}
 
 	regexPatterns := setArgsBlacklistPatterns(t)

@@ -337,7 +337,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 func CompileStringsToRegex(words []string) []*regexp.Regexp {
 	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
 	for _, word := range words {
-		pattern := `(-{1,2}` + word + `[^= ]*[ =])([^ \n]*)`
+		pattern := `((?i)-{1,2}` + word + `[^= ]*[ =])([^ \n]*)`
 		r := regexp.MustCompile(pattern)
 		compiledRegexps = append(compiledRegexps, r)
 	}

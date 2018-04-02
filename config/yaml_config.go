@@ -128,7 +128,6 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	// Args Blacklist
 	agentConf.UseDefArgsBlacklist = yc.Process.UseDefArgsBlacklist
 	agentConf.CustomArgsBlacklist = CompileStringsToRegex(yc.Process.ArgsBlacklistPat)
-	fmt.Println("custom blocked args from yaml: ", agentConf.CustomArgsBlacklist)
 
 	if yc.Process.QueueSize > 0 {
 		agentConf.QueueSize = yc.Process.QueueSize
