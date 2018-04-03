@@ -37,37 +37,30 @@ var (
 	}
 )
 
-var (
-	defaultArgsBlacklist = []string{"password", "passwd", "mysql_pwd", "access_token", "auth_token", "api_key", "apikey", "secret", "credentials", "stripetoken"}
-)
-
 type proxyFunc func(*http.Request) (*url.URL, error)
 
 // AgentConfig is the global config for the process-agent. This information
 // is sourced from config files and the environment variables.
 type AgentConfig struct {
-	Enabled              bool
-	APIKey               string
-	HostName             string
-	APIEndpoint          *url.URL
-	LogFile              string
-	LogLevel             string
-	QueueSize            int
-	Blacklist            []*regexp.Regexp
-	ArgsBlacklist        []*regexp.Regexp
-	DefaultArgsBlacklist []*regexp.Regexp
-	UseDefArgsBlacklist  bool
-	CustomArgsBlacklist  []*regexp.Regexp
-	MaxProcFDs           int
-	ProcLimit            int
-	AllowRealTime        bool
-	Transport            *http.Transport `json:"-"`
-	Logger               *LoggerConfig
-	DDAgentPy            string
-	DDAgentBin           string
-	DDAgentPyEnv         []string
-	StatsdHost           string
-	StatsdPort           int
+	Enabled       bool
+	APIKey        string
+	HostName      string
+	APIEndpoint   *url.URL
+	LogFile       string
+	LogLevel      string
+	QueueSize     int
+	Blacklist     []*regexp.Regexp
+	Scrubber      *DataScrubber
+	MaxProcFDs    int
+	ProcLimit     int
+	AllowRealTime bool
+	Transport     *http.Transport `json:"-"`
+	Logger        *LoggerConfig
+	DDAgentPy     string
+	DDAgentBin    string
+	DDAgentPyEnv  []string
+	StatsdHost    string
+	StatsdPort    int
 
 	// Check config
 	EnabledChecks  []string
@@ -158,10 +151,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 		ContainerCacheDuration: 10 * time.Second,
 		CollectDockerNetwork:   true,
 
-		// Args BlackList
-		UseDefArgsBlacklist:  true,
-		DefaultArgsBlacklist: CompileStringsToRegex(defaultArgsBlacklist),
-		CustomArgsBlacklist:  make([]*regexp.Regexp, 0, 0),
+		// DataScrubber to hide command line sensitive words
+		Scrubber: NewDefaultDataScrubber(),
 	}
 
 	// Set default values for proc/sys paths if unset.
@@ -256,10 +247,10 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		}
 		cfg.Blacklist = blacklist
 
-		// Args Blacklist
-		cfg.UseDefArgsBlacklist = agentIni.GetBool(ns, "use_def_args_blacklist", true)
-		customArgsBlacklist := agentIni.GetStrArrayDefault(ns, "args_blacklist", ",", []string{})
-		cfg.CustomArgsBlacklist = CompileStringsToRegex(customArgsBlacklist)
+		// Sensitive Words
+		cfg.Scrubber.UseDefaultSensitiveWords = agentIni.GetBool(ns, "use_def_sensitive_words", true)
+		customSensitiveWords := agentIni.GetStrArrayDefault(ns, "sensitive_words", ",", []string{})
+		cfg.Scrubber.SetCustomSensitiveWords(customSensitiveWords)
 
 		procLimit := agentIni.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
 		if procLimit <= maxProcLimit {
@@ -294,13 +285,6 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		}
 	}
 
-	// Verify if the user chose to use de default args blacklist and create an unified one
-	if cfg.UseDefArgsBlacklist {
-		cfg.ArgsBlacklist = append(cfg.DefaultArgsBlacklist, cfg.CustomArgsBlacklist...)
-	} else {
-		cfg.ArgsBlacklist = cfg.CustomArgsBlacklist
-	}
-
 	// Use environment to override any additional config.
 	cfg = mergeEnv(cfg)
 
@@ -331,18 +315,6 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 	}
 
 	return cfg, nil
-}
-
-// Compile each word in the list into a regex pattern to match against the cmdline arguments
-func CompileStringsToRegex(words []string) []*regexp.Regexp {
-	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
-	for _, word := range words {
-		pattern := `((?i)-{1,2}` + word + `[^= ]*[ =])([^ \n]*)`
-		r := regexp.MustCompile(pattern)
-		compiledRegexps = append(compiledRegexps, r)
-	}
-
-	return compiledRegexps
 }
 
 // mergeEnv applies overrides from environment variables to the trace agent configuration
@@ -454,47 +426,12 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 	return false
 }
 
-// Hide any cmdline argument value whose key matchs one of the patterns on the argsBlacklist vector
-func HideBlacklistedArgs(cmdline []string, argsBlacklist []*regexp.Regexp) []string {
-	rawCmdline := strings.Join(cmdline, " ")
-	for _, pattern := range argsBlacklist {
-		rawCmdline = pattern.ReplaceAllString(rawCmdline, `$1********`)
-	}
-
-	return strings.Split(rawCmdline, " ")
-}
-
 func isAffirmative(value string) (bool, error) {
 	if value == "" {
 		return false, fmt.Errorf("value is empty")
 	}
 	v := strings.ToLower(value)
 	return v == "true" || v == "yes" || v == "1", nil
-}
-
-func HideBlacklistedArgsOld(cmdline []string, argsBlacklist []*regexp.Regexp) {
-	replacement := "********"
-	for i := 0; i < len(cmdline); i++ {
-		for _, blacklistedArg := range argsBlacklist {
-			// fmt.Printf("arg: %s", cmdline[i])
-			if blacklistedArg.MatchString(cmdline[i]) {
-				// fmt.Print(" matched: ", cmdline[i])
-				if replBeg := strings.Index(cmdline[i], "="); replBeg != -1 {
-					// fmt.Println(" => replaced in = ")
-					newString := cmdline[i][:replBeg+1] + replacement
-					cmdline[i] = newString
-					break
-				} else if i+1 < len(cmdline) {
-					// fmt.Println(" => replaced in i+1")
-					cmdline[i+1] = replacement
-					i++
-					break
-				}
-			} else {
-				// fmt.Println()
-			}
-		}
-	}
 }
 
 // getHostname shells out to obtain the hostname used by the infra agent

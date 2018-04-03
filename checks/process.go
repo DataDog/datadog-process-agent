@@ -128,7 +128,7 @@ func fmtProcesses(
 		}
 
 		// Hide the blacklisted args
-		fp.Cmdline = config.HideBlacklistedArgs(fp.Cmdline, cfg.ArgsBlacklist)
+		fp.Cmdline = cfg.Scrubber.ScrubCmdline(fp.Cmdline)
 
 		ctr, ok := ctrByPid[fp.Pid]
 		if !ok {
