@@ -40,18 +40,6 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 	return compiledRegexps
 }
 
-// Old version
-func CompileStringsToRegexOld(words []string) []*regexp.Regexp {
-	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
-	for _, word := range words {
-		pattern := `(^|-)(?i)` + word
-		r := regexp.MustCompile(pattern)
-		compiledRegexps = append(compiledRegexps, r)
-	}
-
-	return compiledRegexps
-}
-
 // Hide any cmdline argument value whose key matchs one of the patterns on the argsBlacklist vector
 func (ds *DataScrubber) ScrubCmdline(cmdline []string) []string {
 	rawCmdline := strings.Join(cmdline, " ")
@@ -64,31 +52,7 @@ func (ds *DataScrubber) ScrubCmdline(cmdline []string) []string {
 	return strings.Split(rawCmdline, " ")
 }
 
-func (ds *DataScrubber) ScrubCmdlineOld(cmdline []string) {
-	replacement := "********"
-	for i := 0; i < len(cmdline); i++ {
-		for _, blacklistedArg := range ds.SensitiveWords {
-			// fmt.Printf("arg: %s", cmdline[i])
-			if blacklistedArg.MatchString(cmdline[i]) {
-				// fmt.Print(" matched: ", cmdline[i])
-				if replBeg := strings.Index(cmdline[i], "="); replBeg != -1 {
-					// fmt.Println(" => replaced in = ")
-					newString := cmdline[i][:replBeg+1] + replacement
-					cmdline[i] = newString
-					break
-				} else if i+1 < len(cmdline) {
-					// fmt.Println(" => replaced in i+1")
-					cmdline[i+1] = replacement
-					i++
-					break
-				}
-			} else {
-				// fmt.Println()
-			}
-		}
-	}
-}
-
+// Set the custom sensitive words on the DataScruber object
 func (ds *DataScrubber) SetCustomSensitiveWords(words []string) {
 	ds.CustomSensitiveWords = CompileStringsToRegex(words)
 

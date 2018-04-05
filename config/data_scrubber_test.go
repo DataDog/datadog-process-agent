@@ -97,38 +97,3 @@ func benchmarkRegexMatching(nbProcesses int, b *testing.B) {
 
 	avoidOptimization = r
 }
-
-func BenchmarkRegexMatchingOld1(b *testing.B)    { benchmarkOldRegexMatching(1, b) }
-func BenchmarkRegexMatchingOld10(b *testing.B)   { benchmarkOldRegexMatching(10, b) }
-func BenchmarkRegexMatchingOld100(b *testing.B)  { benchmarkOldRegexMatching(100, b) }
-func BenchmarkRegexMatchingOld1000(b *testing.B) { benchmarkOldRegexMatching(1000, b) }
-
-func benchmarkOldRegexMatching(nbProcesses int, b *testing.B) {
-	runningProcesses := make([][]string, nbProcesses)
-	foolCmdline := []string{"python", "~/test/run.py", "--password=1234", "-password", "1234", "-password=admin", "-secret", "2345", "-credentials=1234", "-api_key", "2808", "&"}
-	scrubber := setupDataScrubber()
-
-	for i := 0; i < nbProcesses; i++ {
-		runningProcesses = append(runningProcesses, foolCmdline)
-	}
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		for _, p := range runningProcesses {
-			scrubber.ScrubCmdlineOld(p)
-		}
-	}
-}
-
-func BenchmarkRegexCall(b *testing.B) {
-	foolCmdline := []string{"python ~/test/run.py --password=1234 -password 1234 -password=admin -open_password 2345 -consul=1234 -p 2808 &"}
-	scrubber := setupDataScrubber()
-
-	var r []string
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		r = scrubber.ScrubCmdline(foolCmdline)
-	}
-	avoidOptimization = r
-
-}
