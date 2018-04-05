@@ -32,7 +32,19 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
 	for _, word := range words {
 		// pattern := `((?i)-{1,2}` + word + `[^= ]*[ =])([^ \n]*)`
-		pattern := `(?P<key>\b(?i)` + word + `)(?P<delimiter> +|=)(?P<value>[^\s]*)`
+		pattern := `(?P<key>( |-)(?i)` + word + `)(?P<delimiter> +|=)(?P<value>[^\s]*)`
+		r := regexp.MustCompile(pattern)
+		compiledRegexps = append(compiledRegexps, r)
+	}
+
+	return compiledRegexps
+}
+
+// Old version
+func CompileStringsToRegexOld(words []string) []*regexp.Regexp {
+	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
+	for _, word := range words {
+		pattern := `(^|-)(?i)` + word
 		r := regexp.MustCompile(pattern)
 		compiledRegexps = append(compiledRegexps, r)
 	}

@@ -1,8 +1,9 @@
 package config
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func setupDataScrubber() *DataScrubber {
@@ -42,7 +43,7 @@ func TestBlacklistedArgs(t *testing.T) {
 	t.Log("default regexp", scrubber.DefaultSensitiveWords)
 	t.Log("custom regexp", scrubber.CustomSensitiveWords)
 	t.Log("merged regexp", scrubber.SensitiveWords)
-	for i, _ := range cases {
+	for i := range cases {
 		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
@@ -63,7 +64,7 @@ func TestNoBlacklistedArgs(t *testing.T) {
 	t.Log("default regexp", scrubber.DefaultSensitiveWords)
 	t.Log("custom regexp", scrubber.CustomSensitiveWords)
 	t.Log("merged regexp", scrubber.SensitiveWords)
-	for i, _ := range cases {
+	for i := range cases {
 		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
@@ -79,7 +80,7 @@ var avoidOptimization []string
 
 func benchmarkRegexMatching(nbProcesses int, b *testing.B) {
 	runningProcesses := make([][]string, nbProcesses)
-	foolCmdline := []string{"python ~/test/run.py --password=1234 -password 1234 -password=admin -password 2345 -password=1234 -password  2808 &"}
+	foolCmdline := []string{"python ~/test/run.py --password=1234 -password 1234 -password=admin -secret 2345 -credentials=1234 -api_key 2808 &"}
 	scrubber := setupDataScrubber()
 
 	for i := 0; i < nbProcesses; i++ {
@@ -104,7 +105,7 @@ func BenchmarkRegexMatchingOld1000(b *testing.B) { benchmarkOldRegexMatching(100
 
 func benchmarkOldRegexMatching(nbProcesses int, b *testing.B) {
 	runningProcesses := make([][]string, nbProcesses)
-	foolCmdline := []string{"python", "~/test/run.py", "--password=1234", "-password", "1234", "-password=admin", "-password", "2345", "-password=1234", "-password ", "2808", "&"}
+	foolCmdline := []string{"python", "~/test/run.py", "--password=1234", "-password", "1234", "-password=admin", "-secret", "2345", "-credentials=1234", "-api_key", "2808", "&"}
 	scrubber := setupDataScrubber()
 
 	for i := 0; i < nbProcesses; i++ {
