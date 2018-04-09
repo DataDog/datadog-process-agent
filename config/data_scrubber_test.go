@@ -37,10 +37,44 @@ func TestBlacklistedArgs(t *testing.T) {
 		{[]string{"agent", "-PASSWORD", "1234"}, []string{"agent", "-PASSWORD", "********"}},
 		{[]string{"agent", "--PASSword", "1234"}, []string{"agent", "--PASSword", "********"}},
 		{[]string{"agent", "--PaSsWoRd=1234"}, []string{"agent", "--PaSsWoRd=********"}},
-		{[]string{"java -password      1234"}, []string{"java", "-password", "********"}},
+		{[]string{"java -password      1234"}, []string{"java", "-password", "", "", "", "", "", "********"}},
 	}
 
 	scrubber := setupDataScrubber()
+	t.Log("scrub enabled: ", scrubber.Enabled)
+	t.Log("default regexp", scrubber.DefaultSensitiveWords)
+	t.Log("custom regexp", scrubber.CustomSensitiveWords)
+	t.Log("merged regexp", scrubber.SensitiveWords)
+	for i := range cases {
+		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
+		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
+	}
+}
+
+func TestBlacklistedArgsWhenDisabled(t *testing.T) {
+	cases := []struct {
+		cmdline       []string
+		parsedCmdline []string
+	}{
+		{[]string{"agent", "-password", "1234"}, []string{"agent", "-password", "1234"}},
+		{[]string{"agent", "--password", "1234"}, []string{"agent", "--password", "1234"}},
+		{[]string{"agent", "-password=1234"}, []string{"agent", "-password=1234"}},
+		{[]string{"agent", "--password=1234"}, []string{"agent", "--password=1234"}},
+		{[]string{"fitz", "-consul_token=1234567890"}, []string{"fitz", "-consul_token=1234567890"}},
+		{[]string{"fitz", "--consul_token=1234567890"}, []string{"fitz", "--consul_token=1234567890"}},
+		{[]string{"fitz", "-consul_token", "1234567890"}, []string{"fitz", "-consul_token", "1234567890"}},
+		{[]string{"fitz", "--consul_token", "1234567890"}, []string{"fitz", "--consul_token", "1234567890"}},
+		{[]string{"python ~/test/run.py --password=1234 -password 1234 -open_password=admin -consul_token 2345 -blocked_from_yaml=1234 &"},
+			[]string{"python ~/test/run.py --password=1234 -password 1234 -open_password=admin -consul_token 2345 -blocked_from_yaml=1234 &"}},
+		{[]string{"agent", "-PASSWORD", "1234"}, []string{"agent", "-PASSWORD", "1234"}},
+		{[]string{"agent", "--PASSword", "1234"}, []string{"agent", "--PASSword", "1234"}},
+		{[]string{"agent", "--PaSsWoRd=1234"}, []string{"agent", "--PaSsWoRd=1234"}},
+		{[]string{"java -password      1234"}, []string{"java -password      1234"}},
+	}
+
+	scrubber := setupDataScrubber()
+	scrubber.Enabled = false
+	t.Log("scrub enabled: ", scrubber.Enabled)
 	t.Log("default regexp", scrubber.DefaultSensitiveWords)
 	t.Log("custom regexp", scrubber.CustomSensitiveWords)
 	t.Log("merged regexp", scrubber.SensitiveWords)
@@ -61,15 +95,16 @@ func TestNoBlacklistedArgs(t *testing.T) {
 		{[]string{"p1", "-openpassword", "admin"}, []string{"p1", "-openpassword", "admin"}},
 		{[]string{"java -openpassword 1234"}, []string{"java", "-openpassword", "1234"}},
 		{[]string{"java -open_password 1234"}, []string{"java", "-open_password", "1234"}},
-		{[]string{"java -passwordOpen"}, []string{"java", "-passwordOpen", "1234"}},
-		{[]string{"java -password_open"}, []string{"java", "-password_open", "1234"}},
-		{[]string{"java -password1"}, []string{"java", "-password1", "1234"}},
-		{[]string{"java -password_1"}, []string{"java", "-password_1", "1234"}},
-		{[]string{"java -1password"}, []string{"java", "-1password", "1234"}},
-		{[]string{"java -1_password"}, []string{"java", "-1_password", "1234"}},
+		{[]string{"java -passwordOpen 1234"}, []string{"java", "-passwordOpen", "1234"}},
+		{[]string{"java -password_open 1234"}, []string{"java", "-password_open", "1234"}},
+		{[]string{"java -password1 1234"}, []string{"java", "-password1", "1234"}},
+		{[]string{"java -password_1 1234"}, []string{"java", "-password_1", "1234"}},
+		{[]string{"java -1password 1234"}, []string{"java", "-1password", "1234"}},
+		{[]string{"java -1_password 1234"}, []string{"java", "-1_password", "1234"}},
 	}
 
 	scrubber := setupDataScrubber()
+	t.Log("scrub enabled: ", scrubber.Enabled)
 	t.Log("default regexp", scrubber.DefaultSensitiveWords)
 	t.Log("custom regexp", scrubber.CustomSensitiveWords)
 	t.Log("merged regexp", scrubber.SensitiveWords)
