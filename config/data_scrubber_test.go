@@ -37,6 +37,7 @@ func TestBlacklistedArgs(t *testing.T) {
 		{[]string{"agent", "-PASSWORD", "1234"}, []string{"agent", "-PASSWORD", "********"}},
 		{[]string{"agent", "--PASSword", "1234"}, []string{"agent", "--PASSword", "********"}},
 		{[]string{"agent", "--PaSsWoRd=1234"}, []string{"agent", "--PaSsWoRd=********"}},
+		{[]string{"java -password      1234"}, []string{"java", "-password", "********"}},
 	}
 
 	scrubber := setupDataScrubber()
@@ -54,10 +55,18 @@ func TestNoBlacklistedArgs(t *testing.T) {
 		cmdline       []string
 		parsedCmdline []string
 	}{
-		{[]string{"spidly", "-debug_port=2043"}, []string{"spidly", "-debug_port=2043"}},
+		{[]string{"spidly", "--debug_port=2043"}, []string{"spidly", "--debug_port=2043"}},
 		{[]string{"agent", "start", "-p", "config.cfg"}, []string{"agent", "start", "-p", "config.cfg"}},
-		{[]string{"p1", "-openpassword=admin"}, []string{"p1", "-openpassword=admin"}},
+		{[]string{"p1", "--openpassword=admin"}, []string{"p1", "--openpassword=admin"}},
 		{[]string{"p1", "-openpassword", "admin"}, []string{"p1", "-openpassword", "admin"}},
+		{[]string{"java -openpassword 1234"}, []string{"java", "-openpassword", "1234"}},
+		{[]string{"java -open_password 1234"}, []string{"java", "-open_password", "1234"}},
+		{[]string{"java -passwordOpen"}, []string{"java", "-passwordOpen", "1234"}},
+		{[]string{"java -password_open"}, []string{"java", "-password_open", "1234"}},
+		{[]string{"java -password1"}, []string{"java", "-password1", "1234"}},
+		{[]string{"java -password_1"}, []string{"java", "-password_1", "1234"}},
+		{[]string{"java -1password"}, []string{"java", "-1password", "1234"}},
+		{[]string{"java -1_password"}, []string{"java", "-1_password", "1234"}},
 	}
 
 	scrubber := setupDataScrubber()

@@ -247,9 +247,9 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		}
 		cfg.Blacklist = blacklist
 
-		// Sensitive Words
-		cfg.Scrubber.UseDefaultSensitiveWords = agentIni.GetBool(ns, "use_def_sensitive_words", true)
-		customSensitiveWords := agentIni.GetStrArrayDefault(ns, "sensitive_words", ",", []string{})
+		// DataScrubber
+		cfg.Scrubber.Enabled = agentIni.GetBool(ns, "scrub_args", true)
+		customSensitiveWords := agentIni.GetStrArrayDefault(ns, "custom_sensitive_words", ",", []string{})
 		cfg.Scrubber.SetCustomSensitiveWords(customSensitiveWords)
 
 		procLimit := agentIni.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
@@ -313,6 +313,12 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 	if cfg.proxy != nil {
 		cfg.Transport.Proxy = cfg.proxy
 	}
+
+	fmt.Println("DataScrubber")
+	fmt.Println("Enabled: ", cfg.Scrubber.Enabled)
+	fmt.Println("DefaultSenstiveWords: ", cfg.Scrubber.DefaultSensitiveWords)
+	fmt.Println("CustomSenstiveWords: ", cfg.Scrubber.CustomSensitiveWords)
+	fmt.Println("SenstiveWords: ", cfg.Scrubber.SensitiveWords)
 
 	return cfg, nil
 }

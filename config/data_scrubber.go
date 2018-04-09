@@ -10,18 +10,18 @@ var (
 )
 
 type DataScrubber struct {
-	SensitiveWords           []*regexp.Regexp
-	DefaultSensitiveWords    []*regexp.Regexp
-	UseDefaultSensitiveWords bool
-	CustomSensitiveWords     []*regexp.Regexp
+	Enabled               bool
+	SensitiveWords        []*regexp.Regexp
+	DefaultSensitiveWords []*regexp.Regexp
+	CustomSensitiveWords  []*regexp.Regexp
 }
 
 func NewDefaultDataScrubber() *DataScrubber {
 	newDataScrubber := &DataScrubber{
-		SensitiveWords:           CompileStringsToRegex(defaultSenstiveWords),
-		DefaultSensitiveWords:    CompileStringsToRegex(defaultSenstiveWords),
-		UseDefaultSensitiveWords: true,
-		CustomSensitiveWords:     make([]*regexp.Regexp, 0, 0),
+		Enabled:               true,
+		SensitiveWords:        CompileStringsToRegex(defaultSenstiveWords),
+		DefaultSensitiveWords: CompileStringsToRegex(defaultSenstiveWords),
+		CustomSensitiveWords:  make([]*regexp.Regexp, 0, 0),
 	}
 
 	return newDataScrubber
@@ -31,7 +31,6 @@ func NewDefaultDataScrubber() *DataScrubber {
 func CompileStringsToRegex(words []string) []*regexp.Regexp {
 	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
 	for _, word := range words {
-		// pattern := `((?i)-{1,2}` + word + `[^= ]*[ =])([^ \n]*)`
 		pattern := `(?P<key>( |-)(?i)` + word + `)(?P<delimiter> +|=)(?P<value>[^\s]*)`
 		r := regexp.MustCompile(pattern)
 		compiledRegexps = append(compiledRegexps, r)
@@ -42,10 +41,12 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 
 // Hide any cmdline argument value whose key matchs one of the patterns on the argsBlacklist vector
 func (ds *DataScrubber) ScrubCmdline(cmdline []string) []string {
+	if !ds.Enabled {
+		return cmdline
+	}
+
 	rawCmdline := strings.Join(cmdline, " ")
 	for _, pattern := range ds.SensitiveWords {
-		// rawCmdline = pattern.ReplaceAllString(rawCmdline, `$1********`)
-
 		rawCmdline = pattern.ReplaceAllString(rawCmdline, `${key}${delimiter}********`)
 	}
 
@@ -56,10 +57,6 @@ func (ds *DataScrubber) ScrubCmdline(cmdline []string) []string {
 func (ds *DataScrubber) SetCustomSensitiveWords(words []string) {
 	ds.CustomSensitiveWords = CompileStringsToRegex(words)
 
-	// Verify if the user chose to use de default sensitive words and create an unified one
-	if ds.UseDefaultSensitiveWords {
-		ds.SensitiveWords = append(ds.DefaultSensitiveWords, ds.CustomSensitiveWords...)
-	} else {
-		ds.SensitiveWords = ds.CustomSensitiveWords
-	}
+	// Create an unified list of sensitive patterns to match
+	ds.SensitiveWords = append(ds.DefaultSensitiveWords, ds.CustomSensitiveWords...)
 }

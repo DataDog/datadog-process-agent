@@ -39,10 +39,10 @@ type YamlAgentConfig struct {
 		} `yaml:"intervals"`
 		// A list of regex patterns that will exclude a process if matched.
 		BlacklistPatterns []string `yaml:"blacklist_patterns"`
-		// A list of words used to exclude process args from a process CmdLine if matched
-		CustomSensitiveWords []string `yaml:"sensitive_words,omitempty"`
-		// Use the default values set on the DataScrubber to obfuscate process args
-		UseDefaultSensitiveWords bool `yaml:"use_def_sensitive_words"`
+		// Enable/Disable the DataScrubber to obfuscate process args
+		ScrubArgs bool `yaml:"scrub_args"`
+		// A custom word list to enhance the default one used by the DataScrubber
+		CustomSensitiveWords []string `yaml:"custom_sensitive_words"`
 		// How many check results to buffer in memory when POST fails. The default is usually fine.
 		QueueSize int `yaml:"queue_size"`
 		// The maximum number of file descriptors to open when collecting net connections.
@@ -63,7 +63,7 @@ type YamlAgentConfig struct {
 // NewYamlIfExists returns a new YamlAgentConfig if the given configPath is exists.
 func NewYamlIfExists(configPath string) (*YamlAgentConfig, error) {
 	var yamlConf YamlAgentConfig
-	yamlConf.Process.UseDefaultSensitiveWords = true
+	yamlConf.Process.ScrubArgs = true
 	if util.PathExists(configPath) {
 		lines, err := util.ReadLines(configPath)
 		if err != nil {
@@ -125,8 +125,8 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	}
 	agentConf.Blacklist = blacklist
 
-	// Sensitive Words
-	agentConf.Scrubber.UseDefaultSensitiveWords = yc.Process.UseDefaultSensitiveWords
+	// DataScrubber
+	agentConf.Scrubber.Enabled = yc.Process.ScrubArgs
 	agentConf.Scrubber.SetCustomSensitiveWords(yc.Process.CustomSensitiveWords)
 
 	if yc.Process.QueueSize > 0 {
