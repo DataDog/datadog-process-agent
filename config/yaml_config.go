@@ -127,7 +127,7 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 
 	// DataScrubber
 	agentConf.Scrubber.Enabled = yc.Process.ScrubArgs
-	agentConf.Scrubber.SetCustomSensitiveWords(yc.Process.CustomSensitiveWords)
+	agentConf.Scrubber.AddCustomSensitiveWords(yc.Process.CustomSensitiveWords)
 
 	if yc.Process.QueueSize > 0 {
 		agentConf.QueueSize = yc.Process.QueueSize

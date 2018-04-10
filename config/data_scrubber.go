@@ -3,25 +3,23 @@ package config
 import (
 	"regexp"
 	"strings"
+
+	"github.com/DataDog/dd-go/log"
 )
 
 var (
-	defaultSenstiveWords = []string{"password", "passwd", "mysql_pwd", "access_token", "auth_token", "api_key", "apikey", "secret", "credentials", "stripetoken"}
+	defaultSensitiveWords = []string{"password", "passwd", "mysql_pwd", "access_token", "auth_token", "api_key", "apikey", "secret", "credentials", "stripetoken"}
 )
 
 type DataScrubber struct {
-	Enabled               bool
-	SensitiveWords        []*regexp.Regexp
-	DefaultSensitiveWords []*regexp.Regexp
-	CustomSensitiveWords  []*regexp.Regexp
+	Enabled        bool
+	SensitiveWords []*regexp.Regexp
 }
 
 func NewDefaultDataScrubber() *DataScrubber {
 	newDataScrubber := &DataScrubber{
-		Enabled:               true,
-		SensitiveWords:        CompileStringsToRegex(defaultSenstiveWords),
-		DefaultSensitiveWords: CompileStringsToRegex(defaultSenstiveWords),
-		CustomSensitiveWords:  make([]*regexp.Regexp, 0, 0),
+		Enabled:        true,
+		SensitiveWords: CompileStringsToRegex(defaultSensitiveWords),
 	}
 
 	return newDataScrubber
@@ -32,8 +30,12 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
 	for _, word := range words {
 		pattern := `(?P<key>( |-)(?i)` + word + `)(?P<delimiter> +|=)(?P<value>[^\s]*)`
-		r := regexp.MustCompile(pattern)
-		compiledRegexps = append(compiledRegexps, r)
+		r, err := regexp.Compile(pattern)
+		if err == nil {
+			compiledRegexps = append(compiledRegexps, r)
+		} else {
+			log.Errorf("warning data scrubber - %s couldn't be compiled to a regex expression", word)
+		}
 	}
 
 	return compiledRegexps
@@ -47,16 +49,16 @@ func (ds *DataScrubber) ScrubCmdline(cmdline []string) []string {
 
 	rawCmdline := strings.Join(cmdline, " ")
 	for _, pattern := range ds.SensitiveWords {
-		rawCmdline = pattern.ReplaceAllString(rawCmdline, `${key}${delimiter}********`)
+		rawCmdline = pattern.ReplaceAllString(rawCmdline, "${key}${delimiter}********")
 	}
 
 	return strings.Split(rawCmdline, " ")
 }
 
-// Set the custom sensitive words on the DataScruber object
-func (ds *DataScrubber) SetCustomSensitiveWords(words []string) {
-	ds.CustomSensitiveWords = CompileStringsToRegex(words)
+// Add custom sensitive words on the DataScruber object
+func (ds *DataScrubber) AddCustomSensitiveWords(words []string) {
+	newPatterns := CompileStringsToRegex(words)
 
-	// Create an unified list of sensitive patterns to match
-	ds.SensitiveWords = append(ds.DefaultSensitiveWords, ds.CustomSensitiveWords...)
+	// Add the new patterns to the existed ones
+	ds.SensitiveWords = append(ds.SensitiveWords, newPatterns...)
 }

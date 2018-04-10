@@ -14,7 +14,7 @@ func setupDataScrubber() *DataScrubber {
 	}
 
 	scrubber := NewDefaultDataScrubber()
-	scrubber.SetCustomSensitiveWords(customSensitiveWords)
+	scrubber.AddCustomSensitiveWords(customSensitiveWords)
 
 	return scrubber
 }
@@ -42,8 +42,6 @@ func TestBlacklistedArgs(t *testing.T) {
 
 	scrubber := setupDataScrubber()
 	t.Log("scrub enabled: ", scrubber.Enabled)
-	t.Log("default regexp", scrubber.DefaultSensitiveWords)
-	t.Log("custom regexp", scrubber.CustomSensitiveWords)
 	t.Log("merged regexp", scrubber.SensitiveWords)
 	for i := range cases {
 		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
@@ -75,8 +73,6 @@ func TestBlacklistedArgsWhenDisabled(t *testing.T) {
 	scrubber := setupDataScrubber()
 	scrubber.Enabled = false
 	t.Log("scrub enabled: ", scrubber.Enabled)
-	t.Log("default regexp", scrubber.DefaultSensitiveWords)
-	t.Log("custom regexp", scrubber.CustomSensitiveWords)
 	t.Log("merged regexp", scrubber.SensitiveWords)
 	for i := range cases {
 		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
@@ -105,8 +101,6 @@ func TestNoBlacklistedArgs(t *testing.T) {
 
 	scrubber := setupDataScrubber()
 	t.Log("scrub enabled: ", scrubber.Enabled)
-	t.Log("default regexp", scrubber.DefaultSensitiveWords)
-	t.Log("custom regexp", scrubber.CustomSensitiveWords)
 	t.Log("merged regexp", scrubber.SensitiveWords)
 	for i := range cases {
 		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
