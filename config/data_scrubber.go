@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/DataDog/dd-go/log"
+	log "github.com/cihub/seelog"
 )
 
 var (
