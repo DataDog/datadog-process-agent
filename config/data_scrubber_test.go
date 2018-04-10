@@ -1,22 +1,63 @@
 package config
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func setupDataScrubber() *DataScrubber {
+func setupDataScrubber(t *testing.T) *DataScrubber {
 	customSensitiveWords := []string{
 		"consul_token",
 		"dd_password",
 		"blocked_from_yaml",
 	}
+	expectedPatterns := make([]string, 0, len(defaultSensitiveWords)+len(customSensitiveWords))
+	for _, word := range append(defaultSensitiveWords, customSensitiveWords...) {
+		expectedPatterns = append(expectedPatterns, `(?P<key>( |-)(?i)`+word+`)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
+	}
 
 	scrubber := NewDefaultDataScrubber()
 	scrubber.AddCustomSensitiveWords(customSensitiveWords)
 
+	assert.Equal(t, true, scrubber.Enabled)
+	for i, pattern := range scrubber.SensitivePatterns {
+		assert.Equal(t, expectedPatterns[i], fmt.Sprint(pattern))
+	}
+
 	return scrubber
+}
+
+func TestUncompilableWord(t *testing.T) {
+	customSensitiveWords := []string{
+		"consul_token",
+		"dd_password",
+		"(an_error",
+		")a*",
+		"[forbidden]",
+		"]a*",
+		"blocked_from_yaml",
+	}
+
+	validCustomSenstiveWords := []string{
+		"consul_token",
+		"dd_password",
+		"blocked_from_yaml",
+	}
+
+	expectedPatterns := make([]string, 0, len(defaultSensitiveWords)+len(validCustomSenstiveWords))
+	for _, word := range append(defaultSensitiveWords, validCustomSenstiveWords...) {
+		expectedPatterns = append(expectedPatterns, `(?P<key>( |-)(?i)`+word+`)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
+	}
+
+	scrubber := NewDefaultDataScrubber()
+	scrubber.AddCustomSensitiveWords(customSensitiveWords)
+
+	assert.Equal(t, true, scrubber.Enabled)
+	for i, pattern := range scrubber.SensitivePatterns {
+		assert.Equal(t, expectedPatterns[i], fmt.Sprint(pattern))
+	}
 }
 
 func TestBlacklistedArgs(t *testing.T) {
@@ -40,9 +81,8 @@ func TestBlacklistedArgs(t *testing.T) {
 		{[]string{"java -password      1234"}, []string{"java", "-password", "", "", "", "", "", "********"}},
 	}
 
-	scrubber := setupDataScrubber()
-	t.Log("scrub enabled: ", scrubber.Enabled)
-	t.Log("merged regexp", scrubber.SensitiveWords)
+	scrubber := setupDataScrubber(t)
+
 	for i := range cases {
 		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
@@ -70,10 +110,9 @@ func TestBlacklistedArgsWhenDisabled(t *testing.T) {
 		{[]string{"java -password      1234"}, []string{"java -password      1234"}},
 	}
 
-	scrubber := setupDataScrubber()
+	scrubber := setupDataScrubber(t)
 	scrubber.Enabled = false
-	t.Log("scrub enabled: ", scrubber.Enabled)
-	t.Log("merged regexp", scrubber.SensitiveWords)
+
 	for i := range cases {
 		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
@@ -89,19 +128,18 @@ func TestNoBlacklistedArgs(t *testing.T) {
 		{[]string{"agent", "start", "-p", "config.cfg"}, []string{"agent", "start", "-p", "config.cfg"}},
 		{[]string{"p1", "--openpassword=admin"}, []string{"p1", "--openpassword=admin"}},
 		{[]string{"p1", "-openpassword", "admin"}, []string{"p1", "-openpassword", "admin"}},
-		{[]string{"java -openpassword 1234"}, []string{"java", "-openpassword", "1234"}},
-		{[]string{"java -open_password 1234"}, []string{"java", "-open_password", "1234"}},
-		{[]string{"java -passwordOpen 1234"}, []string{"java", "-passwordOpen", "1234"}},
-		{[]string{"java -password_open 1234"}, []string{"java", "-password_open", "1234"}},
-		{[]string{"java -password1 1234"}, []string{"java", "-password1", "1234"}},
-		{[]string{"java -password_1 1234"}, []string{"java", "-password_1", "1234"}},
-		{[]string{"java -1password 1234"}, []string{"java", "-1password", "1234"}},
-		{[]string{"java -1_password 1234"}, []string{"java", "-1_password", "1234"}},
+		{[]string{"java -openpassword 1234"}, []string{"java -openpassword 1234"}},
+		{[]string{"java -open_password 1234"}, []string{"java -open_password 1234"}},
+		{[]string{"java -passwordOpen 1234"}, []string{"java -passwordOpen 1234"}},
+		{[]string{"java -password_open 1234"}, []string{"java -password_open 1234"}},
+		{[]string{"java -password1 1234"}, []string{"java -password1 1234"}},
+		{[]string{"java -password_1 1234"}, []string{"java -password_1 1234"}},
+		{[]string{"java -1password 1234"}, []string{"java -1password 1234"}},
+		{[]string{"java -1_password 1234"}, []string{"java -1_password 1234"}},
 	}
 
-	scrubber := setupDataScrubber()
-	t.Log("scrub enabled: ", scrubber.Enabled)
-	t.Log("merged regexp", scrubber.SensitiveWords)
+	scrubber := setupDataScrubber(t)
+
 	for i := range cases {
 		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
@@ -119,7 +157,14 @@ var avoidOptimization []string
 func benchmarkRegexMatching(nbProcesses int, b *testing.B) {
 	runningProcesses := make([][]string, nbProcesses)
 	foolCmdline := []string{"python ~/test/run.py --password=1234 -password 1234 -password=admin -secret 2345 -credentials=1234 -api_key 2808 &"}
-	scrubber := setupDataScrubber()
+
+	customSensitiveWords := []string{
+		"consul_token",
+		"dd_password",
+		"blocked_from_yaml",
+	}
+	scrubber := NewDefaultDataScrubber()
+	scrubber.AddCustomSensitiveWords(customSensitiveWords)
 
 	for i := 0; i < nbProcesses; i++ {
 		runningProcesses = append(runningProcesses, foolCmdline)
