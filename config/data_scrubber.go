@@ -15,11 +15,15 @@ var (
 		"secret", "credentials", "stripetoken"}
 )
 
+// DataScrubber allows the agent to blacklist cmdline arguments that match
+// a list of predefined and custom words
 type DataScrubber struct {
 	Enabled           bool
 	SensitivePatterns []*regexp.Regexp
 }
 
+// NewDefaultDataScrubber creates a DataScrubber with the default behavior: enabled
+// and matching the default sensitive words
 func NewDefaultDataScrubber() *DataScrubber {
 	newDataScrubber := &DataScrubber{
 		Enabled:           true,
@@ -29,7 +33,8 @@ func NewDefaultDataScrubber() *DataScrubber {
 	return newDataScrubber
 }
 
-// Compile each word in the list into a regex pattern to match against the cmdline arguments
+// CompileStringsToRegex compile each word in the slice into a regex pattern to match
+// against the cmdline arguments
 // The word must contain only word characters ([a-zA-z0-9_])
 func CompileStringsToRegex(words []string) []*regexp.Regexp {
 	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
@@ -53,7 +58,8 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 	return compiledRegexps
 }
 
-// Hide any cmdline argument value whose key matches one of the patterns built from the sensitive words
+// ScrubCmdline hides any cmdline argument value whose key matches one of the patterns
+// built from the sensitive words
 func (ds *DataScrubber) ScrubCmdline(cmdline []string) []string {
 	if !ds.Enabled {
 		return cmdline
@@ -74,7 +80,7 @@ func (ds *DataScrubber) ScrubCmdline(cmdline []string) []string {
 	return cmdline
 }
 
-// Add custom sensitive words on the DataScrubber object
+// AddCustomSensitiveWords adds custom sensitive words on the DataScrubber object
 func (ds *DataScrubber) AddCustomSensitiveWords(words []string) {
 	newPatterns := CompileStringsToRegex(words)
 	ds.SensitivePatterns = append(ds.SensitivePatterns, newPatterns...)
