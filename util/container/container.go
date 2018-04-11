@@ -88,7 +88,7 @@ func GetContainers() ([]*docker.Container, error) {
 	}
 
 	for _, e := range errs {
-		log.Error(e)
+		log.Debug(e)
 	}
 
 	return containers, errors.New("failed to get containers from any source")
