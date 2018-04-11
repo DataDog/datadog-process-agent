@@ -127,6 +127,9 @@ func fmtProcesses(
 			continue
 		}
 
+		// Hide blacklisted args if the Scrubber is enabled
+		fp.Cmdline = cfg.Scrubber.ScrubCmdline(fp.Cmdline)
+
 		ctr, ok := ctrByPid[fp.Pid]
 		if !ok {
 			ctr = docker.NullContainer

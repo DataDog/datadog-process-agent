@@ -50,6 +50,7 @@ type AgentConfig struct {
 	LogLevel      string
 	QueueSize     int
 	Blacklist     []*regexp.Regexp
+	Scrubber      *DataScrubber
 	MaxProcFDs    int
 	ProcLimit     int
 	AllowRealTime bool
@@ -149,6 +150,9 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Docker
 		ContainerCacheDuration: 10 * time.Second,
 		CollectDockerNetwork:   true,
+
+		// DataScrubber to hide command line sensitive words
+		Scrubber: NewDefaultDataScrubber(),
 	}
 
 	// Set default values for proc/sys paths if unset.
@@ -242,6 +246,12 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 			}
 		}
 		cfg.Blacklist = blacklist
+
+		// DataScrubber
+		cfg.Scrubber.Enabled = agentIni.GetBool(ns, "scrub_args", true)
+		customSensitiveWords := agentIni.GetStrArrayDefault(ns, "custom_sensitive_words", ",", []string{})
+		cfg.Scrubber.AddCustomSensitiveWords(customSensitiveWords)
+
 		procLimit := agentIni.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
 		if procLimit <= maxProcLimit {
 			cfg.ProcLimit = procLimit
