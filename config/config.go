@@ -117,6 +117,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		MaxProcFDs:    200,
 		ProcLimit:     100,
 		AllowRealTime: true,
+		HostName:      "",
 		Transport: &http.Transport{
 			MaxIdleConns:    5,
 			IdleConnTimeout: 90 * time.Second,
@@ -298,16 +299,17 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		return nil, err
 	}
 
-	cfg.HostName = ""
-	if ecsutil.IsFargateInstance() {
-		// Fargate tasks should have no concept of host names, so we're using the task ARN.
-		if taskMeta, err := ecsutil.GetTaskMetadata(); err == nil {
-			cfg.HostName = fmt.Sprintf("fargate_task:%s", taskMeta.TaskARN)
-		} else {
-			log.Errorf("Failed to retrieve Fargate task metadata: %s", err)
+	if cfg.HostName == "" {
+		if ecsutil.IsFargateInstance() {
+			// Fargate tasks should have no concept of host names, so we're using the task ARN.
+			if taskMeta, err := ecsutil.GetTaskMetadata(); err == nil {
+				cfg.HostName = fmt.Sprintf("fargate_task:%s", taskMeta.TaskARN)
+			} else {
+				log.Errorf("Failed to retrieve Fargate task metadata: %s", err)
+			}
+		} else if hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv); err == nil {
+			cfg.HostName = hostname
 		}
-	} else if hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv); err == nil {
-		cfg.HostName = hostname
 	}
 
 	if cfg.proxy != nil {
