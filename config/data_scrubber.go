@@ -1,6 +1,8 @@
 package config
 
 import (
+	"bytes"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -35,18 +37,41 @@ func NewDefaultDataScrubber() *DataScrubber {
 
 // CompileStringsToRegex compile each word in the slice into a regex pattern to match
 // against the cmdline arguments
-// The word must contain only word characters ([a-zA-z0-9_])
+// The word must contain only word characters ([a-zA-z0-9_]) or wildcards *
 func CompileStringsToRegex(words []string) []*regexp.Regexp {
 	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
-	forbiddenSymbols := regexp.MustCompile(`\W`)
+	forbiddenSymbols := regexp.MustCompile(`[^a-zA-Z0-9_*]`)
 
 	for _, word := range words {
 		if forbiddenSymbols.MatchString(word) {
-			log.Errorf("warning data scrubber - %s not compiled. The sensitive word must contain only word characters", word)
+			log.Errorf("warning data scrubber - %s not compiled. The sensitive word must contain only word characters or *", word)
 			continue
 		}
 
-		pattern := `(?P<key>( |-)(?i)` + word + `)(?P<delimiter> +|=)(?P<value>[^\s]*)`
+		originalRunes := []rune(word)
+		var enhancedWord bytes.Buffer
+		valid := true
+		for i, rune := range originalRunes {
+			if rune == '*' {
+				if i == len(originalRunes)-1 {
+					enhancedWord.WriteString("[^ =]*")
+				} else if originalRunes[i+1] == '*' {
+					log.Errorf("warning data scrubber - %s not compiled. The sensitive word must not contain two consecutives *", word)
+					valid = false
+					break
+				} else {
+					enhancedWord.WriteString(fmt.Sprintf("[^%c]*", word[i+1]))
+				}
+			} else {
+				enhancedWord.WriteString(string(rune))
+			}
+		}
+
+		if !valid {
+			continue
+		}
+
+		pattern := `(?P<key>( +|-)(?i)` + enhancedWord.String() + `)(?P<delimiter> +|=)(?P<value>[^\s]*)`
 		r, err := regexp.Compile(pattern)
 		if err == nil {
 			compiledRegexps = append(compiledRegexps, r)
