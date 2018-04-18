@@ -16,7 +16,7 @@ func setupDataScrubber(t *testing.T) *DataScrubber {
 
 	expectedPatterns := make([]string, 0, len(defaultSensitiveWords)+len(customSensitiveWords))
 	for _, word := range append(defaultSensitiveWords, customSensitiveWords...) {
-		expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)`+word+`)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
+		expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)"+word+")(?P<delimiter> +|=)(?P<value>[^\\s]*)")
 	}
 
 	scrubber := NewDefaultDataScrubber()
@@ -41,14 +41,14 @@ func setupDataScrubberWildCard(t *testing.T) *DataScrubber {
 
 	expectedPatterns := make([]string, 0, len(defaultSensitiveWords))
 	for _, word := range append(defaultSensitiveWords) {
-		expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)`+word+`)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
+		expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)"+word+")(?P<delimiter> +|=)(?P<value>[^\\s]*)")
 	}
 
-	expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)[^b]*befpass)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
-	expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)afterpass[^ =]*)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
-	expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)[^b]*both[^ =]*)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
-	expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)mi[^l]*le)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
-	expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)[^p]*pass[^d]*d[^ =]*)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^b]*befpass)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)afterpass[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^b]*both[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)mi[^l]*le)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^p]*pass[^d]*d[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
 
 	scrubber := NewDefaultDataScrubber()
 	scrubber.AddCustomSensitiveWords(wildcards)
@@ -68,10 +68,10 @@ func setupDataScrubberMatchAll(t *testing.T) *DataScrubber {
 
 	expectedPatterns := make([]string, 0, len(defaultSensitiveWords))
 	for _, word := range append(defaultSensitiveWords) {
-		expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)`+word+`)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
+		expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)"+word+")(?P<delimiter> +|=)(?P<value>[^\\s]*)")
 	}
 
-	expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)[^ =]*)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
 
 	scrubber := NewDefaultDataScrubber()
 	scrubber.AddCustomSensitiveWords(matchAll)
@@ -123,15 +123,15 @@ func TestUncompilableWord(t *testing.T) {
 
 	expectedPatterns := make([]string, 0, len(defaultSensitiveWords)+len(validCustomSenstiveWords))
 	for _, word := range append(defaultSensitiveWords, validCustomSenstiveWords...) {
-		expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)`+word+`)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
+		expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)"+word+")(?P<delimiter> +|=)(?P<value>[^\\s]*)")
 	}
 
-	expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)[^b]*bef)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
-	expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)after[^ =]*)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
-	expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)[^b]*both[^ =]*)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
-	expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)mi[^l]*le)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
-	expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)[^ =]*)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
-	expectedPatterns = append(expectedPatterns, `(?P<key>( +|-)(?i)[^p]*pass[^d]*d[^ =]*)(?P<delimiter> +|=)(?P<value>[^\s]*)`)
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^b]*bef)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)after[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^b]*both[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)mi[^l]*le)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^p]*pass[^d]*d[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
 
 	scrubber := NewDefaultDataScrubber()
 	scrubber.AddCustomSensitiveWords(customSensitiveWords)

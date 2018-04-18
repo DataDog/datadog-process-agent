@@ -40,11 +40,12 @@ func NewDefaultDataScrubber() *DataScrubber {
 // The word must contain only word characters ([a-zA-z0-9_]) or wildcards *
 func CompileStringsToRegex(words []string) []*regexp.Regexp {
 	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
-	forbiddenSymbols := regexp.MustCompile(`[^a-zA-Z0-9_*]`)
+	forbiddenSymbols := regexp.MustCompile("[^a-zA-Z0-9_*]")
 
 	for _, word := range words {
 		if forbiddenSymbols.MatchString(word) {
-			log.Errorf("warning data scrubber - %s not compiled. The sensitive word must contain only word characters or *", word)
+			log.Warnf("data scrubber - %s not compiled. The sensitive word must "+
+				"contain only alphanumeric characters, underscores or wildcards ('*')", word)
 			continue
 		}
 
@@ -56,7 +57,8 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 				if i == len(originalRunes)-1 {
 					enhancedWord.WriteString("[^ =]*")
 				} else if originalRunes[i+1] == '*' {
-					log.Errorf("warning data scrubber - %s not compiled. The sensitive word must not contain two consecutives *", word)
+					log.Warnf("data scrubber - %s not compiled. The sensitive word "+
+						"must not contain two consecutives '*'", word)
 					valid = false
 					break
 				} else {
@@ -71,12 +73,12 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 			continue
 		}
 
-		pattern := `(?P<key>( +|-)(?i)` + enhancedWord.String() + `)(?P<delimiter> +|=)(?P<value>[^\s]*)`
+		pattern := "(?P<key>( +|-)(?i)" + enhancedWord.String() + ")(?P<delimiter> +|=)(?P<value>[^\\s]*)"
 		r, err := regexp.Compile(pattern)
 		if err == nil {
 			compiledRegexps = append(compiledRegexps, r)
 		} else {
-			log.Errorf("warning data scrubber - %s couldn't be compiled into a regex expression", word)
+			log.Warnf("data scrubber - %s couldn't be compiled into a regex expression", word)
 		}
 	}
 
