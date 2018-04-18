@@ -44,7 +44,7 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 
 	for _, word := range words {
 		if forbiddenSymbols.MatchString(word) {
-			log.Warnf("data scrubber - %s not compiled. The sensitive word must "+
+			log.Warnf("data scrubber: %s not compiled. The sensitive word must "+
 				"contain only alphanumeric characters, underscores or wildcards ('*')", word)
 			continue
 		}
@@ -57,7 +57,7 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 				if i == len(originalRunes)-1 {
 					enhancedWord.WriteString("[^ =]*")
 				} else if originalRunes[i+1] == '*' {
-					log.Warnf("data scrubber - %s not compiled. The sensitive word "+
+					log.Warnf("data scrubber: %s not compiled. The sensitive word "+
 						"must not contain two consecutives '*'", word)
 					valid = false
 					break
@@ -78,7 +78,7 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 		if err == nil {
 			compiledRegexps = append(compiledRegexps, r)
 		} else {
-			log.Warnf("data scrubber - %s couldn't be compiled into a regex expression", word)
+			log.Warnf("data scrubber: %s couldn't be compiled into a regex expression", word)
 		}
 	}
 
