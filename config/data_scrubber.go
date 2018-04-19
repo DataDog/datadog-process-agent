@@ -57,7 +57,6 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 		originalRunes := []rune(word)
 		var enhancedWord bytes.Buffer
 		valid := true
-
 		for i, rune := range originalRunes {
 			if rune == '*' {
 				if i == len(originalRunes)-1 {
