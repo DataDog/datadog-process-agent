@@ -12,11 +12,13 @@ func setupDataScrubber(t *testing.T) *DataScrubber {
 		"consul_token",
 		"dd_password",
 		"blocked_from_yaml",
+		"config",
+		"pid",
 	}
 
 	expectedPatterns := make([]string, 0, len(defaultSensitiveWords)+len(customSensitiveWords))
 	for _, word := range append(defaultSensitiveWords, customSensitiveWords...) {
-		expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)"+word+")(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+		expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)"+word+")(?P<delimiter> +|=)(?P<value>[^\\s]*)")
 	}
 
 	scrubber := NewDefaultDataScrubber()
@@ -41,40 +43,17 @@ func setupDataScrubberWildCard(t *testing.T) *DataScrubber {
 
 	expectedPatterns := make([]string, 0, len(defaultSensitiveWords))
 	for _, word := range append(defaultSensitiveWords) {
-		expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)"+word+")(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+		expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)"+word+")(?P<delimiter> +|=)(?P<value>[^\\s]*)")
 	}
 
-	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^b]*befpass)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
-	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)afterpass[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
-	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^b]*both[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
-	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)mi[^l]*le)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
-	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^p]*pass[^d]*d[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)[^b\\s]*befpass)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)afterpass[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)[^b\\s]*both[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)mi[^l\\s]*le)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)[^p\\s]*pass[^d\\s]*d[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
 
 	scrubber := NewDefaultDataScrubber()
 	scrubber.AddCustomSensitiveWords(wildcards)
-
-	assert.Equal(t, true, scrubber.Enabled)
-	for i, pattern := range scrubber.SensitivePatterns {
-		assert.Equal(t, expectedPatterns[i], fmt.Sprint(pattern))
-	}
-
-	return scrubber
-}
-
-func setupDataScrubberMatchAll(t *testing.T) *DataScrubber {
-	matchAll := []string{
-		"*",
-	}
-
-	expectedPatterns := make([]string, 0, len(defaultSensitiveWords))
-	for _, word := range append(defaultSensitiveWords) {
-		expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)"+word+")(?P<delimiter> +|=)(?P<value>[^\\s]*)")
-	}
-
-	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
-
-	scrubber := NewDefaultDataScrubber()
-	scrubber.AddCustomSensitiveWords(matchAll)
 
 	assert.Equal(t, true, scrubber.Enabled)
 	for i, pattern := range scrubber.SensitivePatterns {
@@ -117,21 +96,19 @@ func TestUncompilableWord(t *testing.T) {
 		"after*",
 		"*both*",
 		"mi*le",
-		"*",
 		"*pass*d*",
 	}
 
 	expectedPatterns := make([]string, 0, len(defaultSensitiveWords)+len(validCustomSenstiveWords))
 	for _, word := range append(defaultSensitiveWords, validCustomSenstiveWords...) {
-		expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)"+word+")(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+		expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)"+word+")(?P<delimiter> +|=)(?P<value>[^\\s]*)")
 	}
 
-	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^b]*bef)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
-	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)after[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
-	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^b]*both[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
-	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)mi[^l]*le)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
-	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
-	expectedPatterns = append(expectedPatterns, "(?P<key>( +|-)(?i)[^p]*pass[^d]*d[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)[^b\\s]*bef)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)after[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)[^b\\s]*both[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)mi[^l\\s]*le)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
+	expectedPatterns = append(expectedPatterns, "(?P<key>( +| -{1,2})(?i)[^p\\s]*pass[^d\\s]*d[^ =]*)(?P<delimiter> +|=)(?P<value>[^\\s]*)")
 
 	scrubber := NewDefaultDataScrubber()
 	scrubber.AddCustomSensitiveWords(customSensitiveWords)
@@ -163,6 +140,9 @@ func TestBlacklistedArgs(t *testing.T) {
 		{[]string{"agent", "--PASSword", "1234"}, []string{"agent", "--PASSword", "********"}},
 		{[]string{"agent", "--PaSsWoRd=1234"}, []string{"agent", "--PaSsWoRd=********"}},
 		{[]string{"java -password      1234"}, []string{"java", "-password", "", "", "", "", "", "********"}},
+		{[]string{"process-agent --config=datadog.yaml --pid=process-agent.pid"}, []string{"process-agent", "--config=********", "--pid=********"}},
+		{[]string{"1-password --config=12345"}, []string{"1-password", "--config=********"}},
+		{[]string{"java kafka password 1234"}, []string{"java", "kafka", "password", "********"}},
 	}
 
 	scrubber := setupDataScrubber(t)
@@ -271,30 +251,13 @@ func TestMatchWildCards(t *testing.T) {
 		{[]string{"spidly   --passwd=1234   password   1234   -mypassword   1234   --passwords=12345,123456   --mypasswords=1234,123456"},
 			[]string{"spidly", "", "", "--passwd=********", "", "", "password", "", "", "********", "", "", "-mypassword", "", "", "********",
 				"", "", "--passwords=********", "", "", "--mypasswords=********"}},
+
+		{[]string{"run-middle password 12345"}, []string{"run-middle", "password", "********"}},
+		{[]string{"generate-password -password 12345"}, []string{"generate-password", "-password", "********"}},
+		{[]string{"generate-password --password=12345"}, []string{"generate-password", "--password=********"}},
 	}
 
 	scrubber := setupDataScrubberWildCard(t)
-
-	for i := range cases {
-		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
-		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
-	}
-}
-
-func TestMatchAll(t *testing.T) {
-	cases := []struct {
-		cmdline       []string
-		parsedCmdline []string
-	}{
-		{[]string{"run", "password", "1234", "-admin", "admin", "--key=1234"},
-			[]string{"run", "password", "********", "-admin", "********", "--key=********"}},
-		{[]string{"run password 1234 -admin admin --key=1234"},
-			[]string{"run", "password", "********", "-admin", "********", "--key=********"}},
-		{[]string{"run   password   1234   -admin   admin   --key=1234"},
-			[]string{"run", "", "", "password", "", "", "********", "", "", "-admin", "", "", "********", "", "", "--key=********"}},
-	}
-
-	scrubber := setupDataScrubberMatchAll(t)
 
 	for i := range cases {
 		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)

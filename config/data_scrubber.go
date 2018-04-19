@@ -49,9 +49,15 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 			continue
 		}
 
+		if word == "*" {
+			log.Warnf("data scrubber: %s not compiled. The sensitive word '*' is not supported", word)
+			continue
+		}
+
 		originalRunes := []rune(word)
 		var enhancedWord bytes.Buffer
 		valid := true
+
 		for i, rune := range originalRunes {
 			if rune == '*' {
 				if i == len(originalRunes)-1 {
@@ -62,7 +68,7 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 					valid = false
 					break
 				} else {
-					enhancedWord.WriteString(fmt.Sprintf("[^%c]*", word[i+1]))
+					enhancedWord.WriteString(fmt.Sprintf("[^%c\\s]*", word[i+1]))
 				}
 			} else {
 				enhancedWord.WriteString(string(rune))
@@ -73,7 +79,7 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 			continue
 		}
 
-		pattern := "(?P<key>( +|-)(?i)" + enhancedWord.String() + ")(?P<delimiter> +|=)(?P<value>[^\\s]*)"
+		pattern := "(?P<key>( +| -{1,2})(?i)" + enhancedWord.String() + ")(?P<delimiter> +|=)(?P<value>[^\\s]*)"
 		r, err := regexp.Compile(pattern)
 		if err == nil {
 			compiledRegexps = append(compiledRegexps, r)
