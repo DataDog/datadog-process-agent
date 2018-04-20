@@ -194,7 +194,6 @@ func TestNoBlacklistedArgs(t *testing.T) {
 		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
-
 }
 
 func TestMatchWildCards(t *testing.T) {
