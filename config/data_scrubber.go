@@ -67,7 +67,7 @@ func compileStringsToRegex(words []string) []*regexp.Regexp {
 					valid = false
 					break
 				} else {
-					enhancedWord.WriteString(fmt.Sprintf("[^%c\\s]*", word[i+1]))
+					enhancedWord.WriteString(fmt.Sprintf("[^\\s=]*"))
 				}
 			} else {
 				enhancedWord.WriteString(string(rune))

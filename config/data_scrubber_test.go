@@ -240,6 +240,9 @@ func TestMatchWildCards(t *testing.T) {
 		{[]string{"run-middle password 12345"}, []string{"run-middle", "password", "********"}},
 		{[]string{"generate-password -password 12345"}, []string{"generate-password", "-password", "********"}},
 		{[]string{"generate-password --password=12345"}, []string{"generate-password", "--password=********"}},
+
+		{[]string{"java /var/lib/datastax-agent/conf/address.yaml -Dopscenter.ssl.keyStorePassword=opscenter -Dagent-pidfile=/var/run/datastax-agent/datastax-agent.pid --anotherpassword=1234"},
+			[]string{"java", "/var/lib/datastax-agent/conf/address.yaml", "-Dopscenter.ssl.keyStorePassword=********", "-Dagent-pidfile=/var/run/datastax-agent/datastax-agent.pid", "--anotherpassword=********"}},
 	}
 
 	scrubber := setupDataScrubberWildCard(t)
@@ -259,7 +262,7 @@ var avoidOptimization []string
 
 func benchmarkRegexMatching(nbProcesses int, b *testing.B) {
 	runningProcesses := make([][]string, nbProcesses)
-	foolCmdline := []string{"python ~/test/run.py --password=1234 -password 1234 -password=admin -open_password 2345 -consul=1234 -p 2808 &"}
+	foolCmdline := []string{"python ~/test/run.py --password=1234 -password 1234 -password=admin -secret 2345 -credentials=1234 -api_key 2808 &"}
 
 	customSensitiveWords := []string{
 		"consul_token",
