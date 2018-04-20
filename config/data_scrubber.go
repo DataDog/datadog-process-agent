@@ -29,16 +29,16 @@ type DataScrubber struct {
 func NewDefaultDataScrubber() *DataScrubber {
 	newDataScrubber := &DataScrubber{
 		Enabled:           true,
-		SensitivePatterns: CompileStringsToRegex(defaultSensitiveWords),
+		SensitivePatterns: compileStringsToRegex(defaultSensitiveWords),
 	}
 
 	return newDataScrubber
 }
 
-// CompileStringsToRegex compile each word in the slice into a regex pattern to match
+// compileStringsToRegex compile each word in the slice into a regex pattern to match
 // against the cmdline arguments
 // The word must contain only word characters ([a-zA-z0-9_]) or wildcards *
-func CompileStringsToRegex(words []string) []*regexp.Regexp {
+func compileStringsToRegex(words []string) []*regexp.Regexp {
 	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
 	forbiddenSymbols := regexp.MustCompile("[^a-zA-Z0-9_*]")
 
@@ -114,6 +114,6 @@ func (ds *DataScrubber) ScrubCmdline(cmdline []string) []string {
 
 // AddCustomSensitiveWords adds custom sensitive words on the DataScrubber object
 func (ds *DataScrubber) AddCustomSensitiveWords(words []string) {
-	newPatterns := CompileStringsToRegex(words)
+	newPatterns := compileStringsToRegex(words)
 	ds.SensitivePatterns = append(ds.SensitivePatterns, newPatterns...)
 }
