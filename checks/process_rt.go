@@ -50,7 +50,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if err != nil {
 		return nil, err
 	}
-	procs, err := process.AllProcesses()
+	procs, err := getAllProcesses()
 	if err != nil {
 		return nil, err
 	}
