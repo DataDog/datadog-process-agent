@@ -48,6 +48,7 @@ type AgentConfig struct {
 	APIEndpoint   *url.URL
 	LogFile       string
 	LogLevel      string
+	LogToConsole  bool
 	QueueSize     int
 	Blacklist     []*regexp.Regexp
 	Scrubber      *DataScrubber
@@ -113,6 +114,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		APIEndpoint:   u,
 		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
+		LogToConsole:  false,
 		QueueSize:     20,
 		MaxProcFDs:    200,
 		ProcLimit:     100,
@@ -294,7 +296,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 	}
 
 	// (Re)configure the logging from our configuration
-	if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile); err != nil {
+	if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile, cfg.LogToConsole); err != nil {
 		return nil, err
 	}
 
@@ -360,6 +362,9 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 	if v := os.Getenv("DD_LOGS_STDOUT"); v == "yes" {
 		// Empty log file implies logging to stdout and stdout
 		c.LogFile = ""
+	}
+	if enabled, err := isAffirmative(os.Getenv("LOG_TO_CONSOLE")); err == nil {
+		c.LogToConsole = enabled
 	}
 
 	if c.proxy, err = proxyFromEnv(c.proxy); err != nil {
