@@ -29,4 +29,4 @@ RUN wget http://www.musl-libc.org/releases/musl-1.1.10.tar.gz && \
 
 ENV GOPATH=/go
 ENV PATH=/go/bin:$PATH
-RUN gimme 1.9.4
+RUN gimme 1.10

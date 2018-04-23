@@ -10,7 +10,7 @@ See the [Live Processes docs](https://docs.datadoghq.com/graphing/infrastructure
 
 Pre-requisites:
 
-* `go >= 1.9.4`
+* `go >= 1.10`
 * `rake`
 
 Check out the repo in your `$GOPATH`
