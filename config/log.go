@@ -297,6 +297,6 @@ func NewLoggerLevel(logLevel, logFile string, logToConsole bool) error {
 		LogLevel:    strings.ToLower(logLevel),
 		Filename:    logFile,
 		SyslogLevel: "off",
-		Console:     logFile == "" || logToConsole,
+		Console:     logToConsole,
 	})
 }
