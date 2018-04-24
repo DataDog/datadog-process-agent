@@ -15,6 +15,7 @@ dependencies:
   override:
     - mkdir -p "$GOPATH/src/$IMPORT_PATH"
     - rsync -azC --delete ./ "$GOPATH/src/$IMPORT_PATH/"
+    - mkdir -p $GOPATH/src/golang.org/x && git clone --depth 1 https://github.com/golang/lint.git $GOPATH/src/golang.org/x/lint && go get -u golang.org/x/lint/golint
     - go get -d github.com/Masterminds/glide
     - cd $GLIDE_PATH && git checkout v0.12.3 && go install
     - cd $DATADOG_PATH && rm -rf datadog-agent && git clone git@github.com:DataDog/datadog-agent
