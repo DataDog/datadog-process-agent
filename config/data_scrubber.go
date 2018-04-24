@@ -60,14 +60,14 @@ func compileStringsToRegex(words []string) []*regexp.Regexp {
 		for i, rune := range originalRunes {
 			if rune == '*' {
 				if i == len(originalRunes)-1 {
-					enhancedWord.WriteString("[^ =]*")
+					enhancedWord.WriteString("[^ =:]*")
 				} else if originalRunes[i+1] == '*' {
 					log.Warnf("data scrubber: %s skipped. The sensitive word "+
 						"must not contain two consecutives '*'", word)
 					valid = false
 					break
 				} else {
-					enhancedWord.WriteString(fmt.Sprintf("[^\\s=]*"))
+					enhancedWord.WriteString(fmt.Sprintf("[^\\s=:$/]*"))
 				}
 			} else {
 				enhancedWord.WriteString(string(rune))
@@ -78,7 +78,7 @@ func compileStringsToRegex(words []string) []*regexp.Regexp {
 			continue
 		}
 
-		pattern := "(?P<key>( +| -{1,2})(?i)" + enhancedWord.String() + ")(?P<delimiter> +|=)(?P<value>[^\\s]*)"
+		pattern := "(?P<key>( +| -{1,2})(?i)" + enhancedWord.String() + ")(?P<delimiter> +|=|:)(?P<value>[^\\s]*)"
 		r, err := regexp.Compile(pattern)
 		if err == nil {
 			compiledRegexps = append(compiledRegexps, r)

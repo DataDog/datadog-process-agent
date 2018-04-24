@@ -31,6 +31,7 @@ func setupDataScrubberWildCard(t *testing.T) *DataScrubber {
 		"*both*",
 		"mi*le",
 		"*pass*d*",
+		"*path*",
 	}
 
 	scrubber := NewDefaultDataScrubber()
@@ -129,6 +130,8 @@ func TestBlacklistedArgs(t *testing.T) {
 		{[]string{"process-agent --config=datadog.yaml --pid=process-agent.pid"}, []string{"process-agent", "--config=********", "--pid=********"}},
 		{[]string{"1-password --config=12345"}, []string{"1-password", "--config=********"}},
 		{[]string{"java kafka password 1234"}, []string{"java", "kafka", "password", "********"}},
+		{[]string{"agent", "password:1234"}, []string{"agent", "password:********"}},
+		{[]string{"agent password:1234"}, []string{"agent", "password:********"}},
 	}
 
 	scrubber := setupDataScrubber(t)
@@ -158,6 +161,8 @@ func TestBlacklistedArgsWhenDisabled(t *testing.T) {
 		{[]string{"agent", "--PASSword", "1234"}, []string{"agent", "--PASSword", "1234"}},
 		{[]string{"agent", "--PaSsWoRd=1234"}, []string{"agent", "--PaSsWoRd=1234"}},
 		{[]string{"java -password      1234"}, []string{"java -password      1234"}},
+		{[]string{"agent", "password:1234"}, []string{"agent", "password:1234"}},
+		{[]string{"agent password:1234"}, []string{"agent password:1234"}},
 	}
 
 	scrubber := setupDataScrubber(t)
@@ -186,6 +191,8 @@ func TestNoBlacklistedArgs(t *testing.T) {
 		{[]string{"java -password_1 1234"}, []string{"java -password_1 1234"}},
 		{[]string{"java -1password 1234"}, []string{"java -1password 1234"}},
 		{[]string{"java -1_password 1234"}, []string{"java -1_password 1234"}},
+		{[]string{"agent", "1_password:1234"}, []string{"agent", "1_password:1234"}},
+		{[]string{"agent 1_password:1234"}, []string{"agent 1_password:1234"}},
 	}
 
 	scrubber := setupDataScrubber(t)
@@ -243,6 +250,16 @@ func TestMatchWildCards(t *testing.T) {
 
 		{[]string{"java /var/lib/datastax-agent/conf/address.yaml -Dopscenter.ssl.keyStorePassword=opscenter -Dagent-pidfile=/var/run/datastax-agent/datastax-agent.pid --anotherpassword=1234"},
 			[]string{"java", "/var/lib/datastax-agent/conf/address.yaml", "-Dopscenter.ssl.keyStorePassword=********", "-Dagent-pidfile=/var/run/datastax-agent/datastax-agent.pid", "--anotherpassword=********"}},
+
+		{[]string{"/usr/bin/java -Des.path.home=/usr/local/elasticsearch-1.7.6 -cp $ES_CLASSPATH:$ES_HOME/lib/*:$ES_HOME/lib/sigar/*:/usr/local/elasticsearch-1.7.6" +
+			"/lib/elasticsearch-1.7.6.jar:/usr/local/elasticsearch-1.7.6/lib/*:/usr/local/elasticsearch-1.7.6/lib" +
+			"/sigar/* org.elasticsearch.bootstrap.Elasticsearch"},
+			[]string{"/usr/bin/java", "-Des.path.home=********", "-cp", "$ES_CLASSPATH:$ES_HOME/lib/*:$ES_HOME/lib/sigar/*:/usr/local/elasticsearch-1.7.6" +
+				"/lib/elasticsearch-1.7.6.jar:/usr/local/elasticsearch-1.7.6/lib/*:/usr/local/elasticsearch-1.7.6/lib/sigar/*",
+				"org.elasticsearch.bootstrap.Elasticsearch"}},
+
+		{[]string{"process ‑XXpath:/secret/"}, []string{"process", "‑XXpath:********"}},
+		{[]string{"process", "‑XXpath:/secret/"}, []string{"process", "‑XXpath:********"}},
 	}
 
 	scrubber := setupDataScrubberWildCard(t)
@@ -265,9 +282,9 @@ func benchmarkRegexMatching(nbProcesses int, b *testing.B) {
 	foolCmdline := []string{"python ~/test/run.py --password=1234 -password 1234 -password=admin -secret 2345 -credentials=1234 -api_key 2808 &"}
 
 	customSensitiveWords := []string{
-		"consul_token",
-		"dd_password",
-		"blocked_from_yaml",
+		"*consul_token",
+		"*dd_password",
+		"*blocked_from_yaml",
 	}
 	scrubber := NewDefaultDataScrubber()
 	scrubber.AddCustomSensitiveWords(customSensitiveWords)
