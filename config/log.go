@@ -258,13 +258,13 @@ func getSyslogHostname() string {
 
 func validateLogLevels(levels ...string) error {
 	logLevels := map[string]struct{}{
-		"trace":    struct{}{},
-		"debug":    struct{}{},
-		"info":     struct{}{},
-		"warn":     struct{}{},
-		"error":    struct{}{},
-		"critical": struct{}{},
-		"off":      struct{}{},
+		"trace":    {},
+		"debug":    {},
+		"info":     {},
+		"warn":     {},
+		"error":    {},
+		"critical": {},
+		"off":      {},
 	}
 
 	for _, level := range levels {
@@ -292,16 +292,11 @@ func replaceLogger(cfg *LoggerConfig) error {
 }
 
 // NewLoggerLevel sets the global logger to the given log level.
-func NewLoggerLevel(logLevel, logFile string) error {
-	var console bool
-	if logFile == "" {
-		console = true
-	}
-	loggerConfig := &LoggerConfig{
+func NewLoggerLevel(logLevel, logFile string, logToConsole bool) error {
+	return replaceLogger(&LoggerConfig{
 		LogLevel:    strings.ToLower(logLevel),
 		Filename:    logFile,
 		SyslogLevel: "off",
-		Console:     console,
-	}
-	return replaceLogger(loggerConfig)
+		Console:     logToConsole,
+	})
 }

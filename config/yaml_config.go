@@ -19,8 +19,10 @@ import (
 // YamlAgentConfig is a sturcutre used for marshaling the datadog.yaml configuratio
 // available in Agent versions >= 6
 type YamlAgentConfig struct {
-	APIKey  string `yaml:"api_key"`
-	Process struct {
+	APIKey string `yaml:"api_key"`
+	// Whether or not the process-agent should output logs to console
+	LogToConsole bool `yaml:"log_to_console"`
+	Process      struct {
 		// A string indicate the enabled state of the Agent.
 		// If "false" (the default) we will only collect containers.
 		// If "true" we will collect containers and processes.
@@ -95,6 +97,9 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 			return nil, fmt.Errorf("invalid process_dd_url: %s", err)
 		}
 		agentConf.APIEndpoint = u
+	}
+	if yc.LogToConsole {
+		agentConf.LogToConsole = true
 	}
 	if yc.Process.LogFile != "" {
 		agentConf.LogFile = yc.Process.LogFile
