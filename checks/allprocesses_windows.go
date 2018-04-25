@@ -150,7 +150,7 @@ func getProcessMapFromWmi() (map[uint32]Win32_Process, error) {
 		return map[uint32]Win32_Process{}, err
 	}
 	if len(dst) == 0 {
-		return map[uint32]Win32_Process{}, fmt.Errorf("could not get Process")
+		return map[uint32]Win32_Process{}, fmt.Errorf("could not get Processes, process list is empty")
 	}
 	results := make(map[uint32]Win32_Process)
 	for _, proc := range dst {
@@ -183,13 +183,21 @@ func getAllProcesses(cfg *config.AgentConfig) (map[int32]*process.FilledProcess,
 	var pe32 w32.PROCESSENTRY32
 	pe32.DwSize = uint32(unsafe.Sizeof(pe32))
 
-	if cfg.WindowsProcessRefreshInterval != -1 {
-		if checkCount%cfg.WindowsProcessRefreshInterval == 0 {
+	interval := cfg.WindowsProcessRefreshInterval
+	if interval == 0 {
+		if checkCount == 0 {
+			log.Warnf("Invalid configuration: windows_collect_skip_new_args was set to 0.  Disabling argument collection")
+		}
+		interval = -1
+	}
+
+	if interval != -1 {
+		if checkCount%interval == 0 {
 			log.Debugf("Rebuilding process table")
 			rebuildProcessMapFromWmi()
 		}
 		if checkCount == 0 {
-			log.Infof("Windows process arg tracking enabled, will be refreshed every %v checks", cfg.WindowsProcessRefreshInterval)
+			log.Infof("Windows process arg tracking enabled, will be refreshed every %v checks", interval)
 			if cfg.WindowsProcessAddNew {
 				log.Infof("Will collect new process args immediately")
 			} else {
@@ -218,23 +226,26 @@ func getAllProcesses(cfg *config.AgentConfig) (map[int32]*process.FilledProcess,
 			// wasn't already in the map.
 			cp = cachedProcess{}
 
-			if cfg.WindowsProcessRefreshInterval != -1 && cfg.WindowsProcessAddNew {
+			if interval != -1 && cfg.WindowsProcessAddNew {
 				proc, err := getWin32Proc(pid)
 				if err != nil {
+					log.Debugf("Could not get WMI process information for pid %v: %v", pid, err)
 					continue
 				}
 
 				if err = cp.fill(&proc); err != nil {
+					log.Debugf("Could not fill WMI process information for pid %v %v", pid, err)
 					continue
 				}
 			} else {
-				if cfg.WindowsProcessRefreshInterval != -1 {
+				if interval != -1 {
 					if !haveWarnedNoArgs {
 						log.Warnf("Process arguments will be missing until next scheduled refresh")
 						haveWarnedNoArgs = true
 					}
 				}
 				if err := cp.fillFromProcEntry(&pe32); err != nil {
+					log.Debugf("Could not fill Win32 process information for pid %v %v", pid, err)
 					continue
 				}
 			}
@@ -244,22 +255,26 @@ func getAllProcesses(cfg *config.AgentConfig) (map[int32]*process.FilledProcess,
 		var CPU syscall.Rusage
 		var err error
 		if err = syscall.GetProcessTimes(procHandle, &CPU.CreationTime, &CPU.ExitTime, &CPU.KernelTime, &CPU.UserTime); err != nil {
+			log.Debugf("Could not get process times for %v %v", pid, err)
 			continue
 		}
 
 		var handleCount uint32
 		if err = getProcessHandleCount(procHandle, &handleCount); err != nil {
+			log.Debugf("Could not get handle count for %v %v", pid, err)
 			continue
 		}
 
 		var pmemcounter process.PROCESS_MEMORY_COUNTERS
 		if err = getProcessMemoryInfo(procHandle, &pmemcounter); err != nil {
+			log.Debugf("Could not get memory info for %v %v", pid, err)
 			continue
 		}
 
 		// shell out to getprocessiocounters for io stats
 		var ioCounters IO_COUNTERS
 		if err = getProcessIoCounters(procHandle, &ioCounters); err != nil {
+			log.Debugf("Could not get IO Counters for %v %v", pid, err)
 			continue
 		}
 		ctime := CPU.CreationTime.Nanoseconds() / 1000000
@@ -304,7 +319,7 @@ func getAllProcesses(cfg *config.AgentConfig) (map[int32]*process.FilledProcess,
 	}
 	for pid := range knownPids {
 		cp := cachedProcesses[pid]
-		log.Infof("Removing process %v %v", pid, cp.executablePath)
+		log.Debugf("Removing process %v %v", pid, cp.executablePath)
 		cp.close()
 		delete(cachedProcesses, pid)
 	}
@@ -326,7 +341,6 @@ func getUsernameForProcess(h syscall.Handle) (name string, err error) {
 
 	user, domain, _, err := tokenUser.User.Sid.LookupAccount("")
 	return domain + "\\" + user, err
-
 }
 
 func convertWindowsString(winput []uint16) string {

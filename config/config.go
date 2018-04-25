@@ -326,6 +326,13 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		cfg.Transport.Proxy = cfg.proxy
 	}
 
+	// sanity check. This element is used with the modulo operator (%), so it can't be zero.
+	// if it is, log the error, and assume the config was attempting to disable
+	if cfg.WindowsProcessRefreshInterval == 0 {
+		log.Warnf("Invalid configuration: windows_collect_skip_new_args was set to 0.  Disabling argument collection")
+		cfg.WindowsProcessRefreshInterval = -1
+	}
+
 	return cfg, nil
 }
 
