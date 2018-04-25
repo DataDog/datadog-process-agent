@@ -3,6 +3,7 @@
 package checks
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"syscall"
@@ -344,14 +345,14 @@ func getUsernameForProcess(h syscall.Handle) (name string, err error) {
 }
 
 func convertWindowsString(winput []uint16) string {
-	var retstring string
-	for i := 0; i < len(winput); i++ {
-		if winput[i] == 0 {
+	var buf bytes.Buffer
+	for _, r := range winput {
+		if r == 0 {
 			break
 		}
-		retstring += string(rune(winput[i]))
+		buf.WriteRune(rune(r))
 	}
-	return retstring
+	return buf.String()
 }
 
 func parseCmdLineArgs(cmdline string) (res []string) {
@@ -359,28 +360,29 @@ func parseCmdLineArgs(cmdline string) (res []string) {
 	blocks := strings.Split(cmdline, " ")
 	findCloseQuote := false
 	donestring := false
-	var stringInProgress string
+	//var stringInProgress string
+	var stringInProgress bytes.Buffer
 	for _, b := range blocks {
 		numquotes := strings.Count(b, "\"")
 		if numquotes == 0 {
-			stringInProgress += b
+			stringInProgress.WriteString(b)
 			if !findCloseQuote {
 				donestring = true
 			} else {
-				stringInProgress += " "
+				stringInProgress.WriteString(" ")
 			}
 
 		} else if numquotes == 1 {
-			stringInProgress += b
+			stringInProgress.WriteString(b)
 			if findCloseQuote {
 				donestring = true
 			} else {
 				findCloseQuote = true
-				stringInProgress += " "
+				stringInProgress.WriteString(" ")
 			}
 
 		} else if numquotes == 2 {
-			stringInProgress = b
+			stringInProgress.WriteString(b)
 			donestring = true
 		} else {
 			log.Warnf("Unexpected quotes in string, giving up (%v)", cmdline)
@@ -388,8 +390,8 @@ func parseCmdLineArgs(cmdline string) (res []string) {
 		}
 
 		if donestring {
-			res = append(res, stringInProgress)
-			stringInProgress = ""
+			res = append(res, stringInProgress.String())
+			stringInProgress.Reset()
 			findCloseQuote = false
 			donestring = false
 		}
