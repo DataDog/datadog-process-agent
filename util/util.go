@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
-	log "github.com/cihub/seelog"
 )
 
 // ErrNotImplemented is the "not implemented" error given by `gopsutil` when an
@@ -83,17 +82,6 @@ func StringInSlice(slice []string, searchString string) bool {
 		}
 	}
 	return false
-}
-
-// DockerIsAvailable returns true if Docker is available on this machine via a socket.
-func DockerIsAvailable() bool {
-	if _, err := docker.ConnectToDocker(); err != nil {
-		if err != docker.ErrDockerNotAvailable {
-			log.Warnf("unable to connect to docker: %s", err)
-		}
-		return false
-	}
-	return true
 }
 
 // GetDockerSocketPath is only for exposing the sockpath out of the module
