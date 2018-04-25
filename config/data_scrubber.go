@@ -29,23 +29,28 @@ type DataScrubber struct {
 func NewDefaultDataScrubber() *DataScrubber {
 	newDataScrubber := &DataScrubber{
 		Enabled:           true,
-		SensitivePatterns: CompileStringsToRegex(defaultSensitiveWords),
+		SensitivePatterns: compileStringsToRegex(defaultSensitiveWords),
 	}
 
 	return newDataScrubber
 }
 
-// CompileStringsToRegex compile each word in the slice into a regex pattern to match
+// compileStringsToRegex compile each word in the slice into a regex pattern to match
 // against the cmdline arguments
 // The word must contain only word characters ([a-zA-z0-9_]) or wildcards *
-func CompileStringsToRegex(words []string) []*regexp.Regexp {
+func compileStringsToRegex(words []string) []*regexp.Regexp {
 	compiledRegexps := make([]*regexp.Regexp, 0, len(words))
 	forbiddenSymbols := regexp.MustCompile("[^a-zA-Z0-9_*]")
 
 	for _, word := range words {
 		if forbiddenSymbols.MatchString(word) {
-			log.Warnf("data scrubber: %s not compiled. The sensitive word must "+
+			log.Warnf("data scrubber: %s skipped. The sensitive word must "+
 				"contain only alphanumeric characters, underscores or wildcards ('*')", word)
+			continue
+		}
+
+		if word == "*" {
+			log.Warnf("data scrubber: ignoring wildcard-only ('*') sensitive word as it is not supported", word)
 			continue
 		}
 
@@ -55,14 +60,14 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 		for i, rune := range originalRunes {
 			if rune == '*' {
 				if i == len(originalRunes)-1 {
-					enhancedWord.WriteString("[^ =]*")
+					enhancedWord.WriteString("[^ =:]*")
 				} else if originalRunes[i+1] == '*' {
-					log.Warnf("data scrubber: %s not compiled. The sensitive word "+
+					log.Warnf("data scrubber: %s skipped. The sensitive word "+
 						"must not contain two consecutives '*'", word)
 					valid = false
 					break
 				} else {
-					enhancedWord.WriteString(fmt.Sprintf("[^%c]*", word[i+1]))
+					enhancedWord.WriteString(fmt.Sprintf("[^\\s=:$/]*"))
 				}
 			} else {
 				enhancedWord.WriteString(string(rune))
@@ -73,12 +78,12 @@ func CompileStringsToRegex(words []string) []*regexp.Regexp {
 			continue
 		}
 
-		pattern := "(?P<key>( +|-)(?i)" + enhancedWord.String() + ")(?P<delimiter> +|=)(?P<value>[^\\s]*)"
+		pattern := "(?P<key>( +| -{1,2})(?i)" + enhancedWord.String() + ")(?P<delimiter> +|=|:)(?P<value>[^\\s]*)"
 		r, err := regexp.Compile(pattern)
 		if err == nil {
 			compiledRegexps = append(compiledRegexps, r)
 		} else {
-			log.Warnf("data scrubber: %s couldn't be compiled into a regex expression", word)
+			log.Warnf("data scrubber: %s skipped. It couldn't be compiled into a regex expression", word)
 		}
 	}
 
@@ -109,6 +114,6 @@ func (ds *DataScrubber) ScrubCmdline(cmdline []string) []string {
 
 // AddCustomSensitiveWords adds custom sensitive words on the DataScrubber object
 func (ds *DataScrubber) AddCustomSensitiveWords(words []string) {
-	newPatterns := CompileStringsToRegex(words)
+	newPatterns := compileStringsToRegex(words)
 	ds.SensitivePatterns = append(ds.SensitivePatterns, newPatterns...)
 }
