@@ -70,6 +70,12 @@ task :test do
   sh cmd
 end
 
+desc "Test Datadog Process agent -- cmd"
+task :cmdtest do
+  cmd = "for /f %f in ('go list ./... ^| find /V \"vendor\"') do go test %f"
+  sh cmd
+end
+
 desc "Run Datadog Process agent"
 task :run do
   ENV['DD_PROCESS_AGENT_ENABLED'] = 'true'
