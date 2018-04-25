@@ -63,7 +63,11 @@ end
 
 desc "Test Datadog Process agent"
 task :test do
-  sh "go list ./... | grep -v vendor | xargs go test -tags 'docker kubelet kubeapiserver'"
+  cmd = "go list ./... | grep -v vendor | xargs go test"
+  if os != "windows"
+    cmd += " -tags 'docker kubelet kubeapiserver'"
+  end
+  sh cmd
 end
 
 desc "Run Datadog Process agent"

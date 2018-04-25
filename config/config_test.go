@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -85,15 +86,21 @@ func TestConfigNewIfExists(t *testing.T) {
 
 	// The file exists but cannot be read for another reason: an error is
 	// returned.
-	filename := "/tmp/process-agent-test-config.ini"
-	os.Remove(filename)
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0200) // write only
-	assert.Nil(t, err)
-	f.Close()
-	conf, err = NewIfExists(filename)
-	assert.NotNil(t, err)
-	assert.Nil(t, conf)
-	os.Remove(filename)
+	var filename string
+	if runtime.GOOS != "windows" {
+
+		//go doesn't honor the file permissions, so skip this test on Windows
+
+		filename = "/tmp/process-agent-test-config.ini"
+		os.Remove(filename)
+		f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0200) // write only
+		assert.Nil(t, err)
+		f.Close()
+		conf, err = NewIfExists(filename)
+		assert.NotNil(t, err)
+		assert.Nil(t, conf)
+		//os.Remove(filename)
+	}
 }
 
 func TestGetHostname(t *testing.T) {

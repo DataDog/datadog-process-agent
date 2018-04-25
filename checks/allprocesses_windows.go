@@ -197,10 +197,8 @@ func getAllProcesses(cfg *config.AgentConfig) (map[int32]*process.FilledProcess,
 			}
 		}
 
-	} else {
-		if checkCount == 0 {
-			log.Warnf("Process arguments disabled; processes will be reported without arguments")
-		}
+	} else if checkCount == 0 {
+		log.Warnf("Process arguments disabled; processes will be reported without arguments")
 	}
 	checkCount++
 	knownPids := makePidSet()
@@ -354,25 +352,32 @@ func parseCmdLineArgs(cmdline string) (res []string) {
 			stringInProgress += b
 			if !findCloseQuote {
 				donestring = true
+			} else {
+				stringInProgress += " "
 			}
+
 		} else if numquotes == 1 {
-			stringInProgress += strings.Trim(b, "\"")
+			stringInProgress += b
 			if findCloseQuote {
 				donestring = true
 			} else {
 				findCloseQuote = true
+				stringInProgress += " "
 			}
+
 		} else if numquotes == 2 {
-			stringInProgress = strings.Trim(b, "\"")
+			stringInProgress = b
 			donestring = true
 		} else {
-			log.Warnf("Unexpected qutoes in string, giving up")
+			log.Warnf("Unexpected quotes in string, giving up (%v)", cmdline)
 			return res
 		}
+
 		if donestring {
 			res = append(res, stringInProgress)
 			stringInProgress = ""
 			findCloseQuote = false
+			donestring = false
 		}
 
 	}

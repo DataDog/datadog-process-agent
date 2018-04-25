@@ -85,7 +85,10 @@ def go_vet(path)
 end
 
 def go_test(path, opts = {})
-  cmd = 'go test -tags docker'
+  cmd = 'go test'
+  if os != "windows"
+    cmd += ' -tags \'docker \''
+  end
   filter = ''
   if opts[:coverage_file]
     cmd += " -coverprofile=#{opts[:coverage_file]} -coverpkg=./..."
