@@ -55,7 +55,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if err != nil {
 		return nil, err
 	}
-	procs, err := getAllProcesses()
+	procs, err := getAllProcesses(cfg)
 	if err != nil {
 		return nil, err
 	}

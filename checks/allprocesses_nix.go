@@ -3,9 +3,10 @@
 package checks
 
 import (
+	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/gopsutil/process"
 )
 
-func getAllProcesses() (map[int32]*process.FilledProcess, error) {
+func getAllProcesses(*config.AgentConfig) (map[int32]*process.FilledProcess, error) {
 	return process.AllProcesses()
 }

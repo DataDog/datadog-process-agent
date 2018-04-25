@@ -74,6 +74,10 @@ type AgentConfig struct {
 
 	// Internal store of a proxy used for generating the Transport
 	proxy proxyFunc
+
+	// Windows process args
+	WindowsProcessRefreshInterval int
+	WindowsProcessAddNew          bool
 }
 
 // CheckIsEnabled returns a bool indicating if the given check name is enabled.
@@ -153,6 +157,10 @@ func NewDefaultAgentConfig() *AgentConfig {
 
 		// DataScrubber to hide command line sensitive words
 		Scrubber: NewDefaultDataScrubber(),
+
+		// Windows process config
+		WindowsProcessRefreshInterval: 60, // number of check runs
+		WindowsProcessAddNew:          true,
 	}
 
 	// Set default values for proc/sys paths if unset.
@@ -275,6 +283,10 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		cfg.ContainerBlacklist = agentIni.GetStrArrayDefault(ns, "container_blacklist", ",", cfg.ContainerBlacklist)
 		cfg.ContainerWhitelist = agentIni.GetStrArrayDefault(ns, "container_whitelist", ",", cfg.ContainerWhitelist)
 		cfg.ContainerCacheDuration = agentIni.GetDurationDefault(ns, "container_cache_duration", time.Second, 30*time.Second)
+
+		// windows args config
+		cfg.WindowsProcessRefreshInterval = agentIni.GetIntDefault(ns, "windows_refresh_interval", cfg.WindowsProcessRefreshInterval)
+		cfg.WindowsProcessAddNew = agentIni.GetBool(ns, "windows_collect_skip_new_args", !cfg.WindowsProcessAddNew)
 	}
 
 	// For Agents >= 6 we will have a YAML config file to use.

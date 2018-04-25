@@ -9,12 +9,12 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/StackExchange/wmi"
-	"github.com/shirou/w32"
-
+	"github.com/DataDog/datadog-process-agent/config"
 	cpu "github.com/DataDog/gopsutil/cpu"
 	process "github.com/DataDog/gopsutil/process"
+	"github.com/StackExchange/wmi"
 	log "github.com/cihub/seelog"
+	"github.com/shirou/w32"
 )
 
 const (
@@ -29,6 +29,20 @@ var (
 	modkernel                 = syscall.NewLazyDLL("kernel32.dll")
 	procGetProcessHandleCount = modkernel.NewProc("GetProcessHandleCount")
 	procGetProcessIoCounters  = modkernel.NewProc("GetProcessIoCounters")
+)
+
+type cachedProcess struct {
+	userName       string
+	executablePath string
+	commandLine    string
+	procHandle     syscall.Handle
+	parsedArgs     []string
+}
+
+var (
+	cachedProcesses  = map[uint32]cachedProcess{}
+	checkCount       = 0
+	haveWarnedNoArgs = false
 )
 
 type SystemProcessInformation struct {
@@ -50,20 +64,21 @@ type MemoryMapsStat struct {
 }
 
 type Win32_Process struct {
-	Name                string
-	ExecutablePath      *string
-	CommandLine         *string
-	Priority            uint32
-	CreationDate        *time.Time
-	ProcessID           uint32
-	ThreadCount         uint32
-	Status              *string
-	ReadOperationCount  uint64
-	ReadTransferCount   uint64
-	WriteOperationCount uint64
-	WriteTransferCount  uint64
-
+	Name           string
+	ExecutablePath *string
+	CommandLine    *string
+	ProcessID      uint32
 	/*
+		Priority            uint32
+		CreationDate        *time.Time
+
+		ThreadCount         uint32
+		Status              *string
+		ReadOperationCount  uint64
+		ReadTransferCount   uint64
+		WriteOperationCount uint64
+		WriteTransferCount  uint64
+
 		CSCreationClassName   string
 		CSName                string
 		Caption               *string
@@ -142,9 +157,22 @@ func getProcessMapFromWmi() (map[uint32]Win32_Process, error) {
 		results[proc.ProcessID] = proc
 	}
 	return results, nil
-
 }
-func getAllProcesses() (map[int32]*process.FilledProcess, error) {
+
+func getWin32Proc(pid uint32) (Win32_Process, error) {
+	var dst []Win32_Process
+	query := fmt.Sprintf("WHERE ProcessId = %d", pid)
+	q := wmi.CreateQuery(&dst, query)
+	err := wmi.Query(q, &dst)
+	if err != nil {
+		return Win32_Process{}, fmt.Errorf("could not get win32Proc: %s", err)
+	}
+	if len(dst) != 1 {
+		return Win32_Process{}, fmt.Errorf("could not get win32Proc: empty")
+	}
+	return dst[0], nil
+}
+func getAllProcesses(cfg *config.AgentConfig) (map[int32]*process.FilledProcess, error) {
 	allProcsSnap := w32.CreateToolhelp32Snapshot(w32.TH32CS_SNAPPROCESS, 0)
 	if allProcsSnap == 0 {
 		return nil, syscall.GetLastError()
@@ -155,21 +183,68 @@ func getAllProcesses() (map[int32]*process.FilledProcess, error) {
 	var pe32 w32.PROCESSENTRY32
 	pe32.DwSize = uint32(unsafe.Sizeof(pe32))
 
-	fromWmi, _ := getProcessMapFromWmi()
+	if cfg.WindowsProcessRefreshInterval != -1 {
+		if checkCount%cfg.WindowsProcessRefreshInterval == 0 {
+			log.Debugf("Rebuilding process table")
+			rebuildProcessMapFromWmi()
+		}
+		if checkCount == 0 {
+			log.Infof("Windows process arg tracking enabled, will be refreshed every %v checks", cfg.WindowsProcessRefreshInterval)
+			if cfg.WindowsProcessAddNew {
+				log.Infof("Will collect new process args immediately")
+			} else {
+				log.Warnf("Will add process arguments only upon refresh")
+			}
+		}
+
+	} else {
+		if checkCount == 0 {
+			log.Warnf("Process arguments disabled; processes will be reported without arguments")
+		}
+	}
+	checkCount++
+	knownPids := makePidSet()
 
 	for success := w32.Process32First(allProcsSnap, &pe32); success; success = w32.Process32Next(allProcsSnap, &pe32) {
 		pid := pe32.Th32ProcessID
 		ppid := pe32.Th32ParentProcessID
 
-		// 0x1000 is PROCESS_QUERY_LIMITED_INFORMATION, but that constant isn't
-		// defined in syscall
-		procHandle, err := syscall.OpenProcess(0x1000, false, uint32(pid))
-		if err != nil {
+		if pid == 0 {
+			// this is the "system idle process".  We'll never be able to open it,
+			// which will cause us to thrash WMI once per check, which we don't
+			// want to do.
 			continue
 		}
-		defer syscall.CloseHandle(procHandle)
+		cp, ok := cachedProcesses[pid]
+		if !ok {
+			// wasn't already in the map.
+			cp = cachedProcess{}
 
+			if cfg.WindowsProcessRefreshInterval != -1 && cfg.WindowsProcessAddNew {
+				proc, err := getWin32Proc(pid)
+				if err != nil {
+					continue
+				}
+
+				if err = cp.fill(&proc); err != nil {
+					continue
+				}
+			} else {
+				if cfg.WindowsProcessRefreshInterval != -1 {
+					if !haveWarnedNoArgs {
+						log.Warnf("Process arguments will be missing until next scheduled refresh")
+						haveWarnedNoArgs = true
+					}
+				}
+				if err := cp.fillFromProcEntry(&pe32); err != nil {
+					continue
+				}
+			}
+			cachedProcesses[pid] = cp
+		}
+		procHandle := cp.procHandle
 		var CPU syscall.Rusage
+		var err error
 		if err = syscall.GetProcessTimes(procHandle, &CPU.CreationTime, &CPU.ExitTime, &CPU.KernelTime, &CPU.UserTime); err != nil {
 			continue
 		}
@@ -191,22 +266,14 @@ func getAllProcesses() (map[int32]*process.FilledProcess, error) {
 		}
 		ctime := CPU.CreationTime.Nanoseconds() / 1000000
 
-		exebase := convert_windows_string(pe32.SzExeFile[:])
-		cmdbase := *fromWmi[pid].CommandLine
-		var parsedargs []string
-		if len(cmdbase) == 0 {
-			parsedargs = append(parsedargs, exebase)
-		} else {
-			parsedargs = parseCmdLineArgs(cmdbase)
-		}
-
 		utime := float64((int64(CPU.UserTime.HighDateTime) << 32) | int64(CPU.UserTime.LowDateTime))
 		stime := float64((int64(CPU.KernelTime.HighDateTime) << 32) | int64(CPU.KernelTime.LowDateTime))
-		username, err := get_username_for_process(procHandle)
+
+		delete(knownPids, pid)
 		procs[int32(pid)] = &process.FilledProcess{
 			Pid:     int32(pid),
 			Ppid:    int32(ppid),
-			Cmdline: parsedargs,
+			Cmdline: cp.parsedArgs,
 			CpuTime: cpu.TimesStat{
 				User:      utime,
 				System:    stime,
@@ -227,20 +294,27 @@ func getAllProcesses() (map[int32]*process.FilledProcess, error) {
 				Swap: 0, // it's unclear there's a Windows measurement of swap file usage
 			},
 			//Cwd
-			Exe: exebase,
+			Exe: cp.executablePath,
 			IOStat: &process.IOCountersStat{
 				ReadCount:  ioCounters.ReadOperationCount,
 				WriteCount: ioCounters.WriteOperationCount,
 				ReadBytes:  ioCounters.ReadTransferCount,
 				WriteBytes: ioCounters.WriteTransferCount,
 			},
-			Username: username,
+			Username: cp.userName,
 		}
 	}
+	for pid := range knownPids {
+		cp := cachedProcesses[pid]
+		log.Infof("Removing process %v %v", pid, cp.executablePath)
+		cp.close()
+		delete(cachedProcesses, pid)
+	}
+
 	return procs, nil
 }
 
-func get_username_for_process(h syscall.Handle) (name string, err error) {
+func getUsernameForProcess(h syscall.Handle) (name string, err error) {
 	name = ""
 	err = nil
 	var t syscall.Token
@@ -257,7 +331,7 @@ func get_username_for_process(h syscall.Handle) (name string, err error) {
 
 }
 
-func convert_windows_string(winput []uint16) string {
+func convertWindowsString(winput []uint16) string {
 	var retstring string
 	for i := 0; i < len(winput); i++ {
 		if winput[i] == 0 {
@@ -303,4 +377,84 @@ func parseCmdLineArgs(cmdline string) (res []string) {
 
 	}
 	return res
+}
+
+func rebuildProcessMapFromWmi() {
+	cachedProcesses = make(map[uint32]cachedProcess)
+	wmimap, _ := getProcessMapFromWmi()
+
+	for pid, proc := range wmimap {
+		cp := cachedProcess{}
+
+		if err := cp.fill(&proc); err != nil {
+			continue
+		}
+		cachedProcesses[pid] = cp
+	}
+}
+
+func makePidSet() (pids map[uint32]bool) {
+	pids = make(map[uint32]bool)
+	for pid := range cachedProcesses {
+		pids[pid] = true
+	}
+	return
+}
+
+func (cp *cachedProcess) fill(proc *Win32_Process) (err error) {
+	err = nil
+	// 0x1000 is PROCESS_QUERY_LIMITED_INFORMATION, but that constant isn't
+	// defined in syscall
+	cp.procHandle, err = syscall.OpenProcess(0x1000, false, uint32(proc.ProcessID))
+	if err != nil {
+		log.Infof("Couldn't open process %v %v", proc.ProcessID, err)
+		return err
+	}
+	cp.userName, err = getUsernameForProcess(cp.procHandle)
+	if err != nil {
+		log.Infof("Couldn't get process username %v %v", proc.ProcessID, err)
+		return err
+	}
+	cp.executablePath = *proc.ExecutablePath
+	cp.commandLine = *proc.CommandLine
+	var parsedargs []string
+	if len(cp.commandLine) == 0 {
+		parsedargs = append(parsedargs, cp.executablePath)
+	} else {
+		parsedargs = parseCmdLineArgs(cp.commandLine)
+	}
+	cp.parsedArgs = parsedargs
+	return nil
+
+}
+
+func (cp *cachedProcess) fillFromProcEntry(pe32 *w32.PROCESSENTRY32) (err error) {
+	err = nil
+	// 0x1000 is PROCESS_QUERY_LIMITED_INFORMATION, but that constant isn't
+	// defined in syscall
+	cp.procHandle, err = syscall.OpenProcess(0x1000, false, uint32(pe32.Th32ProcessID))
+	if err != nil {
+		log.Infof("Couldn't open process %v %v", pe32.Th32ProcessID, err)
+		return err
+	}
+	cp.userName, err = getUsernameForProcess(cp.procHandle)
+	if err != nil {
+		log.Infof("Couldn't get process username %v %v", pe32.Th32ProcessID, err)
+		return err
+	}
+	cp.commandLine = convertWindowsString(pe32.SzExeFile[:])
+	cp.executablePath = cp.commandLine
+	var parsedargs []string
+	if len(cp.commandLine) == 0 {
+		parsedargs = append(parsedargs, cp.executablePath)
+	} else {
+		parsedargs = parseCmdLineArgs(cp.commandLine)
+	}
+	cp.parsedArgs = parsedargs
+	return nil
+
+}
+
+func (cp *cachedProcess) close() {
+	syscall.CloseHandle(cp.procHandle)
 }

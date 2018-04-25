@@ -57,6 +57,10 @@ type YamlAgentConfig struct {
 		DDAgentEnv []string `yaml:"dd_agent_env"`
 		// Overrides the submission endpoint URL from the default
 		ProcessDDURL string `yaml:"process_dd_url"`
+		// Sets windows process table refresh rate (in number of check runs)
+		WinProcessRefreshInterval int `yaml:"windows_refresh_interval"`
+		// Enables/disables getting process arguments immediately when a new process is discovered
+		WinSkipProcessNewArgs bool `yaml:"windows_collect_skip_new_args"`
 	} `yaml:"process_config"`
 }
 
@@ -145,6 +149,13 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	agentConf.DDAgentBin = defaultDDAgentBin
 	if yc.Process.DDAgentBin != "" {
 		agentConf.DDAgentBin = yc.Process.DDAgentBin
+	}
+
+	if yc.Process.WinProcessRefreshInterval != 0 {
+		agentConf.WindowsProcessRefreshInterval = yc.Process.WinProcessRefreshInterval
+	}
+	if yc.Process.WinSkipProcessNewArgs {
+		agentConf.WindowsProcessAddNew = false
 	}
 
 	// Pull additional parameters from the global config file.
