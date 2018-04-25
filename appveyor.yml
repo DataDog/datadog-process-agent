@@ -29,5 +29,4 @@ build: off
 test_script:
   - cd
   - rake deps
-  - rake cmdtest
   - rake build
