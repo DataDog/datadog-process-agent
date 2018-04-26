@@ -39,6 +39,14 @@ var (
 
 type proxyFunc func(*http.Request) (*url.URL, error)
 
+// WindowsConfig stores all windows-specific configuration for the process-agent.
+type WindowsConfig struct {
+	// Number of checks runs between refreshes of command-line arguments
+	ArgsRefreshInterval int
+	// Controls getting process arguments immediately when a new process is discovered
+	AddNewArgs bool
+}
+
 // AgentConfig is the global config for the process-agent. This information
 // is sourced from config files and the environment variables.
 type AgentConfig struct {
@@ -75,6 +83,9 @@ type AgentConfig struct {
 
 	// Internal store of a proxy used for generating the Transport
 	proxy proxyFunc
+
+	// Windows-specific config
+	Windows WindowsConfig
 }
 
 // CheckIsEnabled returns a bool indicating if the given check name is enabled.
@@ -156,6 +167,12 @@ func NewDefaultAgentConfig() *AgentConfig {
 
 		// DataScrubber to hide command line sensitive words
 		Scrubber: NewDefaultDataScrubber(),
+
+		// Windows process config
+		Windows: WindowsConfig{
+			ArgsRefreshInterval: 15, // with default 20s check interval we refresh every 5m
+			AddNewArgs:          true,
+		},
 	}
 
 	// Set default values for proc/sys paths if unset.
@@ -278,6 +295,10 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		cfg.ContainerBlacklist = agentIni.GetStrArrayDefault(ns, "container_blacklist", ",", cfg.ContainerBlacklist)
 		cfg.ContainerWhitelist = agentIni.GetStrArrayDefault(ns, "container_whitelist", ",", cfg.ContainerWhitelist)
 		cfg.ContainerCacheDuration = agentIni.GetDurationDefault(ns, "container_cache_duration", time.Second, 30*time.Second)
+
+		// windows args config
+		cfg.Windows.ArgsRefreshInterval = agentIni.GetIntDefault(ns, "windows_args_refresh_interval", cfg.Windows.ArgsRefreshInterval)
+		cfg.Windows.AddNewArgs = agentIni.GetBool(ns, "windows_add_new_args", true)
 	}
 
 	// For Agents >= 6 we will have a YAML config file to use.
@@ -316,6 +337,13 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 
 	if cfg.proxy != nil {
 		cfg.Transport.Proxy = cfg.proxy
+	}
+
+	// sanity check. This element is used with the modulo operator (%), so it can't be zero.
+	// if it is, log the error, and assume the config was attempting to disable
+	if cfg.Windows.ArgsRefreshInterval == 0 {
+		log.Warnf("invalid configuration: windows_collect_skip_new_args was set to 0.  Disabling argument collection")
+		cfg.Windows.ArgsRefreshInterval = -1
 	}
 
 	return cfg, nil

@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -85,15 +86,21 @@ func TestConfigNewIfExists(t *testing.T) {
 
 	// The file exists but cannot be read for another reason: an error is
 	// returned.
-	filename := "/tmp/process-agent-test-config.ini"
-	os.Remove(filename)
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0200) // write only
-	assert.Nil(t, err)
-	f.Close()
-	conf, err = NewIfExists(filename)
-	assert.NotNil(t, err)
-	assert.Nil(t, conf)
-	os.Remove(filename)
+	var filename string
+	if runtime.GOOS != "windows" {
+
+		//go doesn't honor the file permissions, so skip this test on Windows
+
+		filename = "/tmp/process-agent-test-config.ini"
+		os.Remove(filename)
+		f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0200) // write only
+		assert.Nil(t, err)
+		f.Close()
+		conf, err = NewIfExists(filename)
+		assert.NotNil(t, err)
+		assert.Nil(t, conf)
+		//os.Remove(filename)
+	}
 }
 
 func TestGetHostname(t *testing.T) {
@@ -139,6 +146,7 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 		"[process.config]",
 		"queue_size = 5",
 		"allow_real_time = false",
+		"windows_args_refresh_interval = 20",
 	}, "\n")))
 
 	conf := &File{instance: dd, Path: "whatever"}
@@ -149,6 +157,8 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 	assert.Equal(5, agentConfig.QueueSize)
 	assert.Equal(false, agentConfig.AllowRealTime)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(20, agentConfig.Windows.ArgsRefreshInterval)
+	assert.Equal(true, agentConfig.Windows.AddNewArgs)
 }
 
 func TestDDAgentConfigBothVersions(t *testing.T) {
@@ -161,6 +171,7 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 		"[process.config]",
 		"queue_size = 5",
 		"allow_real_time = false",
+		"windows_args_refresh_interval = 30",
 	}, "\n")))
 
 	var ddy *YamlAgentConfig
@@ -169,6 +180,8 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 		"process_config:",
 		"  process_dd_url: http://my-process-app.datadoghq.com",
 		"  queue_size: 10",
+		"  windows:",
+		"    args_refresh_interval: 40",
 	}, "\n")), &ddy)
 	assert.NoError(err)
 
@@ -181,6 +194,8 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 	assert.Equal(10, agentConfig.QueueSize)
 	assert.Equal(false, agentConfig.AllowRealTime)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(40, agentConfig.Windows.ArgsRefreshInterval)
+	assert.Equal(true, agentConfig.Windows.AddNewArgs)
 }
 
 func TestDDAgentConfigYamlOnly(t *testing.T) {
@@ -196,6 +211,9 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"  intervals:",
 		"    container: 8",
 		"    process: 30",
+		"  windows:",
+		"    args_refresh_interval: 100",
+		"    add_new_args: false",
 	}, "\n")), &ddy)
 	assert.NoError(err)
 
@@ -210,7 +228,10 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(processChecks, agentConfig.EnabledChecks)
 	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
 	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
+	assert.Equal(100, agentConfig.Windows.ArgsRefreshInterval)
+	assert.Equal(false, agentConfig.Windows.AddNewArgs)
 
+	ddy = YamlAgentConfig{}
 	err = yaml.Unmarshal([]byte(strings.Join([]string{
 		"api_key: apikey_20",
 		"process_agent_enabled: true",
@@ -221,6 +242,9 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"  intervals:",
 		"    container: 8",
 		"    process: 30",
+		"  windows:",
+		"    args_refresh_interval: -1",
+		"    add_new_args: true",
 	}, "\n")), &ddy)
 	assert.NoError(err)
 
@@ -230,7 +254,10 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal("my-process-app.datadoghq.com", agentConfig.APIEndpoint.Hostname())
 	assert.Equal(true, agentConfig.Enabled)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(-1, agentConfig.Windows.ArgsRefreshInterval)
+	assert.Equal(true, agentConfig.Windows.AddNewArgs)
 
+	ddy = YamlAgentConfig{}
 	err = yaml.Unmarshal([]byte(strings.Join([]string{
 		"api_key: apikey_20",
 		"process_agent_enabled: true",
@@ -250,6 +277,8 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal("my-process-app.datadoghq.com", agentConfig.APIEndpoint.Hostname())
 	assert.Equal(false, agentConfig.Enabled)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(15, agentConfig.Windows.ArgsRefreshInterval)
+	assert.Equal(true, agentConfig.Windows.AddNewArgs)
 }
 
 func TestProxyEnv(t *testing.T) {
