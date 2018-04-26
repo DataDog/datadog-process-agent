@@ -24,23 +24,13 @@ const (
 )
 
 var (
-	modpsapi                 = syscall.NewLazyDLL("psapi.dll")
-	procGetProcessMemoryInfo = modpsapi.NewProc("GetProcessMemoryInfo")
-
+	modpsapi                  = syscall.NewLazyDLL("psapi.dll")
 	modkernel                 = syscall.NewLazyDLL("kernel32.dll")
+	procGetProcessMemoryInfo  = modpsapi.NewProc("GetProcessMemoryInfo")
 	procGetProcessHandleCount = modkernel.NewProc("GetProcessHandleCount")
 	procGetProcessIoCounters  = modkernel.NewProc("GetProcessIoCounters")
-)
 
-type cachedProcess struct {
-	userName       string
-	executablePath string
-	commandLine    string
-	procHandle     syscall.Handle
-	parsedArgs     []string
-}
-
-var (
+	// XXX: Cross-check state is stored globally so the checks are not thread-safe.
 	cachedProcesses  = map[uint32]cachedProcess{}
 	checkCount       = 0
 	haveWarnedNoArgs = false
@@ -61,50 +51,11 @@ type SystemProcessInformation struct {
 	Reserved6         [6]uint64
 }
 
-type MemoryMapsStat struct {
-}
-
 type Win32_Process struct {
 	Name           string
 	ExecutablePath *string
 	CommandLine    *string
 	ProcessID      uint32
-	/*
-		Priority            uint32
-		CreationDate        *time.Time
-
-		ThreadCount         uint32
-		Status              *string
-		ReadOperationCount  uint64
-		ReadTransferCount   uint64
-		WriteOperationCount uint64
-		WriteTransferCount  uint64
-
-		CSCreationClassName   string
-		CSName                string
-		Caption               *string
-		CreationClassName     string
-		Description           *string
-		ExecutionState        *uint16
-		HandleCount           uint32
-		KernelModeTime        uint64
-		MaximumWorkingSetSize *uint32
-		MinimumWorkingSetSize *uint32
-		OSCreationClassName   string
-		OSName                string
-		OtherOperationCount   uint64
-		OtherTransferCount    uint64
-		PageFaults            uint32
-		PageFileUsage         uint32
-		ParentProcessID       uint32
-		PeakPageFileUsage     uint32
-		PeakVirtualSize       uint64
-		PeakWorkingSetSize    uint32
-		PrivatePageCount      uint64
-		TerminationDate       *time.Time
-		UserModeTime          uint64
-		WorkingSetSize        uint64
-	*/
 }
 
 type IO_COUNTERS struct {
@@ -127,6 +78,7 @@ func getProcessMemoryInfo(h syscall.Handle, mem *process.PROCESS_MEMORY_COUNTERS
 	}
 	return
 }
+
 func getProcessHandleCount(h syscall.Handle, count *uint32) (err error) {
 	r1, _, e1 := procGetProcessHandleCount.Call(uintptr(h), uintptr(unsafe.Pointer(count)))
 	if r1 == 0 {
@@ -143,15 +95,15 @@ func getProcessIoCounters(h syscall.Handle, counters *IO_COUNTERS) (err error) {
 	return nil
 }
 
-func getProcessMapFromWmi() (map[uint32]Win32_Process, error) {
+func getProcessMapFromWMI() (map[uint32]Win32_Process, error) {
 	var dst []Win32_Process
 	q := wmi.CreateQuery(&dst, "")
 	err := wmi.Query(q, &dst)
 	if err != nil {
-		return map[uint32]Win32_Process{}, err
+		return nil, err
 	}
 	if len(dst) == 0 {
-		return map[uint32]Win32_Process{}, fmt.Errorf("could not get Processes, process list is empty")
+		return nil, fmt.Errorf("could not get Processes, process list is empty")
 	}
 	results := make(map[uint32]Win32_Process)
 	for _, proc := range dst {
@@ -173,6 +125,7 @@ func getWin32Proc(pid uint32) (Win32_Process, error) {
 	}
 	return dst[0], nil
 }
+
 func getAllProcesses(cfg *config.AgentConfig) (map[int32]*process.FilledProcess, error) {
 	allProcsSnap := w32.CreateToolhelp32Snapshot(w32.TH32CS_SNAPPROCESS, 0)
 	if allProcsSnap == 0 {
@@ -184,10 +137,11 @@ func getAllProcesses(cfg *config.AgentConfig) (map[int32]*process.FilledProcess,
 	var pe32 w32.PROCESSENTRY32
 	pe32.DwSize = uint32(unsafe.Sizeof(pe32))
 
-	interval := cfg.WindowsProcessRefreshInterval
+	addNewArgs := cfg.Windows.AddNewArgs
+	interval := cfg.Windows.ArgsRefreshInterval
 	if interval == 0 {
 		if checkCount == 0 {
-			log.Warnf("Invalid configuration: windows_collect_skip_new_args was set to 0.  Disabling argument collection")
+			log.Warnf("invalid configuration: windows_refresh_interval was set to 0.  disabling argument collection")
 		}
 		interval = -1
 	}
@@ -195,20 +149,20 @@ func getAllProcesses(cfg *config.AgentConfig) (map[int32]*process.FilledProcess,
 	if interval != -1 {
 		if checkCount%interval == 0 {
 			log.Debugf("Rebuilding process table")
-			rebuildProcessMapFromWmi()
+			rebuildProcessMapFromWMI()
 		}
 		if checkCount == 0 {
-			log.Infof("Windows process arg tracking enabled, will be refreshed every %v checks", interval)
-			if cfg.WindowsProcessAddNew {
-				log.Infof("Will collect new process args immediately")
+			log.Infof("windows process arg tracking enabled, will be refreshed every %d checks", interval)
+			if addNewArgs {
+				log.Infof("will collect new process args immediately")
 			} else {
-				log.Warnf("Will add process arguments only upon refresh")
+				log.Warnf("will add process arguments only upon refresh")
 			}
 		}
-
 	} else if checkCount == 0 {
-		log.Warnf("Process arguments disabled; processes will be reported without arguments")
+		log.Warnf("process arguments disabled; processes will be reported without arguments")
 	}
+
 	checkCount++
 	knownPids := makePidSet()
 
@@ -227,55 +181,55 @@ func getAllProcesses(cfg *config.AgentConfig) (map[int32]*process.FilledProcess,
 			// wasn't already in the map.
 			cp = cachedProcess{}
 
-			if interval != -1 && cfg.WindowsProcessAddNew {
+			if interval != -1 && addNewArgs {
 				proc, err := getWin32Proc(pid)
 				if err != nil {
-					log.Debugf("Could not get WMI process information for pid %v: %v", pid, err)
+					log.Debugf("could not get WMI process information for pid %v: %v", pid, err)
 					continue
 				}
 
 				if err = cp.fill(&proc); err != nil {
-					log.Debugf("Could not fill WMI process information for pid %v %v", pid, err)
+					log.Debugf("could not fill WMI process information for pid %v %v", pid, err)
 					continue
 				}
 			} else {
 				if interval != -1 {
 					if !haveWarnedNoArgs {
-						log.Warnf("Process arguments will be missing until next scheduled refresh")
+						log.Warnf("process arguments will be missing until next scheduled refresh")
 						haveWarnedNoArgs = true
 					}
 				}
 				if err := cp.fillFromProcEntry(&pe32); err != nil {
-					log.Debugf("Could not fill Win32 process information for pid %v %v", pid, err)
+					log.Debugf("could not fill Win32 process information for pid %v %v", pid, err)
 					continue
 				}
 			}
 			cachedProcesses[pid] = cp
 		}
 		procHandle := cp.procHandle
+
 		var CPU syscall.Rusage
-		var err error
-		if err = syscall.GetProcessTimes(procHandle, &CPU.CreationTime, &CPU.ExitTime, &CPU.KernelTime, &CPU.UserTime); err != nil {
+		if err := syscall.GetProcessTimes(procHandle, &CPU.CreationTime, &CPU.ExitTime, &CPU.KernelTime, &CPU.UserTime); err != nil {
 			log.Debugf("Could not get process times for %v %v", pid, err)
 			continue
 		}
 
 		var handleCount uint32
-		if err = getProcessHandleCount(procHandle, &handleCount); err != nil {
-			log.Debugf("Could not get handle count for %v %v", pid, err)
+		if err := getProcessHandleCount(procHandle, &handleCount); err != nil {
+			log.Debugf("could not get handle count for %v %v", pid, err)
 			continue
 		}
 
 		var pmemcounter process.PROCESS_MEMORY_COUNTERS
-		if err = getProcessMemoryInfo(procHandle, &pmemcounter); err != nil {
-			log.Debugf("Could not get memory info for %v %v", pid, err)
+		if err := getProcessMemoryInfo(procHandle, &pmemcounter); err != nil {
+			log.Debugf("could not get memory info for %v %v", pid, err)
 			continue
 		}
 
 		// shell out to getprocessiocounters for io stats
 		var ioCounters IO_COUNTERS
-		if err = getProcessIoCounters(procHandle, &ioCounters); err != nil {
-			log.Debugf("Could not get IO Counters for %v %v", pid, err)
+		if err := getProcessIoCounters(procHandle, &ioCounters); err != nil {
+			log.Debugf("could not get IO Counters for %v %v", pid, err)
 			continue
 		}
 		ctime := CPU.CreationTime.Nanoseconds() / 1000000
@@ -296,18 +250,13 @@ func getAllProcesses(cfg *config.AgentConfig) (map[int32]*process.FilledProcess,
 
 			CreateTime:  ctime,
 			OpenFdCount: int32(handleCount),
-			//Name
-			// Status
-			// UIDS
-			// GIDs
 			NumThreads:  int32(pe32.CntThreads),
 			CtxSwitches: &process.NumCtxSwitchesStat{},
 			MemInfo: &process.MemoryInfoStat{
 				RSS:  pmemcounter.WorkingSetSize,
 				VMS:  pmemcounter.QuotaPagedPoolUsage,
-				Swap: 0, // it's unclear there's a Windows measurement of swap file usage
+				Swap: 0,
 			},
-			//Cwd
 			Exe: cp.executablePath,
 			IOStat: &process.IOCountersStat{
 				ReadCount:  ioCounters.ReadOperationCount,
@@ -320,7 +269,7 @@ func getAllProcesses(cfg *config.AgentConfig) (map[int32]*process.FilledProcess,
 	}
 	for pid := range knownPids {
 		cp := cachedProcesses[pid]
-		log.Debugf("Removing process %v %v", pid, cp.executablePath)
+		log.Debugf("removing process %v %v", pid, cp.executablePath)
 		cp.close()
 		delete(cachedProcesses, pid)
 	}
@@ -356,11 +305,10 @@ func convertWindowsString(winput []uint16) string {
 }
 
 func parseCmdLineArgs(cmdline string) (res []string) {
-
 	blocks := strings.Split(cmdline, " ")
 	findCloseQuote := false
 	donestring := false
-	//var stringInProgress string
+
 	var stringInProgress bytes.Buffer
 	for _, b := range blocks {
 		numquotes := strings.Count(b, "\"")
@@ -385,7 +333,7 @@ func parseCmdLineArgs(cmdline string) (res []string) {
 			stringInProgress.WriteString(b)
 			donestring = true
 		} else {
-			log.Warnf("Unexpected quotes in string, giving up (%v)", cmdline)
+			log.Warnf("unexpected quotes in string, giving up (%v)", cmdline)
 			return res
 		}
 
@@ -395,18 +343,20 @@ func parseCmdLineArgs(cmdline string) (res []string) {
 			findCloseQuote = false
 			donestring = false
 		}
-
 	}
 	return res
 }
 
-func rebuildProcessMapFromWmi() {
+func rebuildProcessMapFromWMI() {
 	cachedProcesses = make(map[uint32]cachedProcess)
-	wmimap, _ := getProcessMapFromWmi()
+	wmimap, err := getProcessMapFromWMI()
+	if err != nil {
+		log.Errorf("unable to get process map from WMI: %s", err)
+		return
+	}
 
 	for pid, proc := range wmimap {
 		cp := cachedProcess{}
-
 		if err := cp.fill(&proc); err != nil {
 			continue
 		}
@@ -422,8 +372,15 @@ func makePidSet() (pids map[uint32]bool) {
 	return
 }
 
+type cachedProcess struct {
+	userName       string
+	executablePath string
+	commandLine    string
+	procHandle     syscall.Handle
+	parsedArgs     []string
+}
+
 func (cp *cachedProcess) fill(proc *Win32_Process) (err error) {
-	err = nil
 	// 0x1000 is PROCESS_QUERY_LIMITED_INFORMATION, but that constant isn't
 	// defined in syscall
 	cp.procHandle, err = syscall.OpenProcess(0x1000, false, uint32(proc.ProcessID))
@@ -445,12 +402,10 @@ func (cp *cachedProcess) fill(proc *Win32_Process) (err error) {
 		parsedargs = parseCmdLineArgs(cp.commandLine)
 	}
 	cp.parsedArgs = parsedargs
-	return nil
-
+	return
 }
 
 func (cp *cachedProcess) fillFromProcEntry(pe32 *w32.PROCESSENTRY32) (err error) {
-	err = nil
 	// 0x1000 is PROCESS_QUERY_LIMITED_INFORMATION, but that constant isn't
 	// defined in syscall
 	cp.procHandle, err = syscall.OpenProcess(0x1000, false, uint32(pe32.Th32ProcessID))
@@ -472,8 +427,7 @@ func (cp *cachedProcess) fillFromProcEntry(pe32 *w32.PROCESSENTRY32) (err error)
 		parsedargs = parseCmdLineArgs(cp.commandLine)
 	}
 	cp.parsedArgs = parsedargs
-	return nil
-
+	return
 }
 
 func (cp *cachedProcess) close() {

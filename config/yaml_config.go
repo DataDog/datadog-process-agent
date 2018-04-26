@@ -57,17 +57,26 @@ type YamlAgentConfig struct {
 		DDAgentEnv []string `yaml:"dd_agent_env"`
 		// Overrides the submission endpoint URL from the default
 		ProcessDDURL string `yaml:"process_dd_url"`
-		// Sets windows process table refresh rate (in number of check runs)
-		WinProcessRefreshInterval int `yaml:"windows_refresh_interval"`
-		// Enables/disables getting process arguments immediately when a new process is discovered
-		WinSkipProcessNewArgs bool `yaml:"windows_collect_skip_new_args"`
+		// Windows-specific configuration goes in this section.
+		Windows struct {
+			// Sets windows process table refresh rate (in number of check runs)
+			ArgsRefreshInterval int `yaml:"args_refresh_interval"`
+			// Controls getting process arguments immediately when a new process is discovered
+			// XXX: Using a bool pointer to differentiate between empty and set.
+			AddNewArgs *bool `yaml:"add_new_args,omitempty"`
+		} `yaml:"windows"`
 	} `yaml:"process_config"`
 }
 
 // NewYamlIfExists returns a new YamlAgentConfig if the given configPath is exists.
 func NewYamlIfExists(configPath string) (*YamlAgentConfig, error) {
 	var yamlConf YamlAgentConfig
+
+	// Set default values for booleans otherwise it will default to false.
 	yamlConf.Process.ScrubArgs = true
+	defaultNewArgs := true
+	yamlConf.Process.Windows.AddNewArgs = &defaultNewArgs
+
 	if util.PathExists(configPath) {
 		lines, err := util.ReadLines(configPath)
 		if err != nil {
@@ -151,11 +160,11 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		agentConf.DDAgentBin = yc.Process.DDAgentBin
 	}
 
-	if yc.Process.WinProcessRefreshInterval != 0 {
-		agentConf.WindowsProcessRefreshInterval = yc.Process.WinProcessRefreshInterval
+	if yc.Process.Windows.ArgsRefreshInterval != 0 {
+		agentConf.Windows.ArgsRefreshInterval = yc.Process.Windows.ArgsRefreshInterval
 	}
-	if yc.Process.WinSkipProcessNewArgs {
-		agentConf.WindowsProcessAddNew = false
+	if yc.Process.Windows.AddNewArgs != nil {
+		agentConf.Windows.AddNewArgs = *yc.Process.Windows.AddNewArgs
 	}
 
 	// Pull additional parameters from the global config file.
