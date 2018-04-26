@@ -127,6 +127,7 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal("info", agentConfig.LogLevel)
 	assert.Equal(true, agentConfig.AllowRealTime)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(true, agentConfig.Scrubber.Enabled)
 
 	os.Setenv("DOCKER_DD_AGENT", "yes")
 	agentConfig = NewDefaultAgentConfig()
@@ -159,6 +160,7 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 	assert.Equal(20, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(true, agentConfig.Windows.AddNewArgs)
+	assert.Equal(true, agentConfig.Scrubber.Enabled)
 }
 
 func TestDDAgentConfigBothVersions(t *testing.T) {
@@ -196,6 +198,7 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 	assert.Equal(40, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(true, agentConfig.Windows.AddNewArgs)
+	assert.Equal(true, agentConfig.Scrubber.Enabled)
 }
 
 func TestDDAgentConfigYamlOnly(t *testing.T) {
@@ -214,6 +217,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"  windows:",
 		"    args_refresh_interval: 100",
 		"    add_new_args: false",
+		"  scrub_args: false",
 	}, "\n")), &ddy)
 	assert.NoError(err)
 
@@ -230,6 +234,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
 	assert.Equal(100, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(false, agentConfig.Windows.AddNewArgs)
+	assert.Equal(false, agentConfig.Scrubber.Enabled)
 
 	ddy = YamlAgentConfig{}
 	err = yaml.Unmarshal([]byte(strings.Join([]string{
@@ -245,6 +250,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"  windows:",
 		"    args_refresh_interval: -1",
 		"    add_new_args: true",
+		"  scrub_args: true",
 	}, "\n")), &ddy)
 	assert.NoError(err)
 
@@ -256,6 +262,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 	assert.Equal(-1, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(true, agentConfig.Windows.AddNewArgs)
+	assert.Equal(true, agentConfig.Scrubber.Enabled)
 
 	ddy = YamlAgentConfig{}
 	err = yaml.Unmarshal([]byte(strings.Join([]string{
@@ -279,6 +286,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 	assert.Equal(15, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(true, agentConfig.Windows.AddNewArgs)
+	assert.Equal(true, agentConfig.Scrubber.Enabled)
 }
 
 func TestProxyEnv(t *testing.T) {
