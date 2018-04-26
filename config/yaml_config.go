@@ -42,7 +42,8 @@ type YamlAgentConfig struct {
 		// A list of regex patterns that will exclude a process if matched.
 		BlacklistPatterns []string `yaml:"blacklist_patterns"`
 		// Enable/Disable the DataScrubber to obfuscate process args
-		ScrubArgs bool `yaml:"scrub_args"`
+		// XXX: Using a bool pointer to differentiate between empty and set.
+		ScrubArgs *bool `yaml:"scrub_args,omitempty"`
 		// A custom word list to enhance the default one used by the DataScrubber
 		CustomSensitiveWords []string `yaml:"custom_sensitive_words"`
 		// How many check results to buffer in memory when POST fails. The default is usually fine.
@@ -75,7 +76,8 @@ func NewYamlIfExists(configPath string) (*YamlAgentConfig, error) {
 	var yamlConf YamlAgentConfig
 
 	// Set default values for booleans otherwise it will default to false.
-	yamlConf.Process.ScrubArgs = true
+	defaultScrubArgs := true
+	yamlConf.Process.ScrubArgs = &defaultScrubArgs
 	defaultNewArgs := true
 	yamlConf.Process.Windows.AddNewArgs = &defaultNewArgs
 
@@ -144,7 +146,9 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	agentConf.Blacklist = blacklist
 
 	// DataScrubber
-	agentConf.Scrubber.Enabled = yc.Process.ScrubArgs
+	if yc.Process.ScrubArgs != nil {
+		agentConf.Scrubber.Enabled = *yc.Process.ScrubArgs
+	}
 	agentConf.Scrubber.AddCustomSensitiveWords(yc.Process.CustomSensitiveWords)
 
 	if yc.Process.QueueSize > 0 {
