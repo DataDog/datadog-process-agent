@@ -42,6 +42,7 @@ type YamlAgentConfig struct {
 		// A list of regex patterns that will exclude a process if matched.
 		BlacklistPatterns []string `yaml:"blacklist_patterns"`
 		// Enable/Disable the DataScrubber to obfuscate process args
+		// XXX: Using a bool pointer to differentiate between empty and set.
 		ScrubArgs *bool `yaml:"scrub_args,omitempty"`
 		// A custom word list to enhance the default one used by the DataScrubber
 		CustomSensitiveWords []string `yaml:"custom_sensitive_words"`
