@@ -79,7 +79,6 @@ func TestOnlyEnvConfig(t *testing.T) {
 }
 
 func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
-	os.Setenv("DD_SCRUB_ARGS", "true")
 	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "*password*,consul_token,*api_key")
 
 	agentConfig, _ := NewAgentConfig(nil, nil)
@@ -89,8 +88,10 @@ func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
 		cmdline       []string
 		parsedCmdline []string
 	}{
-		{[]string{"spidly", "--mypasswords=123,456", "consul_token", "1234", "--dd_api_key=1234"},
-			[]string{"spidly", "--mypasswords=********", "consul_token", "********", "--dd_api_key=********"}},
+		{
+			[]string{"spidly", "--mypasswords=123,456", "consul_token", "1234", "--dd_api_key=1234"},
+			[]string{"spidly", "--mypasswords=********", "consul_token", "********", "--dd_api_key=********"},
+		},
 	}
 
 	for i := range cases {
@@ -98,7 +99,6 @@ func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 
-	os.Setenv("DD_SCRUB_ARGS", "")
 	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "")
 }
 
@@ -113,8 +113,10 @@ func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
 		cmdline       []string
 		parsedCmdline []string
 	}{
-		{[]string{"spidly", "--mypasswords=123,456", "consul_token", "1234", "--dd_api_key=1234"},
-			[]string{"spidly", "--mypasswords=123,456", "consul_token", "1234", "--dd_api_key=1234"}},
+		{
+			[]string{"spidly", "--mypasswords=123,456", "consul_token", "1234", "--dd_api_key=1234"},
+			[]string{"spidly", "--mypasswords=123,456", "consul_token", "1234", "--dd_api_key=1234"},
+		},
 	}
 
 	for i := range cases {
