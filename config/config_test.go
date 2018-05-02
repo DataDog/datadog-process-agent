@@ -78,6 +78,54 @@ func TestOnlyEnvConfig(t *testing.T) {
 	os.Setenv("DD_API_KEY", "")
 }
 
+func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
+	os.Setenv("DD_SCRUB_ARGS", "true")
+	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "*password*,consul_token,*api_key")
+
+	agentConfig, _ := NewAgentConfig(nil, nil)
+	assert.Equal(t, true, agentConfig.Scrubber.Enabled)
+
+	cases := []struct {
+		cmdline       []string
+		parsedCmdline []string
+	}{
+		{[]string{"spidly", "--mypasswords=123,456", "consul_token", "1234", "--dd_api_key=1234"},
+			[]string{"spidly", "--mypasswords=********", "consul_token", "********", "--dd_api_key=********"}},
+	}
+
+	for i := range cases {
+		cases[i].cmdline = agentConfig.Scrubber.ScrubCmdline(cases[i].cmdline)
+		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
+	}
+
+	os.Setenv("DD_SCRUB_ARGS", "")
+	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "")
+}
+
+func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
+	os.Setenv("DD_SCRUB_ARGS", "false")
+	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "*password*,consul_token,*api_key")
+
+	agentConfig, _ := NewAgentConfig(nil, nil)
+	assert.Equal(t, false, agentConfig.Scrubber.Enabled)
+
+	cases := []struct {
+		cmdline       []string
+		parsedCmdline []string
+	}{
+		{[]string{"spidly", "--mypasswords=123,456", "consul_token", "1234", "--dd_api_key=1234"},
+			[]string{"spidly", "--mypasswords=123,456", "consul_token", "1234", "--dd_api_key=1234"}},
+	}
+
+	for i := range cases {
+		cases[i].cmdline = agentConfig.Scrubber.ScrubCmdline(cases[i].cmdline)
+		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
+	}
+
+	os.Setenv("DD_SCRUB_ARGS", "")
+	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "")
+}
+
 func TestConfigNewIfExists(t *testing.T) {
 	// The file does not exist: no error returned
 	conf, err := NewIfExists("/does-not-exist")

@@ -411,6 +411,17 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 		}
 	}
 
+	// Process Arguments Scrubbing
+	if enabled, err := isAffirmative(os.Getenv("DD_SCRUB_ARGS")); enabled {
+		c.Scrubber.Enabled = true
+	} else if !enabled && err == nil {
+		c.Scrubber.Enabled = false
+	}
+
+	if v := os.Getenv("DD_CUSTOM_SENSITIVE_WORDS"); v != "" {
+		c.Scrubber.AddCustomSensitiveWords(strings.Split(v, ","))
+	}
+
 	if v := os.Getenv("DD_AGENT_PY"); v != "" {
 		c.DDAgentPy = v
 	}
