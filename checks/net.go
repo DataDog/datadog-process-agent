@@ -21,7 +21,7 @@ type ConnectionsCheck struct {
 
 // Init initializes a ConnectionsCheck instance.
 func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
-	// TODO: Source this by checking both configuration & that we have CAP_SYS_ADMIN privileges
+	// TODO: Source this by checking both that we have CAP_SYS_ADMIN privileges, and the right kernel version
 	c.enabled = true
 
 	t, err := tracer.NewTracer()
@@ -84,7 +84,7 @@ func formatConnections(conns []tracer.ConnectionStats) []*model.Connection {
 				Ip:   c.Dest,
 				Port: int32(c.DPort),
 			},
-			BytesSent:     int64(c.SendBytes),
+			BytesSent:     int64(c.SendBytes), // TODO: Consider sending rate instead of cumulative byte counts
 			BytesRecieved: int64(c.RecvBytes),
 		})
 	}
