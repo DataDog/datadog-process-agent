@@ -309,8 +309,8 @@ message Connection {
 	// int32 fd = 2;         // Unused for now -- may be deprecated
 	int32 family = 3;
 	int32 type = 4;
-	Addr  laddr = 5;
-	Addr  raddr = 6;
+	Addr  laddr = 5;         // Local address
+	Addr  raddr = 6;         // Remote address
 	// string status = 7;    // Unused for now -- may be deprecated
 	int64 bytesSent = 8;
 	int64 bytesRecieved = 9;

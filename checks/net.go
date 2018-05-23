@@ -7,7 +7,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
-	"github.com/weaveworks/tcptracer-bpf/pkg/tracer"
+	"github.com/sunhay/tcptracer-bpf/pkg/tracer" // TODO: Fork into DD org
 )
 
 // Connections is a singleton ConnectionsCheck.
