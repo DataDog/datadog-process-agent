@@ -294,14 +294,26 @@ message IOStat {
 	float writeBytesRate = 4;
 }
 
+enum ConnectionType {
+	tcp = 0;
+	udp = 1;
+}
+
+enum ConnectionFamily {
+	v4 = 0;
+	v6 = 1;
+}
+
 message Connection {
 	int32 pid = 1;
-	int32 fd = 2;
+	// int32 fd = 2;         // Unused for now -- may be deprecated
 	int32 family = 3;
 	int32 type = 4;
 	Addr  laddr = 5;
 	Addr  raddr = 6;
-	string status = 7;
+	// string status = 7;    // Unused for now -- may be deprecated
+	int64 bytesSent = 8;
+	int64 bytesRecieved = 9;
 }
 
 message Addr {
