@@ -310,7 +310,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 	}
 
 	// Use environment to override any additional config.
-	cfg = mergeEnv(cfg)
+	cfg = mergeEnvironmentVariables(cfg)
 
 	// Python-style log level has WARNING vs WARN
 	if strings.ToLower(cfg.LogLevel) == "warning" {
@@ -349,8 +349,8 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 	return cfg, nil
 }
 
-// mergeEnv applies overrides from environment variables to the trace agent configuration
-func mergeEnv(c *AgentConfig) *AgentConfig {
+// mergeEnvironmentVariables applies overrides from environment variables to the process agent configuration
+func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	var err error
 	if enabled, err := isAffirmative(os.Getenv("DD_PROCESS_AGENT_ENABLED")); enabled {
 		c.Enabled = true
@@ -455,6 +455,11 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 	if v := os.Getenv("DD_CONTAINER_CACHE_DURATION"); v != "" {
 		durationS, _ := strconv.Atoi(v)
 		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
+	}
+
+	// Note: this feature is in development and should not be used in production environments
+	if ok, _ := isAffirmative(os.Getenv("DD_CONNECTIONS_CHECK")); ok {
+		c.EnabledChecks = append(c.EnabledChecks, "connections")
 	}
 
 	return c

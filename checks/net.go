@@ -7,7 +7,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
-	"github.com/sunhay/tcptracer-bpf/pkg/tracer" // TODO: Fork into DD org
+	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
 )
 
 // Connections is a singleton ConnectionsCheck.
@@ -15,21 +15,29 @@ var Connections = &ConnectionsCheck{}
 
 // ConnectionsCheck collects statistics about live TCP and UDP connections.
 type ConnectionsCheck struct {
-	tracer  *tracer.Tracer
-	enabled bool
+	tracer    *tracer.Tracer
+	supported bool
 }
 
 // Init initializes a ConnectionsCheck instance.
 func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
-	// TODO: Source this by checking both that we have CAP_SYS_ADMIN privileges, and the right kernel version
-	c.enabled = true
+	var err error
+
+	// Checking whether the current kernel version is supported by the tracer
+	if c.supported, err = tracer.IsTracerSupportedByOS(); err != nil {
+		// err is always returned when false, so the above catches the !ok case as well
+		log.Errorf("network tracer unsupported by OS: %s", err)
+		return
+	}
 
 	t, err := tracer.NewTracer()
 	if err != nil {
-		log.Errorf("failed to create tracer: %s", err)
+		log.Errorf("failed to create network tracer: %s", err)
+		return
 	}
+
 	c.tracer = t
-	t.Start()
+	c.tracer.Start()
 }
 
 // Name returns the name of the ConnectionsCheck.
@@ -47,7 +55,7 @@ func (c *ConnectionsCheck) RealTime() bool { return false }
 // that will be bundled up into a `CollectorConnections`.
 // See agent.proto for the schema of the message and models.
 func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
-	if !c.enabled {
+	if !c.supported || c.tracer == nil {
 		return nil, nil
 	}
 

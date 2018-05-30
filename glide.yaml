@@ -5,7 +5,7 @@ import:
   - package: github.com/DataDog/agent-payload
   - package: github.com/docker/docker
     version: 092cba3727bb9b4a2f0e922cd6c0f93ea270e363
-  - package: github.com/sunhay/tcptracer-bpf
+  - package: github.com/DataDog/tcptracer-bpf
   - package: github.com/DataDog/gopsutil
     vcs: git
     version: dd
