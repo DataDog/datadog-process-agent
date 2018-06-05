@@ -176,6 +176,26 @@ func setupTestProcesses() []testProcess {
 	return fps
 }
 
+func setupTestProcessesForBench() []testProcess {
+	cases := setupSensitiveCmdlines()
+	cases = append(cases, setupUnsensitiveCmdlines()...)
+
+	nbProcesses := 1200
+	fps := make([]testProcess, 0, len(cases))
+	for i := 0; i < nbProcesses; i++ {
+		fps = append(fps, testProcess{
+			process.FilledProcess{
+				Pid:        int32(i),
+				CreateTime: time.Now().Unix(),
+				Cmdline:    cases[i%len(cases)].cmdline,
+			},
+			cases[i%len(cases)].parsedCmdline,
+		})
+	}
+
+	return fps
+}
+
 func TestUncompilableWord(t *testing.T) {
 	customSensitiveWords := []string{
 		"consul_token",
@@ -360,5 +380,45 @@ func benchmarkRegexMatching(nbProcesses int, b *testing.B) {
 		}
 	}
 
+	avoidOptimization = r
+}
+
+func BenchmarkWithCache(b *testing.B) {
+	customSensitiveWords := []string{
+		"*consul_token",
+		"*dd_password",
+		"*blocked_from_yaml",
+	}
+	scrubber := NewDefaultDataScrubber()
+	scrubber.AddCustomSensitiveWords(customSensitiveWords)
+	fps := setupTestProcessesForBench()
+
+	var r []string
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < len(fps); i++ {
+			r = scrubber.ScrubCmdlineWithCache(&fps[i].FilledProcess)
+		}
+	}
+	avoidOptimization = r
+}
+
+func BenchmarkWithoutCache(b *testing.B) {
+	customSensitiveWords := []string{
+		"*consul_token",
+		"*dd_password",
+		"*blocked_from_yaml",
+	}
+	scrubber := NewDefaultDataScrubber()
+	scrubber.AddCustomSensitiveWords(customSensitiveWords)
+	fps := setupTestProcessesForBench()
+
+	var r []string
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < len(fps); i++ {
+			r = scrubber.ScrubCmdline(fps[i].Cmdline)
+		}
+	}
 	avoidOptimization = r
 }
