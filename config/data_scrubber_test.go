@@ -1,6 +1,7 @@
 package config
 
 import (
+	"flag"
 	"testing"
 	"time"
 
@@ -383,7 +384,17 @@ func benchmarkRegexMatching(nbProcesses int, b *testing.B) {
 	avoidOptimization = r
 }
 
-func BenchmarkWithCache(b *testing.B) {
+var useCache = flag.Bool("cache", true, "enable/disable the use of cache on BenchmarkCache")
+
+func BenchmarkCache(b *testing.B) {
+	if *useCache {
+		benchmarkWithCache(b)
+	} else {
+		benchmarkWithoutCache(b)
+	}
+}
+
+func benchmarkWithCache(b *testing.B) {
 	customSensitiveWords := []string{
 		"*consul_token",
 		"*dd_password",
@@ -403,7 +414,7 @@ func BenchmarkWithCache(b *testing.B) {
 	avoidOptimization = r
 }
 
-func BenchmarkWithoutCache(b *testing.B) {
+func benchmarkWithoutCache(b *testing.B) {
 	customSensitiveWords := []string{
 		"*consul_token",
 		"*dd_password",
