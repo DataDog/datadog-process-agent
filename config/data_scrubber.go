@@ -104,7 +104,7 @@ func compileStringsToRegex(words []string) []*regexp.Regexp {
 	return compiledRegexps
 }
 
-// createProcessKey return a unique identifier for a given process
+// createProcessKey returns an unique identifier for a given process
 func createProcessKey(p *process.FilledProcess) string {
 	var b bytes.Buffer
 	b.WriteString("p:")

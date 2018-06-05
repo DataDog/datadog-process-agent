@@ -82,7 +82,7 @@ func setupSensitiveCmdlines() []testCase {
 	}
 }
 
-func setupUnsensitiveCmdlines() []testCase {
+func setupInsensitiveCmdlines() []testCase {
 	return []testCase{
 		{[]string{"spidly", "--debug_port=2043"}, []string{"spidly", "--debug_port=2043"}},
 		{[]string{"agent", "start", "-p", "config.cfg"}, []string{"agent", "start", "-p", "config.cfg"}},
@@ -160,7 +160,7 @@ func setupCmdlinesWithWildCards() []testCase {
 
 func setupTestProcesses() []testProcess {
 	cases := setupSensitiveCmdlines()
-	cases = append(cases, setupUnsensitiveCmdlines()...)
+	cases = append(cases, setupInsensitiveCmdlines()...)
 
 	fps := make([]testProcess, 0, len(cases))
 	for i, c := range cases {
@@ -179,7 +179,7 @@ func setupTestProcesses() []testProcess {
 
 func setupTestProcessesForBench() []testProcess {
 	cases := setupSensitiveCmdlines()
-	cases = append(cases, setupUnsensitiveCmdlines()...)
+	cases = append(cases, setupInsensitiveCmdlines()...)
 
 	nbProcesses := 1200
 	fps := make([]testProcess, 0, len(cases))
@@ -303,7 +303,7 @@ func TestBlacklistedArgsWhenDisabled(t *testing.T) {
 }
 
 func TestNoBlacklistedArgs(t *testing.T) {
-	cases := setupUnsensitiveCmdlines()
+	cases := setupInsensitiveCmdlines()
 	scrubber := setupDataScrubber(t)
 
 	for i := range cases {
@@ -337,11 +337,11 @@ func TestScrubWithCache(t *testing.T) {
 		scrubber.IncreaseCacheAge()
 	}
 
-	// When we reach the cache ttl, it should have be empty
+	// When we reach the cache ttl, it should be empty
 	assert.Equal(t, 0, len(scrubber.seenProcess))
 	assert.Equal(t, 0, len(scrubber.cachedCmdlines))
 
-	// Scrubbing the same processes should reput them again on cache
+	// Scrubbing the same processes should put them again on cache
 	for _, p := range testProcs {
 		scrubbed := scrubber.ScrubCmdlineWithCache(&p.FilledProcess)
 		assert.Equal(t, p.parsedCmdline, scrubbed)
