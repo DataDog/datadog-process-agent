@@ -95,7 +95,7 @@ func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
 	}
 
 	for i := range cases {
-		cases[i].cmdline = agentConfig.Scrubber.ScrubCmdline(cases[i].cmdline)
+		cases[i].cmdline = agentConfig.Scrubber.scrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 
@@ -120,7 +120,7 @@ func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
 	}
 
 	for i := range cases {
-		cases[i].cmdline = agentConfig.Scrubber.ScrubCmdline(cases[i].cmdline)
+		cases[i].cmdline = agentConfig.Scrubber.scrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 

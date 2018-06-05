@@ -115,13 +115,13 @@ func createProcessKey(p *process.FilledProcess) string {
 	return b.String()
 }
 
-// ScrubCmdlineWithCache uses a cache memory to avoid scrubbing already known
+// ScrubCmdline uses a cache memory to avoid scrubbing already known
 // process' cmdlines
-func (ds *DataScrubber) ScrubCmdlineWithCache(p *process.FilledProcess) []string {
+func (ds *DataScrubber) ScrubProcessCommand(p *process.FilledProcess) []string {
 	pKey := createProcessKey(p)
 	if _, ok := ds.seenProcess[pKey]; !ok {
 		ds.seenProcess[pKey] = struct{}{}
-		ds.cachedCmdlines[pKey] = ds.ScrubCmdline(p.Cmdline)
+		ds.cachedCmdlines[pKey] = ds.scrubCmdline(p.Cmdline)
 	}
 
 	return ds.cachedCmdlines[pKey]
@@ -138,9 +138,9 @@ func (ds *DataScrubber) IncreaseCacheAge() {
 	}
 }
 
-// ScrubCmdline hides any cmdline argument value whose key matches one of the patterns
+// scrubCmdline hides any cmdline argument value whose key matches one of the patterns
 // built from the sensitive words
-func (ds *DataScrubber) ScrubCmdline(cmdline []string) []string {
+func (ds *DataScrubber) scrubCmdline(cmdline []string) []string {
 	if !ds.Enabled {
 		return cmdline
 	}

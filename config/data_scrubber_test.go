@@ -255,7 +255,7 @@ func TestUncompilableWord(t *testing.T) {
 	}
 
 	for i := range cases {
-		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
+		cases[i].cmdline = scrubber.scrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 }
@@ -265,7 +265,7 @@ func TestBlacklistedArgs(t *testing.T) {
 	scrubber := setupDataScrubber(t)
 
 	for i := range cases {
-		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
+		cases[i].cmdline = scrubber.scrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 }
@@ -297,7 +297,7 @@ func TestBlacklistedArgsWhenDisabled(t *testing.T) {
 	scrubber.Enabled = false
 
 	for i := range cases {
-		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
+		cases[i].cmdline = scrubber.scrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 }
@@ -307,7 +307,7 @@ func TestNoBlacklistedArgs(t *testing.T) {
 	scrubber := setupDataScrubber(t)
 
 	for i := range cases {
-		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
+		cases[i].cmdline = scrubber.scrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 }
@@ -317,7 +317,7 @@ func TestMatchWildCards(t *testing.T) {
 	scrubber := setupDataScrubberWildCard(t)
 
 	for i := range cases {
-		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
+		cases[i].cmdline = scrubber.scrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 }
@@ -329,7 +329,7 @@ func TestScrubWithCache(t *testing.T) {
 	// During the cache lifespan, all the processes scrubbed cmdline must live in the cache
 	for i := 0; i < int(scrubber.cacheTTL); i++ {
 		for _, p := range testProcs {
-			scrubbed := scrubber.ScrubCmdlineWithCache(&p.FilledProcess)
+			scrubbed := scrubber.ScrubProcessCommand(&p.FilledProcess)
 			assert.Equal(t, p.parsedCmdline, scrubbed)
 		}
 		assert.Equal(t, len(testProcs), len(scrubber.seenProcess))
@@ -343,7 +343,7 @@ func TestScrubWithCache(t *testing.T) {
 
 	// Scrubbing the same processes should put them again on cache
 	for _, p := range testProcs {
-		scrubbed := scrubber.ScrubCmdlineWithCache(&p.FilledProcess)
+		scrubbed := scrubber.ScrubProcessCommand(&p.FilledProcess)
 		assert.Equal(t, p.parsedCmdline, scrubbed)
 	}
 	assert.Equal(t, len(testProcs), len(scrubber.seenProcess))
@@ -377,7 +377,7 @@ func benchmarkRegexMatching(nbProcesses int, b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		for _, p := range runningProcesses {
-			r = scrubber.ScrubCmdline(p)
+			r = scrubber.scrubCmdline(p)
 		}
 	}
 
@@ -408,7 +408,7 @@ func benchmarkWithCache(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < len(fps); i++ {
-			r = scrubber.ScrubCmdlineWithCache(&fps[i].FilledProcess)
+			r = scrubber.ScrubProcessCommand(&fps[i].FilledProcess)
 		}
 	}
 	avoidOptimization = r
@@ -428,7 +428,7 @@ func benchmarkWithoutCache(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < len(fps); i++ {
-			r = scrubber.ScrubCmdline(fps[i].Cmdline)
+			r = scrubber.scrubCmdline(fps[i].Cmdline)
 		}
 	}
 	avoidOptimization = r

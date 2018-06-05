@@ -128,7 +128,7 @@ func fmtProcesses(
 		}
 
 		// Hide blacklisted args if the Scrubber is enabled
-		fp.Cmdline = cfg.Scrubber.ScrubCmdlineWithCache(fp)
+		fp.Cmdline = cfg.Scrubber.ScrubProcessCommand(fp)
 
 		ctr, ok := ctrByPid[fp.Pid]
 		if !ok {
