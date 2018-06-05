@@ -43,6 +43,113 @@ func setupDataScrubberWildCard(t *testing.T) *DataScrubber {
 	return scrubber
 }
 
+type testCase struct {
+	cmdline       []string
+	parsedCmdline []string
+}
+
+func setupSensitiveCmdlines() []testCase {
+	return []testCase{
+		{[]string{"agent", "-password", "1234"}, []string{"agent", "-password", "********"}},
+		{[]string{"agent", "--password", "1234"}, []string{"agent", "--password", "********"}},
+		{[]string{"agent", "-password=1234"}, []string{"agent", "-password=********"}},
+		{[]string{"agent", "--password=1234"}, []string{"agent", "--password=********"}},
+		{[]string{"fitz", "-consul_token=1234567890"}, []string{"fitz", "-consul_token=********"}},
+		{[]string{"fitz", "--consul_token=1234567890"}, []string{"fitz", "--consul_token=********"}},
+		{[]string{"fitz", "-consul_token", "1234567890"}, []string{"fitz", "-consul_token", "********"}},
+		{[]string{"fitz", "--consul_token", "1234567890"}, []string{"fitz", "--consul_token", "********"}},
+		{[]string{"fitz", "-dd_password", "1234567890"}, []string{"fitz", "-dd_password", "********"}},
+		{[]string{"fitz", "dd_password", "1234567890"}, []string{"fitz", "dd_password", "********"}},
+		{[]string{"python ~/test/run.py --password=1234 -password 1234 -open_password=admin -consul_token 2345 -blocked_from_yaml=1234 &"},
+			[]string{"python", "~/test/run.py", "--password=********", "-password", "********", "-open_password=admin", "-consul_token", "********", "-blocked_from_yaml=********", "&"}},
+		{[]string{"agent", "-PASSWORD", "1234"}, []string{"agent", "-PASSWORD", "********"}},
+		{[]string{"agent", "--PASSword", "1234"}, []string{"agent", "--PASSword", "********"}},
+		{[]string{"agent", "--PaSsWoRd=1234"}, []string{"agent", "--PaSsWoRd=********"}},
+		{[]string{"java -password      1234"}, []string{"java", "-password", "", "", "", "", "", "********"}},
+		{[]string{"process-agent --config=datadog.yaml --pid=process-agent.pid"}, []string{"process-agent", "--config=********", "--pid=********"}},
+		{[]string{"1-password --config=12345"}, []string{"1-password", "--config=********"}},
+		{[]string{"java kafka password 1234"}, []string{"java", "kafka", "password", "********"}},
+		{[]string{"agent", "password:1234"}, []string{"agent", "password:********"}},
+		{[]string{"agent password:1234"}, []string{"agent", "password:********"}},
+	}
+}
+
+func setupUnsensitiveCmdlines() []testCase {
+	return []testCase{
+		{[]string{"spidly", "--debug_port=2043"}, []string{"spidly", "--debug_port=2043"}},
+		{[]string{"agent", "start", "-p", "config.cfg"}, []string{"agent", "start", "-p", "config.cfg"}},
+		{[]string{"p1", "--openpassword=admin"}, []string{"p1", "--openpassword=admin"}},
+		{[]string{"p1", "-openpassword", "admin"}, []string{"p1", "-openpassword", "admin"}},
+		{[]string{"java -openpassword 1234"}, []string{"java -openpassword 1234"}},
+		{[]string{"java -open_password 1234"}, []string{"java -open_password 1234"}},
+		{[]string{"java -passwordOpen 1234"}, []string{"java -passwordOpen 1234"}},
+		{[]string{"java -password_open 1234"}, []string{"java -password_open 1234"}},
+		{[]string{"java -password1 1234"}, []string{"java -password1 1234"}},
+		{[]string{"java -password_1 1234"}, []string{"java -password_1 1234"}},
+		{[]string{"java -1password 1234"}, []string{"java -1password 1234"}},
+		{[]string{"java -1_password 1234"}, []string{"java -1_password 1234"}},
+		{[]string{"agent", "1_password:1234"}, []string{"agent", "1_password:1234"}},
+		{[]string{"agent 1_password:1234"}, []string{"agent 1_password:1234"}},
+	}
+}
+
+func setupCmdlinesWithWildCards() []testCase {
+	return []testCase{
+		{[]string{"spidly", "--befpass=2043", "onebefpass", "1234", "--befpassCustom=1234"},
+			[]string{"spidly", "--befpass=********", "onebefpass", "********", "--befpassCustom=1234"}},
+		{[]string{"spidly --befpass=2043 onebefpass 1234 --befpassCustom=1234"},
+			[]string{"spidly", "--befpass=********", "onebefpass", "********", "--befpassCustom=1234"}},
+		{[]string{"spidly   --befpass=2043   onebefpass   1234   --befpassCustom=1234"},
+			[]string{"spidly", "", "", "--befpass=********", "", "", "onebefpass", "", "", "********", "", "", "--befpassCustom=1234"}},
+
+		{[]string{"spidly", "--afterpass=2043", "afterpass_1", "1234", "--befafterpass_1=1234"},
+			[]string{"spidly", "--afterpass=********", "afterpass_1", "********", "--befafterpass_1=1234"}},
+		{[]string{"spidly --afterpass=2043 afterpass_1 1234 --befafterpass_1=1234"},
+			[]string{"spidly", "--afterpass=********", "afterpass_1", "********", "--befafterpass_1=1234"}},
+		{[]string{"spidly   --afterpass=2043   afterpass_1   1234   --befafterpass_1=1234"},
+			[]string{"spidly", "", "", "--afterpass=********", "", "", "afterpass_1", "", "", "********", "", "", "--befafterpass_1=1234"}},
+
+		{[]string{"spidly", "both", "1234", "-dd_both", "1234", "bothafter", "1234", "--dd_bothafter=1234"},
+			[]string{"spidly", "both", "********", "-dd_both", "********", "bothafter", "********", "--dd_bothafter=********"}},
+		{[]string{"spidly both 1234 -dd_both 1234 bothafter 1234 --dd_bothafter=1234"},
+			[]string{"spidly", "both", "********", "-dd_both", "********", "bothafter", "********", "--dd_bothafter=********"}},
+		{[]string{"spidly   both   1234   -dd_both   1234   bothafter   1234   --dd_bothafter=1234"},
+			[]string{"spidly", "", "", "both", "", "", "********", "", "", "-dd_both", "", "", "********", "", "", "bothafter", "", "", "********", "", "", "--dd_bothafter=********"}},
+
+		{[]string{"spidly", "middle", "1234", "-mile", "1234", "--mill=1234"},
+			[]string{"spidly", "middle", "********", "-mile", "********", "--mill=1234"}},
+		{[]string{"spidly middle 1234 -mile 1234 --mill=1234"},
+			[]string{"spidly", "middle", "********", "-mile", "********", "--mill=1234"}},
+		{[]string{"spidly   middle   1234   -mile   1234   --mill=1234"},
+			[]string{"spidly", "", "", "middle", "", "", "********", "", "", "-mile", "", "", "********", "", "", "--mill=1234"}},
+
+		{[]string{"spidly", "--passwd=1234", "password", "1234", "-mypassword", "1234", "--passwords=12345,123456", "--mypasswords=1234,123456"},
+			[]string{"spidly", "--passwd=********", "password", "********", "-mypassword", "********", "--passwords=********", "--mypasswords=********"}},
+		{[]string{"spidly --passwd=1234 password 1234 -mypassword 1234 --passwords=12345,123456 --mypasswords=1234,123456"},
+			[]string{"spidly", "--passwd=********", "password", "********", "-mypassword", "********", "--passwords=********", "--mypasswords=********"}},
+		{[]string{"spidly   --passwd=1234   password   1234   -mypassword   1234   --passwords=12345,123456   --mypasswords=1234,123456"},
+			[]string{"spidly", "", "", "--passwd=********", "", "", "password", "", "", "********", "", "", "-mypassword", "", "", "********",
+				"", "", "--passwords=********", "", "", "--mypasswords=********"}},
+
+		{[]string{"run-middle password 12345"}, []string{"run-middle", "password", "********"}},
+		{[]string{"generate-password -password 12345"}, []string{"generate-password", "-password", "********"}},
+		{[]string{"generate-password --password=12345"}, []string{"generate-password", "--password=********"}},
+
+		{[]string{"java /var/lib/datastax-agent/conf/address.yaml -Dopscenter.ssl.keyStorePassword=opscenter -Dagent-pidfile=/var/run/datastax-agent/datastax-agent.pid --anotherpassword=1234"},
+			[]string{"java", "/var/lib/datastax-agent/conf/address.yaml", "-Dopscenter.ssl.keyStorePassword=********", "-Dagent-pidfile=/var/run/datastax-agent/datastax-agent.pid", "--anotherpassword=********"}},
+
+		{[]string{"/usr/bin/java -Des.path.home=/usr/local/elasticsearch-1.7.6 -cp $ES_CLASSPATH:$ES_HOME/lib/*:$ES_HOME/lib/sigar/*:/usr/local/elasticsearch-1.7.6" +
+			"/lib/elasticsearch-1.7.6.jar:/usr/local/elasticsearch-1.7.6/lib/*:/usr/local/elasticsearch-1.7.6/lib" +
+			"/sigar/* org.elasticsearch.bootstrap.Elasticsearch"},
+			[]string{"/usr/bin/java", "-Des.path.home=********", "-cp", "$ES_CLASSPATH:$ES_HOME/lib/*:$ES_HOME/lib/sigar/*:/usr/local/elasticsearch-1.7.6" +
+				"/lib/elasticsearch-1.7.6.jar:/usr/local/elasticsearch-1.7.6/lib/*:/usr/local/elasticsearch-1.7.6/lib/sigar/*",
+				"org.elasticsearch.bootstrap.Elasticsearch"}},
+
+		{[]string{"process ‑XXpath:/secret/"}, []string{"process", "‑XXpath:********"}},
+		{[]string{"process", "‑XXpath:/secret/"}, []string{"process", "‑XXpath:********"}},
+	}
+}
+
 func TestUncompilableWord(t *testing.T) {
 	customSensitiveWords := []string{
 		"consul_token",
@@ -107,33 +214,7 @@ func TestUncompilableWord(t *testing.T) {
 }
 
 func TestBlacklistedArgs(t *testing.T) {
-	cases := []struct {
-		cmdline       []string
-		parsedCmdline []string
-	}{
-		{[]string{"agent", "-password", "1234"}, []string{"agent", "-password", "********"}},
-		{[]string{"agent", "--password", "1234"}, []string{"agent", "--password", "********"}},
-		{[]string{"agent", "-password=1234"}, []string{"agent", "-password=********"}},
-		{[]string{"agent", "--password=1234"}, []string{"agent", "--password=********"}},
-		{[]string{"fitz", "-consul_token=1234567890"}, []string{"fitz", "-consul_token=********"}},
-		{[]string{"fitz", "--consul_token=1234567890"}, []string{"fitz", "--consul_token=********"}},
-		{[]string{"fitz", "-consul_token", "1234567890"}, []string{"fitz", "-consul_token", "********"}},
-		{[]string{"fitz", "--consul_token", "1234567890"}, []string{"fitz", "--consul_token", "********"}},
-		{[]string{"fitz", "-dd_password", "1234567890"}, []string{"fitz", "-dd_password", "********"}},
-		{[]string{"fitz", "dd_password", "1234567890"}, []string{"fitz", "dd_password", "********"}},
-		{[]string{"python ~/test/run.py --password=1234 -password 1234 -open_password=admin -consul_token 2345 -blocked_from_yaml=1234 &"},
-			[]string{"python", "~/test/run.py", "--password=********", "-password", "********", "-open_password=admin", "-consul_token", "********", "-blocked_from_yaml=********", "&"}},
-		{[]string{"agent", "-PASSWORD", "1234"}, []string{"agent", "-PASSWORD", "********"}},
-		{[]string{"agent", "--PASSword", "1234"}, []string{"agent", "--PASSword", "********"}},
-		{[]string{"agent", "--PaSsWoRd=1234"}, []string{"agent", "--PaSsWoRd=********"}},
-		{[]string{"java -password      1234"}, []string{"java", "-password", "", "", "", "", "", "********"}},
-		{[]string{"process-agent --config=datadog.yaml --pid=process-agent.pid"}, []string{"process-agent", "--config=********", "--pid=********"}},
-		{[]string{"1-password --config=12345"}, []string{"1-password", "--config=********"}},
-		{[]string{"java kafka password 1234"}, []string{"java", "kafka", "password", "********"}},
-		{[]string{"agent", "password:1234"}, []string{"agent", "password:********"}},
-		{[]string{"agent password:1234"}, []string{"agent", "password:********"}},
-	}
-
+	cases := setupSensitiveCmdlines()
 	scrubber := setupDataScrubber(t)
 
 	for i := range cases {
@@ -175,26 +256,7 @@ func TestBlacklistedArgsWhenDisabled(t *testing.T) {
 }
 
 func TestNoBlacklistedArgs(t *testing.T) {
-	cases := []struct {
-		cmdline       []string
-		parsedCmdline []string
-	}{
-		{[]string{"spidly", "--debug_port=2043"}, []string{"spidly", "--debug_port=2043"}},
-		{[]string{"agent", "start", "-p", "config.cfg"}, []string{"agent", "start", "-p", "config.cfg"}},
-		{[]string{"p1", "--openpassword=admin"}, []string{"p1", "--openpassword=admin"}},
-		{[]string{"p1", "-openpassword", "admin"}, []string{"p1", "-openpassword", "admin"}},
-		{[]string{"java -openpassword 1234"}, []string{"java -openpassword 1234"}},
-		{[]string{"java -open_password 1234"}, []string{"java -open_password 1234"}},
-		{[]string{"java -passwordOpen 1234"}, []string{"java -passwordOpen 1234"}},
-		{[]string{"java -password_open 1234"}, []string{"java -password_open 1234"}},
-		{[]string{"java -password1 1234"}, []string{"java -password1 1234"}},
-		{[]string{"java -password_1 1234"}, []string{"java -password_1 1234"}},
-		{[]string{"java -1password 1234"}, []string{"java -1password 1234"}},
-		{[]string{"java -1_password 1234"}, []string{"java -1_password 1234"}},
-		{[]string{"agent", "1_password:1234"}, []string{"agent", "1_password:1234"}},
-		{[]string{"agent 1_password:1234"}, []string{"agent 1_password:1234"}},
-	}
-
+	cases := setupUnsensitiveCmdlines()
 	scrubber := setupDataScrubber(t)
 
 	for i := range cases {
@@ -204,64 +266,7 @@ func TestNoBlacklistedArgs(t *testing.T) {
 }
 
 func TestMatchWildCards(t *testing.T) {
-	cases := []struct {
-		cmdline       []string
-		parsedCmdline []string
-	}{
-		{[]string{"spidly", "--befpass=2043", "onebefpass", "1234", "--befpassCustom=1234"},
-			[]string{"spidly", "--befpass=********", "onebefpass", "********", "--befpassCustom=1234"}},
-		{[]string{"spidly --befpass=2043 onebefpass 1234 --befpassCustom=1234"},
-			[]string{"spidly", "--befpass=********", "onebefpass", "********", "--befpassCustom=1234"}},
-		{[]string{"spidly   --befpass=2043   onebefpass   1234   --befpassCustom=1234"},
-			[]string{"spidly", "", "", "--befpass=********", "", "", "onebefpass", "", "", "********", "", "", "--befpassCustom=1234"}},
-
-		{[]string{"spidly", "--afterpass=2043", "afterpass_1", "1234", "--befafterpass_1=1234"},
-			[]string{"spidly", "--afterpass=********", "afterpass_1", "********", "--befafterpass_1=1234"}},
-		{[]string{"spidly --afterpass=2043 afterpass_1 1234 --befafterpass_1=1234"},
-			[]string{"spidly", "--afterpass=********", "afterpass_1", "********", "--befafterpass_1=1234"}},
-		{[]string{"spidly   --afterpass=2043   afterpass_1   1234   --befafterpass_1=1234"},
-			[]string{"spidly", "", "", "--afterpass=********", "", "", "afterpass_1", "", "", "********", "", "", "--befafterpass_1=1234"}},
-
-		{[]string{"spidly", "both", "1234", "-dd_both", "1234", "bothafter", "1234", "--dd_bothafter=1234"},
-			[]string{"spidly", "both", "********", "-dd_both", "********", "bothafter", "********", "--dd_bothafter=********"}},
-		{[]string{"spidly both 1234 -dd_both 1234 bothafter 1234 --dd_bothafter=1234"},
-			[]string{"spidly", "both", "********", "-dd_both", "********", "bothafter", "********", "--dd_bothafter=********"}},
-		{[]string{"spidly   both   1234   -dd_both   1234   bothafter   1234   --dd_bothafter=1234"},
-			[]string{"spidly", "", "", "both", "", "", "********", "", "", "-dd_both", "", "", "********", "", "", "bothafter", "", "", "********", "", "", "--dd_bothafter=********"}},
-
-		{[]string{"spidly", "middle", "1234", "-mile", "1234", "--mill=1234"},
-			[]string{"spidly", "middle", "********", "-mile", "********", "--mill=1234"}},
-		{[]string{"spidly middle 1234 -mile 1234 --mill=1234"},
-			[]string{"spidly", "middle", "********", "-mile", "********", "--mill=1234"}},
-		{[]string{"spidly   middle   1234   -mile   1234   --mill=1234"},
-			[]string{"spidly", "", "", "middle", "", "", "********", "", "", "-mile", "", "", "********", "", "", "--mill=1234"}},
-
-		{[]string{"spidly", "--passwd=1234", "password", "1234", "-mypassword", "1234", "--passwords=12345,123456", "--mypasswords=1234,123456"},
-			[]string{"spidly", "--passwd=********", "password", "********", "-mypassword", "********", "--passwords=********", "--mypasswords=********"}},
-		{[]string{"spidly --passwd=1234 password 1234 -mypassword 1234 --passwords=12345,123456 --mypasswords=1234,123456"},
-			[]string{"spidly", "--passwd=********", "password", "********", "-mypassword", "********", "--passwords=********", "--mypasswords=********"}},
-		{[]string{"spidly   --passwd=1234   password   1234   -mypassword   1234   --passwords=12345,123456   --mypasswords=1234,123456"},
-			[]string{"spidly", "", "", "--passwd=********", "", "", "password", "", "", "********", "", "", "-mypassword", "", "", "********",
-				"", "", "--passwords=********", "", "", "--mypasswords=********"}},
-
-		{[]string{"run-middle password 12345"}, []string{"run-middle", "password", "********"}},
-		{[]string{"generate-password -password 12345"}, []string{"generate-password", "-password", "********"}},
-		{[]string{"generate-password --password=12345"}, []string{"generate-password", "--password=********"}},
-
-		{[]string{"java /var/lib/datastax-agent/conf/address.yaml -Dopscenter.ssl.keyStorePassword=opscenter -Dagent-pidfile=/var/run/datastax-agent/datastax-agent.pid --anotherpassword=1234"},
-			[]string{"java", "/var/lib/datastax-agent/conf/address.yaml", "-Dopscenter.ssl.keyStorePassword=********", "-Dagent-pidfile=/var/run/datastax-agent/datastax-agent.pid", "--anotherpassword=********"}},
-
-		{[]string{"/usr/bin/java -Des.path.home=/usr/local/elasticsearch-1.7.6 -cp $ES_CLASSPATH:$ES_HOME/lib/*:$ES_HOME/lib/sigar/*:/usr/local/elasticsearch-1.7.6" +
-			"/lib/elasticsearch-1.7.6.jar:/usr/local/elasticsearch-1.7.6/lib/*:/usr/local/elasticsearch-1.7.6/lib" +
-			"/sigar/* org.elasticsearch.bootstrap.Elasticsearch"},
-			[]string{"/usr/bin/java", "-Des.path.home=********", "-cp", "$ES_CLASSPATH:$ES_HOME/lib/*:$ES_HOME/lib/sigar/*:/usr/local/elasticsearch-1.7.6" +
-				"/lib/elasticsearch-1.7.6.jar:/usr/local/elasticsearch-1.7.6/lib/*:/usr/local/elasticsearch-1.7.6/lib/sigar/*",
-				"org.elasticsearch.bootstrap.Elasticsearch"}},
-
-		{[]string{"process ‑XXpath:/secret/"}, []string{"process", "‑XXpath:********"}},
-		{[]string{"process", "‑XXpath:/secret/"}, []string{"process", "‑XXpath:********"}},
-	}
-
+	cases := setupCmdlinesWithWildCards()
 	scrubber := setupDataScrubberWildCard(t)
 
 	for i := range cases {
