@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
+	"github.com/DataDog/gopsutil/process"
 	log "github.com/cihub/seelog"
 )
 
@@ -17,11 +19,19 @@ var (
 		"secret", "credentials", "stripetoken"}
 )
 
+const (
+	defaultCacheTTL = 100
+)
+
 // DataScrubber allows the agent to blacklist cmdline arguments that match
 // a list of predefined and custom words
 type DataScrubber struct {
 	Enabled           bool
 	SensitivePatterns []*regexp.Regexp
+	seenProcess       map[string]struct{}
+	cachedCmdlines    map[string][]string
+	cacheRuns         uint32
+	cacheTTL          uint32
 }
 
 // NewDefaultDataScrubber creates a DataScrubber with the default behavior: enabled
@@ -30,6 +40,10 @@ func NewDefaultDataScrubber() *DataScrubber {
 	newDataScrubber := &DataScrubber{
 		Enabled:           true,
 		SensitivePatterns: compileStringsToRegex(defaultSensitiveWords),
+		seenProcess:       make(map[string]struct{}),
+		cachedCmdlines:    make(map[string][]string),
+		cacheRuns:         0,
+		cacheTTL:          defaultCacheTTL,
 	}
 
 	return newDataScrubber
@@ -88,6 +102,41 @@ func compileStringsToRegex(words []string) []*regexp.Regexp {
 	}
 
 	return compiledRegexps
+}
+
+// createProcessKey return a unique identifier for a given process
+func createProcessKey(p *process.FilledProcess) string {
+	var b bytes.Buffer
+	b.WriteString("p:")
+	b.WriteString(strconv.Itoa(int(p.Pid)))
+	b.WriteString("|c:")
+	b.WriteString(strconv.Itoa(int(p.CreateTime)))
+
+	return b.String()
+}
+
+// ScrubCmdlineWithCache uses a cache memory to avoid scrubbing already known
+// process' cmdlines
+func (ds *DataScrubber) ScrubCmdlineWithCache(p *process.FilledProcess) []string {
+	pKey := createProcessKey(p)
+
+	if _, ok := ds.seenProcess[pKey]; !ok {
+		ds.seenProcess[pKey] = struct{}{}
+		ds.cachedCmdlines[pKey] = ds.ScrubCmdline(p.Cmdline)
+	}
+
+	return ds.cachedCmdlines[pKey]
+}
+
+// IncreaseCacheAge increases one cicle of cache memory age. If it reaches the
+// TTL, the cache is restarted
+func (ds *DataScrubber) IncreaseCacheAge() {
+	ds.cacheRuns++
+	if ds.cacheRuns == ds.cacheTTL {
+		ds.seenProcess = make(map[string]struct{})
+		ds.cachedCmdlines = make(map[string][]string)
+		ds.cacheRuns = 0
+	}
 }
 
 // ScrubCmdline hides any cmdline argument value whose key matches one of the patterns

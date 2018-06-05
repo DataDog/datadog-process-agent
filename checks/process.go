@@ -128,7 +128,7 @@ func fmtProcesses(
 		}
 
 		// Hide blacklisted args if the Scrubber is enabled
-		fp.Cmdline = cfg.Scrubber.ScrubCmdline(fp.Cmdline)
+		fp.Cmdline = cfg.Scrubber.ScrubCmdlineWithCache(fp)
 
 		ctr, ok := ctrByPid[fp.Pid]
 		if !ok {
@@ -157,6 +157,7 @@ func fmtProcesses(
 	if len(chunk) > 0 {
 		chunked = append(chunked, chunk)
 	}
+	cfg.Scrubber.IncreaseCacheAge()
 	return chunked
 }
 
