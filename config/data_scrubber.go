@@ -20,7 +20,7 @@ var (
 )
 
 const (
-	defaultCacheTTL = 100
+	defaultCacheTTL = 25
 )
 
 // DataScrubber allows the agent to blacklist cmdline arguments that match
@@ -29,7 +29,7 @@ type DataScrubber struct {
 	Enabled           bool
 	SensitivePatterns []*regexp.Regexp
 	seenProcess       map[string]struct{}
-	cachedCmdlines    map[string][]string
+	scrubbedCmdlines  map[string][]string
 	cacheCycles       uint32
 	cacheTTL          uint32
 }
@@ -41,7 +41,7 @@ func NewDefaultDataScrubber() *DataScrubber {
 		Enabled:           true,
 		SensitivePatterns: compileStringsToRegex(defaultSensitiveWords),
 		seenProcess:       make(map[string]struct{}),
-		cachedCmdlines:    make(map[string][]string),
+		scrubbedCmdlines:  make(map[string][]string),
 		cacheCycles:       0,
 		cacheTTL:          defaultCacheTTL,
 	}
@@ -115,34 +115,42 @@ func createProcessKey(p *process.FilledProcess) string {
 	return b.String()
 }
 
-// ScrubCmdline uses a cache memory to avoid scrubbing already known
+// ScrubProcessCommand uses a cache memory to avoid scrubbing already known
 // process' cmdlines
 func (ds *DataScrubber) ScrubProcessCommand(p *process.FilledProcess) []string {
 	pKey := createProcessKey(p)
 	if _, ok := ds.seenProcess[pKey]; !ok {
 		ds.seenProcess[pKey] = struct{}{}
-		ds.cachedCmdlines[pKey] = ds.scrubCmdline(p.Cmdline)
+		scrubbed, changed := ds.scrubCmdline(p.Cmdline)
+		if changed {
+			ds.scrubbedCmdlines[pKey] = scrubbed
+		}
 	}
 
-	return ds.cachedCmdlines[pKey]
+	if scrubbed, ok := ds.scrubbedCmdlines[pKey]; ok {
+		return scrubbed
+	}
+
+	return p.Cmdline
 }
 
-// IncreaseCacheAge increases one cycle of cache memory age. If it reaches the
+// IncrementCacheAge increments one cycle of cache memory age. If it reaches the
 // TTL, the cache is restarted
-func (ds *DataScrubber) IncreaseCacheAge() {
+func (ds *DataScrubber) IncrementCacheAge() {
 	ds.cacheCycles++
 	if ds.cacheCycles == ds.cacheTTL {
 		ds.seenProcess = make(map[string]struct{})
-		ds.cachedCmdlines = make(map[string][]string)
+		ds.scrubbedCmdlines = make(map[string][]string)
 		ds.cacheCycles = 0
 	}
 }
 
 // scrubCmdline hides any cmdline argument value whose key matches one of the patterns
-// built from the sensitive words
-func (ds *DataScrubber) scrubCmdline(cmdline []string) []string {
+// built from the sensitive words. It returns a cmdline splitted by espace and a
+// bool indicating whether it was scrubbed or not
+func (ds *DataScrubber) scrubCmdline(cmdline []string) ([]string, bool) {
 	if !ds.Enabled {
-		return cmdline
+		return cmdline, false
 	}
 
 	rawCmdline := strings.Join(cmdline, " ")
@@ -155,9 +163,9 @@ func (ds *DataScrubber) scrubCmdline(cmdline []string) []string {
 	}
 
 	if changed {
-		return strings.Split(rawCmdline, " ")
+		return strings.Split(rawCmdline, " "), changed
 	}
-	return cmdline
+	return cmdline, changed
 }
 
 // AddCustomSensitiveWords adds custom sensitive words on the DataScrubber object

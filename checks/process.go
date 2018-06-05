@@ -157,7 +157,7 @@ func fmtProcesses(
 	if len(chunk) > 0 {
 		chunked = append(chunked, chunk)
 	}
-	cfg.Scrubber.IncreaseCacheAge()
+	cfg.Scrubber.IncrementCacheAge()
 	return chunked
 }
 
