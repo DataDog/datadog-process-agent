@@ -2,7 +2,9 @@ package config
 
 import (
 	"testing"
+	"time"
 
+	"github.com/DataDog/gopsutil/process"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,6 +47,11 @@ func setupDataScrubberWildCard(t *testing.T) *DataScrubber {
 
 type testCase struct {
 	cmdline       []string
+	parsedCmdline []string
+}
+
+type testProcess struct {
+	process.FilledProcess
 	parsedCmdline []string
 }
 
@@ -148,6 +155,25 @@ func setupCmdlinesWithWildCards() []testCase {
 		{[]string{"process ‑XXpath:/secret/"}, []string{"process", "‑XXpath:********"}},
 		{[]string{"process", "‑XXpath:/secret/"}, []string{"process", "‑XXpath:********"}},
 	}
+}
+
+func setupTestProcesses() []testProcess {
+	cases := setupSensitiveCmdlines()
+	cases = append(cases, setupUnsensitiveCmdlines()...)
+
+	fps := make([]testProcess, 0, len(cases))
+	for i, c := range cases {
+		fps = append(fps, testProcess{
+			process.FilledProcess{
+				Pid:        int32(i),
+				CreateTime: time.Now().Unix(),
+				Cmdline:    c.cmdline,
+			},
+			c.parsedCmdline,
+		})
+	}
+
+	return fps
 }
 
 func TestUncompilableWord(t *testing.T) {
@@ -273,6 +299,34 @@ func TestMatchWildCards(t *testing.T) {
 		cases[i].cmdline = scrubber.ScrubCmdline(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
+}
+
+func TestScrubWithCache(t *testing.T) {
+	testProcs := setupTestProcesses()
+	scrubber := setupDataScrubber(t)
+
+	// During the cache lifespan, all the processes scrubbed cmdline must live in the cache
+	for i := 0; i < int(scrubber.cacheTTL); i++ {
+		for _, p := range testProcs {
+			scrubbed := scrubber.ScrubCmdlineWithCache(&p.FilledProcess)
+			assert.Equal(t, p.parsedCmdline, scrubbed)
+		}
+		assert.Equal(t, len(testProcs), len(scrubber.seenProcess))
+		assert.Equal(t, len(testProcs), len(scrubber.cachedCmdlines))
+		scrubber.IncreaseCacheAge()
+	}
+
+	// When we reach the cache ttl, it should have be empty
+	assert.Equal(t, 0, len(scrubber.seenProcess))
+	assert.Equal(t, 0, len(scrubber.cachedCmdlines))
+
+	// Scrubbing the same processes should reput them again on cache
+	for _, p := range testProcs {
+		scrubbed := scrubber.ScrubCmdlineWithCache(&p.FilledProcess)
+		assert.Equal(t, p.parsedCmdline, scrubbed)
+	}
+	assert.Equal(t, len(testProcs), len(scrubber.seenProcess))
+	assert.Equal(t, len(testProcs), len(scrubber.cachedCmdlines))
 }
 
 func BenchmarkRegexMatching1(b *testing.B)    { benchmarkRegexMatching(1, b) }
