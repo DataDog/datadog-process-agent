@@ -30,7 +30,7 @@ type DataScrubber struct {
 	SensitivePatterns []*regexp.Regexp
 	seenProcess       map[string]struct{}
 	cachedCmdlines    map[string][]string
-	cacheRuns         uint32
+	cacheCycles       uint32
 	cacheTTL          uint32
 }
 
@@ -42,7 +42,7 @@ func NewDefaultDataScrubber() *DataScrubber {
 		SensitivePatterns: compileStringsToRegex(defaultSensitiveWords),
 		seenProcess:       make(map[string]struct{}),
 		cachedCmdlines:    make(map[string][]string),
-		cacheRuns:         0,
+		cacheCycles:       0,
 		cacheTTL:          defaultCacheTTL,
 	}
 
@@ -119,7 +119,6 @@ func createProcessKey(p *process.FilledProcess) string {
 // process' cmdlines
 func (ds *DataScrubber) ScrubCmdlineWithCache(p *process.FilledProcess) []string {
 	pKey := createProcessKey(p)
-
 	if _, ok := ds.seenProcess[pKey]; !ok {
 		ds.seenProcess[pKey] = struct{}{}
 		ds.cachedCmdlines[pKey] = ds.ScrubCmdline(p.Cmdline)
@@ -128,14 +127,14 @@ func (ds *DataScrubber) ScrubCmdlineWithCache(p *process.FilledProcess) []string
 	return ds.cachedCmdlines[pKey]
 }
 
-// IncreaseCacheAge increases one cicle of cache memory age. If it reaches the
+// IncreaseCacheAge increases one cycle of cache memory age. If it reaches the
 // TTL, the cache is restarted
 func (ds *DataScrubber) IncreaseCacheAge() {
-	ds.cacheRuns++
-	if ds.cacheRuns == ds.cacheTTL {
+	ds.cacheCycles++
+	if ds.cacheCycles == ds.cacheTTL {
 		ds.seenProcess = make(map[string]struct{})
 		ds.cachedCmdlines = make(map[string][]string)
-		ds.cacheRuns = 0
+		ds.cacheCycles = 0
 	}
 }
 
