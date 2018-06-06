@@ -328,7 +328,7 @@ func TestScrubWithCache(t *testing.T) {
 	scrubber := setupDataScrubber(t)
 
 	// During the cache lifespan, all the processes scrubbed cmdline must live in the cache
-	for i := 0; i < int(scrubber.cacheTTL); i++ {
+	for i := 0; i < int(scrubber.cacheMaxCycles); i++ {
 		for _, p := range testProcs {
 			scrubbed := scrubber.ScrubProcessCommand(&p.FilledProcess)
 			assert.Equal(t, p.parsedCmdline, scrubbed)

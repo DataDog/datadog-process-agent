@@ -20,7 +20,7 @@ var (
 )
 
 const (
-	defaultCacheTTL = 25
+	defaultCacheMaxCycles = 25
 )
 
 // DataScrubber allows the agent to blacklist cmdline arguments that match
@@ -30,8 +30,8 @@ type DataScrubber struct {
 	SensitivePatterns []*regexp.Regexp
 	seenProcess       map[string]struct{}
 	scrubbedCmdlines  map[string][]string
-	cacheCycles       uint32
-	cacheTTL          uint32
+	cacheCycles       uint32 // used to control the cache age
+	cacheMaxCycles    uint32 // number of cycles before resetting the cache content
 }
 
 // NewDefaultDataScrubber creates a DataScrubber with the default behavior: enabled
@@ -43,7 +43,7 @@ func NewDefaultDataScrubber() *DataScrubber {
 		seenProcess:       make(map[string]struct{}),
 		scrubbedCmdlines:  make(map[string][]string),
 		cacheCycles:       0,
-		cacheTTL:          defaultCacheTTL,
+		cacheMaxCycles:    defaultCacheMaxCycles,
 	}
 
 	return newDataScrubber
@@ -132,11 +132,11 @@ func (ds *DataScrubber) ScrubProcessCommand(p *process.FilledProcess) []string {
 	return p.Cmdline
 }
 
-// IncrementCacheAge increments one cycle of cache memory age. If it reaches the
-// TTL, the cache is restarted
+// IncrementCacheAge increments one cycle of cache memory age. If it reaches
+// cacheMaxCycles, the cache is restarted
 func (ds *DataScrubber) IncrementCacheAge() {
 	ds.cacheCycles++
-	if ds.cacheCycles == ds.cacheTTL {
+	if ds.cacheCycles == ds.cacheMaxCycles {
 		ds.seenProcess = make(map[string]struct{})
 		ds.scrubbedCmdlines = make(map[string][]string)
 		ds.cacheCycles = 0
