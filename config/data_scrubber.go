@@ -121,8 +121,7 @@ func (ds *DataScrubber) ScrubProcessCommand(p *process.FilledProcess) []string {
 	pKey := createProcessKey(p)
 	if _, ok := ds.seenProcess[pKey]; !ok {
 		ds.seenProcess[pKey] = struct{}{}
-		scrubbed, changed := ds.scrubCmdline(p.Cmdline)
-		if changed {
+		if scrubbed, changed := ds.scrubCmdline(p.Cmdline); changed {
 			ds.scrubbedCmdlines[pKey] = scrubbed
 		}
 	}
@@ -130,7 +129,6 @@ func (ds *DataScrubber) ScrubProcessCommand(p *process.FilledProcess) []string {
 	if scrubbed, ok := ds.scrubbedCmdlines[pKey]; ok {
 		return scrubbed
 	}
-
 	return p.Cmdline
 }
 
@@ -153,6 +151,7 @@ func (ds *DataScrubber) scrubCmdline(cmdline []string) ([]string, bool) {
 		return cmdline, false
 	}
 
+	newCmdline := cmdline
 	rawCmdline := strings.Join(cmdline, " ")
 	changed := false
 	for _, pattern := range ds.SensitivePatterns {
@@ -163,9 +162,9 @@ func (ds *DataScrubber) scrubCmdline(cmdline []string) ([]string, bool) {
 	}
 
 	if changed {
-		return strings.Split(rawCmdline, " "), changed
+		newCmdline = strings.Split(rawCmdline, " ")
 	}
-	return cmdline, changed
+	return newCmdline, changed
 }
 
 // AddCustomSensitiveWords adds custom sensitive words on the DataScrubber object
