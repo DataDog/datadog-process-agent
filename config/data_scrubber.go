@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
+	"github.com/DataDog/gopsutil/process"
 	log "github.com/cihub/seelog"
 )
 
@@ -17,11 +19,19 @@ var (
 		"secret", "credentials", "stripetoken"}
 )
 
+const (
+	defaultCacheMaxCycles = 25
+)
+
 // DataScrubber allows the agent to blacklist cmdline arguments that match
 // a list of predefined and custom words
 type DataScrubber struct {
 	Enabled           bool
 	SensitivePatterns []*regexp.Regexp
+	seenProcess       map[string]struct{}
+	scrubbedCmdlines  map[string][]string
+	cacheCycles       uint32 // used to control the cache age
+	cacheMaxCycles    uint32 // number of cycles before resetting the cache content
 }
 
 // NewDefaultDataScrubber creates a DataScrubber with the default behavior: enabled
@@ -30,6 +40,10 @@ func NewDefaultDataScrubber() *DataScrubber {
 	newDataScrubber := &DataScrubber{
 		Enabled:           true,
 		SensitivePatterns: compileStringsToRegex(defaultSensitiveWords),
+		seenProcess:       make(map[string]struct{}),
+		scrubbedCmdlines:  make(map[string][]string),
+		cacheCycles:       0,
+		cacheMaxCycles:    defaultCacheMaxCycles,
 	}
 
 	return newDataScrubber
@@ -90,13 +104,54 @@ func compileStringsToRegex(words []string) []*regexp.Regexp {
 	return compiledRegexps
 }
 
-// ScrubCmdline hides any cmdline argument value whose key matches one of the patterns
-// built from the sensitive words
-func (ds *DataScrubber) ScrubCmdline(cmdline []string) []string {
-	if !ds.Enabled {
-		return cmdline
+// createProcessKey returns an unique identifier for a given process
+func createProcessKey(p *process.FilledProcess) string {
+	var b bytes.Buffer
+	b.WriteString("p:")
+	b.WriteString(strconv.Itoa(int(p.Pid)))
+	b.WriteString("|c:")
+	b.WriteString(strconv.Itoa(int(p.CreateTime)))
+
+	return b.String()
+}
+
+// ScrubProcessCommand uses a cache memory to avoid scrubbing already known
+// process' cmdlines
+func (ds *DataScrubber) ScrubProcessCommand(p *process.FilledProcess) []string {
+	pKey := createProcessKey(p)
+	if _, ok := ds.seenProcess[pKey]; !ok {
+		ds.seenProcess[pKey] = struct{}{}
+		if scrubbed, changed := ds.scrubCmdline(p.Cmdline); changed {
+			ds.scrubbedCmdlines[pKey] = scrubbed
+		}
 	}
 
+	if scrubbed, ok := ds.scrubbedCmdlines[pKey]; ok {
+		return scrubbed
+	}
+	return p.Cmdline
+}
+
+// IncrementCacheAge increments one cycle of cache memory age. If it reaches
+// cacheMaxCycles, the cache is restarted
+func (ds *DataScrubber) IncrementCacheAge() {
+	ds.cacheCycles++
+	if ds.cacheCycles == ds.cacheMaxCycles {
+		ds.seenProcess = make(map[string]struct{})
+		ds.scrubbedCmdlines = make(map[string][]string)
+		ds.cacheCycles = 0
+	}
+}
+
+// scrubCmdline hides any cmdline argument value whose key matches one of the patterns
+// built from the sensitive words. It returns a cmdline splitted by espace and a
+// bool indicating whether it was scrubbed or not
+func (ds *DataScrubber) scrubCmdline(cmdline []string) ([]string, bool) {
+	if !ds.Enabled {
+		return cmdline, false
+	}
+
+	newCmdline := cmdline
 	rawCmdline := strings.Join(cmdline, " ")
 	changed := false
 	for _, pattern := range ds.SensitivePatterns {
@@ -107,9 +162,9 @@ func (ds *DataScrubber) ScrubCmdline(cmdline []string) []string {
 	}
 
 	if changed {
-		return strings.Split(rawCmdline, " ")
+		newCmdline = strings.Split(rawCmdline, " ")
 	}
-	return cmdline
+	return newCmdline, changed
 }
 
 // AddCustomSensitiveWords adds custom sensitive words on the DataScrubber object
