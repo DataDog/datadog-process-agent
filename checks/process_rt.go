@@ -147,7 +147,7 @@ func fmtProcessStats(
 func calculateRate(cur, prev uint64, before time.Time) float32 {
 	now := time.Now()
 	diff := now.Unix() - before.Unix()
-	if before.IsZero() || diff <= 0 {
+	if before.IsZero() || diff <= 0 || prev == 0 {
 		return 0
 	}
 	return float32(cur-prev) / float32(diff)

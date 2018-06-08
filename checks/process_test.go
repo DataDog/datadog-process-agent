@@ -125,6 +125,17 @@ func TestPercentCalculation(t *testing.T) {
 	}
 }
 
+func TestRateCalculation(t *testing.T) {
+	now := time.Now()
+	prev := now.Add(-1 * time.Second)
+	var empty time.Time
+	assert.True(t, floatEquals(calculateRate(5, 1, prev), 4))
+	assert.True(t, floatEquals(calculateRate(5, 1, prev.Add(-2*time.Second)), float32(1.33333333)))
+	assert.True(t, floatEquals(calculateRate(5, 1, now), 0))
+	assert.True(t, floatEquals(calculateRate(5, 0, prev), 0))
+	assert.True(t, floatEquals(calculateRate(5, 1, empty), 0))
+}
+
 func floatEquals(a, b float32) bool {
 	var e float32 = 0.00000001 // Difference less than some epsilon
 	return a-b < e && b-a < e
