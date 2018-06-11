@@ -26,7 +26,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 	// Checking whether the current kernel version is supported by the tracer
 	if c.supported, err = tracer.IsTracerSupportedByOS(); err != nil {
 		// err is always returned when false, so the above catches the !ok case as well
-		log.Errorf("network tracer unsupported by OS: %s", err)
+		log.Warnf("network tracer unsupported by OS: %s", err)
 		return
 	}
 
@@ -82,8 +82,8 @@ func formatConnections(conns []tracer.ConnectionStats) []*model.Connection {
 	for _, c := range conns {
 		cxs = append(cxs, &model.Connection{
 			Pid:    int32(c.Pid),
-			Family: int32(formatFamily(c.Family)),
-			Type:   int32(formatType(c.Type)),
+			Family: formatFamily(c.Family),
+			Type:   formatType(c.Type),
 			Laddr: &model.Addr{
 				Ip:   c.Source,
 				Port: int32(c.SPort),

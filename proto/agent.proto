@@ -40,7 +40,7 @@ message CollectorProc {
 message CollectorConnections {
 	string hostName = 2;
 	repeated Connection connections = 3;
-	Host host = 4;
+	Host host = 4; // Post-resolved field
 }
 
 message CollectorRealTime {
@@ -306,14 +306,16 @@ enum ConnectionFamily {
 
 message Connection {
 	int32 pid = 1;
-	// int32 fd = 2;         // Unused for now -- may be deprecated
-	int32 family = 3;
-	int32 type = 4;
-	Addr  laddr = 5;         // Local address
-	Addr  raddr = 6;         // Remote address
-	// string status = 7;    // Unused for now -- may be deprecated
+	// 2 is deprecated
+	// 3 is deprecated
+	// 4 is deprecated
+	Addr laddr = 5; // Local address
+	Addr raddr = 6; // Remote address
+	// 7 is deprecated
 	int64 bytesSent = 8;
 	int64 bytesRecieved = 9;
+	ConnectionFamily family = 10;
+	ConnectionType type = 11;
 }
 
 message Addr {
