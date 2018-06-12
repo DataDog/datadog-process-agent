@@ -40,7 +40,7 @@ message CollectorProc {
 message CollectorConnections {
 	string hostName = 2;
 	repeated Connection connections = 3;
-	Host host = 4;
+	Host host = 4; // Post-resolved field
 }
 
 message CollectorRealTime {
@@ -294,14 +294,28 @@ message IOStat {
 	float writeBytesRate = 4;
 }
 
+enum ConnectionType {
+	tcp = 0;
+	udp = 1;
+}
+
+enum ConnectionFamily {
+	v4 = 0;
+	v6 = 1;
+}
+
 message Connection {
 	int32 pid = 1;
-	int32 fd = 2;
-	int32 family = 3;
-	int32 type = 4;
-	Addr  laddr = 5;
-	Addr  raddr = 6;
-	string status = 7;
+	// 2 is deprecated
+	// 3 is deprecated
+	// 4 is deprecated
+	Addr laddr = 5; // Local address
+	Addr raddr = 6; // Remote address
+	// 7 is deprecated
+	float bytesSent = 8;
+	float bytesRecieved = 9;
+	ConnectionFamily family = 10;
+	ConnectionType type = 11;
 }
 
 message Addr {

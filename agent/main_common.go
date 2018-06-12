@@ -217,11 +217,16 @@ func debugCheckResults(cfg *config.AgentConfig, check string) error {
 
 func printResults(cfg *config.AgentConfig, ch checks.Check) error {
 	// Run the check once to prime the cache.
-	_, err := ch.Run(cfg, 0)
-	if err != nil {
+	if _, err := ch.Run(cfg, 0); err != nil {
 		return fmt.Errorf("collection error: %s", err)
 	}
-	time.Sleep(1 * time.Second)
+
+	if ch.Name() == checks.Connections.Name() {
+		fmt.Printf("Waiting 5 seconds to allow for active connections to transmit data\n")
+		time.Sleep(5 * time.Second)
+	} else {
+		time.Sleep(1 * time.Second)
+	}
 
 	fmt.Printf("-----------------------------\n\n")
 	fmt.Printf("\nResults for check %s\n", ch.Name())
