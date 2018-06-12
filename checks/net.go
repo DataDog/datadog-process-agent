@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"bytes"
 	"time"
 
 	log "github.com/cihub/seelog"
@@ -17,6 +18,11 @@ var Connections = &ConnectionsCheck{}
 type ConnectionsCheck struct {
 	tracer    *tracer.Tracer
 	supported bool
+
+	prevCheckConns []tracer.ConnectionStats
+	prevCheckTime  time.Time
+
+	buf *bytes.Buffer // Internal buffer
 }
 
 // Init initializes a ConnectionsCheck instance.
@@ -38,6 +44,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 
 	c.tracer = t
 	c.tracer.Start()
+	c.buf = new(bytes.Buffer)
 }
 
 // Name returns the name of the ConnectionsCheck.
@@ -69,31 +76,54 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 		return nil, err
 	}
 
+	if c.prevCheckConns == nil { // End check early if this is our first run.
+		c.prevCheckConns = conns
+		c.prevCheckTime = time.Now()
+		return nil, nil
+	}
+
+	// Temporary map to help find matching connections from previous check
+	lastConnByKey := make(map[string]tracer.ConnectionStats)
+	for _, conn := range c.prevCheckConns {
+		if b, err := conn.ByteKey(c.buf); err == nil {
+			lastConnByKey[string(b)] = conn
+		} else {
+			log.Debugf("failed to create connection byte key: %s", err)
+		}
+	}
+
 	log.Infof("collected connections in %s", time.Since(start))
 	return []model.MessageBody{&model.CollectorConnections{
 		HostName:    cfg.HostName,
-		Connections: formatConnections(conns),
+		Connections: c.formatConnections(conns, lastConnByKey, c.prevCheckTime),
 	}}, nil
 }
 
 // TODO: Break up large connection messages into batches
-func formatConnections(conns []tracer.ConnectionStats) []*model.Connection {
+func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, lastConns map[string]tracer.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
 	cxs := make([]*model.Connection, 0, len(conns))
-	for _, c := range conns {
+	for _, conn := range conns {
+		b, err := conn.ByteKey(c.buf)
+		if err != nil {
+			log.Debugf("failed to create connection byte key: %s", err)
+			continue
+		}
+
+		key := string(b)
 		cxs = append(cxs, &model.Connection{
-			Pid:    int32(c.Pid),
-			Family: formatFamily(c.Family),
-			Type:   formatType(c.Type),
+			Pid:    int32(conn.Pid),
+			Family: formatFamily(conn.Family),
+			Type:   formatType(conn.Type),
 			Laddr: &model.Addr{
-				Ip:   c.Source,
-				Port: int32(c.SPort),
+				Ip:   conn.Source,
+				Port: int32(conn.SPort),
 			},
 			Raddr: &model.Addr{
-				Ip:   c.Dest,
-				Port: int32(c.DPort),
+				Ip:   conn.Dest,
+				Port: int32(conn.DPort),
 			},
-			BytesSent:     int64(c.SendBytes), // TODO: Consider sending rate instead of cumulative byte counts
-			BytesRecieved: int64(c.RecvBytes),
+			BytesSent:     calculateRate(conn.SendBytes, lastConns[key].SendBytes, lastCheckTime),
+			BytesRecieved: calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
 		})
 	}
 	return cxs

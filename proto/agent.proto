@@ -312,8 +312,8 @@ message Connection {
 	Addr laddr = 5; // Local address
 	Addr raddr = 6; // Remote address
 	// 7 is deprecated
-	int64 bytesSent = 8;
-	int64 bytesRecieved = 9;
+	float bytesSent = 8;
+	float bytesRecieved = 9;
 	ConnectionFamily family = 10;
 	ConnectionType type = 11;
 }
