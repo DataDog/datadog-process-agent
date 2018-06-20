@@ -40,7 +40,13 @@ message CollectorProc {
 message CollectorConnections {
 	string hostName = 2;
 	repeated Connection connections = 3;
-	Host host = 4; // Post-resolved field
+
+	// Post-resolved field
+	Host host = 4;
+
+	// Message batching metadata
+	int32 groupId = 5;
+	int32 groupSize = 6;
 }
 
 message CollectorRealTime {
@@ -87,11 +93,9 @@ message CollectorContainerRealTime {
 	int32 groupSize = 7;
 }
 
-
 message CollectorReqStatus {
 	string hostName = 2;
 }
-
 
 //
 // Models
@@ -365,6 +369,7 @@ message CPUInfo {
 }
 
 // Host and HostTags are used in backend post-resolution
+
 message Host {
 	int32 id = 1;
 	int32 orgId = 2;
