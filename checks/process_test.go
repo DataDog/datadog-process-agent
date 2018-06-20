@@ -80,7 +80,7 @@ func TestProcessChunking(t *testing.T) {
 			bl = append(bl, regexp.MustCompile(s))
 		}
 		cfg.Blacklist = bl
-		cfg.ProcLimit = tc.maxSize
+		cfg.MaxPerMessage = tc.maxSize
 
 		cur := make(map[int32]*process.FilledProcess)
 		for _, c := range tc.cur {

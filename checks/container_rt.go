@@ -50,8 +50,8 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 		return nil, nil
 	}
 
-	groupSize := len(containers) / cfg.ProcLimit
-	if len(containers) != cfg.ProcLimit {
+	groupSize := len(containers) / cfg.MaxPerMessage
+	if len(containers) != cfg.MaxPerMessage {
 		groupSize++
 	}
 	chunked := fmtContainerStats(containers, r.lastContainers, r.lastRun, groupSize)

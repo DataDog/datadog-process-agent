@@ -61,7 +61,7 @@ type AgentConfig struct {
 	Blacklist     []*regexp.Regexp
 	Scrubber      *DataScrubber
 	MaxProcFDs    int
-	ProcLimit     int
+	MaxPerMessage int
 	AllowRealTime bool
 	Transport     *http.Transport `json:"-"`
 	Logger        *LoggerConfig
@@ -105,7 +105,7 @@ func (a AgentConfig) CheckInterval(checkName string) time.Duration {
 
 const (
 	defaultEndpoint = "https://process.datadoghq.com"
-	maxProcLimit    = 100
+	maxMessageBatch = 100
 )
 
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
@@ -128,7 +128,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		LogToConsole:  false,
 		QueueSize:     20,
 		MaxProcFDs:    200,
-		ProcLimit:     100,
+		MaxPerMessage: 100,
 		AllowRealTime: true,
 		HostName:      "",
 		Transport: &http.Transport{
@@ -272,12 +272,12 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		customSensitiveWords := agentIni.GetStrArrayDefault(ns, "custom_sensitive_words", ",", []string{})
 		cfg.Scrubber.AddCustomSensitiveWords(customSensitiveWords)
 
-		procLimit := agentIni.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
-		if procLimit <= maxProcLimit {
-			cfg.ProcLimit = procLimit
+		batchSize := agentIni.GetIntDefault(ns, "proc_limit", cfg.MaxPerMessage)
+		if batchSize <= maxMessageBatch {
+			cfg.MaxPerMessage = batchSize
 		} else {
-			log.Warn("Overriding the configured process limit because it exceeds maximum")
-			cfg.ProcLimit = maxProcLimit
+			log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
+			cfg.MaxPerMessage = maxMessageBatch
 		}
 
 		// Checks intervals can be overriden by configuration.

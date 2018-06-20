@@ -51,7 +51,7 @@ type YamlAgentConfig struct {
 		// The maximum number of file descriptors to open when collecting net connections.
 		// Only change if you are running out of file descriptors from the Agent.
 		MaxProcFDs int `yaml:"max_proc_fds"`
-		// The maximum number of processes or containers per message.
+		// The maximum number of processes, connections or containers per message.
 		// Only change if the defaults are causing issues.
 		MaxPerMessage int `yaml:"max_per_message"`
 		// Overrides the path to the Agent bin used for getting the hostname. The default is usually fine.
@@ -158,10 +158,10 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		agentConf.MaxProcFDs = yc.Process.MaxProcFDs
 	}
 	if yc.Process.MaxPerMessage > 0 {
-		if yc.Process.MaxPerMessage <= maxProcLimit {
-			agentConf.ProcLimit = yc.Process.MaxPerMessage
+		if yc.Process.MaxPerMessage <= maxMessageBatch {
+			agentConf.MaxPerMessage = yc.Process.MaxPerMessage
 		} else {
-			log.Warn("Overriding the configured process limit because it exceeds maximum")
+			log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
 		}
 	}
 	agentConf.DDAgentBin = defaultDDAgentBin

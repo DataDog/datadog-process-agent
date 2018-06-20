@@ -121,7 +121,7 @@ func fmtProcesses(
 	}
 
 	chunked := make([][]*model.Process, 0)
-	chunk := make([]*model.Process, 0, cfg.ProcLimit)
+	chunk := make([]*model.Process, 0, cfg.MaxPerMessage)
 	for _, fp := range procs {
 		if skipProcess(cfg, fp, lastProcs) {
 			continue
@@ -149,9 +149,9 @@ func fmtProcesses(
 			InvoluntaryCtxSwitches: uint64(fp.CtxSwitches.Involuntary),
 			ContainerId:            ctr.ID,
 		})
-		if len(chunk) == cfg.ProcLimit {
+		if len(chunk) == cfg.MaxPerMessage {
 			chunked = append(chunked, chunk)
-			chunk = make([]*model.Process, 0, cfg.ProcLimit)
+			chunk = make([]*model.Process, 0, cfg.MaxPerMessage)
 		}
 	}
 	if len(chunk) > 0 {
