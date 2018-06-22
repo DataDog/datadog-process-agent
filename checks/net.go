@@ -93,7 +93,6 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 	}
 
 	log.Infof("collected connections in %s", time.Since(start))
-
 	return batchConnections(cfg, groupID, c.formatConnections(conns, lastConnByKey, c.prevCheckTime)), nil
 }
 
@@ -133,6 +132,7 @@ func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, las
 			BytesRecieved: calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
 		})
 	}
+	c.prevCheckConns = conns
 	return cxs
 }
 
