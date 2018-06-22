@@ -151,8 +151,8 @@ func formatType(f tracer.ConnectionType) model.ConnectionType {
 }
 
 func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
-	batches := make([]model.MessageBody, 0)
 	groupSize := groupSize(len(cxs), cfg.MaxPerMessage)
+	batches := make([]model.MessageBody, 0, groupSize)
 
 	for len(cxs) > 0 {
 		batchSize := min(cfg.MaxPerMessage, len(cxs))
