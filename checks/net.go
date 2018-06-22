@@ -92,23 +92,9 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 		}
 	}
 
-	batches := make([]model.MessageBody, 0)
-	cxs := c.formatConnections(conns, lastConnByKey, c.prevCheckTime)
-	groupSize := groupSize(len(cxs), cfg.MaxPerMessage)
-
-	for l := len(cxs); l > 0; {
-		batchSize := min(cfg.MaxPerMessage, l)
-		batches = append(batches, &model.CollectorConnections{
-			HostName:    cfg.HostName,
-			Connections: cxs[:batchSize],
-			GroupId:     groupID,
-			GroupSize:   groupSize,
-		})
-		cxs = cxs[batchSize:]
-	}
-
 	log.Infof("collected connections in %s", time.Since(start))
-	return batches, nil
+
+	return batchConnections(cfg, groupID, c.formatConnections(conns, lastConnByKey, c.prevCheckTime)), nil
 }
 
 // Connections are split up into a chunks of at most 100 connections per message to
@@ -162,6 +148,23 @@ func formatType(f tracer.ConnectionType) model.ConnectionType {
 	default:
 		return -1
 	}
+}
+
+func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
+	batches := make([]model.MessageBody, 0)
+	groupSize := groupSize(len(cxs), cfg.MaxPerMessage)
+
+	for len(cxs) > 0 {
+		batchSize := min(cfg.MaxPerMessage, len(cxs))
+		batches = append(batches, &model.CollectorConnections{
+			HostName:    cfg.HostName,
+			Connections: cxs[:batchSize],
+			GroupId:     groupID,
+			GroupSize:   groupSize,
+		})
+		cxs = cxs[batchSize:]
+	}
+	return batches
 }
 
 func min(a, b int) int {
