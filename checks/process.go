@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"sync"
 	"time"
 
 	"github.com/DataDog/gopsutil/cpu"
@@ -21,6 +22,8 @@ var Process = &ProcessCheck{}
 // for live and running processes. The instance will store some state between
 // checks that will be used for rates, cpu calculations, etc.
 type ProcessCheck struct {
+	sync.Mutex
+
 	sysInfo        *model.SystemInfo
 	lastCPUTime    cpu.TimesStat
 	lastProcs      map[int32]*process.FilledProcess
@@ -50,6 +53,9 @@ func (p *ProcessCheck) RealTime() bool { return false }
 // limit the message size on intake.
 // See agent.proto for the schema of the message and models used.
 func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
+	p.Lock()
+	defer p.Unlock()
+
 	start := time.Now()
 	cpuTimes, err := cpu.Times(false)
 	if err != nil {
@@ -249,20 +255,15 @@ func skipProcess(
 	return false
 }
 
-// chunkProcesses chunks a slice of model.Process into `chunks` of equal size.
-func chunkProcesses(msgs []*model.Process, chunks int) [][]*model.Process {
-	perChunk := (len(msgs) / chunks) + 1
-	chunked := make([][]*model.Process, 0, chunks)
-	for i := 0; i < chunks; i++ {
-		start := perChunk * i
-		if start > len(msgs) {
-			start = len(msgs)
+func (p *ProcessCheck) createTimesforPIDs(pids []uint32) map[uint32]int64 {
+	p.Lock()
+	defer p.Unlock()
+
+	createTimeForPID := make(map[uint32]int64)
+	for _, pid := range pids {
+		if p, ok := p.lastProcs[int32(pid)]; ok {
+			createTimeForPID[pid] = p.CreateTime
 		}
-		end := perChunk * (i + 1)
-		if end > len(msgs) {
-			end = len(msgs)
-		}
-		chunked = append(chunked, msgs[start:end])
 	}
-	return chunked
+	return createTimeForPID
 }
