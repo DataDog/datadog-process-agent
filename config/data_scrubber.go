@@ -27,6 +27,7 @@ const (
 // a list of predefined and custom words
 type DataScrubber struct {
 	Enabled           bool
+	StripAllArguments bool
 	SensitivePatterns []*regexp.Regexp
 	seenProcess       map[string]struct{}
 	scrubbedCmdlines  map[string][]string
@@ -118,10 +119,18 @@ func createProcessKey(p *process.FilledProcess) string {
 // ScrubProcessCommand uses a cache memory to avoid scrubbing already known
 // process' cmdlines
 func (ds *DataScrubber) ScrubProcessCommand(p *process.FilledProcess) []string {
+	if ds.StripAllArguments {
+		return ds.stripArguments(p.Cmdline)
+	}
+
+	if !ds.Enabled {
+		return p.Cmdline
+	}
+
 	pKey := createProcessKey(p)
 	if _, ok := ds.seenProcess[pKey]; !ok {
 		ds.seenProcess[pKey] = struct{}{}
-		if scrubbed, changed := ds.scrubCmdline(p.Cmdline); changed {
+		if scrubbed, changed := ds.scrubCommand(p.Cmdline); changed {
 			ds.scrubbedCmdlines[pKey] = scrubbed
 		}
 	}
@@ -143,20 +152,15 @@ func (ds *DataScrubber) IncrementCacheAge() {
 	}
 }
 
-// scrubCmdline hides any cmdline argument value whose key matches one of the patterns
-// built from the sensitive words. It returns a cmdline splitted by espace and a
-// bool indicating whether it was scrubbed or not
-func (ds *DataScrubber) scrubCmdline(cmdline []string) ([]string, bool) {
-	if !ds.Enabled {
-		return cmdline, false
-	}
-
+// scrubCommand hides the argument value for any key which matches a "sensitive word" pattern.
+// It returns the updated cmdline, as well as a boolean representing whether it was scrubbed
+func (ds *DataScrubber) scrubCommand(cmdline []string) ([]string, bool) {
 	newCmdline := cmdline
 	rawCmdline := strings.Join(cmdline, " ")
 	changed := false
 	for _, pattern := range ds.SensitivePatterns {
 		if pattern.MatchString(rawCmdline) {
-			changed = changed || true
+			changed = true
 			rawCmdline = pattern.ReplaceAllString(rawCmdline, "${key}${delimiter}********")
 		}
 	}
@@ -165,6 +169,16 @@ func (ds *DataScrubber) scrubCmdline(cmdline []string) ([]string, bool) {
 		newCmdline = strings.Split(rawCmdline, " ")
 	}
 	return newCmdline, changed
+}
+
+// Strip away all arguments from the command line
+func (ds *DataScrubber) stripArguments(cmdline []string) []string {
+	// We will sometimes see the entire command line come in via the first element -- splitting guarantees removal
+	// of arguments in these cases.
+	if len(cmdline) > 0 {
+		return []string{strings.Split(cmdline[0], " ")[0]}
+	}
+	return cmdline
 }
 
 // AddCustomSensitiveWords adds custom sensitive words on the DataScrubber object

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/gopsutil/process"
 	"github.com/go-ini/ini"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
@@ -95,7 +96,7 @@ func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
 	}
 
 	for i := range cases {
-		cases[i].cmdline, _ = agentConfig.Scrubber.scrubCmdline(cases[i].cmdline)
+		cases[i].cmdline, _ = agentConfig.Scrubber.scrubCommand(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 
@@ -120,7 +121,8 @@ func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
 	}
 
 	for i := range cases {
-		cases[i].cmdline, _ = agentConfig.Scrubber.scrubCmdline(cases[i].cmdline)
+		fp := &process.FilledProcess{Cmdline: cases[i].cmdline}
+		cases[i].cmdline = agentConfig.Scrubber.ScrubProcessCommand(fp)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 
