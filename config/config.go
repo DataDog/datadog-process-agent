@@ -271,6 +271,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		cfg.Scrubber.Enabled = agentIni.GetBool(ns, "scrub_args", true)
 		customSensitiveWords := agentIni.GetStrArrayDefault(ns, "custom_sensitive_words", ",", []string{})
 		cfg.Scrubber.AddCustomSensitiveWords(customSensitiveWords)
+		cfg.Scrubber.StripAllArguments = agentIni.GetBool(ns, "strip_proc_arguments", false)
 
 		procLimit := agentIni.GetIntDefault(ns, "proc_limit", cfg.ProcLimit)
 		if procLimit <= maxProcLimit {
@@ -420,6 +421,9 @@ func mergeEnv(c *AgentConfig) *AgentConfig {
 
 	if v := os.Getenv("DD_CUSTOM_SENSITIVE_WORDS"); v != "" {
 		c.Scrubber.AddCustomSensitiveWords(strings.Split(v, ","))
+	}
+	if ok, _ := isAffirmative(os.Getenv("DD_STRIP_PROCESS_ARGS")); ok {
+		c.Scrubber.StripAllArguments = true
 	}
 
 	if v := os.Getenv("DD_AGENT_PY"); v != "" {
