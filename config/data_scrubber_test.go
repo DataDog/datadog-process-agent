@@ -256,7 +256,7 @@ func TestUncompilableWord(t *testing.T) {
 	}
 
 	for i := range cases {
-		cases[i].cmdline, _ = scrubber.scrubCmdline(cases[i].cmdline)
+		cases[i].cmdline, _ = scrubber.scrubCommand(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 }
@@ -266,7 +266,7 @@ func TestBlacklistedArgs(t *testing.T) {
 	scrubber := setupDataScrubber(t)
 
 	for i := range cases {
-		cases[i].cmdline, _ = scrubber.scrubCmdline(cases[i].cmdline)
+		cases[i].cmdline, _ = scrubber.scrubCommand(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 }
@@ -298,7 +298,43 @@ func TestBlacklistedArgsWhenDisabled(t *testing.T) {
 	scrubber.Enabled = false
 
 	for i := range cases {
-		cases[i].cmdline, _ = scrubber.scrubCmdline(cases[i].cmdline)
+		fp := &process.FilledProcess{Cmdline: cases[i].cmdline}
+		cases[i].cmdline = scrubber.ScrubProcessCommand(fp)
+		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
+	}
+}
+
+func TestScrubberStrippingAllArgument(t *testing.T) {
+	cases := []struct {
+		cmdline       []string
+		parsedCmdline []string
+	}{
+		{[]string{"agent", "-password", "1234"}, []string{"agent"}},
+		{[]string{"agent", "--password", "1234"}, []string{"agent"}},
+		{[]string{"agent", "-password=1234"}, []string{"agent"}},
+		{[]string{"agent", "--password=1234"}, []string{"agent"}},
+		{[]string{"fitz", "-consul_token=1234567890"}, []string{"fitz"}},
+		{[]string{"fitz", "--consul_token=1234567890"}, []string{"fitz"}},
+		{[]string{"fitz", "-consul_token", "1234567890"}, []string{"fitz"}},
+		{[]string{"fitz", "--consul_token", "1234567890"}, []string{"fitz"}},
+		{
+			[]string{"python ~/test/run.py --password=1234 -password 1234 -open_password=admin -consul_token 2345 -blocked_from_yaml=1234 &"},
+			[]string{"python"},
+		},
+		{[]string{"agent", "-PASSWORD", "1234"}, []string{"agent"}},
+		{[]string{"agent", "--PASSword", "1234"}, []string{"agent"}},
+		{[]string{"agent", "--PaSsWoRd=1234"}, []string{"agent"}},
+		{[]string{"java -password      1234"}, []string{"java"}},
+		{[]string{"agent", "password:1234"}, []string{"agent"}},
+		{[]string{"agent password:1234"}, []string{"agent"}},
+	}
+
+	scrubber := setupDataScrubber(t)
+	scrubber.StripAllArguments = true
+
+	for i := range cases {
+		fp := &process.FilledProcess{Cmdline: cases[i].cmdline}
+		cases[i].cmdline = scrubber.ScrubProcessCommand(fp)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 }
@@ -308,7 +344,7 @@ func TestNoBlacklistedArgs(t *testing.T) {
 	scrubber := setupDataScrubber(t)
 
 	for i := range cases {
-		cases[i].cmdline, _ = scrubber.scrubCmdline(cases[i].cmdline)
+		cases[i].cmdline, _ = scrubber.scrubCommand(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 }
@@ -318,7 +354,7 @@ func TestMatchWildCards(t *testing.T) {
 	scrubber := setupDataScrubberWildCard(t)
 
 	for i := range cases {
-		cases[i].cmdline, _ = scrubber.scrubCmdline(cases[i].cmdline)
+		cases[i].cmdline, _ = scrubber.scrubCommand(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 }
@@ -378,7 +414,7 @@ func benchmarkRegexMatching(nbProcesses int, b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		for _, p := range runningProcesses {
-			r, _ = scrubber.scrubCmdline(p)
+			r, _ = scrubber.scrubCommand(p)
 		}
 	}
 
@@ -429,7 +465,7 @@ func benchmarkWithoutCache(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		for i := 0; i < len(fps); i++ {
-			r, _ = scrubber.scrubCmdline(fps[i].Cmdline)
+			r, _ = scrubber.scrubCommand(fps[i].Cmdline)
 		}
 	}
 	avoidOptimization = r

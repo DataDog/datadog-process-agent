@@ -16,7 +16,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/util/container"
 )
 
-// YamlAgentConfig is a sturcutre used for marshaling the datadog.yaml configuratio
+// YamlAgentConfig is a structure used for marshaling the datadog.yaml configuration
 // available in Agent versions >= 6
 type YamlAgentConfig struct {
 	APIKey string `yaml:"api_key"`
@@ -46,6 +46,8 @@ type YamlAgentConfig struct {
 		ScrubArgs *bool `yaml:"scrub_args,omitempty"`
 		// A custom word list to enhance the default one used by the DataScrubber
 		CustomSensitiveWords []string `yaml:"custom_sensitive_words"`
+		// Strips all process arguments
+		StripProcessArguments bool `yaml:"strip_proc_arguments"`
 		// How many check results to buffer in memory when POST fails. The default is usually fine.
 		QueueSize int `yaml:"queue_size"`
 		// The maximum number of file descriptors to open when collecting net connections.
@@ -150,6 +152,9 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		agentConf.Scrubber.Enabled = *yc.Process.ScrubArgs
 	}
 	agentConf.Scrubber.AddCustomSensitiveWords(yc.Process.CustomSensitiveWords)
+	if yc.Process.StripProcessArguments {
+		agentConf.Scrubber.StripAllArguments = yc.Process.StripProcessArguments
+	}
 
 	if yc.Process.QueueSize > 0 {
 		agentConf.QueueSize = yc.Process.QueueSize
