@@ -93,13 +93,15 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 	}
 
 	log.Infof("collected connections in %s", time.Since(start))
-
 	return batchConnections(cfg, groupID, c.formatConnections(conns, lastConnByKey, c.prevCheckTime)), nil
 }
 
 // Connections are split up into a chunks of at most 100 connections per message to
 // limit the message size on intake.
 func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, lastConns map[string]tracer.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
+	// Process create-times required to construct unique process hash keys on the backend
+	createTimeForPID := Process.createTimesforPIDs(connectionPIDs(conns))
+
 	cxs := make([]*model.Connection, 0, len(conns))
 	for _, conn := range conns {
 		b, err := conn.ByteKey(c.buf)
@@ -108,11 +110,16 @@ func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, las
 			continue
 		}
 
+		if _, ok := createTimeForPID[conn.Pid]; !ok {
+			continue
+		}
+
 		key := string(b)
 		cxs = append(cxs, &model.Connection{
-			Pid:    int32(conn.Pid),
-			Family: formatFamily(conn.Family),
-			Type:   formatType(conn.Type),
+			Pid:           int32(conn.Pid),
+			PidCreateTime: createTimeForPID[conn.Pid],
+			Family:        formatFamily(conn.Family),
+			Type:          formatType(conn.Type),
 			Laddr: &model.Addr{
 				Ip:   conn.Source,
 				Port: int32(conn.SPort),
@@ -125,6 +132,7 @@ func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, las
 			BytesRecieved: calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
 		})
 	}
+	c.prevCheckConns = conns
 	return cxs
 }
 
@@ -180,4 +188,17 @@ func groupSize(total, maxBatchSize int) int32 {
 		groupSize++
 	}
 	return int32(groupSize)
+}
+
+func connectionPIDs(conns []tracer.ConnectionStats) []uint32 {
+	ps := make(map[uint32]struct{}) // Map used to represent a set
+	for _, c := range conns {
+		ps[c.Pid] = struct{}{}
+	}
+
+	pids := make([]uint32, 0, len(ps))
+	for pid := range ps {
+		pids = append(pids, pid)
+	}
+	return pids
 }
