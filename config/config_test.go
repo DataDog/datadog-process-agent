@@ -74,7 +74,7 @@ func TestOnlyEnvConfig(t *testing.T) {
 	os.Setenv("DD_API_KEY", "apikey_from_env")
 
 	agentConfig, _ := NewAgentConfig(nil, nil)
-	assert.Equal(t, "apikey_from_env", agentConfig.APIKey)
+	assert.Equal(t, "apikey_from_env", agentConfig.APIEndpoints[0].APIKey)
 
 	os.Setenv("DD_API_KEY", "")
 }
@@ -164,11 +164,23 @@ func TestGetHostname(t *testing.T) {
 
 func TestDDAgentMultiAPIKeys(t *testing.T) {
 	assert := assert.New(t)
-	ddAgentConf, _ := ini.Load([]byte("[Main]\n\napi_key=foo, bar "))
+	ddAgentConf, _ := ini.Load([]byte("[Main]\n\napi_key=foo,bar "))
 	configFile := &File{instance: ddAgentConf, Path: "whatever"}
+	agentConfig, err := NewAgentConfig(configFile, nil)
+	assert.Error(err)
 
-	agentConfig, _ := NewAgentConfig(configFile, nil)
-	assert.Equal("foo", agentConfig.APIKey)
+	ddAgentConf, _ = ini.Load([]byte(strings.Join([]string{
+		"[Main]",
+		"api_key = foo,bar",
+		"[process.config]",
+		"endpoint=https://process.datadoghq.com,https://process.datadoghq.eu",
+	}, "\n")))
+	configFile = &File{instance: ddAgentConf, Path: "whatever"}
+	agentConfig, err = NewAgentConfig(configFile, nil)
+	assert.Equal("foo", agentConfig.APIEndpoints[0].APIKey)
+	assert.Equal("process.datadoghq.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
+	assert.Equal("bar", agentConfig.APIEndpoints[1].APIKey)
+	assert.Equal("process.datadoghq.eu", agentConfig.APIEndpoints[1].Endpoint.Hostname())
 }
 
 func TestDefaultConfig(t *testing.T) {
@@ -206,7 +218,7 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 	agentConfig, err := NewAgentConfig(conf, nil)
 	assert.NoError(err)
 
-	assert.Equal("apikey_12", agentConfig.APIKey)
+	assert.Equal("apikey_12", agentConfig.APIEndpoints[0].APIKey)
 	assert.Equal(5, agentConfig.QueueSize)
 	assert.Equal(false, agentConfig.AllowRealTime)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
@@ -243,8 +255,9 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 	agentConfig, err := NewAgentConfig(conf, ddy)
 	assert.NoError(err)
 
-	assert.Equal("apikey_20", agentConfig.APIKey)
-	assert.Equal("my-process-app.datadoghq.com", agentConfig.APIEndpoint.Hostname())
+	ep := agentConfig.APIEndpoints[0]
+	assert.Equal("apikey_20", ep.APIKey)
+	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
 	assert.Equal(10, agentConfig.QueueSize)
 	assert.Equal(false, agentConfig.AllowRealTime)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
@@ -276,8 +289,9 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	agentConfig, err := NewAgentConfig(nil, &ddy)
 	assert.NoError(err)
 
-	assert.Equal("apikey_20", agentConfig.APIKey)
-	assert.Equal("my-process-app.datadoghq.com", agentConfig.APIEndpoint.Hostname())
+	ep := agentConfig.APIEndpoints[0]
+	assert.Equal("apikey_20", ep.APIKey)
+	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
 	assert.Equal(10, agentConfig.QueueSize)
 	assert.Equal(true, agentConfig.AllowRealTime)
 	assert.Equal(true, agentConfig.Enabled)
@@ -308,8 +322,9 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 
 	agentConfig, err = NewAgentConfig(nil, &ddy)
 	assert.NoError(err)
-	assert.Equal("apikey_20", agentConfig.APIKey)
-	assert.Equal("my-process-app.datadoghq.com", agentConfig.APIEndpoint.Hostname())
+	ep = agentConfig.APIEndpoints[0]
+	assert.Equal("apikey_20", ep.APIKey)
+	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
 	assert.Equal(true, agentConfig.Enabled)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 	assert.Equal(-1, agentConfig.Windows.ArgsRefreshInterval)
@@ -332,8 +347,43 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 
 	agentConfig, err = NewAgentConfig(nil, &ddy)
 	assert.NoError(err)
-	assert.Equal("apikey_20", agentConfig.APIKey)
-	assert.Equal("my-process-app.datadoghq.com", agentConfig.APIEndpoint.Hostname())
+	ep = agentConfig.APIEndpoints[0]
+	assert.Equal("apikey_20", ep.APIKey)
+	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
+	assert.Equal(false, agentConfig.Enabled)
+	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(15, agentConfig.Windows.ArgsRefreshInterval)
+	assert.Equal(true, agentConfig.Windows.AddNewArgs)
+	assert.Equal(true, agentConfig.Scrubber.Enabled)
+
+	ddy = YamlAgentConfig{}
+	err = yaml.Unmarshal([]byte(strings.Join([]string{
+		"api_key: apikey_20",
+		"process_agent_enabled: true",
+		"process_config:",
+		"  enabled: 'disabled'",
+		"  process_dd_url: http://my-process-app.datadoghq.com",
+		"  additional_endpoints:",
+		"    https://process.datadoghq.eu:",
+		"      - foo",
+		"      - bar",
+		"  queue_size: 10",
+		"  intervals:",
+		"    container: 8",
+		"    process: 30",
+	}, "\n")), &ddy)
+	assert.NoError(err)
+
+	agentConfig, err = NewAgentConfig(nil, &ddy)
+	assert.NoError(err)
+	eps := agentConfig.APIEndpoints
+	assert.Len(agentConfig.APIEndpoints, 3)
+	assert.Equal("apikey_20", eps[0].APIKey)
+	assert.Equal("my-process-app.datadoghq.com", eps[0].Endpoint.Hostname())
+	assert.Equal("foo", eps[1].APIKey)
+	assert.Equal("process.datadoghq.eu", eps[1].Endpoint.Hostname())
+	assert.Equal("bar", eps[2].APIKey)
+	assert.Equal("process.datadoghq.eu", eps[2].Endpoint.Hostname())
 	assert.Equal(false, agentConfig.Enabled)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 	assert.Equal(15, agentConfig.Windows.ArgsRefreshInterval)
