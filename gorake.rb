@@ -41,7 +41,9 @@ def go_build(program, opts={})
   cmd = opts[:cmd]
   cmd += ' -race' if opts[:race]
   if os != "windows"
-    cmd += ' -tags \'docker kubelet kubeapiserver\''
+    tag_set = 'docker kubelet kubeapiserver' # Default tags for non-windows OSes (e.g. linux)
+    tag_set += ' linux_bpf' if opts[:bpf]   # Add BPF if ebpf exists
+    cmd += " -tags \'#{tag_set}\'"
   end
   print "cmd"
 

@@ -184,7 +184,7 @@ imports:
 - name: github.com/spf13/pflag
   version: 4c012f6dcd9546820e378d0bdda4d8fc772cdfea
 - name: github.com/DataDog/tcptracer-bpf
-  version: f080eefea3eee677dd65e986b1ab5ba044eedae7
+  version: 53ac204431e1bbeb7a08ef5c0177da0b1a46cd55
 - name: github.com/spf13/viper
   version: aafc9e6bc7b7bb53ddaa75a5ef49a17d6e654be5
 - name: github.com/StackExchange/wmi
