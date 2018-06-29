@@ -53,6 +53,8 @@ def go_build(program, opts={})
     ENV['CC'] = '/usr/local/musl/bin/musl-gcc'
     ldflags << '-linkmode external'
     ldflags << '-extldflags \'-static\''
+    # Since we're using musl, we need to explicitly include the linux headers when compiling for eBPF
+    ENV['CGO_CFLAGS'] = '-I/kernel-headers/include/' if opts[:bpf]
   end
   if ENV['windres'] then
     # first compile the message table, as it's an input to the resource file

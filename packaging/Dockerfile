@@ -15,7 +15,8 @@ RUN apt-get update && \
     apt-get install --no-install-recommends -qq -y software-properties-common && \
     apt-add-repository ppa:brightbox/ruby-ng && \
     apt-get update && \
-    apt-get install -y build-essential debhelper git gnupg rake curl devscripts ruby-dev zlib1g-dev libxml2-dev wget rpm debsigs expect ruby2.3 ruby2.3-dev createrepo python-dateutil python-dev
+    apt-get install -y build-essential debhelper git gnupg rake curl devscripts ruby-dev zlib1g-dev libxml2-dev wget rpm debsigs expect ruby2.3 ruby2.3-dev createrepo python-dateutil python-dev 
+RUN apt-get install -y linux-headers-generic
 
 RUN gem install deb-s3 inifile
 
@@ -29,6 +30,10 @@ RUN curl -sL -o /usr/local/bin/gimme https://raw.githubusercontent.com/travis-ci
 RUN wget http://www.musl-libc.org/releases/musl-1.1.10.tar.gz && \
     tar -xvf musl-1.1.10.tar.gz && \
     cd musl-1.1.10 && ./configure && make && make install
+
+COPY setup_linux_headers.sh /
+RUN chmod u+x setup_linux_headers.sh
+RUN /setup_linux_headers.sh
 
 ENV GOPATH=/go
 ENV PATH=/go/bin:$PATH

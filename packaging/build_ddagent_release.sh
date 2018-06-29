@@ -24,6 +24,12 @@ fi
 
 echo "Building Agent v$PROCESS_AGENT_VERSION to $FILENAME"
 
+echo `hostname`
+echo `uname -r`
+echo `pwd`
+echo `ls /lib/modules/`
+echo `ls /usr/src/`
+
 # Expects gimme to be installed
 eval "$(gimme 1.10.1)"
 
@@ -39,7 +45,7 @@ go get github.com/Masterminds/glide
 glide install
 
 echo "Building binaries..."
-PROCESS_AGENT_STATIC=true rake build
+PROCESS_AGENT_STATIC=true rake build EBPF=$LINUX_EBPF
 
 cp process-agent $FILENAME 
 s3cmd sync -v ./$FILENAME s3://$AGENT_S3_BUCKET/
