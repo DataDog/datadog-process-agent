@@ -60,8 +60,10 @@ type YamlAgentConfig struct {
 		DDAgentBin string `yaml:"dd_agent_bin"`
 		// Overrides of the environment we pass to fetch the hostname. The default is usually fine.
 		DDAgentEnv []string `yaml:"dd_agent_env"`
-		// Overrides the submission endpoint URL from the default
+		// Overrides the submission endpoint URL from the default.
 		ProcessDDURL string `yaml:"process_dd_url"`
+		// Optional additional pairs of endpoint_url => []apiKeys to submit to other locations.
+		AdditionalEndpoints map[string][]string `yaml:"additional_endpoints"`
 		// Windows-specific configuration goes in this section.
 		Windows struct {
 			// Sets windows process table refresh rate (in number of check runs)
@@ -97,7 +99,7 @@ func NewYamlIfExists(configPath string) (*YamlAgentConfig, error) {
 }
 
 func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig, error) {
-	agentConf.APIKey = yc.APIKey
+	agentConf.APIEndpoints[0].APIKey = yc.APIKey
 
 	if enabled, err := isAffirmative(yc.Process.Enabled); enabled {
 		agentConf.Enabled = true
@@ -113,7 +115,7 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		if err != nil {
 			return nil, fmt.Errorf("invalid process_dd_url: %s", err)
 		}
-		agentConf.APIEndpoint = u
+		agentConf.APIEndpoints[0].Endpoint = u
 	}
 	if yc.LogToConsole {
 		agentConf.LogToConsole = true
@@ -179,6 +181,19 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	}
 	if yc.Process.Windows.AddNewArgs != nil {
 		agentConf.Windows.AddNewArgs = *yc.Process.Windows.AddNewArgs
+	}
+
+	for endpointURL, apiKeys := range yc.Process.AdditionalEndpoints {
+		u, err := url.Parse(endpointURL)
+		if err != nil {
+			return nil, fmt.Errorf("invalid additional endpoint url '%s': %s", endpointURL, err)
+		}
+		for _, k := range apiKeys {
+			agentConf.APIEndpoints = append(agentConf.APIEndpoints, APIEndpoint{
+				APIKey:   k,
+				Endpoint: u,
+			})
+		}
 	}
 
 	// Pull additional parameters from the global config file.

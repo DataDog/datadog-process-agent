@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -95,7 +96,12 @@ func (l *Collector) runCheck(c checks.Check) {
 }
 
 func (l *Collector) run(exit chan bool) {
-	log.Infof("Starting process-agent for host=%s, endpoint=%s, enabled checks=%v", l.cfg.HostName, l.cfg.APIEndpoint, l.cfg.EnabledChecks)
+	eps := make([]string, 0, len(l.cfg.APIEndpoints))
+	for _, e := range l.cfg.APIEndpoints {
+		eps = append(eps, e.Endpoint.String())
+	}
+	log.Infof("Starting process-agent for host=%s, endpoints=%s, enabled checks=%v", l.cfg.HostName, eps, l.cfg.EnabledChecks)
+
 	go handleSignals(exit)
 	heartbeat := time.NewTicker(15 * time.Second)
 	queueSizeTicker := time.NewTicker(10 * time.Second)
@@ -153,7 +159,7 @@ func (l *Collector) run(exit chan bool) {
 	<-exit
 }
 
-func (l *Collector) postMessage(endpoint string, m model.MessageBody) {
+func (l *Collector) postMessage(checkPath string, m model.MessageBody) {
 	msgType, err := model.DetectMessageType(m)
 	if err != nil {
 		log.Errorf("Unable to detect message type: %s", err)
@@ -169,71 +175,67 @@ func (l *Collector) postMessage(endpoint string, m model.MessageBody) {
 	if err != nil {
 		log.Errorf("Unable to encode message: %s", err)
 	}
-	l.cfg.APIEndpoint.Path = endpoint
-	url := l.cfg.APIEndpoint.String()
-	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
-	if err != nil {
-		log.Errorf("could not create request: %s", err)
-		return
-	}
-	req.Header.Add("X-Dd-APIKey", l.cfg.APIKey)
-	req.Header.Add("X-Dd-Hostname", l.cfg.HostName)
-	req.Header.Add("X-Dd-Processagentversion", Version)
 
-	resp, err := l.httpClient.Do(req)
-	if err != nil {
-		if isHTTPTimeout(err) {
-			log.Errorf("Timeout detected, %s", err)
-		} else {
-			log.Errorf("Error submitting payload: %s", err)
+	responses := make(chan postResponse)
+	for _, ep := range l.cfg.APIEndpoints {
+		go l.postToAPI(ep, checkPath, body, responses)
+	}
+
+	// Wait for all responses to come back before moving on.
+	statuses := make([]*model.CollectorStatus, 0, len(l.cfg.APIEndpoints))
+	for i := 0; i < len(l.cfg.APIEndpoints); i++ {
+		url := l.cfg.APIEndpoints[i].Endpoint.String()
+		res := <-responses
+		if res.err != nil {
+			log.Error(res.err)
+			continue
 		}
-		return
-	}
 
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode > 300 {
-		log.Errorf("unexpected response from %s. Status: %s", url, resp.Status)
-		io.Copy(ioutil.Discard, resp.Body)
-		return
-	}
-
-	body, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Errorf("could not decode response body: %s", err)
-		return
-	}
-
-	r, err := model.DecodeMessage(body)
-	if err != nil {
-		log.Errorf("could not decode response, invalid format: %s", err)
-		return
-	}
-	switch r.Header.Type {
-	case model.TypeResCollector:
-		rm := r.Body.(*model.ResCollector)
-		if len(rm.Message) > 0 {
-			log.Error(rm.Message)
-		} else {
-			l.updateStatus(rm.Status)
+		r := res.msg
+		switch r.Header.Type {
+		case model.TypeResCollector:
+			rm := r.Body.(*model.ResCollector)
+			if len(rm.Message) > 0 {
+				log.Errorf("error in response from %s: %s", url, rm.Message)
+			} else {
+				statuses = append(statuses, rm.Status)
+			}
+		default:
+			log.Errorf("unexpected response type from %s: %d", url, r.Header.Type)
 		}
-	default:
-		log.Errorf("unexpected response type: %d", r.Header.Type)
+	}
+
+	if len(statuses) > 0 {
+		l.updateStatus(statuses)
 	}
 }
 
-func (l *Collector) updateStatus(s *model.CollectorStatus) {
+func (l *Collector) updateStatus(statuses []*model.CollectorStatus) {
 	curEnabled := atomic.LoadInt64(&l.realTimeEnabled) == 1
-	if s.ActiveClients > 0 && !curEnabled && l.cfg.AllowRealTime {
-		log.Infof("Detected %d clients, enabling real-time mode", s.ActiveClients)
-		atomic.StoreInt64(&l.realTimeEnabled, 1)
-	} else if s.ActiveClients == 0 && curEnabled {
-		log.Info("Detected 0 clients, disabling real-time mode")
-		atomic.StoreInt64(&l.realTimeEnabled, 0)
+
+	// If any of the endpoints wants real-time we'll do that.
+	// We will pick the maximum interval given since generally this is
+	// only set if we're trying to limit load on the backend.
+	shouldEnableRT := false
+	maxInterval := 0 * time.Second
+	for _, s := range statuses {
+		shouldEnableRT = shouldEnableRT || (s.ActiveClients > 0 && l.cfg.AllowRealTime)
+		interval := time.Duration(s.Interval) * time.Second
+		if interval > maxInterval {
+			maxInterval = interval
+		}
 	}
 
-	interval := time.Duration(s.Interval) * time.Second
-	if interval != l.realTimeInterval {
-		l.realTimeInterval = interval
+	if curEnabled && !shouldEnableRT {
+		log.Info("Detected 0 clients, disabling real-time mode")
+		atomic.StoreInt64(&l.realTimeEnabled, 0)
+	} else if !curEnabled && shouldEnableRT {
+		log.Info("Detected active clients, enabling real-time mode")
+		atomic.StoreInt64(&l.realTimeEnabled, 1)
+	}
+
+	if maxInterval != l.realTimeInterval {
+		l.realTimeInterval = maxInterval
 		if l.realTimeInterval <= 0 {
 			l.realTimeInterval = 2 * time.Second
 		}
@@ -244,4 +246,56 @@ func (l *Collector) updateStatus(s *model.CollectorStatus) {
 		}
 		log.Infof("real time interval updated to %s", l.realTimeInterval)
 	}
+}
+
+type postResponse struct {
+	msg model.Message
+	err error
+}
+
+func errResponse(format string, a ...interface{}) postResponse {
+	return postResponse{err: fmt.Errorf(format, a...)}
+}
+
+func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan postResponse) {
+	endpoint.Endpoint.Path = checkPath
+	url := endpoint.Endpoint.String()
+	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	if err != nil {
+		responses <- errResponse("could not create request to %s: %s", url, err)
+		return
+	}
+
+	req.Header.Add("X-Dd-APIKey", endpoint.APIKey)
+	req.Header.Add("X-Dd-Hostname", l.cfg.HostName)
+	req.Header.Add("X-Dd-Processagentversion", Version)
+
+	resp, err := l.httpClient.Do(req)
+	if err != nil {
+		if isHTTPTimeout(err) {
+			responses <- errResponse("Timeout detected on %s, %s", url, err)
+		} else {
+			responses <- errResponse("Error submitting payload to %s: %s", url, err)
+		}
+		return
+	}
+
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 300 {
+		responses <- errResponse("unexpected response from %s. Status: %s", url, resp.Status)
+		io.Copy(ioutil.Discard, resp.Body)
+		return
+	}
+
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		responses <- errResponse("could not decode response body from %s: %s", url, err)
+		return
+	}
+
+	r, err := model.DecodeMessage(body)
+	if err != nil {
+		responses <- postResponse{r, err}
+	}
+	responses <- errResponse("could not decode message from %s: %s", url, err)
 }

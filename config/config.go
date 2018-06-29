@@ -47,13 +47,18 @@ type WindowsConfig struct {
 	AddNewArgs bool
 }
 
+// APIEndpoint is a single endpoint where process data will be submitted.
+type APIEndpoint struct {
+	APIKey   string
+	Endpoint *url.URL
+}
+
 // AgentConfig is the global config for the process-agent. This information
 // is sourced from config files and the environment variables.
 type AgentConfig struct {
 	Enabled       bool
-	APIKey        string
 	HostName      string
-	APIEndpoint   *url.URL
+	APIEndpoints  []APIEndpoint
 	LogFile       string
 	LogLevel      string
 	LogToConsole  bool
@@ -122,7 +127,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 	ac := &AgentConfig{
 		// We'll always run inside of a container.
 		Enabled:       canAccessContainers,
-		APIEndpoint:   u,
+		APIEndpoints:  []APIEndpoint{{Endpoint: u}},
 		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
 		LogToConsole:  false,
@@ -217,7 +222,13 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 			return nil, err
 		}
 		ak := strings.Split(a, ",")
-		cfg.APIKey = ak[0]
+		cfg.APIEndpoints[0].APIKey = ak[0]
+		if len(ak) > 1 {
+			for i := 1; i < len(ak); i++ {
+				cfg.APIEndpoints = append(cfg.APIEndpoints, APIEndpoint{APIKey: ak[i]})
+			}
+		}
+
 		cfg.LogLevel = strings.ToLower(agentIni.GetDefault("Main", "log_level", "INFO"))
 		cfg.proxy, err = getProxySettings(section)
 		if err != nil {
@@ -244,12 +255,18 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 
 		// All process-agent specific config lives under [process.config] section.
 		ns = "process.config"
-		e := agentIni.GetDefault(ns, "endpoint", defaultEndpoint)
-		u, err := url.Parse(e)
-		if err != nil {
-			return nil, fmt.Errorf("invalid endpoint URL: %s", err)
+		endpoints := agentIni.GetStrArrayDefault(ns, "endpoint", ",", []string{defaultEndpoint})
+		if len(endpoints) != len(cfg.APIEndpoints) {
+			return nil, fmt.Errorf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
 		}
-		cfg.APIEndpoint = u
+		for i, e := range endpoints {
+			u, err := url.Parse(e)
+			if err != nil {
+				return nil, fmt.Errorf("invalid endpoint URL: %s", err)
+			}
+			cfg.APIEndpoints[i].Endpoint = u
+		}
+
 		cfg.QueueSize = agentIni.GetIntDefault(ns, "queue_size", cfg.QueueSize)
 		cfg.MaxProcFDs = agentIni.GetIntDefault(ns, "max_proc_fds", cfg.MaxProcFDs)
 		cfg.AllowRealTime = agentIni.GetBool(ns, "allow_real_time", cfg.AllowRealTime)
@@ -380,7 +397,7 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		for i := range vals {
 			vals[i] = strings.TrimSpace(vals[i])
 		}
-		c.APIKey = vals[0]
+		c.APIEndpoints[0].APIKey = vals[0]
 	}
 
 	// Support LOG_LEVEL and DD_LOG_LEVEL but prefer DD_LOG_LEVEL
@@ -408,7 +425,7 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 			log.Warnf("DD_PROCESS_AGENT_URL is invalid: %s", err)
 		} else {
 			log.Infof("overriding API endpoint from env")
-			c.APIEndpoint = u
+			c.APIEndpoints[0].Endpoint = u
 		}
 	}
 
