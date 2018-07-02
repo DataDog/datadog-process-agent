@@ -295,7 +295,7 @@ func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, bod
 
 	r, err := model.DecodeMessage(body)
 	if err != nil {
-		responses <- postResponse{r, err}
+		responses <- errResponse("could not decode message from %s: %s", url, err)
 	}
-	responses <- errResponse("could not decode message from %s: %s", url, err)
+	responses <- postResponse{r, err}
 }
