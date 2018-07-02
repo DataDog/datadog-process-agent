@@ -24,12 +24,6 @@ fi
 
 echo "Building Agent v$PROCESS_AGENT_VERSION to $FILENAME"
 
-echo `hostname`
-echo `uname -r`
-echo `pwd`
-echo `ls /lib/modules/`
-echo `ls /usr/src/`
-
 # Expects gimme to be installed
 eval "$(gimme 1.10.1)"
 
