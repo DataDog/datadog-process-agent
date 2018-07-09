@@ -2,6 +2,12 @@ package main
 
 import (
 	"strings"
+	"time"
+)
+
+const (
+	// HTTPTimeout is the timeout in seconds for process-agent to send process payloads to DataDog
+	HTTPTimeout = 60 * time.Second
 )
 
 // IsTimeout returns true if the error is due to reaching the timeout limit on the http.client

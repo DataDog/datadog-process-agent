@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -60,7 +61,7 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 		rtIntervalCh:  make(chan time.Duration),
 		cfg:           cfg,
 		groupID:       rand.Int31(),
-		httpClient:    http.Client{Transport: cfg.Transport},
+		httpClient:    http.Client{Timeout: HTTPTimeout, Transport: cfg.Transport},
 		enabledChecks: enabledChecks,
 
 		// Defaults for real-time on start
@@ -270,12 +271,23 @@ func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, bod
 	req.Header.Add("X-Dd-Hostname", l.cfg.HostName)
 	req.Header.Add("X-Dd-Processagentversion", Version)
 
+	// we create a context with timeout and attach it to the http request, to make sure that it doesn't get stuck on
+	// any circumstances
+	start := time.Now()
+	ctx, cancel := context.WithTimeout(context.Background(), HTTPTimeout)
+	defer cancel()
+	req.WithContext(ctx)
+
 	resp, err := l.httpClient.Do(req)
 	if err != nil {
 		if isHTTPTimeout(err) {
 			responses <- errResponse("Timeout detected on %s, %s", url, err)
 		} else {
-			responses <- errResponse("Error submitting payload to %s: %s", url, err)
+			if time.Since(start) >= HTTPTimeout {
+				responses <- errResponse("Client took too long to receive response from %s: %s", url, err)
+			} else {
+				responses <- errResponse("Error submitting payload to %s: %s", url, err)
+			}
 		}
 		return
 	}
