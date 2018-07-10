@@ -271,10 +271,7 @@ func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, bod
 	req.Header.Add("X-Dd-Hostname", l.cfg.HostName)
 	req.Header.Add("X-Dd-Processagentversion", Version)
 
-	// we create a context with timeout and attach it to the http request, to make sure that it doesn't get stuck on
-	// any circumstances
-	start := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), HTTPTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), ReqCtxTimeout)
 	defer cancel()
 	req.WithContext(ctx)
 
@@ -283,11 +280,7 @@ func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, bod
 		if isHTTPTimeout(err) {
 			responses <- errResponse("Timeout detected on %s, %s", url, err)
 		} else {
-			if time.Since(start) >= HTTPTimeout {
-				responses <- errResponse("Client took too long to receive response from %s: %s", url, err)
-			} else {
-				responses <- errResponse("Error submitting payload to %s: %s", url, err)
-			}
+			responses <- errResponse("Error submitting payload to %s: %s", url, err)
 		}
 		return
 	}
