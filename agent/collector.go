@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -59,7 +60,7 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 		rtIntervalCh:  make(chan time.Duration),
 		cfg:           cfg,
 		groupID:       rand.Int31(),
-		httpClient:    http.Client{Transport: cfg.Transport},
+		httpClient:    http.Client{Timeout: HTTPTimeout, Transport: cfg.Transport},
 		enabledChecks: enabledChecks,
 
 		// Defaults for real-time on start
@@ -179,6 +180,10 @@ func (l *Collector) postMessage(endpoint string, m model.MessageBody) {
 	req.Header.Add("X-Dd-APIKey", l.cfg.APIKey)
 	req.Header.Add("X-Dd-Hostname", l.cfg.HostName)
 	req.Header.Add("X-Dd-Processagentversion", Version)
+
+	ctx, cancel := context.WithTimeout(context.Background(), ReqCtxTimeout)
+	defer cancel()
+	req.WithContext(ctx)
 
 	resp, err := l.httpClient.Do(req)
 	if err != nil {
