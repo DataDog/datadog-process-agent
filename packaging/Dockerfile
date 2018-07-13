@@ -27,9 +27,9 @@ RUN wget http://downloads.sourceforge.net/project/s3tools/s3cmd/1.5.2/s3cmd-1.5.
 RUN curl -sL -o /usr/local/bin/gimme https://raw.githubusercontent.com/travis-ci/gimme/master/gimme && \
     chmod +x /usr/local/bin/gimme
 
-RUN wget http://www.musl-libc.org/releases/musl-1.1.10.tar.gz && \
-    tar -xvf musl-1.1.10.tar.gz && \
-    cd musl-1.1.10 && ./configure && make && make install
+RUN wget http://www.musl-libc.org/releases/musl-1.1.19.tar.gz && \
+    tar -xvf musl-1.1.19.tar.gz && \
+    cd musl-1.1.19 && ./configure && make && make install
 
 COPY setup_linux_headers.sh /
 RUN chmod u+x setup_linux_headers.sh
