@@ -39,7 +39,7 @@ go get github.com/Masterminds/glide
 glide install
 
 echo "Building binaries..."
-PROCESS_AGENT_STATIC=true rake build
+PROCESS_AGENT_STATIC=true rake build EBPF=$LINUX_EBPF
 
 cp process-agent $FILENAME 
 s3cmd sync -v ./$FILENAME s3://$AGENT_S3_BUCKET/
