@@ -47,15 +47,20 @@ def go_build(program, opts={})
   end
   print "cmd"
 
-  if opts[:static]
+  # NOTE: We currently have issues running eBPF components in statically linked binaries, so in the meantime,
+  #       if eBPF is enabled, the binary will be dynamically linked, and will not work in environments without glibc.
+  # TODO: Further debug this issue and to get eBPF working in statically linked binaries.
+  if opts[:static] && !opts[:bpf]
     # Statically linked builds use musl-gcc for full support
     # of alpine and other machines with different gcc versions.
     ENV['CC'] = '/usr/local/musl/bin/musl-gcc'
     ldflags << '-linkmode external'
     ldflags << '-extldflags \'-static\''
+
     # Since we're using musl, we need to explicitly include the linux headers when compiling for eBPF
     ENV['CGO_CFLAGS'] = '-I/kernel-headers/include/' if opts[:bpf]
   end
+
   if ENV['windres'] then
     # first compile the message table, as it's an input to the resource file
     msgcmd = "windmc --target pe-x86-64 -r agent/windows_resources agent/windows_resources/process-agent-msg.mc"
@@ -66,7 +71,10 @@ def go_build(program, opts={})
     rescmd += "-i agent/windows_resources/process-agent.rc --target=pe-x86-64 -O coff -o agent/rsrc.syso"
     sh rescmd
   end
+
+  # Building the binary
   sh "#{cmd} -ldflags \"#{ldflags.join(' ')}\" #{program}"
+
   if ENV['SIGN_WINDOWS'] then
     signcmd = "signtool sign /v /t http://timestamp.verisign.com/scripts/timestamp.dll /fd SHA256 /sm /s \"My\" /sha1 ECCDAE36FDCB654D2CBAB3E8975AA55469F96E4C process-agent.exe"
     sh signcmd
