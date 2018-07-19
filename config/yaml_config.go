@@ -214,7 +214,7 @@ func SetupDDAgentConfig(configPath string) error {
 	}
 
 	// load the configuration
-	if err := ddconfig.Datadog.ReadInConfig(); err != nil {
+	if err := ddconfig.Load(); err != nil {
 		return fmt.Errorf("unable to load Datadog config file: %s", err)
 	}
 
