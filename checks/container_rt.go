@@ -6,20 +6,21 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/util/container"
+
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
 )
 
 // RTContainer is a singleton RTContainerCheck.
 var RTContainer = &RTContainerCheck{}
 
-// RTContainerCheck collects numeric statistics about live containers.
+// RTContainerCheck collects numeric statistics about live ctrList.
 type RTContainerCheck struct {
-	sysInfo        *model.SystemInfo
-	lastContainers []*docker.Container
-	lastRun        time.Time
+	sysInfo     *model.SystemInfo
+	lastCtrList []*containers.Container
+	lastRun     time.Time
 }
 
 // Init initializes a RTContainerCheck instance.
@@ -38,23 +39,23 @@ func (r *RTContainerCheck) RealTime() bool { return true }
 
 // Run runs the real-time container check getting container-level stats from the Cgroups and Docker APIs.
 func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
-	containers, err := container.GetContainers()
+	ctrList, err := container.GetContainers()
 	if err != nil {
 		return nil, err
 	}
 
 	// End check early if this is our first run.
-	if r.lastContainers == nil {
-		r.lastContainers = containers
+	if r.lastCtrList == nil {
+		r.lastCtrList = ctrList
 		r.lastRun = time.Now()
 		return nil, nil
 	}
 
-	groupSize := len(containers) / cfg.MaxPerMessage
-	if len(containers) != cfg.MaxPerMessage {
+	groupSize := len(ctrList) / cfg.MaxPerMessage
+	if len(ctrList) != cfg.MaxPerMessage {
 		groupSize++
 	}
-	chunked := fmtContainerStats(containers, r.lastContainers, r.lastRun, groupSize)
+	chunked := fmtContainerStats(ctrList, r.lastCtrList, r.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	for i := 0; i < groupSize; i++ {
 		messages = append(messages, &model.CollectorContainerRealTime{
@@ -67,33 +68,33 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 		})
 	}
 
-	r.lastContainers = containers
+	r.lastCtrList = ctrList
 	r.lastRun = time.Now()
 
 	return messages, nil
 }
 
-// fmtContainerStats formats and chunks the containers into a slice of chunks using a specific
+// fmtContainerStats formats and chunks the ctrList into a slice of chunks using a specific
 // number of chunks. len(result) MUST EQUAL chunks.
 func fmtContainerStats(
-	containers, lastContainers []*docker.Container,
+	ctrList, lastCtrList []*containers.Container,
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.ContainerStat {
-	lastByID := make(map[string]*docker.Container, len(containers))
-	for _, c := range lastContainers {
+	lastByID := make(map[string]*containers.Container, len(ctrList))
+	for _, c := range lastCtrList {
 		lastByID[c.ID] = c
 	}
 
-	perChunk := (len(containers) / chunks) + 1
+	perChunk := (len(ctrList) / chunks) + 1
 	chunked := make([][]*model.ContainerStat, chunks)
 	chunk := make([]*model.ContainerStat, 0, perChunk)
 	i := 0
-	for _, ctr := range containers {
+	for _, ctr := range ctrList {
 		lastCtr, ok := lastByID[ctr.ID]
 		if !ok {
 			// Set to an empty container so rate calculations work and use defaults.
-			lastCtr = docker.NullContainer
+			lastCtr = containers.NullContainer
 		}
 
 		ifStats := ctr.Network.SumInterfaces()

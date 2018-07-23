@@ -6,10 +6,11 @@ import (
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/util/container"
+
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
 )
 
 // RTProcess is a singleton RTProcessCheck.
@@ -18,11 +19,11 @@ var RTProcess = &RTProcessCheck{}
 // RTProcessCheck collects numeric statistics about the live processes.
 // The instance stores state between checks for calculation of rates and CPU.
 type RTProcessCheck struct {
-	sysInfo        *model.SystemInfo
-	lastCPUTime    cpu.TimesStat
-	lastProcs      map[int32]*process.FilledProcess
-	lastContainers []*docker.Container
-	lastRun        time.Time
+	sysInfo     *model.SystemInfo
+	lastCPUTime cpu.TimesStat
+	lastProcs   map[int32]*process.FilledProcess
+	lastCtrList []*containers.Container
+	lastRun     time.Time
 }
 
 // Init initializes a new RTProcessCheck instance.
@@ -54,11 +55,11 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if err != nil {
 		return nil, err
 	}
-	containers, _ := container.GetContainers()
+	ctrList, _ := container.GetContainers()
 
 	// End check early if this is our first run.
 	if r.lastProcs == nil {
-		r.lastContainers = containers
+		r.lastCtrList = ctrList
 		r.lastProcs = procs
 		r.lastCPUTime = cpuTimes[0]
 		r.lastRun = time.Now()
@@ -66,9 +67,9 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	}
 
 	chunkedStats := fmtProcessStats(cfg, procs, r.lastProcs,
-		containers, cpuTimes[0], r.lastCPUTime, r.lastRun)
+		ctrList, cpuTimes[0], r.lastCPUTime, r.lastRun)
 	groupSize := len(chunkedStats)
-	chunkedCtrStats := fmtContainerStats(containers, r.lastContainers, r.lastRun, groupSize)
+	chunkedCtrStats := fmtContainerStats(ctrList, r.lastCtrList, r.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	for i := 0; i < groupSize; i++ {
 		messages = append(messages, &model.CollectorRealTime{
@@ -86,7 +87,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
 	r.lastRun = time.Now()
 	r.lastProcs = procs
-	r.lastContainers = containers
+	r.lastCtrList = ctrList
 	r.lastCPUTime = cpuTimes[0]
 
 	return messages, nil
@@ -96,12 +97,12 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 func fmtProcessStats(
 	cfg *config.AgentConfig,
 	procs, lastProcs map[int32]*process.FilledProcess,
-	containers []*docker.Container,
+	ctrList []*containers.Container,
 	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
 ) [][]*model.ProcessStat {
-	ctrByPid := make(map[int32]*docker.Container, len(containers))
-	for _, c := range containers {
+	ctrByPid := make(map[int32]*containers.Container, len(ctrList))
+	for _, c := range ctrList {
 		for _, p := range c.Pids {
 			ctrByPid[p] = c
 		}
@@ -116,7 +117,7 @@ func fmtProcessStats(
 
 		ctr, ok := ctrByPid[fp.Pid]
 		if !ok {
-			ctr = docker.NullContainer
+			ctr = containers.NullContainer
 		}
 
 		chunk = append(chunk, &model.ProcessStat{

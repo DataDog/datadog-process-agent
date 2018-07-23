@@ -10,13 +10,14 @@ import (
 	log "github.com/cihub/seelog"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-agent/pkg/util/ecs"
 )
 
 var (
 	listeners []config.Listeners
-	// hasFatalError stores whether a listener has fatally error'd, to see if we should keep accessing its containers
+	// hasFatalError stores whether a listener has fatally error'd, to see if we should keep accessing its ctrList
 	hasFatalError map[string]bool
 )
 
@@ -36,15 +37,15 @@ func GetDefaultListeners() []config.Listeners {
 	return l
 }
 
-// GetContainers is the unique method that returns all containers on the host (or in the task)
-// and that other agents can consume so that we don't have to convert all containers to the format.
+// GetContainers is the unique method that returns all ctrList on the host (or in the task)
+// and that other agents can consume so that we don't have to convert all ctrList to the format.
 // NOTE: This is a modified copy of datadog-agent/pkg/util/container to prevent noisy logging
-func GetContainers() ([]*docker.Container, error) {
+func GetContainers() ([]*containers.Container, error) {
 	if listeners == nil {
 		initContainerListeners()
 	}
 
-	containers := make([]*docker.Container, 0)
+	var ctrList []*containers.Container
 	errs := make([]error, 0)
 	ctrListConfig := docker.ContainerListConfig{
 		IncludeExited: false,
@@ -62,7 +63,7 @@ func GetContainers() ([]*docker.Container, error) {
 			if du, err := docker.GetDockerUtil(); err == nil {
 				if ctrs, err := du.Containers(&ctrListConfig); err == nil {
 					succeeded = true
-					containers = append(containers, ctrs...)
+					ctrList = append(ctrList, ctrs...)
 					continue
 				}
 				errs = append(errs, fmt.Errorf("failed to get container list from docker - %s", err))
@@ -73,23 +74,23 @@ func GetContainers() ([]*docker.Container, error) {
 				}
 				errs = append(errs, fmt.Errorf("unable to connect to docker - %s", err))
 			}
-		case "ecs": // Fargate containers
+		case "ecs": // Fargate ctrList
 			if ctrs, err := ecs.GetContainers(); err != nil {
 				errs = append(errs, fmt.Errorf("failed to get container list from fargate - %s", err))
 			} else {
 				succeeded = true
-				containers = append(containers, ctrs...)
+				ctrList = append(ctrList, ctrs...)
 			}
 		}
 	}
 
 	if succeeded { // Some container access method succeeded so drop errors from other access methods
-		return containers, nil
+		return ctrList, nil
 	}
 
 	for _, e := range errs {
 		log.Debug(e)
 	}
 
-	return containers, errors.New("failed to get containers from any source")
+	return ctrList, errors.New("failed to get ctrList from any source")
 }

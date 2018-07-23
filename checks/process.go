@@ -8,11 +8,12 @@ import (
 	"github.com/DataDog/gopsutil/process"
 	log "github.com/cihub/seelog"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util/container"
+
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
 )
 
 // Process is a singleton ProcessCheck.
@@ -24,11 +25,11 @@ var Process = &ProcessCheck{}
 type ProcessCheck struct {
 	sync.Mutex
 
-	sysInfo        *model.SystemInfo
-	lastCPUTime    cpu.TimesStat
-	lastProcs      map[int32]*process.FilledProcess
-	lastContainers []*docker.Container
-	lastRun        time.Time
+	sysInfo     *model.SystemInfo
+	lastCPUTime cpu.TimesStat
+	lastProcs   map[int32]*process.FilledProcess
+	lastCtrList []*containers.Container
+	lastRun     time.Time
 }
 
 // Init initializes the singleton ProcessCheck.
@@ -65,25 +66,25 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if err != nil {
 		return nil, err
 	}
-	containers, _ := container.GetContainers()
+	ctrList, _ := container.GetContainers()
 
 	// End check early if this is our first run.
 	if p.lastProcs == nil {
 		p.lastProcs = procs
 		p.lastCPUTime = cpuTimes[0]
-		p.lastContainers = containers
+		p.lastCtrList = ctrList
 		p.lastRun = time.Now()
 		return nil, nil
 	}
 
 	chunkedProcs := fmtProcesses(cfg, procs, p.lastProcs,
-		containers, cpuTimes[0], p.lastCPUTime, p.lastRun)
+		ctrList, cpuTimes[0], p.lastCPUTime, p.lastRun)
 	// In case we skip every process..
 	if len(chunkedProcs) == 0 {
 		return nil, nil
 	}
 	groupSize := len(chunkedProcs)
-	chunkedContainers := fmtContainers(containers, p.lastContainers, p.lastRun, groupSize)
+	chunkedContainers := fmtContainers(ctrList, p.lastCtrList, p.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	totalProcs, totalContainers := float64(0), float64(0)
 	for i := 0; i < groupSize; i++ {
@@ -102,11 +103,11 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	// Store the last state for comparison on the next run.
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
 	p.lastProcs = procs
-	p.lastContainers = containers
+	p.lastCtrList = ctrList
 	p.lastCPUTime = cpuTimes[0]
 	p.lastRun = time.Now()
 
-	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
+	statsd.Client.Gauge("datadog.process.ctrList.host_count", totalContainers, []string{}, 1)
 	statsd.Client.Gauge("datadog.process.processes.host_count", totalProcs, []string{}, 1)
 	log.Debugf("collected processes in %s", time.Now().Sub(start))
 	return messages, nil
@@ -115,12 +116,12 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 func fmtProcesses(
 	cfg *config.AgentConfig,
 	procs, lastProcs map[int32]*process.FilledProcess,
-	containers []*docker.Container,
+	ctrList []*containers.Container,
 	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
 ) [][]*model.Process {
-	ctrByPid := make(map[int32]*docker.Container, len(containers))
-	for _, c := range containers {
+	ctrByPid := make(map[int32]*containers.Container, len(ctrList))
+	for _, c := range ctrList {
 		for _, p := range c.Pids {
 			ctrByPid[p] = c
 		}
@@ -135,7 +136,7 @@ func fmtProcesses(
 
 		ctr, ok := ctrByPid[fp.Pid]
 		if !ok {
-			ctr = docker.NullContainer
+			ctr = containers.NullContainer
 		}
 
 		// Hide blacklisted args if the Scrubber is enabled
