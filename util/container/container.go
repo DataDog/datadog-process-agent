@@ -29,8 +29,8 @@ func initContainerListeners() {
 // GetDefaultListeners returns the default auto-discovery listeners, for use in container retrieval
 func GetDefaultListeners() []config.Listeners {
 	l := []config.Listeners{{Name: "docker"}}
-	// If we can detect that this is a fargate instance, lets add it as well
-	if ecs.IsFargateInstance() {
+	// If we can detect that this is an ecs or fargate instance, lets add it as well
+	if ecs.IsInstance() || ecs.IsFargateInstance() {
 		l = append(l, config.Listeners{Name: "ecs"})
 	}
 	return l
