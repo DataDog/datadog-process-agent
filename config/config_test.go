@@ -163,24 +163,45 @@ func TestGetHostname(t *testing.T) {
 }
 
 func TestDDAgentMultiAPIKeys(t *testing.T) {
+	// if no endpoint is given but api_keys are there, match the first api_key
+	// with the default endpoint
 	assert := assert.New(t)
 	ddAgentConf, _ := ini.Load([]byte("[Main]\n\napi_key=foo,bar "))
 	configFile := &File{instance: ddAgentConf, Path: "whatever"}
 	agentConfig, err := NewAgentConfig(configFile, nil)
-	assert.Error(err)
+	assert.NoError(err)
+	assert.Equal(1, len(agentConfig.APIEndpoints))
+	assert.Equal("foo", agentConfig.APIEndpoints[0].APIKey)
+	assert.Equal("process.datadoghq.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
 	ddAgentConf, _ = ini.Load([]byte(strings.Join([]string{
 		"[Main]",
-		"api_key = foo,bar",
+		"api_key=foo,bar",
 		"[process.config]",
 		"endpoint=https://process.datadoghq.com,https://process.datadoghq.eu",
 	}, "\n")))
 	configFile = &File{instance: ddAgentConf, Path: "whatever"}
 	agentConfig, err = NewAgentConfig(configFile, nil)
+	assert.NoError(err)
+	assert.Equal(2, len(agentConfig.APIEndpoints))
 	assert.Equal("foo", agentConfig.APIEndpoints[0].APIKey)
 	assert.Equal("process.datadoghq.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 	assert.Equal("bar", agentConfig.APIEndpoints[1].APIKey)
 	assert.Equal("process.datadoghq.eu", agentConfig.APIEndpoints[1].Endpoint.Hostname())
+
+	// if endpoint count is greater than api_key count, drop additional endpoints
+	ddAgentConf, _ = ini.Load([]byte(strings.Join([]string{
+		"[Main]",
+		"api_key=foo",
+		"[process.config]",
+		"endpoint=https://process.datadoghq.com,https://process.datadoghq.eu",
+	}, "\n")))
+	configFile = &File{instance: ddAgentConf, Path: "whatever"}
+	agentConfig, err = NewAgentConfig(configFile, nil)
+	assert.NoError(err)
+	assert.Equal(1, len(agentConfig.APIEndpoints))
+	assert.Equal("foo", agentConfig.APIEndpoints[0].APIKey)
+	assert.Equal("process.datadoghq.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 }
 
 func TestDefaultConfig(t *testing.T) {

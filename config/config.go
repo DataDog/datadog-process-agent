@@ -254,10 +254,15 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		cfg.StatsdPort = agentIni.GetIntDefault("Main", "dogstatsd_port", cfg.StatsdPort)
 
 		// All process-agent specific config lives under [process.config] section.
+		// NOTE: we truncate either endpoints or APIEndpoints if the lengths don't match
 		ns = "process.config"
 		endpoints := agentIni.GetStrArrayDefault(ns, "endpoint", ",", []string{defaultEndpoint})
-		if len(endpoints) != len(cfg.APIEndpoints) {
-			return nil, fmt.Errorf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
+		if len(endpoints) < len(cfg.APIEndpoints) {
+			log.Warnf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
+			cfg.APIEndpoints = cfg.APIEndpoints[:len(endpoints)]
+		} else if len(endpoints) > len(cfg.APIEndpoints) {
+			log.Warnf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
+			endpoints = endpoints[:len(cfg.APIEndpoints)]
 		}
 		for i, e := range endpoints {
 			u, err := url.Parse(e)
