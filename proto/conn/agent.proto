@@ -2,10 +2,10 @@ syntax = "proto3";
 
 option go_package = "github.com/DataDog/datadog-process-agent/model";
 
-package datadog.process_agent;
+package datadog.process_agent.conn;
 
 import "github.com/DataDog/agent-payload/agent_payload.proto";
-import weak "primitives.proto";
+import weak "model/primitives.proto";
 
 //
 // Message Types
@@ -20,14 +20,14 @@ message ResCollector {
 	}
 	Header header = 1;
 	string message = 2;
-	CollectorStatus status = 3;
+	model.CollectorStatus status = 3;
 }
 
 message CollectorProc {
 	string  hostName = 2;
-	repeated Process processes = 3;
-	Host host = 4;
-	SystemInfo info = 5;
+	repeated model.Process processes = 3;
+	model.Host host = 4;
+	model.SystemInfo info = 5;
 	int32 groupId = 6;
 	int32 groupSize = 7;
 
@@ -35,18 +35,18 @@ message CollectorProc {
 	datadog.agentpayload.KubeMetadataPayload kubernetes = 8; // DEPRECATED - left in place to support previous versions
 	datadog.agentpayload.ECSMetadataPayload ecs = 9; // DEPRECATED - left in place to support previous versions
 
-	repeated Container containers = 10;
+	repeated model.Container containers = 10;
 }
 
 message CollectorConnections {
 	string hostName = 2;
-	repeated Connection connections = 3;
-	Host host = 4;
+	repeated model.Connection connections = 3;
+	model.Host host = 4;
 }
 
 message CollectorRealTime {
 	string hostName = 2;
-	repeated ProcessStat stats = 3;
+	repeated model.ProcessStat stats = 3;
 	// Post-resolved fields
 	int32 hostId = 4;
 	int32 orgId = 5;
@@ -55,13 +55,13 @@ message CollectorRealTime {
 	int32 numCpus = 8;
 	int64 totalMemory = 9;
 
-	repeated ContainerStat containerStats = 10;
+	repeated model.ContainerStat containerStats = 10;
 }
 
 message CollectorContainer {
 	string hostName = 1;
-	SystemInfo info = 2;
-	repeated Container containers = 3;
+	model.SystemInfo info = 2;
+	repeated model.Container containers = 3;
 	int32 groupId = 4;
 	int32 groupSize = 5;
 
@@ -70,12 +70,12 @@ message CollectorContainer {
 	datadog.agentpayload.ECSMetadataPayload ecs = 7; // DEPRECATED - left in place to support previous versions
 
 	// Post-resolved fields
-	Host host = 8;
+	model.Host host = 8;
 }
 
 message CollectorContainerRealTime {
 	string hostName = 1;
-	repeated ContainerStat stats = 2;
+	repeated model.ContainerStat stats = 2;
 
 	// Used for normalization at host-level.
 	int32 numCpus = 3;

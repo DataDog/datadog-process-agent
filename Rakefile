@@ -12,7 +12,7 @@ def os
       fail 'Unsupported OS'
     end
   end
-  
+
 desc "Setup dependencies"
 task :deps do
   system("go get github.com/Masterminds/glide")
@@ -27,7 +27,7 @@ task :build do
   case os
   when "windows"
     bin = "process-agent.exe"
-  else 
+  else
     bin = "process-agent"
   end
   go_build("github.com/DataDog/datadog-process-agent/agent", {
@@ -56,9 +56,9 @@ task :install do
   case os
   when "windows"
     bin = "process-agent.exe"
-  else 
+  else
     bin = "process-agent"
-  end    
+  end
   go_build("github.com/DataDog/datadog-process-agent/agent", :cmd=> "go build -i -o $GOPATH/bin/#{bin}")
 end
 
@@ -118,7 +118,8 @@ task :protobuf do
   if protocv != 'libprotoc 3.3.0'
     fail "Requires protoc version 3.3.0"
   end
-  sh "protoc proto/agent.proto -I $GOPATH/src -I vendor -I proto --gogofaster_out $GOPATH/src"
+  sh "protoc proto/conn/agent.proto -I $GOPATH/src -I vendor -I proto --gogofaster_out $GOPATH/src"
+  sh "protoc proto/model/primitives.proto -I $GOPATH/src -I vendor -I proto --gogofaster_out $GOPATH/src"
 end
 
 desc "Datadog Process Agent CI script (fmt, vet, etc)"
