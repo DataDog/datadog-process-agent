@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-option go_package = "github.com/DataDog/datadog-process-agent/model";
+option go_package = "github.com/DataDog/datadog-process-agent/primitives";
 
-package datadog.process_agent.model;
+package datadog.process_agent.primitives;
 
 //
 // Models
