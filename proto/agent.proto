@@ -109,7 +109,7 @@ message CollectorStatus {
 message Process {
 	uint32 key = 1;
 	int32 pid = 2;
-	Host host = 3;
+	Host host = 3[lazy=true];
 	Command command = 4;
 	ProcessUser user = 5;
 	// 6 is deprecated
@@ -191,7 +191,7 @@ message Container {
 	float totalPct = 20;
 	uint64 memRss = 21;
 	uint64 memCache = 22;
-	Host host = 23; // Used post-resolution
+	Host host = 23[lazy=true]; // Used post-resolution
 	int64 started = 24;
 	bytes byteKey = 25;
 	repeated string tags = 26;
