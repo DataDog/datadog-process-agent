@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-process-agent/util"
-	"github.com/DataDog/datadog-process-agent/util/container"
 
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
@@ -123,7 +122,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		panic(err)
 	}
 
-	_, err = container.GetContainers()
+	_, err = util.GetContainers()
 	canAccessContainers := err == nil
 
 	ac := &AgentConfig{

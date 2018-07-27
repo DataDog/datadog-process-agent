@@ -15,7 +15,7 @@ func GetContainers() ([]*containers.Container, error) {
 	if detector == nil {
 		detector = collectors.NewDetector("")
 	}
-	l, _, err := detector.GetPrefered()
+	l, _, err := detector.GetPreferred()
 	if err != nil {
 		return nil, err
 	}

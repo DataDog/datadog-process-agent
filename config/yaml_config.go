@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
-	ddutil "github.com/DataDog/datadog-agent/pkg/util"
 	log "github.com/cihub/seelog"
 	"gopkg.in/yaml.v2"
 
+	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+	ddutil "github.com/DataDog/datadog-agent/pkg/util"
+
 	"github.com/DataDog/datadog-process-agent/util"
-	"github.com/DataDog/datadog-process-agent/util/container"
 )
 
 // YamlAgentConfig is a structure used for marshaling the datadog.yaml configuration
@@ -219,8 +219,4 @@ func SetupDDAgentConfig(configPath string) error {
 	}
 
 	return nil
-}
-
-func init() {
-	ddconfig.Datadog.SetDefault("listeners", container.GetDefaultListeners())
 }
