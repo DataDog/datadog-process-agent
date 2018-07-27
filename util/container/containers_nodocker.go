@@ -1,5 +1,7 @@
 // +build !docker
 
+// FIXME: remove, use util/containers.go instead
+
 package container
 
 import (

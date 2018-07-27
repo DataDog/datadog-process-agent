@@ -8,7 +8,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
-	"github.com/DataDog/datadog-process-agent/util/container"
+	"github.com/DataDog/datadog-process-agent/util"
 
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 )
@@ -55,7 +55,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if err != nil {
 		return nil, err
 	}
-	ctrList, _ := container.GetContainers()
+	ctrList, _ := util.GetContainers()
 
 	// End check early if this is our first run.
 	if r.lastProcs == nil {

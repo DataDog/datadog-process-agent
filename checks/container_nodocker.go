@@ -1,13 +1,14 @@
-// +build !docker
+// +build !linux
 
 package checks
 
 import (
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
+
+	"github.com/DataDog/datadog-agent/pkg/util/docker"
 )
 
 // Container is a singleton ContainerCheck.

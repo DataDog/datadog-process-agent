@@ -1,4 +1,4 @@
-// +build docker
+// +build linux
 
 package checks
 
@@ -11,7 +11,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
-	"github.com/DataDog/datadog-process-agent/util/container"
+	"github.com/DataDog/datadog-process-agent/util"
 
 	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
@@ -45,7 +45,7 @@ func (c *ContainerCheck) RealTime() bool { return false }
 // stats for each container.
 func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
-	ctrList, err := container.GetContainers()
+	ctrList, err := util.GetContainers()
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +78,8 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	c.lastCtrList = ctrList
 	c.lastRun = time.Now()
 
-	statsd.Client.Gauge("datadog.process.ctrList.host_count", totalContainers, []string{}, 1)
-	log.Debugf("collected ctrList in %s", time.Now().Sub(start))
+	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
+	log.Debugf("collected containers in %s", time.Now().Sub(start))
 	return messages, nil
 }
 

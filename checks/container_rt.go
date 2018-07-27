@@ -1,4 +1,4 @@
-// +build docker
+// +build linux
 
 package checks
 
@@ -8,7 +8,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
-	"github.com/DataDog/datadog-process-agent/util/container"
+	"github.com/DataDog/datadog-process-agent/util"
 
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 )
@@ -39,7 +39,7 @@ func (r *RTContainerCheck) RealTime() bool { return true }
 
 // Run runs the real-time container check getting container-level stats from the Cgroups and Docker APIs.
 func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
-	ctrList, err := container.GetContainers()
+	ctrList, err := util.GetContainers()
 	if err != nil {
 		return nil, err
 	}

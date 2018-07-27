@@ -11,7 +11,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
-	"github.com/DataDog/datadog-process-agent/util/container"
+	"github.com/DataDog/datadog-process-agent/util"
 
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 )
@@ -66,7 +66,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if err != nil {
 		return nil, err
 	}
-	ctrList, _ := container.GetContainers()
+	ctrList, _ := util.GetContainers()
 
 	// End check early if this is our first run.
 	if p.lastProcs == nil {
@@ -107,7 +107,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	p.lastCPUTime = cpuTimes[0]
 	p.lastRun = time.Now()
 
-	statsd.Client.Gauge("datadog.process.ctrList.host_count", totalContainers, []string{}, 1)
+	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
 	statsd.Client.Gauge("datadog.process.processes.host_count", totalProcs, []string{}, 1)
 	log.Debugf("collected processes in %s", time.Now().Sub(start))
 	return messages, nil
