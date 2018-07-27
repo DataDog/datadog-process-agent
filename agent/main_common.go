@@ -11,12 +11,13 @@ import (
 
 	log "github.com/cihub/seelog"
 
-	"github.com/DataDog/datadog-agent/pkg/pidfile"
-	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util"
+
+	"github.com/DataDog/datadog-agent/pkg/pidfile"
+	"github.com/DataDog/datadog-agent/pkg/tagger"
 )
 
 var opts struct {
@@ -150,6 +151,10 @@ func runAgent(exit chan bool) {
 	// Initialize the metadata providers so the singletons are available.
 	// This will log any unknown errors
 	initMetadataProviders()
+
+	if cfg.ContainerSource != "" {
+		util.SetContainerSource(cfg.ContainerSource)
+	}
 
 	// update docker socket path in info
 	dockerSock, err := util.GetDockerSocketPath()

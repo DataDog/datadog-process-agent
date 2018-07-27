@@ -13,10 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
-	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
 	"github.com/DataDog/datadog-process-agent/util"
 	"github.com/DataDog/datadog-process-agent/util/container"
+
+	"github.com/DataDog/datadog-agent/pkg/util/docker"
+	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
 
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"
@@ -80,11 +81,12 @@ type AgentConfig struct {
 	EnabledChecks  []string
 	CheckIntervals map[string]time.Duration
 
-	// Docker
+	// Containers
 	ContainerBlacklist     []string
 	ContainerWhitelist     []string
 	CollectDockerNetwork   bool
 	ContainerCacheDuration time.Duration
+	ContainerSource        string
 
 	// Internal store of a proxy used for generating the Transport
 	proxy proxyFunc
@@ -169,6 +171,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Docker
 		ContainerCacheDuration: 10 * time.Second,
 		CollectDockerNetwork:   true,
+		ContainerSource:        "",
 
 		// DataScrubber to hide command line sensitive words
 		Scrubber: NewDefaultDataScrubber(),
@@ -482,7 +485,9 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		durationS, _ := strconv.Atoi(v)
 		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
 	}
-
+	if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
+		c.ContainerSource = v
+	}
 	// Note: this feature is in development and should not be used in production environments
 	if ok, _ := isAffirmative(os.Getenv("DD_CONNECTIONS_CHECK")); ok {
 		c.EnabledChecks = append(c.EnabledChecks, "connections")

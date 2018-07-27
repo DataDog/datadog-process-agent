@@ -7,11 +7,14 @@ import (
 
 var detector *collectors.Detector
 
+func SetContainerSource(name string) {
+	detector = collectors.NewDetector(name)
+}
+
 func GetContainers() ([]*containers.Container, error) {
 	if detector == nil {
-		detector = collectors.NewDetector()
+		detector = collectors.NewDetector("")
 	}
-
 	l, _, err := detector.GetPrefered()
 	if err != nil {
 		return nil, err
