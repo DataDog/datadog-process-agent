@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/DataDog/datadog-process-agent/util"
+
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
 )
@@ -28,25 +30,26 @@ func TestContainerChunking(t *testing.T) {
 	lastRun := time.Now().Add(-5 * time.Second)
 
 	for i, tc := range []struct {
-		cur, last []*containers.Container
-		chunks    int
-		expected  int
+		cur      []*containers.Container
+		last     map[string]util.ContainerRateMetrics
+		chunks   int
+		expected int
 	}{
 		{
 			cur:      []*containers.Container{ctrs[0], ctrs[1], ctrs[2]},
-			last:     []*containers.Container{ctrs[0], ctrs[1], ctrs[2]},
+			last:     util.KeepContainerRateMetrics([]*containers.Container{ctrs[0], ctrs[1], ctrs[2]}),
 			chunks:   2,
 			expected: 3,
 		},
 		{
 			cur:      []*containers.Container{ctrs[0], ctrs[1], ctrs[2]},
-			last:     []*containers.Container{ctrs[0], ctrs[2]},
+			last:     util.KeepContainerRateMetrics([]*containers.Container{ctrs[0], ctrs[2]}),
 			chunks:   2,
 			expected: 3,
 		},
 		{
 			cur:      []*containers.Container{ctrs[0], ctrs[2]},
-			last:     []*containers.Container{ctrs[0], ctrs[1], ctrs[2]},
+			last:     util.KeepContainerRateMetrics([]*containers.Container{ctrs[0], ctrs[1], ctrs[2]}),
 			chunks:   20,
 			expected: 2,
 		},
