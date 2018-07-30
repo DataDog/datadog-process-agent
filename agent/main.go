@@ -28,6 +28,7 @@ func main() {
 	}
 
 	// Setup common logger
+	// FIXME: make it better
 	err := ddconfig.SetupLogger(
 		ddconfig.Datadog.GetString("log_level"),
 		"",

@@ -19,11 +19,11 @@ var RTProcess = &RTProcessCheck{}
 // RTProcessCheck collects numeric statistics about the live processes.
 // The instance stores state between checks for calculation of rates and CPU.
 type RTProcessCheck struct {
-	sysInfo     *model.SystemInfo
-	lastCPUTime cpu.TimesStat
-	lastProcs   map[int32]*process.FilledProcess
-	lastCtrList []*containers.Container
-	lastRun     time.Time
+	sysInfo      *model.SystemInfo
+	lastCPUTime  cpu.TimesStat
+	lastProcs    map[int32]*process.FilledProcess
+	lastCtrRates map[string]util.ContainerRateMetrics
+	lastRun      time.Time
 }
 
 // Init initializes a new RTProcessCheck instance.
@@ -59,7 +59,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 
 	// End check early if this is our first run.
 	if r.lastProcs == nil {
-		r.lastCtrList = ctrList
+		r.lastCtrRates = util.KeepContainerRateMetrics(ctrList)
 		r.lastProcs = procs
 		r.lastCPUTime = cpuTimes[0]
 		r.lastRun = time.Now()
@@ -69,7 +69,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	chunkedStats := fmtProcessStats(cfg, procs, r.lastProcs,
 		ctrList, cpuTimes[0], r.lastCPUTime, r.lastRun)
 	groupSize := len(chunkedStats)
-	chunkedCtrStats := fmtContainerStats(ctrList, r.lastCtrList, r.lastRun, groupSize)
+	chunkedCtrStats := fmtContainerStats(ctrList, r.lastCtrRates, r.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	for i := 0; i < groupSize; i++ {
 		messages = append(messages, &model.CollectorRealTime{
@@ -87,7 +87,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
 	r.lastRun = time.Now()
 	r.lastProcs = procs
-	r.lastCtrList = ctrList
+	r.lastCtrRates = util.KeepContainerRateMetrics(ctrList)
 	r.lastCPUTime = cpuTimes[0]
 
 	return messages, nil
