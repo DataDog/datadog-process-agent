@@ -1,5 +1,5 @@
-hash: 4723e82ceab472744ebaabe4fa84fde21be372edaa8acaf5de2976a7df8815cd
-updated: 2018-07-23T16:46:14.539454942+02:00
+hash: 97476456ed2475798ee9de52c55889f7d5da2ed1cc81dd4903b6cd01234a2c3a
+updated: 2018-07-31T11:29:01.489648785+02:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: bb029104295041aa34559192f1b08a2a318b7d4c
@@ -45,7 +45,7 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: 773a90cc679f2deb1fd561d9f3d3615588618433
+  version: 8bf060cc8cfb7e92b4395bf48e9a99b95fb5590a
   subpackages:
   - cmd/agent/api/response
   - pkg/api/security
@@ -65,8 +65,8 @@ imports:
   - pkg/util/cache
   - pkg/util/clusteragent
   - pkg/util/containers
-  - pkg/util/containers/metrics
   - pkg/util/containers/collectors
+  - pkg/util/containers/metrics
   - pkg/util/docker
   - pkg/util/ec2
   - pkg/util/ecs
