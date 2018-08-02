@@ -35,7 +35,7 @@ imports:
   subpackages:
   - statsd
 - name: github.com/DataDog/gopsutil
-  version: c65bdbfc0cf2758760b8004641c7eab9bd3565cb
+  version: 771928d86fa878b9d62f073a7a6f91ee0a358105
   vcs: git
   subpackages:
   - cpu
