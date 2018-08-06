@@ -1,3 +1,5 @@
+// +build linux
+
 package util
 
 import (
@@ -7,7 +9,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/cache"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/containers/collectors"
-	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -56,22 +57,6 @@ func GetContainers() ([]*containers.Container, error) {
 		return containers, nil
 	}
 	return nil, errors.New("")
-}
-
-// ContainerRateMetrics holds previous values for a container,
-// in order to compute rates
-type ContainerRateMetrics struct {
-	CPU        *metrics.CgroupTimesStat
-	IO         *metrics.CgroupIOStat
-	NetworkSum *metrics.InterfaceNetStats
-}
-
-// NullContainerRates can be safely used for containers that have no
-// previours rate values stored (new containers)
-var NullContainerRates = ContainerRateMetrics{
-	CPU:        &metrics.CgroupTimesStat{},
-	IO:         &metrics.CgroupIOStat{},
-	NetworkSum: &metrics.InterfaceNetStats{},
 }
 
 // KeepContainerRateMetrics extracts relevant rate values from a container list
