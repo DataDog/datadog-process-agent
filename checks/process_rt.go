@@ -100,10 +100,10 @@ func fmtProcessStats(
 	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
 ) [][]*model.ProcessStat {
-	ctrByPid := make(map[int32]*containers.Container, len(ctrList))
+	cidByPid := make(map[int32]string, len(ctrList))
 	for _, c := range ctrList {
 		for _, p := range c.Pids {
-			ctrByPid[p] = c
+			cidByPid[p] = c.ID
 		}
 	}
 
@@ -112,11 +112,6 @@ func fmtProcessStats(
 	for _, fp := range procs {
 		if skipProcess(cfg, fp, lastProcs) {
 			continue
-		}
-
-		ctr, ok := ctrByPid[fp.Pid]
-		if !ok {
-			ctr = containers.NullContainer
 		}
 
 		chunk = append(chunk, &model.ProcessStat{
@@ -131,7 +126,7 @@ func fmtProcessStats(
 			IoStat:                 formatIO(fp, lastProcs[fp.Pid].IOStat, lastRun),
 			VoluntaryCtxSwitches:   uint64(fp.CtxSwitches.Voluntary),
 			InvoluntaryCtxSwitches: uint64(fp.CtxSwitches.Involuntary),
-			ContainerId:            ctr.ID,
+			ContainerId:            cidByPid[fp.Pid],
 		})
 		if len(chunk) == cfg.MaxPerMessage {
 			chunked = append(chunked, chunk)
