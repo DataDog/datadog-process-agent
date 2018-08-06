@@ -14,10 +14,13 @@ import (
 var detector *collectors.Detector
 var containerCacheDuration = 10 * time.Second
 
+// SetContainerSource allows config to force a single container source
 func SetContainerSource(name string) {
 	detector = collectors.NewDetector(name)
 }
 
+// GetContainers returns containers found on the machine, autodetecting
+// the best backend from available sources
 func GetContainers() ([]*containers.Container, error) {
 	// Detect source
 	if detector == nil {
@@ -33,13 +36,13 @@ func GetContainers() ([]*containers.Container, error) {
 	cached, hit := cache.Cache.Get(cacheKey)
 	if hit {
 		containers, ok := cached.([]*containers.Container)
-		if ok {
+		if !ok {
+			log.Errorf("Invalid container list cache format, forcing a cache miss")
+			hit = false
+		} else {
 			err := l.UpdateMetrics(containers)
 			log.Infof("Got %d containers from cache", len(containers))
 			return containers, err
-		} else {
-			log.Errorf("Invalid container list cache format, forcing a cache miss")
-			hit = false
 		}
 	}
 	// If cache empty/expired, get a new container list
@@ -55,18 +58,24 @@ func GetContainers() ([]*containers.Container, error) {
 	return nil, errors.New("")
 }
 
+// ContainerRateMetrics holds previous values for a container,
+// in order to compute rates
 type ContainerRateMetrics struct {
 	CPU        *metrics.CgroupTimesStat
 	IO         *metrics.CgroupIOStat
 	NetworkSum *metrics.InterfaceNetStats
 }
 
+// NullContainerRates can be safely used for containers that have no
+// previours rate values stored (new containers)
 var NullContainerRates = ContainerRateMetrics{
 	CPU:        &metrics.CgroupTimesStat{},
 	IO:         &metrics.CgroupIOStat{},
 	NetworkSum: &metrics.InterfaceNetStats{},
 }
 
+// KeepContainerRateMetrics extracts relevant rate values from a container list
+// for later reuse, while reducing memory usage to only the needed fields
 func KeepContainerRateMetrics(containers []*containers.Container) map[string]ContainerRateMetrics {
 	out := make(map[string]ContainerRateMetrics)
 	for _, c := range containers {
