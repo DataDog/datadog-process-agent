@@ -4,12 +4,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
+	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/DataDog/datadog-process-agent/util"
-
-	"github.com/DataDog/datadog-agent/pkg/util/containers"
-	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
 )
 
 func makeContainer(id string) *containers.Container {

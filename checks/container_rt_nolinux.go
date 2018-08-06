@@ -5,10 +5,11 @@ package checks
 import (
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
+
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
-
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
+	"github.com/DataDog/datadog-process-agent/util"
 )
 
 // RTContainer is a singleton RTContainerCheck.
@@ -16,9 +17,8 @@ var RTContainer = &RTContainerCheck{}
 
 // RTContainerCheck collects numeric statistics about live containers.
 type RTContainerCheck struct {
-	sysInfo        *model.SystemInfo
-	lastContainers []*docker.Container
-	lastRun        time.Time
+	sysInfo *model.SystemInfo
+	lastRun time.Time
 }
 
 // Init initializes a RTContainerCheck instance.
@@ -43,30 +43,10 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 // fmtContainerStats formats and chunks the containers into a slice of chunks using a specific
 // number of chunks. len(result) MUST EQUAL chunks.
 func fmtContainerStats(
-	containers, lastContainers []*docker.Container,
+	ctrList []*containers.Container,
+	lastRates map[string]util.ContainerRateMetrics,
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.ContainerStat {
-	lastByID := make(map[string]*docker.Container, len(containers))
-	for _, c := range lastContainers {
-		lastByID[c.ID] = c
-	}
-
-	perChunk := (len(containers) / chunks) + 1
-	chunked := make([][]*model.ContainerStat, chunks)
-	chunk := make([]*model.ContainerStat, 0, perChunk)
-	i := 0
-	for range containers {
-		chunk = append(chunk, &model.ContainerStat{})
-		if len(chunk) == perChunk {
-			chunked[i] = chunk
-			chunk = make([]*model.ContainerStat, 0, perChunk)
-			i++
-		}
-	}
-	// Add the last chunk if data remains.
-	if len(chunk) > 0 {
-		chunked[i] = chunk
-	}
-	return chunked
+	return nil
 }

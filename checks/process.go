@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 	log "github.com/cihub/seelog"
@@ -12,8 +13,6 @@ import (
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util"
-
-	"github.com/DataDog/datadog-agent/pkg/util/containers"
 )
 
 // Process is a singleton ProcessCheck.

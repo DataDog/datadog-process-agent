@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"time"
 
-	log "github.com/cihub/seelog"
-
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
+	log "github.com/cihub/seelog"
 )
 
 // Connections is a singleton ConnectionsCheck.

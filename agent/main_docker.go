@@ -7,9 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	log "github.com/cihub/seelog"
-
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
+	log "github.com/cihub/seelog"
 )
 
 func initMetadataProviders() {

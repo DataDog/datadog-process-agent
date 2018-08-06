@@ -3,14 +3,13 @@ package checks
 import (
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/util"
-
-	"github.com/DataDog/datadog-agent/pkg/util/containers"
 )
 
 // RTProcess is a singleton RTProcessCheck.
