@@ -79,7 +79,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	c.lastRun = time.Now()
 
 	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
-	log.Debugf("collected containers in %s", time.Now().Sub(start))
+	log.Debugf("collected %d containers in %s", int(totalContainers), time.Now().Sub(start))
 	return messages, nil
 }
 
