@@ -36,7 +36,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		return
 	}
 
-	t, err := tracer.NewTracer()
+	t, err := tracer.NewTracer(tracer.DefaultConfig)
 	if err != nil {
 		log.Errorf("failed to create network tracer: %s", err)
 		return
@@ -92,7 +92,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 		}
 	}
 
-	log.Infof("collected connections in %s", time.Since(start))
+	log.Debugf("collected connections in %s", time.Since(start))
 	return batchConnections(cfg, groupID, c.formatConnections(conns, lastConnByKey, c.prevCheckTime)), nil
 }
 
