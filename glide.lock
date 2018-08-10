@@ -45,7 +45,7 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: 2bda0d2b69c2ba93509e469f80b962b2b0a66bd0
+  version: f2bfd33e20920571e4cd6791a41aa9f73a0849f6
   subpackages:
   - cmd/agent/api/response
   - pkg/api/security
