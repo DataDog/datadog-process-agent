@@ -46,7 +46,7 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 
 	// End check early if this is our first run.
 	if r.lastRates == nil {
-		r.lastRates = util.KeepContainerRateMetrics(ctrList)
+		r.lastRates = util.ExtractContainerRateMetric(ctrList)
 		r.lastRun = time.Now()
 		return nil, nil
 	}
@@ -68,7 +68,7 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 		})
 	}
 
-	r.lastRates = util.KeepContainerRateMetrics(ctrList)
+	r.lastRates = util.ExtractContainerRateMetric(ctrList)
 	r.lastRun = time.Now()
 
 	return messages, nil

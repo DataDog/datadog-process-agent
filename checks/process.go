@@ -71,7 +71,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if p.lastProcs == nil {
 		p.lastProcs = procs
 		p.lastCPUTime = cpuTimes[0]
-		p.lastCtrRates = util.KeepContainerRateMetrics(ctrList)
+		p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
 		p.lastRun = time.Now()
 		return nil, nil
 	}
@@ -102,7 +102,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	// Store the last state for comparison on the next run.
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
 	p.lastProcs = procs
-	p.lastCtrRates = util.KeepContainerRateMetrics(ctrList)
+	p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
 	p.lastCPUTime = cpuTimes[0]
 	p.lastRun = time.Now()
 

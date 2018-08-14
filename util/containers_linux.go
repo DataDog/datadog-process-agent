@@ -3,7 +3,6 @@
 package util
 
 import (
-	"errors"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/util/cache"
@@ -12,8 +11,10 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-var detector *collectors.Detector
-var containerCacheDuration = 10 * time.Second
+var (
+	containerCacheDuration = 10 * time.Second
+	detector               *collectors.Detector
+)
 
 // SetContainerSource allows config to force a single container source
 func SetContainerSource(name string) {
@@ -37,31 +38,27 @@ func GetContainers() ([]*containers.Container, error) {
 	cached, hit := cache.Cache.Get(cacheKey)
 	if hit {
 		containers, ok := cached.([]*containers.Container)
-		if !ok {
-			log.Errorf("Invalid container list cache format, forcing a cache miss")
-			hit = false
-		} else {
+		if ok {
 			err := l.UpdateMetrics(containers)
 			log.Infof("Got %d containers from cache", len(containers))
 			return containers, err
 		}
+		log.Errorf("Invalid container list cache format, forcing a cache miss")
 	}
+
 	// If cache empty/expired, get a new container list
-	if !hit {
-		containers, err := l.List()
-		if err != nil {
-			return nil, err
-		}
-		cache.Cache.Set(cacheKey, containers, containerCacheDuration)
-		log.Infof("Got %d containers from source %s", len(containers), name)
-		return containers, nil
+	containers, err := l.List()
+	if err != nil {
+		return nil, err
 	}
-	return nil, errors.New("")
+	cache.Cache.Set(cacheKey, containers, containerCacheDuration)
+	log.Infof("Got %d containers from source %s", len(containers), name)
+	return containers, nil
 }
 
-// KeepContainerRateMetrics extracts relevant rate values from a container list
+// ExtractContainerRateMetric extracts relevant rate values from a container list
 // for later reuse, while reducing memory usage to only the needed fields
-func KeepContainerRateMetrics(containers []*containers.Container) map[string]ContainerRateMetrics {
+func ExtractContainerRateMetric(containers []*containers.Container) map[string]ContainerRateMetrics {
 	out := make(map[string]ContainerRateMetrics)
 	for _, c := range containers {
 		m := ContainerRateMetrics{

@@ -51,7 +51,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 
 	// End check early if this is our first run.
 	if c.lastRates == nil {
-		c.lastRates = util.KeepContainerRateMetrics(ctrList)
+		c.lastRates = util.ExtractContainerRateMetric(ctrList)
 		c.lastRun = time.Now()
 		return nil, nil
 	}
@@ -74,7 +74,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 		})
 	}
 
-	c.lastRates = util.KeepContainerRateMetrics(ctrList)
+	c.lastRates = util.ExtractContainerRateMetric(ctrList)
 	c.lastRun = time.Now()
 
 	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)

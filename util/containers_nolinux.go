@@ -16,7 +16,7 @@ func GetContainers() ([]*containers.Container, error) {
 	return nil, ErrNotImplemented
 }
 
-// KeepContainerRateMetrics is only implemented on Linux
-func KeepContainerRateMetrics(containers []*containers.Container) map[string]ContainerRateMetrics {
+// ExtractContainerRateMetric is only implemented on Linux
+func ExtractContainerRateMetric(containers []*containers.Container) map[string]ContainerRateMetrics {
 	return make(map[string]ContainerRateMetrics)
 }

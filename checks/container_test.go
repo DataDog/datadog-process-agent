@@ -36,19 +36,19 @@ func TestContainerChunking(t *testing.T) {
 	}{
 		{
 			cur:      []*containers.Container{ctrs[0], ctrs[1], ctrs[2]},
-			last:     util.KeepContainerRateMetrics([]*containers.Container{ctrs[0], ctrs[1], ctrs[2]}),
+			last:     util.ExtractContainerRateMetric([]*containers.Container{ctrs[0], ctrs[1], ctrs[2]}),
 			chunks:   2,
 			expected: 3,
 		},
 		{
 			cur:      []*containers.Container{ctrs[0], ctrs[1], ctrs[2]},
-			last:     util.KeepContainerRateMetrics([]*containers.Container{ctrs[0], ctrs[2]}),
+			last:     util.ExtractContainerRateMetric([]*containers.Container{ctrs[0], ctrs[2]}),
 			chunks:   2,
 			expected: 3,
 		},
 		{
 			cur:      []*containers.Container{ctrs[0], ctrs[2]},
-			last:     util.KeepContainerRateMetrics([]*containers.Container{ctrs[0], ctrs[1], ctrs[2]}),
+			last:     util.ExtractContainerRateMetric([]*containers.Container{ctrs[0], ctrs[1], ctrs[2]}),
 			chunks:   20,
 			expected: 2,
 		},
