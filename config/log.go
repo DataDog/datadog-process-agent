@@ -14,7 +14,7 @@ import (
 
 // Default logging constants.
 const (
-	DefaultLogLevel    = "info"
+	DefaultLogLevel = "info"
 )
 
 var (
