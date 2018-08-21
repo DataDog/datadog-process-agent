@@ -14,9 +14,7 @@ import (
 
 // Default logging constants.
 const (
-	DefaultLogLevel    = "info"
-	DefaultSyslogHost  = "localhost:514"
-	DefaultSyslogLevel = "error"
+	DefaultLogLevel = "info"
 )
 
 var (

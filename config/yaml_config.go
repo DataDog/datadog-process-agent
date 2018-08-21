@@ -50,9 +50,6 @@ type YamlAgentConfig struct {
 		StripProcessArguments bool `yaml:"strip_proc_arguments"`
 		// How many check results to buffer in memory when POST fails. The default is usually fine.
 		QueueSize int `yaml:"queue_size"`
-		// The maximum number of file descriptors to open when collecting net connections.
-		// Only change if you are running out of file descriptors from the Agent.
-		MaxProcFDs int `yaml:"max_proc_fds"`
 		// The maximum number of processes, connections or containers per message.
 		// Only change if the defaults are causing issues.
 		MaxPerMessage int `yaml:"max_per_message"`
@@ -160,9 +157,6 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 
 	if yc.Process.QueueSize > 0 {
 		agentConf.QueueSize = yc.Process.QueueSize
-	}
-	if yc.Process.MaxProcFDs > 0 {
-		agentConf.MaxProcFDs = yc.Process.MaxProcFDs
 	}
 	if yc.Process.MaxPerMessage > 0 {
 		if yc.Process.MaxPerMessage <= maxMessageBatch {
