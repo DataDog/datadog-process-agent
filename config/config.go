@@ -15,7 +15,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/util"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
+	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
 
 	log "github.com/cihub/seelog"
@@ -185,7 +185,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 	// Set default values for proc/sys paths if unset.
 	// Don't set this is /host is not mounted to use context within container.
 	// Generally only applicable for container-only cases like Fargate.
-	if docker.IsContainerized() && util.PathExists("/host") {
+	if ddconfig.IsContainerized() && util.PathExists("/host") {
 		if v := os.Getenv("HOST_PROC"); v == "" {
 			os.Setenv("HOST_PROC", "/host/proc")
 		}
