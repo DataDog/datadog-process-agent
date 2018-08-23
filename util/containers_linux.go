@@ -40,7 +40,7 @@ func GetContainers() ([]*containers.Container, error) {
 		containers, ok := cached.([]*containers.Container)
 		if ok {
 			err := l.UpdateMetrics(containers)
-			log.Infof("Got %d containers from cache", len(containers))
+			log.Tracef("Got %d containers from cache", len(containers))
 			return containers, err
 		}
 		log.Errorf("Invalid container list cache format, forcing a cache miss")
@@ -52,7 +52,7 @@ func GetContainers() ([]*containers.Container, error) {
 		return nil, err
 	}
 	cache.Cache.Set(cacheKey, containers, containerCacheDuration)
-	log.Infof("Got %d containers from source %s", len(containers), name)
+	log.Tracef("Got %d containers from source %s", len(containers), name)
 	return containers, nil
 }
 
