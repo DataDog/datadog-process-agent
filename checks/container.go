@@ -1,4 +1,4 @@
-// +build docker
+// +build linux
 
 package checks
 
@@ -6,14 +6,14 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/tagger"
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	log "github.com/cihub/seelog"
 
-	"github.com/DataDog/datadog-agent/pkg/tagger"
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
-	"github.com/DataDog/datadog-process-agent/util/container"
+	"github.com/DataDog/datadog-process-agent/util"
 )
 
 // Container is a singleton ContainerCheck.
@@ -21,9 +21,9 @@ var Container = &ContainerCheck{}
 
 // ContainerCheck is a check that returns container metadata and stats.
 type ContainerCheck struct {
-	sysInfo        *model.SystemInfo
-	lastContainers []*docker.Container
-	lastRun        time.Time
+	sysInfo   *model.SystemInfo
+	lastRates map[string]util.ContainerRateMetrics
+	lastRun   time.Time
 }
 
 // Init initializes a ContainerCheck instance.
@@ -40,27 +40,27 @@ func (c *ContainerCheck) Endpoint() string { return "/api/v1/container" }
 // RealTime indicates if this check only runs in real-time mode.
 func (c *ContainerCheck) RealTime() bool { return false }
 
-// Run runs the ContainerCheck to collect a list of running containers and the
+// Run runs the ContainerCheck to collect a list of running ctrList and the
 // stats for each container.
 func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
 	start := time.Now()
-	containers, err := container.GetContainers()
+	ctrList, err := util.GetContainers()
 	if err != nil {
 		return nil, err
 	}
 
 	// End check early if this is our first run.
-	if c.lastContainers == nil {
-		c.lastContainers = containers
+	if c.lastRates == nil {
+		c.lastRates = util.ExtractContainerRateMetric(ctrList)
 		c.lastRun = time.Now()
 		return nil, nil
 	}
 
-	groupSize := len(containers) / cfg.MaxPerMessage
-	if len(containers) != cfg.MaxPerMessage {
+	groupSize := len(ctrList) / cfg.MaxPerMessage
+	if len(ctrList) != cfg.MaxPerMessage {
 		groupSize++
 	}
-	chunked := fmtContainers(containers, c.lastContainers, c.lastRun, groupSize)
+	chunked := fmtContainers(ctrList, c.lastRates, c.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	totalContainers := float64(0)
 	for i := 0; i < groupSize; i++ {
@@ -74,45 +74,39 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 		})
 	}
 
-	c.lastContainers = containers
+	c.lastRates = util.ExtractContainerRateMetric(ctrList)
 	c.lastRun = time.Now()
 
 	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
-	log.Debugf("collected containers in %s", time.Now().Sub(start))
+	log.Debugf("collected %d containers in %s", int(totalContainers), time.Now().Sub(start))
 	return messages, nil
 }
 
-// fmtContainers formats and chunks the containers into a slice of chunks using a specific
+// fmtContainers formats and chunks the ctrList into a slice of chunks using a specific
 // number of chunks. len(result) MUST EQUAL chunks.
 func fmtContainers(
-	containers, lastContainers []*docker.Container,
+	ctrList []*containers.Container,
+	lastRates map[string]util.ContainerRateMetrics,
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.Container {
-	lastByID := make(map[string]*docker.Container, len(containers))
-	for _, c := range lastContainers {
-		lastByID[c.ID] = c
-	}
-
-	perChunk := (len(containers) / chunks) + 1
+	perChunk := (len(ctrList) / chunks) + 1
 	chunked := make([][]*model.Container, chunks)
 	chunk := make([]*model.Container, 0, perChunk)
 	i := 0
-	for _, ctr := range containers {
-		lastCtr, ok := lastByID[ctr.ID]
+	for _, ctr := range ctrList {
+		lastCtr, ok := lastRates[ctr.ID]
 		if !ok {
 			// Set to an empty container so rate calculations work and use defaults.
-			lastCtr = docker.NullContainer
+			lastCtr = util.NullContainerRates
 		}
 
 		ifStats := ctr.Network.SumInterfaces()
-		lastIfStats := lastCtr.Network.SumInterfaces()
 		cpus := runtime.NumCPU()
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 
 		// Retrieves metadata tags
-		entityID := docker.ContainerIDToEntityName(ctr.ID)
-		tags, err := tagger.Tag(entityID, true)
+		tags, err := tagger.Tag(ctr.EntityID, true)
 		if err != nil {
 			log.Errorf("unable to retrieve tags for container: %s", err)
 			tags = []string{}
@@ -133,10 +127,10 @@ func fmtContainers(
 			Health:      model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
 			Rbps:        calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun),
 			Wbps:        calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun),
-			NetRcvdPs:   calculateRate(ifStats.PacketsRcvd, lastIfStats.PacketsRcvd, lastRun),
-			NetSentPs:   calculateRate(ifStats.PacketsSent, lastIfStats.PacketsSent, lastRun),
-			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastIfStats.BytesRcvd, lastRun),
-			NetSentBps:  calculateRate(ifStats.BytesSent, lastIfStats.BytesSent, lastRun),
+			NetRcvdPs:   calculateRate(ifStats.PacketsRcvd, lastCtr.NetworkSum.PacketsRcvd, lastRun),
+			NetSentPs:   calculateRate(ifStats.PacketsSent, lastCtr.NetworkSum.PacketsSent, lastRun),
+			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun),
+			NetSentBps:  calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun),
 			Started:     ctr.StartedAt,
 			Tags:        tags,
 		})

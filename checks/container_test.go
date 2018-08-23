@@ -4,21 +4,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
+	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/DataDog/datadog-process-agent/util"
 )
 
-func makeContainer(id string) *docker.Container {
-	return &docker.Container{
+func makeContainer(id string) *containers.Container {
+	return &containers.Container{
 		ID:     id,
-		CPU:    &docker.CgroupTimesStat{},
-		Memory: &docker.CgroupMemStat{},
-		IO:     &docker.CgroupIOStat{},
+		CPU:    &metrics.CgroupTimesStat{},
+		Memory: &metrics.CgroupMemStat{},
+		IO:     &metrics.CgroupIOStat{},
 	}
 }
 
 func TestContainerChunking(t *testing.T) {
-	ctrs := []*docker.Container{
+	ctrs := []*containers.Container{
 		makeContainer("foo"),
 		makeContainer("bar"),
 		makeContainer("bim"),
@@ -26,25 +29,26 @@ func TestContainerChunking(t *testing.T) {
 	lastRun := time.Now().Add(-5 * time.Second)
 
 	for i, tc := range []struct {
-		cur, last []*docker.Container
-		chunks    int
-		expected  int
+		cur      []*containers.Container
+		last     map[string]util.ContainerRateMetrics
+		chunks   int
+		expected int
 	}{
 		{
-			cur:      []*docker.Container{ctrs[0], ctrs[1], ctrs[2]},
-			last:     []*docker.Container{ctrs[0], ctrs[1], ctrs[2]},
+			cur:      []*containers.Container{ctrs[0], ctrs[1], ctrs[2]},
+			last:     util.ExtractContainerRateMetric([]*containers.Container{ctrs[0], ctrs[1], ctrs[2]}),
 			chunks:   2,
 			expected: 3,
 		},
 		{
-			cur:      []*docker.Container{ctrs[0], ctrs[1], ctrs[2]},
-			last:     []*docker.Container{ctrs[0], ctrs[2]},
+			cur:      []*containers.Container{ctrs[0], ctrs[1], ctrs[2]},
+			last:     util.ExtractContainerRateMetric([]*containers.Container{ctrs[0], ctrs[2]}),
 			chunks:   2,
 			expected: 3,
 		},
 		{
-			cur:      []*docker.Container{ctrs[0], ctrs[2]},
-			last:     []*docker.Container{ctrs[0], ctrs[1], ctrs[2]},
+			cur:      []*containers.Container{ctrs[0], ctrs[2]},
+			last:     util.ExtractContainerRateMetric([]*containers.Container{ctrs[0], ctrs[1], ctrs[2]}),
 			chunks:   20,
 			expected: 2,
 		},

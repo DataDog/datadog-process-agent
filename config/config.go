@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
-	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
 	"github.com/DataDog/datadog-process-agent/util"
-	"github.com/DataDog/datadog-process-agent/util/container"
+
+	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
 
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"
@@ -80,11 +80,12 @@ type AgentConfig struct {
 	EnabledChecks  []string
 	CheckIntervals map[string]time.Duration
 
-	// Docker
+	// Containers
 	ContainerBlacklist     []string
 	ContainerWhitelist     []string
 	CollectDockerNetwork   bool
 	ContainerCacheDuration time.Duration
+	ContainerSource        string
 
 	// Internal store of a proxy used for generating the Transport
 	proxy proxyFunc
@@ -121,7 +122,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		panic(err)
 	}
 
-	_, err = container.GetContainers()
+	_, err = util.GetContainers()
 	canAccessContainers := err == nil
 
 	ac := &AgentConfig{
@@ -169,6 +170,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Docker
 		ContainerCacheDuration: 10 * time.Second,
 		CollectDockerNetwork:   true,
+		ContainerSource:        "",
 
 		// DataScrubber to hide command line sensitive words
 		Scrubber: NewDefaultDataScrubber(),
@@ -183,7 +185,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 	// Set default values for proc/sys paths if unset.
 	// Don't set this is /host is not mounted to use context within container.
 	// Generally only applicable for container-only cases like Fargate.
-	if docker.IsContainerized() && util.PathExists("/host") {
+	if ddconfig.IsContainerized() && util.PathExists("/host") {
 		if v := os.Getenv("HOST_PROC"); v == "" {
 			os.Setenv("HOST_PROC", "/host/proc")
 		}
@@ -482,7 +484,9 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		durationS, _ := strconv.Atoi(v)
 		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
 	}
-
+	if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
+		c.ContainerSource = v
+	}
 	// Note: this feature is in development and should not be used in production environments
 	if ok, _ := isAffirmative(os.Getenv("DD_CONNECTIONS_CHECK")); ok {
 		c.EnabledChecks = append(c.EnabledChecks, "connections")
