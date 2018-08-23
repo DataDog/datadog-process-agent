@@ -45,7 +45,7 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: e0f3a8911ae8e91d34a499cf3545e49bde795213
+  version: 5cad8f1a6bf6dca6a742fc0f85983c33f77f98ae
   subpackages:
   - cmd/agent/api/response
   - pkg/api/security
@@ -131,8 +131,6 @@ imports:
   - tlsconfig
 - name: github.com/docker/go-units
   version: 47565b4f722fb6ceae66b95f853feed578a4a51c
-- name: github.com/ericchiang/k8s
-  version: 860d64039a0d98e149452f9687f26eb3636d5038
 - name: github.com/fsnotify/fsnotify
   version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: github.com/ghodss/yaml
