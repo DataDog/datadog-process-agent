@@ -231,7 +231,7 @@ func printResults(cfg *config.AgentConfig, ch checks.Check) error {
 		return fmt.Errorf("collection error: %s", err)
 	}
 
-	if ch.Name() == checks.Connections.Name() {
+	if cfg.EnableLocalNetworkTracer && ch.Name() == checks.Connections.Name() {
 		fmt.Printf("Waiting 5 seconds to allow for active connections to transmit data\n")
 		time.Sleep(5 * time.Second)
 	} else {

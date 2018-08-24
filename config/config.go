@@ -27,6 +27,8 @@ var (
 	// This mirrors the configuration for the infrastructure agent.
 	defaultProxyPort = 3128
 
+	defaultNetworkTracerSocketPath = "/var/run/datadog/nettracer.sock"
+
 	processChecks   = []string{"process", "rtprocess"}
 	containerChecks = []string{"container", "rtcontainer"}
 
@@ -76,6 +78,10 @@ type AgentConfig struct {
 	StatsdHost    string
 	StatsdPort    int
 
+	// Network collection configuration
+	EnableLocalNetworkTracer bool
+	NetworkTracerSocketPath  string
+
 	// Check config
 	EnabledChecks  []string
 	CheckIntervals map[string]time.Duration
@@ -114,6 +120,20 @@ const (
 	maxMessageBatch = 100
 )
 
+func DefaultTransport() *http.Transport {
+	return &http.Transport{
+		MaxIdleConns:    5,
+		IdleConnTimeout: 90 * time.Second,
+		Dial: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 10 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ResponseHeaderTimeout: 5 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+}
+
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
 func NewDefaultAgentConfig() *AgentConfig {
 	u, err := url.Parse(defaultEndpoint)
@@ -126,8 +146,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 	canAccessContainers := err == nil
 
 	ac := &AgentConfig{
-		// We'll always run inside of a container.
-		Enabled:       canAccessContainers,
+		Enabled:       canAccessContainers, // We'll always run inside of a container.
 		APIEndpoints:  []APIEndpoint{{Endpoint: u}},
 		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
@@ -137,17 +156,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		MaxPerMessage: 100,
 		AllowRealTime: true,
 		HostName:      "",
-		Transport: &http.Transport{
-			MaxIdleConns:    5,
-			IdleConnTimeout: 90 * time.Second,
-			Dial: (&net.Dialer{
-				Timeout:   10 * time.Second,
-				KeepAlive: 10 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   5 * time.Second,
-			ResponseHeaderTimeout: 5 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
+		Transport:     DefaultTransport(),
 
 		// Statsd for internal instrumentation
 		StatsdHost: "127.0.0.1",
@@ -156,6 +165,10 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Path and environment for the dd-agent embedded python
 		DDAgentPy:    defaultDDAgentPy,
 		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
+
+		// Network collection configuration
+		EnableLocalNetworkTracer: false,
+		NetworkTracerSocketPath:  defaultNetworkTracerSocketPath,
 
 		// Check config
 		EnabledChecks: containerChecks,

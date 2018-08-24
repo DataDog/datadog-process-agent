@@ -2,6 +2,12 @@ package checks
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net"
+	"net/http"
 	"time"
 
 	"github.com/DataDog/datadog-process-agent/config"
@@ -10,13 +16,22 @@ import (
 	log "github.com/cihub/seelog"
 )
 
+const (
+	socketConnectionsURL = "http://unix/connections"
+)
+
 // Connections is a singleton ConnectionsCheck.
 var Connections = &ConnectionsCheck{}
 
 // ConnectionsCheck collects statistics about live TCP and UDP connections.
 type ConnectionsCheck struct {
-	tracer    *tracer.Tracer
-	supported bool
+	// Local network tracer
+	useLocalTracer bool
+	localTracer    *tracer.Tracer
+
+	// Remote network tracer
+	socketPath       string
+	socketHTTPClient http.Client
 
 	prevCheckConns []tracer.ConnectionStats
 	prevCheckTime  time.Time
@@ -28,21 +43,41 @@ type ConnectionsCheck struct {
 func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
 	var err error
 
-	// Checking whether the current kernel version is supported by the tracer
-	if c.supported, err = tracer.IsTracerSupportedByOS(); err != nil {
-		// err is always returned when false, so the above catches the !ok case as well
-		log.Warnf("network tracer unsupported by OS: %s", err)
-		return
+	if cfg.EnableLocalNetworkTracer {
+		log.Info("starting network tracer locally")
+
+		// Checking whether the current kernel version is supported by the tracer
+		if _, err = tracer.IsTracerSupportedByOS(); err != nil {
+			// err is always returned when false, so the above catches the !ok case as well
+			log.Warnf("network tracer unsupported by OS: %s", err)
+			return
+		}
+
+		t, err := tracer.NewTracer(tracer.DefaultConfig)
+		if err != nil {
+			log.Errorf("failed to create network tracer: %s", err)
+			return
+		}
+
+		c.useLocalTracer = true
+		c.localTracer = t
+		c.localTracer.Start()
+	} else {
+		log.Info("creating connection to network tracer at: %s", cfg.NetworkTracerSocketPath)
+		c.socketPath = cfg.NetworkTracerSocketPath
+
+		// TODO: Configure with lower thresholds since it's traffic over unix sockets?
+		t := config.DefaultTransport()
+		t.DialContext = func(_ context.Context, _, _ string) (net.Conn, error) {
+			return net.Dial("unix", c.socketPath)
+		}
+
+		c.socketHTTPClient = http.Client{
+			Timeout:   5 * time.Second,
+			Transport: t,
+		}
 	}
 
-	t, err := tracer.NewTracer(tracer.DefaultConfig)
-	if err != nil {
-		log.Errorf("failed to create network tracer: %s", err)
-		return
-	}
-
-	c.tracer = t
-	c.tracer.Start()
 	c.buf = new(bytes.Buffer)
 }
 
@@ -61,13 +96,13 @@ func (c *ConnectionsCheck) RealTime() bool { return false }
 // that will be bundled up into a `CollectorConnections`.
 // See agent.proto for the schema of the message and models.
 func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
-	if !c.supported || c.tracer == nil {
+	if c.useLocalTracer && c.localTracer == nil {
 		return nil, nil
 	}
 
 	start := time.Now()
 
-	conns, err := c.tracer.GetActiveConnections()
+	conns, err := c.getConnections()
 	if err != nil {
 		if err == tracer.ErrNotImplemented {
 			return nil, nil
@@ -93,6 +128,36 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 
 	log.Debugf("collected connections in %s", time.Since(start))
 	return batchConnections(cfg, groupID, c.formatConnections(conns, lastConnByKey, c.prevCheckTime)), nil
+}
+
+func (c *ConnectionsCheck) getConnections() ([]tracer.ConnectionStats, error) {
+	if c.useLocalTracer { // If local tracer is set up, use that
+		if c.localTracer == nil {
+			return nil, fmt.Errorf("using local network tracer, but no tracer was initialized")
+		}
+		cs, err := c.localTracer.GetActiveConnections()
+		return cs.Conns, err
+	}
+
+	// Otherwise, get it remotely (via unix socket), and parse from JSON
+	resp, err := c.socketHTTPClient.Get(socketConnectionsURL)
+	if err != nil {
+		return nil, err
+	} else if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("connections request failed: socket %s, url: %s, status code: %d", c.socketPath, socketConnectionsURL, resp.StatusCode)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	conn := tracer.Connections{}
+	if err := json.Unmarshal(body, &conn); err != nil {
+		return nil, err
+	}
+
+	return conn.Conns, nil
 }
 
 // Connections are split up into a chunks of at most 100 connections per message to
