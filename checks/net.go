@@ -2,22 +2,14 @@ package checks
 
 import (
 	"bytes"
-	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net"
-	"net/http"
 	"time"
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
+	"github.com/DataDog/datadog-process-agent/util"
 	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
 	log "github.com/cihub/seelog"
-)
-
-const (
-	socketConnectionsURL = "http://unix/connections"
 )
 
 // Connections is a singleton ConnectionsCheck.
@@ -28,10 +20,6 @@ type ConnectionsCheck struct {
 	// Local network tracer
 	useLocalTracer bool
 	localTracer    *tracer.Tracer
-
-	// Remote network tracer
-	socketPath       string
-	socketHTTPClient http.Client
 
 	prevCheckConns []tracer.ConnectionStats
 	prevCheckTime  time.Time
@@ -63,19 +51,9 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		c.localTracer = t
 		c.localTracer.Start()
 	} else {
-		log.Info("creating connection to network tracer at: %s", cfg.NetworkTracerSocketPath)
-		c.socketPath = cfg.NetworkTracerSocketPath
-
-		// TODO: Configure with lower thresholds since it's traffic over unix sockets?
-		t := config.DefaultTransport()
-		t.DialContext = func(_ context.Context, _, _ string) (net.Conn, error) {
-			return net.Dial("unix", c.socketPath)
-		}
-
-		c.socketHTTPClient = http.Client{
-			Timeout:   5 * time.Second,
-			Transport: t,
-		}
+		// Calling the remote tracer will cause it to initialize and check connectivity
+		util.SetNetworkTracerSocketPath(cfg.NetworkTracerSocketPath)
+		util.GetRemoteNetworkTracerUtil()
 	}
 
 	c.buf = new(bytes.Buffer)
@@ -139,25 +117,13 @@ func (c *ConnectionsCheck) getConnections() ([]tracer.ConnectionStats, error) {
 		return cs.Conns, err
 	}
 
-	// Otherwise, get it remotely (via unix socket), and parse from JSON
-	resp, err := c.socketHTTPClient.Get(socketConnectionsURL)
+	tu, err := util.GetRemoteNetworkTracerUtil()
 	if err != nil {
-		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("connections request failed: socket %s, url: %s, status code: %d", c.socketPath, socketConnectionsURL, resp.StatusCode)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
+		// TODO (sk): Limited logging for retry cases, etc.
 		return nil, err
 	}
 
-	conn := tracer.Connections{}
-	if err := json.Unmarshal(body, &conn); err != nil {
-		return nil, err
-	}
-
-	return conn.Conns, nil
+	return tu.GetConnections()
 }
 
 // Connections are split up into a chunks of at most 100 connections per message to
