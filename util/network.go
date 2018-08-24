@@ -12,7 +12,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/retry"
-	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
 )
 
@@ -86,16 +85,20 @@ func (r *RemoteNetTracerUtil) GetConnections() ([]tracer.ConnectionStats, error)
 }
 
 func newNetworkTracer() *RemoteNetTracerUtil {
-	t := config.DefaultTransport()
-	t.DialContext = func(_ context.Context, _, _ string) (net.Conn, error) {
-		return net.Dial("unix", globalSocketPath)
-	}
-
 	return &RemoteNetTracerUtil{
 		socketPath: globalSocketPath,
 		httpClient: http.Client{
-			Timeout:   5 * time.Second,
-			Transport: t,
+			Timeout: 5 * time.Second,
+			Transport: &http.Transport{
+				MaxIdleConns:    5,
+				IdleConnTimeout: 90 * time.Second,
+				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+					return net.Dial("unix", globalSocketPath)
+				},
+				TLSHandshakeTimeout:   5 * time.Second,
+				ResponseHeaderTimeout: 5 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+			},
 		},
 	}
 }
