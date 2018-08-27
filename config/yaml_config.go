@@ -38,6 +38,7 @@ type YamlAgentConfig struct {
 			ContainerRealTime int `yaml:"container_realtime"`
 			Process           int `yaml:"process"`
 			ProcessRealTime   int `yaml:"process_realtime"`
+			Connections       int `yaml:"connections"`
 		} `yaml:"intervals"`
 		// A list of regex patterns that will exclude a process if matched.
 		BlacklistPatterns []string `yaml:"blacklist_patterns"`
@@ -64,6 +65,10 @@ type YamlAgentConfig struct {
 		ProcessDDURL string `yaml:"process_dd_url"`
 		// Optional additional pairs of endpoint_url => []apiKeys to submit to other locations.
 		AdditionalEndpoints map[string][]string `yaml:"additional_endpoints"`
+		// A string indicating the enabled state of the network tracer.
+		NetworkTracingEnabled string `yaml:"network_tracing_enabled"`
+		// The full path to the location of the unix socket where network traces will be accessed
+		UnixSocketPath string `yaml:"nettracer_socket"`
 		// Windows-specific configuration goes in this section.
 		Windows struct {
 			// Sets windows process table refresh rate (in number of check runs)
@@ -139,6 +144,10 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		log.Infof("Overriding real-time process check interval to %ds", yc.Process.Intervals.ProcessRealTime)
 		agentConf.CheckIntervals["rtprocess"] = time.Duration(yc.Process.Intervals.Process) * time.Second
 	}
+	if yc.Process.Intervals.Connections != 0 {
+		log.Infof("Overriding connections check interval to %ds", yc.Process.Intervals.Connections)
+		agentConf.CheckIntervals["connections"] = time.Duration(yc.Process.Intervals.Connections) * time.Second
+	}
 	blacklist := make([]*regexp.Regexp, 0, len(yc.Process.BlacklistPatterns))
 	for _, b := range yc.Process.BlacklistPatterns {
 		r, err := regexp.Compile(b)
@@ -194,6 +203,13 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 				Endpoint: u,
 			})
 		}
+	}
+
+	if enabled, _ := isAffirmative(yc.Process.NetworkTracingEnabled); enabled {
+		agentConf.EnabledChecks = append(agentConf.EnabledChecks, "connections")
+	}
+	if socketPath := yc.Process.UnixSocketPath; socketPath != "" {
+		agentConf.NetworkTracerSocketPath = socketPath
 	}
 
 	// Pull additional parameters from the global config file.
