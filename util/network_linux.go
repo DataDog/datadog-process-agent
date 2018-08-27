@@ -1,3 +1,5 @@
+// +build linux
+
 package util
 
 import (
@@ -25,6 +27,7 @@ var (
 	globalSocketPath string
 )
 
+// RemoteNetTracerUtil wraps interactions with a remote network tracer service
 type RemoteNetTracerUtil struct {
 	// Retrier used to setup network tracer
 	initRetry retry.Retrier
@@ -35,10 +38,13 @@ type RemoteNetTracerUtil struct {
 	hasLoggedErrForStatus map[retry.Status]struct{}
 }
 
+// SetNetworkTracerSocketPath provides a unix socket path location to be used by the remote network tracer.
+// This needs to be called before GetRemoteNetworkTracerUtil.
 func SetNetworkTracerSocketPath(socketPath string) {
 	globalSocketPath = socketPath
 }
 
+// GetRemoteNetworkTracerUtil returns a ready to use RemoteNetTracerUtil. It is backed by a shared singleton.
 func GetRemoteNetworkTracerUtil() (*RemoteNetTracerUtil, error) {
 	if globalSocketPath == "" {
 		return nil, fmt.Errorf("remote tracer has no socket path defined")
@@ -64,13 +70,14 @@ func GetRemoteNetworkTracerUtil() (*RemoteNetTracerUtil, error) {
 	return globalUtil, nil
 }
 
+// GetConnections returns a set of active network connections, retrieved from the network tracer service
 func (r *RemoteNetTracerUtil) GetConnections() ([]tracer.ConnectionStats, error) {
 	// Otherwise, get it remotely (via unix socket), and parse from JSON
 	resp, err := r.httpClient.Get(connectionsURL)
 	if err != nil {
 		return nil, err
 	} else if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("connections request failed: socket %s, url: %s, status code: %d", r.socketPath, connectionsURL, resp.StatusCode)
+		return nil, fmt.Errorf("conn request failed: socket %s, url: %s, status code: %d", r.socketPath, connectionsURL, resp.StatusCode)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -86,8 +93,9 @@ func (r *RemoteNetTracerUtil) GetConnections() ([]tracer.ConnectionStats, error)
 	return conn.Conns, nil
 }
 
+// ShouldLogError will return whether or not errors sourced from the RemoteNetTracerUtil _should_ be logged, for less noisy logging.
 // We only want to log errors if the tracer has been initialized, or it's the first error for a particular tracer status
-// (e.g. Retrying, Permafail, etc.)
+// (e.g. retrying, permafail)
 func (r *RemoteNetTracerUtil) ShouldLogError() bool {
 	status := r.initRetry.RetryStatus()
 
