@@ -2,6 +2,7 @@ package checks
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,8 +13,13 @@ import (
 	log "github.com/cihub/seelog"
 )
 
-// Connections is a singleton ConnectionsCheck.
-var Connections = &ConnectionsCheck{}
+var (
+	// Connections is a singleton ConnectionsCheck.
+	Connections = &ConnectionsCheck{}
+
+	// Placeholder error used to signal that the tracer is _still_ not ready, so we shouldn't log additional errors
+	ErrTracerStillNotInitialized = errors.New("remote tracer is still not initialized")
+)
 
 // ConnectionsCheck collects statistics about live TCP and UDP connections.
 type ConnectionsCheck struct {
@@ -82,7 +88,8 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 
 	conns, err := c.getConnections()
 	if err != nil {
-		if err == tracer.ErrNotImplemented {
+		// If the tracer is not initialized, or still not initialized, then we want to exit without error'ing
+		if err == tracer.ErrNotImplemented || err == ErrTracerStillNotInitialized {
 			return nil, nil
 		}
 		return nil, err
@@ -119,8 +126,10 @@ func (c *ConnectionsCheck) getConnections() ([]tracer.ConnectionStats, error) {
 
 	tu, err := util.GetRemoteNetworkTracerUtil()
 	if err != nil {
-		// TODO (sk): Limited logging for retry cases, etc.
-		return nil, err
+		if tu.ShouldLogError() {
+			return nil, err
+		}
+		return nil, ErrTracerStillNotInitialized
 	}
 
 	return tu.GetConnections()

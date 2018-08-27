@@ -31,6 +31,8 @@ type RemoteNetTracerUtil struct {
 
 	socketPath string
 	httpClient http.Client
+
+	hasLoggedErrForStatus map[retry.Status]struct{}
 }
 
 func SetNetworkTracerSocketPath(socketPath string) {
@@ -82,6 +84,17 @@ func (r *RemoteNetTracerUtil) GetConnections() ([]tracer.ConnectionStats, error)
 	}
 
 	return conn.Conns, nil
+}
+
+// We only want to log errors if the tracer has been initialized, or it's the first error for a particular tracer status
+// (e.g. Retrying, Permafail, etc.)
+func (r *RemoteNetTracerUtil) ShouldLogError() bool {
+	status := r.initRetry.RetryStatus()
+
+	_, logged := r.hasLoggedErrForStatus[status]
+	r.hasLoggedErrForStatus[status] = struct{}{}
+
+	return status == retry.OK || !logged
 }
 
 func newNetworkTracer() *RemoteNetTracerUtil {
