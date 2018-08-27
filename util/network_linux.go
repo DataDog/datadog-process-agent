@@ -110,7 +110,7 @@ func newNetworkTracer() *RemoteNetTracerUtil {
 		socketPath: globalSocketPath,
 		httpClient: http.Client{
 			Timeout: 5 * time.Second,
-			Transport: &http.Transport{
+			Transport: &http.Transport{ // TODO: Consider reducing these timeouts, since we're connecting to a unix socket
 				MaxIdleConns:    5,
 				IdleConnTimeout: 90 * time.Second,
 				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {

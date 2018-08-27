@@ -27,6 +27,8 @@ var (
 	// This mirrors the configuration for the infrastructure agent.
 	defaultProxyPort = 3128
 
+	// defaultNetworkTracerSocketPath is the default unix socket path to be used for connecting to the network tracer
+	// This mirrors the default location defined in the tcptracer-bpf library
 	defaultNetworkTracerSocketPath = "/var/run/datadog/nettracer.sock"
 
 	processChecks   = []string{"process", "rtprocess"}
@@ -120,6 +122,7 @@ const (
 	maxMessageBatch = 100
 )
 
+// DefaultTransport provides a http transport configuration with sane default timeouts
 func DefaultTransport() *http.Transport {
 	return &http.Transport{
 		MaxIdleConns:    5,

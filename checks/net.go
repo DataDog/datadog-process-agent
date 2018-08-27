@@ -17,7 +17,7 @@ var (
 	// Connections is a singleton ConnectionsCheck.
 	Connections = &ConnectionsCheck{}
 
-	// Placeholder error used to signal that the tracer is _still_ not ready, so we shouldn't log additional errors
+	// ErrTracerStillNotInitialized signals that the tracer is _still_ not ready, so we shouldn't log additional errors
 	ErrTracerStillNotInitialized = errors.New("remote tracer is still not initialized")
 )
 
