@@ -503,8 +503,9 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
 		c.ContainerSource = v
 	}
+
 	// Note: this feature is in development and should not be used in production environments
-	if ok, _ := isAffirmative(os.Getenv("DD_CONNECTIONS_CHECK")); ok {
+	if ok, _ := isAffirmative(os.Getenv("DD_NETWORK_TRACING_ENABLED")); ok {
 		c.EnabledChecks = append(c.EnabledChecks, "connections")
 	}
 
