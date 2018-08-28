@@ -126,7 +126,7 @@ func (c *ConnectionsCheck) getConnections() ([]tracer.ConnectionStats, error) {
 
 	tu, err := util.GetRemoteNetworkTracerUtil()
 	if err != nil {
-		if tu.ShouldLogError() {
+		if util.ShouldLogTracerUtilError() {
 			return nil, err
 		}
 		return nil, ErrTracerStillNotInitialized

@@ -3,7 +3,6 @@
 package util
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -23,9 +22,14 @@ const (
 )
 
 var (
-	globalUtil       *RemoteNetTracerUtil
-	globalSocketPath string
+	globalUtil            *RemoteNetTracerUtil
+	globalSocketPath      string
+	hasLoggedErrForStatus map[retry.Status]struct{}
 )
+
+func init() {
+	hasLoggedErrForStatus = make(map[retry.Status]struct{})
+}
 
 // RemoteNetTracerUtil wraps interactions with a remote network tracer service
 type RemoteNetTracerUtil struct {
@@ -34,8 +38,6 @@ type RemoteNetTracerUtil struct {
 
 	socketPath string
 	httpClient http.Client
-
-	hasLoggedErrForStatus map[retry.Status]struct{}
 }
 
 // SetNetworkTracerSocketPath provides a unix socket path location to be used by the remote network tracer.
@@ -85,22 +87,22 @@ func (r *RemoteNetTracerUtil) GetConnections() ([]tracer.ConnectionStats, error)
 		return nil, err
 	}
 
-	conn := tracer.Connections{}
-	if err := json.Unmarshal(body, &conn); err != nil {
+	conn := &tracer.Connections{}
+	if err := conn.UnmarshalJSON(body); err != nil {
 		return nil, err
 	}
 
 	return conn.Conns, nil
 }
 
-// ShouldLogError will return whether or not errors sourced from the RemoteNetTracerUtil _should_ be logged, for less noisy logging.
+// ShouldLogTracerUtilError will return whether or not errors sourced from the RemoteNetTracerUtil _should_ be logged, for less noisy logging.
 // We only want to log errors if the tracer has been initialized, or it's the first error for a particular tracer status
 // (e.g. retrying, permafail)
-func (r *RemoteNetTracerUtil) ShouldLogError() bool {
-	status := r.initRetry.RetryStatus()
+func ShouldLogTracerUtilError() bool {
+	status := globalUtil.initRetry.RetryStatus()
 
-	_, logged := r.hasLoggedErrForStatus[status]
-	r.hasLoggedErrForStatus[status] = struct{}{}
+	_, logged := hasLoggedErrForStatus[status]
+	hasLoggedErrForStatus[status] = struct{}{}
 
 	return status == retry.OK || !logged
 }

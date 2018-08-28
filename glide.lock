@@ -94,7 +94,7 @@ imports:
   - net
   - process
 - name: github.com/DataDog/tcptracer-bpf
-  version: 55c72939cca9c747ec2af723a03e322645517956
+  version: 8094abdab7ca742e291932493e1e4219944cbd4f
   subpackages:
   - pkg/tracer
 - name: github.com/DataDog/zstd
@@ -233,8 +233,6 @@ imports:
   version: 7c0cea34c8ece3fbeb2b27ab9b59511d360fb394
 - name: github.com/spf13/pflag
   version: 4c012f6dcd9546820e378d0bdda4d8fc772cdfea
-- name: github.com/DataDog/tcptracer-bpf
-  version: 6e62cf45df06ada7db7227ea8c4aabd959d767e2
 - name: github.com/spf13/viper
   version: aafc9e6bc7b7bb53ddaa75a5ef49a17d6e654be5
 - name: github.com/StackExchange/wmi
