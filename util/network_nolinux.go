@@ -24,7 +24,7 @@ func (r *RemoteNetTracerUtil) GetConnections() ([]tracer.ConnectionStats, error)
 	return nil, tracer.ErrNotImplemented
 }
 
-// ShouldLogError is only implemented on linux
-func (r *RemoteNetTracerUtil) ShouldLogError() bool {
+// ShouldLogTracerUtilError is only implemented on linux
+func ShouldLogTracerUtilError() bool {
 	return false
 }
