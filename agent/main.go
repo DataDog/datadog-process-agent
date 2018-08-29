@@ -6,9 +6,6 @@ import (
 	"flag"
 	_ "net/http/pprof"
 
-	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
-
 	"github.com/DataDog/datadog-process-agent/config"
 )
 
@@ -25,20 +22,6 @@ func main() {
 	// The default will be stdout since we can't assume any file is writeable.
 	if err := config.NewLoggerLevel("info", "", true); err != nil {
 		panic(err)
-	}
-
-	// Setup common logger
-	// FIXME: make it better
-	err := ddconfig.SetupLogger(
-		ddconfig.Datadog.GetString("log_level"),
-		"",
-		"",
-		false,
-		true,
-		false,
-	)
-	if err != nil {
-		log.Criticalf("Unable to setup logger: %s", err)
 	}
 
 	exit := make(chan bool)
