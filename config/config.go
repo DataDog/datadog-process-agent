@@ -484,9 +484,13 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		durationS, _ := strconv.Atoi(v)
 		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
 	}
+
+	// Used to override container source auto-detection.
+	// "docker", "ecs_fargate", "kubelet", etc
 	if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
 		util.SetContainerSource(v)
 	}
+
 	// Note: this feature is in development and should not be used in production environments
 	if ok, _ := isAffirmative(os.Getenv("DD_CONNECTIONS_CHECK")); ok {
 		c.EnabledChecks = append(c.EnabledChecks, "connections")
