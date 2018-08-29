@@ -10,10 +10,6 @@ import (
 	log "github.com/cihub/seelog"
 )
 
-func initMetadataProviders() {
-	// No-op
-}
-
 // Handles signals - tells us whether we should exit.
 func handleSignals(exit chan bool) {
 	sigIn := make(chan os.Signal, 100)

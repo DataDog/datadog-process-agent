@@ -147,14 +147,6 @@ func runAgent(exit chan bool) {
 		return
 	}
 
-	// Initialize the metadata providers so the singletons are available.
-	// This will log any unknown errors
-	initMetadataProviders()
-
-	if cfg.ContainerSource != "" {
-		util.SetContainerSource(cfg.ContainerSource)
-	}
-
 	// update docker socket path in info
 	dockerSock, err := util.GetDockerSocketPath()
 	if err != nil {
