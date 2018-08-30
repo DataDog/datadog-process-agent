@@ -27,6 +27,10 @@ var (
 	// This mirrors the configuration for the infrastructure agent.
 	defaultProxyPort = 3128
 
+	// defaultNetworkTracerSocketPath is the default unix socket path to be used for connecting to the network tracer
+	// This mirrors the default location defined in the tcptracer-bpf library
+	defaultNetworkTracerSocketPath = "/var/run/datadog/nettracer.sock"
+
 	processChecks   = []string{"process", "rtprocess"}
 	containerChecks = []string{"container", "rtcontainer"}
 
@@ -76,6 +80,10 @@ type AgentConfig struct {
 	StatsdHost    string
 	StatsdPort    int
 
+	// Network collection configuration
+	EnableLocalNetworkTracer bool
+	NetworkTracerSocketPath  string
+
 	// Check config
 	EnabledChecks  []string
 	CheckIntervals map[string]time.Duration
@@ -114,6 +122,21 @@ const (
 	maxMessageBatch = 100
 )
 
+// NewDefaultTransport provides a http transport configuration with sane default timeouts
+func NewDefaultTransport() *http.Transport {
+	return &http.Transport{
+		MaxIdleConns:    5,
+		IdleConnTimeout: 90 * time.Second,
+		Dial: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 10 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ResponseHeaderTimeout: 5 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+}
+
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
 func NewDefaultAgentConfig() *AgentConfig {
 	u, err := url.Parse(defaultEndpoint)
@@ -126,8 +149,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 	canAccessContainers := err == nil
 
 	ac := &AgentConfig{
-		// We'll always run inside of a container.
-		Enabled:       canAccessContainers,
+		Enabled:       canAccessContainers, // We'll always run inside of a container.
 		APIEndpoints:  []APIEndpoint{{Endpoint: u}},
 		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
@@ -137,17 +159,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		MaxPerMessage: 100,
 		AllowRealTime: true,
 		HostName:      "",
-		Transport: &http.Transport{
-			MaxIdleConns:    5,
-			IdleConnTimeout: 90 * time.Second,
-			Dial: (&net.Dialer{
-				Timeout:   10 * time.Second,
-				KeepAlive: 10 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   5 * time.Second,
-			ResponseHeaderTimeout: 5 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
+		Transport:     NewDefaultTransport(),
 
 		// Statsd for internal instrumentation
 		StatsdHost: "127.0.0.1",
@@ -156,6 +168,10 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Path and environment for the dd-agent embedded python
 		DDAgentPy:    defaultDDAgentPy,
 		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
+
+		// Network collection configuration
+		EnableLocalNetworkTracer: false,
+		NetworkTracerSocketPath:  defaultNetworkTracerSocketPath,
 
 		// Check config
 		EnabledChecks: containerChecks,
@@ -487,8 +503,9 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
 		c.ContainerSource = v
 	}
+
 	// Note: this feature is in development and should not be used in production environments
-	if ok, _ := isAffirmative(os.Getenv("DD_CONNECTIONS_CHECK")); ok {
+	if ok, _ := isAffirmative(os.Getenv("DD_NETWORK_TRACING_ENABLED")); ok {
 		c.EnabledChecks = append(c.EnabledChecks, "connections")
 	}
 

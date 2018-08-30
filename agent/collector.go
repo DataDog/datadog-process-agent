@@ -41,7 +41,7 @@ type Collector struct {
 	realTimeEnabled int64
 }
 
-// NewCollector creates a new Collectr
+// NewCollector creates a new Collector
 func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 	sysInfo, err := checks.CollectSystemInfo(cfg)
 	if err != nil {
