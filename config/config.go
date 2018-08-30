@@ -122,8 +122,8 @@ const (
 	maxMessageBatch = 100
 )
 
-// DefaultTransport provides a http transport configuration with sane default timeouts
-func DefaultTransport() *http.Transport {
+// NewDefaultTransport provides a http transport configuration with sane default timeouts
+func NewDefaultTransport() *http.Transport {
 	return &http.Transport{
 		MaxIdleConns:    5,
 		IdleConnTimeout: 90 * time.Second,
@@ -159,7 +159,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		MaxPerMessage: 100,
 		AllowRealTime: true,
 		HostName:      "",
-		Transport:     DefaultTransport(),
+		Transport:     NewDefaultTransport(),
 
 		// Statsd for internal instrumentation
 		StatsdHost: "127.0.0.1",

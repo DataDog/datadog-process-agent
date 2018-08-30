@@ -8,7 +8,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
-	"github.com/DataDog/datadog-process-agent/util"
+	"github.com/DataDog/datadog-process-agent/net"
 	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
 	log "github.com/cihub/seelog"
 )
@@ -58,8 +58,8 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		c.localTracer.Start()
 	} else {
 		// Calling the remote tracer will cause it to initialize and check connectivity
-		util.SetNetworkTracerSocketPath(cfg.NetworkTracerSocketPath)
-		util.GetRemoteNetworkTracerUtil()
+		net.SetNetworkTracerSocketPath(cfg.NetworkTracerSocketPath)
+		net.GetRemoteNetworkTracerUtil()
 	}
 
 	c.buf = new(bytes.Buffer)
@@ -124,9 +124,9 @@ func (c *ConnectionsCheck) getConnections() ([]tracer.ConnectionStats, error) {
 		return cs.Conns, err
 	}
 
-	tu, err := util.GetRemoteNetworkTracerUtil()
+	tu, err := net.GetRemoteNetworkTracerUtil()
 	if err != nil {
-		if util.ShouldLogTracerUtilError() {
+		if net.ShouldLogTracerUtilError() {
 			return nil, err
 		}
 		return nil, ErrTracerStillNotInitialized

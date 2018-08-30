@@ -1,6 +1,6 @@
 // +build linux
 
-package util
+package net
 
 import (
 	"fmt"
@@ -111,16 +111,16 @@ func newNetworkTracer() *RemoteNetTracerUtil {
 	return &RemoteNetTracerUtil{
 		socketPath: globalSocketPath,
 		httpClient: http.Client{
-			Timeout: 5 * time.Second,
-			Transport: &http.Transport{ // TODO: Consider reducing these timeouts, since we're connecting to a unix socket
-				MaxIdleConns:    5,
-				IdleConnTimeout: 90 * time.Second,
+			Timeout: 10 * time.Second,
+			Transport: &http.Transport{
+				MaxIdleConns:    2,
+				IdleConnTimeout: 30 * time.Second,
 				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
 					return net.Dial("unix", globalSocketPath)
 				},
-				TLSHandshakeTimeout:   5 * time.Second,
+				TLSHandshakeTimeout:   1 * time.Second,
 				ResponseHeaderTimeout: 5 * time.Second,
-				ExpectContinueTimeout: 1 * time.Second,
+				ExpectContinueTimeout: 50 * time.Millisecond,
 			},
 		},
 	}

@@ -1,6 +1,6 @@
 // +build !linux
 
-package util
+package net
 
 import (
 	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
