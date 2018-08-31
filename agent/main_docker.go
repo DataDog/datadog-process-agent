@@ -7,15 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	log "github.com/cihub/seelog"
 )
-
-func initMetadataProviders() {
-	if _, err := docker.GetDockerUtil(); err != nil && err != docker.ErrDockerNotAvailable {
-		log.Errorf("unable to initialize docker collection: %s", err)
-	}
-}
 
 // Handles signals - tells us whether we should exit.
 func handleSignals(exit chan bool) {

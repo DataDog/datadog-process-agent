@@ -93,7 +93,6 @@ type AgentConfig struct {
 	ContainerWhitelist     []string
 	CollectDockerNetwork   bool
 	ContainerCacheDuration time.Duration
-	ContainerSource        string
 
 	// Internal store of a proxy used for generating the Transport
 	proxy proxyFunc
@@ -145,6 +144,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 		panic(err)
 	}
 
+	// Note: This only considers container sources that are already setup. It's possible that container sources may
+	//       need a few minutes to be ready.
 	_, err = util.GetContainers()
 	canAccessContainers := err == nil
 
@@ -186,7 +187,6 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Docker
 		ContainerCacheDuration: 10 * time.Second,
 		CollectDockerNetwork:   true,
-		ContainerSource:        "",
 
 		// DataScrubber to hide command line sensitive words
 		Scrubber: NewDefaultDataScrubber(),
@@ -321,7 +321,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 			cfg.MaxPerMessage = maxMessageBatch
 		}
 
-		// Checks intervals can be overriden by configuration.
+		// Checks intervals can be overridden by configuration.
 		for checkName, defaultInterval := range cfg.CheckIntervals {
 			key := fmt.Sprintf("%s_interval", checkName)
 			interval := agentIni.GetDurationDefault(ns, key, time.Second, defaultInterval)
@@ -500,8 +500,11 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		durationS, _ := strconv.Atoi(v)
 		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
 	}
+
+	// Used to override container source auto-detection.
+	// "docker", "ecs_fargate", "kubelet", etc
 	if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
-		c.ContainerSource = v
+		util.SetContainerSource(v)
 	}
 
 	// Note: this feature is in development and should not be used in production environments
