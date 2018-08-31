@@ -1,7 +1,7 @@
 package: github.com/DataDog/datadog-process-agent
 import:
   - package: github.com/DataDog/datadog-agent
-    version: e6c3bef91cc04e1f0fc8546ef44e8ac0ccc98d2a
+    version: 9b3444c6fdcbe9a122a0bdacdd1476a78d326a97
   - package: github.com/DataDog/agent-payload
   - package: github.com/docker/docker
     version: 092cba3727bb9b4a2f0e922cd6c0f93ea270e363
