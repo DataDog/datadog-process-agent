@@ -1,5 +1,5 @@
-hash: da39f6de2eee3946398e1ab074b8f2289e63769021673f861b55d7d91caadeb8
-updated: 2018-09-04T13:01:25.863508351-04:00
+hash: 28028e4a836e617df452f10e70e293f12b819a9c3144333567ad7e13328a681e
+updated: 2018-09-04T13:22:16.800336663-04:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -179,8 +179,6 @@ imports:
   - ptypes/any
   - ptypes/duration
   - ptypes/timestamp
-- name: github.com/google/btree
-  version: 7d79101e329e5a3adf994758c578dab82b90c017
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
 - name: github.com/googleapis/gnostic
@@ -189,10 +187,6 @@ imports:
   - OpenAPIv2
   - compiler
   - extensions
-- name: github.com/gregjones/httpcache
-  version: 787624de3eb7bd915c329cba748687a3b22666a6
-  subpackages:
-  - diskcache
 - name: github.com/hashicorp/golang-lru
   version: a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
   subpackages:
@@ -213,8 +207,10 @@ imports:
   version: 7f56832555fc229dad908c67d65ed3ce6156b70c
   subpackages:
   - api
+- name: github.com/howeyc/gopass
+  version: bf9dde6d0d2c004a008c27aaee91170c786f6db8
 - name: github.com/imdario/mergo
-  version: 9316a62528ac99aaecb4e47eadd6dc8aa6533d58
+  version: 6633656539c1639d9d78127b7d47c622b5d7b6dc
 - name: github.com/iovisor/gobpf
   version: 3b07770c6d5e2bd37e582ecd49460e6ef094f257
   repo: https://github.com/iovisor/gobpf
@@ -259,8 +255,6 @@ imports:
   version: ca53cad383cad2479bbba7f7a1a05797ec1386e4
 - name: github.com/pelletier/go-toml
   version: c2dbbc24a97911339e01bda0b8cabdbd8f13b602
-- name: github.com/peterbourgon/diskv
-  version: 5f041e8faa004a95c88a202771f4cc3e991971e6
 - name: github.com/pkg/errors
   version: 816c9085562cd7ee03e7f8188a1cfd942858cded
 - name: github.com/prometheus/client_golang
@@ -307,7 +301,7 @@ imports:
 - name: github.com/StackExchange/wmi
   version: b12b22c5341f0c26d88c4d66176330500e84db68
 - name: golang.org/x/crypto
-  version: de0752318171da717af4ce24d0a2e8626afaeb11
+  version: 81e90905daefcd6fd217b62423c0908922eadb30
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
@@ -321,13 +315,6 @@ imports:
   - lex/httplex
   - proxy
   - websocket
-- name: golang.org/x/oauth2
-  version: a6bd8cefa1811bd24b86f8902872e4e8225f74c4
-  subpackages:
-  - google
-  - internal
-  - jws
-  - jwt
 - name: golang.org/x/sys
   version: 95c6576299259db960f6c5b9b69ea52422860fce
   subpackages:
@@ -349,16 +336,6 @@ imports:
   version: f51c12702a4d776e4c1fa9b0fabab841babae631
   subpackages:
   - rate
-- name: google.golang.org/appengine
-  version: 03cac3b07182cfb08c0d0c0b6ee72a1ceb151c92
-  subpackages:
-  - internal
-  - internal/base
-  - internal/datastore
-  - internal/log
-  - internal/remote_api
-  - internal/urlfetch
-  - urlfetch
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
 - name: gopkg.in/yaml.v2
@@ -366,7 +343,7 @@ imports:
 - name: gopkg.in/zorkian/go-datadog-api.v2
   version: d7b8b10db6a7eb1c1c2424b10a795a1662e80c9a
 - name: k8s.io/api
-  version: fcb01e9febf3e72ae9b6eff41f2d02ffdea4dda1
+  version: 73d903622b7391f3312dcbac6483fed484e185f8
   subpackages:
   - admissionregistration/v1alpha1
   - admissionregistration/v1beta1
@@ -379,12 +356,10 @@ imports:
   - authorization/v1beta1
   - autoscaling/v1
   - autoscaling/v2beta1
-  - autoscaling/v2beta2
   - batch/v1
   - batch/v1beta1
   - batch/v2alpha1
   - certificates/v1beta1
-  - coordination/v1beta1
   - core/v1
   - events/v1beta1
   - extensions/v1beta1
@@ -394,7 +369,6 @@ imports:
   - rbac/v1alpha1
   - rbac/v1beta1
   - scheduling/v1alpha1
-  - scheduling/v1beta1
   - settings/v1alpha1
   - storage/v1
   - storage/v1alpha1
@@ -473,7 +447,7 @@ imports:
   - pkg/util/flushwriter
   - pkg/util/wsstream
 - name: k8s.io/client-go
-  version: f06dbfd7354359a944eca1b0a555067933f10c3e
+  version: 23781f4d6632d88e869066eaebb743857aa1ef9b
   subpackages:
   - discovery
   - dynamic
@@ -488,15 +462,12 @@ imports:
   - informers/autoscaling
   - informers/autoscaling/v1
   - informers/autoscaling/v2beta1
-  - informers/autoscaling/v2beta2
   - informers/batch
   - informers/batch/v1
   - informers/batch/v1beta1
   - informers/batch/v2alpha1
   - informers/certificates
   - informers/certificates/v1beta1
-  - informers/coordination
-  - informers/coordination/v1beta1
   - informers/core
   - informers/core/v1
   - informers/events
@@ -514,7 +485,6 @@ imports:
   - informers/rbac/v1beta1
   - informers/scheduling
   - informers/scheduling/v1alpha1
-  - informers/scheduling/v1beta1
   - informers/settings
   - informers/settings/v1alpha1
   - informers/storage
@@ -534,12 +504,10 @@ imports:
   - kubernetes/typed/authorization/v1beta1
   - kubernetes/typed/autoscaling/v1
   - kubernetes/typed/autoscaling/v2beta1
-  - kubernetes/typed/autoscaling/v2beta2
   - kubernetes/typed/batch/v1
   - kubernetes/typed/batch/v1beta1
   - kubernetes/typed/batch/v2alpha1
   - kubernetes/typed/certificates/v1beta1
-  - kubernetes/typed/coordination/v1beta1
   - kubernetes/typed/core/v1
   - kubernetes/typed/events/v1beta1
   - kubernetes/typed/extensions/v1beta1
@@ -549,7 +517,6 @@ imports:
   - kubernetes/typed/rbac/v1alpha1
   - kubernetes/typed/rbac/v1beta1
   - kubernetes/typed/scheduling/v1alpha1
-  - kubernetes/typed/scheduling/v1beta1
   - kubernetes/typed/settings/v1alpha1
   - kubernetes/typed/storage/v1
   - kubernetes/typed/storage/v1alpha1
@@ -561,12 +528,10 @@ imports:
   - listers/apps/v1beta2
   - listers/autoscaling/v1
   - listers/autoscaling/v2beta1
-  - listers/autoscaling/v2beta2
   - listers/batch/v1
   - listers/batch/v1beta1
   - listers/batch/v2alpha1
   - listers/certificates/v1beta1
-  - listers/coordination/v1beta1
   - listers/core/v1
   - listers/events/v1beta1
   - listers/extensions/v1beta1
@@ -576,14 +541,12 @@ imports:
   - listers/rbac/v1alpha1
   - listers/rbac/v1beta1
   - listers/scheduling/v1alpha1
-  - listers/scheduling/v1beta1
   - listers/settings/v1alpha1
   - listers/storage/v1
   - listers/storage/v1alpha1
   - listers/storage/v1beta1
   - pkg/apis/clientauthentication
   - pkg/apis/clientauthentication/v1alpha1
-  - pkg/apis/clientauthentication/v1beta1
   - pkg/version
   - plugin/pkg/client/auth/exec
   - rest
@@ -600,7 +563,6 @@ imports:
   - transport
   - util/buffer
   - util/cert
-  - util/connrotation
   - util/flowcontrol
   - util/homedir
   - util/integer
