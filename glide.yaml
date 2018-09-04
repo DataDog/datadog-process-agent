@@ -1,7 +1,7 @@
 package: github.com/DataDog/datadog-process-agent
 import:
   - package: github.com/DataDog/datadog-agent
-    version: dbdec93a04d629f18eeb491d30016da26652b69c
+    version: eea13e8a606b82c1fb1193bcea8f5cb59dfdcb9d
   - package: github.com/DataDog/tcptracer-bpf
     vcs: git
     version: dd
