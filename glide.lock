@@ -1,5 +1,5 @@
-hash: 825d223bd5432a14c9710e1086380dea26ad97c91a0c0d4c8fef9dcdc0faf71a
-updated: 2018-09-04T14:45:00.702888741-04:00
+hash: d738dfeffba5bf154395c952711a2eed607d6279250619d97e1399c64622d4f7
+updated: 2018-09-04T15:18:54.755280466-04:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -221,7 +221,6 @@ imports:
   version: e61f72fec56ab519d74ebd396cd3fcf31b084558
   subpackages:
   - pkg/provider
-  - proto
 - name: github.com/magiconair/properties
   version: c2353362d570a7bfa228149c62842019201cfb71
 - name: github.com/mailru/easyjson
@@ -307,14 +306,11 @@ imports:
   - context
   - context/ctxhttp
   - http2
+  - http2/hpack
   - idna
   - lex/httplex
   - proxy
   - websocket
-- name: golang.org/x/net/http2
-  version: 8a410e7b638dca158bf9e766925842f6651ff828
-  subpackages:
-  - hpack
 - name: golang.org/x/sys
   version: 2b024373dcd9800f0cae693839fac6ede8d64a8c
   subpackages:
@@ -341,7 +337,9 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
 - name: gopkg.in/zorkian/go-datadog-api.v2
-  version: d7b8b10db6a7eb1c1c2424b10a795a1662e80c9a
+  version: 6c08e2322af96e867e5715aedd6ea194c42cf44f
+  subpackages:
+  - proto
 - name: k8s.io/api
   version: 9e5ffd1f1320950b238cfce291b926411f0af722
   subpackages:
