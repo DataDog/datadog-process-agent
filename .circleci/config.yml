@@ -31,6 +31,7 @@ jobs:
       - run: echo 'export IMPORT_PATH=$GOPATH/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME' >> $BASH_ENV
       - run: git status -s
       - run: echo "export PROCESS_AGENT_VERSION=$(packaging/version.sh)" >> $BASH_ENV
+      - run: echo "export EBPF=${EBPF:-true}" >> $BASH_ENV
       - run: echo 'export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH' >> $BASH_ENV && source $BASH_ENV
       - run: sudo apt-get update && sudo apt-get -y install linux-headers-$(uname -r) rsync rake
       - run: mkdir -p $GOPATH $GOPATH/bin $IMPORT_PATH download
@@ -67,6 +68,7 @@ jobs:
       - run: touch $BASH_ENV
       - run: git status -s
       - run: echo "export PROCESS_AGENT_VERSION=$(packaging/version.sh)" >> $BASH_ENV
+      - run: echo "export EBPF=${EBPF:-true}" >> $BASH_ENV
       - run: echo 'export IMPORT_PATH=$GOPATH/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME' >> $BASH_ENV
       - run: echo 'export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH' >> $BASH_ENV && source $BASH_ENV
       - run: rsync -azC --delete ./ $IMPORT_PATH
