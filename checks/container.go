@@ -21,9 +21,9 @@ var Container = &ContainerCheck{}
 
 // ContainerCheck is a check that returns container metadata and stats.
 type ContainerCheck struct {
-	sysInfo        *model.SystemInfo
-	lastContainers []*containers.Container
-	lastRun        time.Time
+	sysInfo   *model.SystemInfo
+	lastRates map[string]util.ContainerRateMetrics
+	lastRun   time.Time
 }
 
 // Init initializes a ContainerCheck instance.
@@ -50,8 +50,8 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	}
 
 	// End check early if this is our first run.
-	if c.lastContainers == nil {
-		c.lastContainers = ctrList
+	if c.lastRates == nil {
+		c.lastRates = util.ExtractContainerRateMetric(ctrList)
 		c.lastRun = time.Now()
 		return nil, nil
 	}
@@ -60,7 +60,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if len(ctrList) != cfg.MaxPerMessage {
 		groupSize++
 	}
-	chunked := fmtContainers(ctrList, c.lastContainers, c.lastRun, groupSize)
+	chunked := fmtContainers(ctrList, c.lastRates, c.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	totalContainers := float64(0)
 	for i := 0; i < groupSize; i++ {
@@ -74,7 +74,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 		})
 	}
 
-	c.lastContainers = ctrList
+	c.lastRates = util.ExtractContainerRateMetric(ctrList)
 	c.lastRun = time.Now()
 
 	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
@@ -85,31 +85,23 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 // fmtContainers formats and chunks the ctrList into a slice of chunks using a specific
 // number of chunks. len(result) MUST EQUAL chunks.
 func fmtContainers(
-	ctrList, lastContainers []*containers.Container,
+	ctrList []*containers.Container,
+	lastRates map[string]util.ContainerRateMetrics,
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.Container {
-	lastByID := make(map[string]*containers.Container, len(ctrList))
-	for _, c := range lastContainers {
-		lastByID[c.ID] = c
-	}
-
 	perChunk := (len(ctrList) / chunks) + 1
 	chunked := make([][]*model.Container, chunks)
 	chunk := make([]*model.Container, 0, perChunk)
 	i := 0
 	for _, ctr := range ctrList {
-		lastCtr, ok := lastByID[ctr.ID]
+		lastCtr, ok := lastRates[ctr.ID]
 		if !ok {
 			// Set to an empty container so rate calculations work and use defaults.
-			lastCtr = util.NullContainer
+			lastCtr = util.NullContainerRates
 		}
 
-		// Just in case the container is found, but refs are nil
-		fillNilContainers(ctr, lastCtr)
-
 		ifStats := ctr.Network.SumInterfaces()
-		lastIfStats := lastCtr.Network.SumInterfaces()
 		cpus := runtime.NumCPU()
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 
@@ -135,10 +127,10 @@ func fmtContainers(
 			Health:      model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
 			Rbps:        calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun),
 			Wbps:        calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun),
-			NetRcvdPs:   calculateRate(ifStats.PacketsRcvd, lastIfStats.PacketsRcvd, lastRun),
-			NetSentPs:   calculateRate(ifStats.PacketsSent, lastIfStats.PacketsSent, lastRun),
-			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastIfStats.BytesRcvd, lastRun),
-			NetSentBps:  calculateRate(ifStats.BytesSent, lastIfStats.BytesSent, lastRun),
+			NetRcvdPs:   calculateRate(ifStats.PacketsRcvd, lastCtr.NetworkSum.PacketsRcvd, lastRun),
+			NetSentPs:   calculateRate(ifStats.PacketsSent, lastCtr.NetworkSum.PacketsSent, lastRun),
+			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun),
+			NetSentBps:  calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun),
 			Started:     ctr.StartedAt,
 			Tags:        tags,
 		})
@@ -170,21 +162,4 @@ func calculateCtrPct(cur, prev, sys2, sys1 uint64, numCPU int, before time.Time)
 		return (cpuDelta / sysDelta) * float32(numCPU) * 100
 	}
 	return float32(cur-prev) / float32(diff)
-}
-
-func fillNilContainers(ctrs ...*containers.Container) {
-	for _, c := range ctrs {
-		if c.CPU == nil {
-			c.CPU = util.NullContainer.CPU
-		}
-		if c.Memory == nil {
-			c.Memory = util.NullContainer.Memory
-		}
-		if c.IO == nil {
-			c.IO = util.NullContainer.IO
-		}
-		if c.Network == nil {
-			c.Network = util.NullContainer.Network
-		}
-	}
 }
