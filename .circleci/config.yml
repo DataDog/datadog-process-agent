@@ -62,7 +62,7 @@ jobs:
       - GOPATH: /home/circleci/project/.go_workspace
       - BASH_ENV: /home/circleci/project/.bashrc
     steps:
-      - run: sudo apt-get install -y -q rsync rpm
+      - run: sudo apt-get install -y -q rsync rpm s3cmd
       - *attach_workspace
       - *restore_repo
       - run: touch $BASH_ENV
