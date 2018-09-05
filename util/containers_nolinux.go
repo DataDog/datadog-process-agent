@@ -15,8 +15,3 @@ func SetContainerSource(name string) {
 func GetContainers() ([]*containers.Container, error) {
 	return nil, ErrNotImplemented
 }
-
-// ExtractContainerRateMetric is only implemented on Linux
-func ExtractContainerRateMetric(containers []*containers.Container) map[string]ContainerRateMetrics {
-	return make(map[string]ContainerRateMetrics)
-}
