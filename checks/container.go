@@ -101,9 +101,19 @@ func fmtContainers(
 			lastCtr = util.NullContainerRates
 		}
 
+		// Just in case the container is found, but refs are nil
+		if lastCtr.CPU == nil {
+			lastCtr.CPU = util.NullContainerRates.CPU
+		}
+		if lastCtr.IO == nil {
+			lastCtr.IO = util.NullContainerRates.IO
+		}
+		if lastCtr.NetworkSum == nil {
+			lastCtr.NetworkSum = util.NullContainerRates.NetworkSum
+		}
+
 		ifStats := ctr.Network.SumInterfaces()
 		cpus := runtime.NumCPU()
-		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 
 		// Retrieves metadata tags
 		tags, err := tagger.Tag(ctr.EntityID, true)
@@ -112,28 +122,42 @@ func fmtContainers(
 			tags = []string{}
 		}
 
-		chunk = append(chunk, &model.Container{
+		cntModel := &model.Container{
 			Id:          ctr.ID,
 			Type:        ctr.Type,
 			CpuLimit:    float32(ctr.CPULimit),
-			UserPct:     calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun),
-			SystemPct:   calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
-			TotalPct:    calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
 			MemoryLimit: ctr.MemLimit,
-			MemRss:      ctr.Memory.RSS,
-			MemCache:    ctr.Memory.Cache,
 			Created:     ctr.Created,
 			State:       model.ContainerState(model.ContainerState_value[ctr.State]),
 			Health:      model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
-			Rbps:        calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun),
-			Wbps:        calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun),
 			NetRcvdPs:   calculateRate(ifStats.PacketsRcvd, lastCtr.NetworkSum.PacketsRcvd, lastRun),
 			NetSentPs:   calculateRate(ifStats.PacketsSent, lastCtr.NetworkSum.PacketsSent, lastRun),
 			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun),
 			NetSentBps:  calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun),
 			Started:     ctr.StartedAt,
 			Tags:        tags,
-		})
+		}
+
+		// we know lastCtr is good to calculate because we use NullContainerRates if nil
+		if ctr.CPU != nil {
+			sysUsage2, sysUsage1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
+			usr2, usr1 := ctr.CPU.User, lastCtr.CPU.User
+			sys2, sys1 := ctr.CPU.System, lastCtr.CPU.System
+
+			cntModel.UserPct = calculateCtrPct(usr2, usr1, sysUsage2, sysUsage1, cpus, lastRun)
+			cntModel.SystemPct = calculateCtrPct(sys2, sys1, sysUsage2, sysUsage1, cpus, lastRun)
+			cntModel.TotalPct = calculateCtrPct(usr2+sys2, usr1+sys1, sys2, sys1, cpus, lastRun)
+		}
+		if ctr.Memory != nil {
+			cntModel.MemRss = ctr.Memory.RSS
+			cntModel.MemCache = ctr.Memory.Cache
+		}
+		if ctr.IO != nil {
+			cntModel.Rbps = calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun)
+			cntModel.Wbps = calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun)
+		}
+
+		chunk = append(chunk, cntModel)
 
 		if len(chunk) == perChunk {
 			chunked[i] = chunk
