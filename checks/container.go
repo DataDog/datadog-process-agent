@@ -10,6 +10,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	log "github.com/cihub/seelog"
 
+	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
@@ -101,6 +102,10 @@ func fmtContainers(
 			lastCtr = util.NullContainerRates
 		}
 
+		// Just in case the container is found, but refs are nil
+		ctr = fillNilContainer(ctr)
+		lastCtr = fillNilRates(lastCtr)
+
 		ifStats := ctr.Network.SumInterfaces()
 		cpus := runtime.NumCPU()
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
@@ -162,4 +167,34 @@ func calculateCtrPct(cur, prev, sys2, sys1 uint64, numCPU int, before time.Time)
 		return (cpuDelta / sysDelta) * float32(numCPU) * 100
 	}
 	return float32(cur-prev) / float32(diff)
+}
+
+func fillNilContainer(ctr *containers.Container) *containers.Container {
+	if ctr.CPU == nil {
+		ctr.CPU = util.NullContainerRates.CPU
+	}
+	if ctr.IO == nil {
+		ctr.IO = util.NullContainerRates.IO
+	}
+	if ctr.Network == nil {
+		ctr.Network = util.NullContainerRates.Network
+	}
+	if ctr.Memory == nil {
+		ctr.Memory = &metrics.CgroupMemStat{}
+	}
+	return ctr
+}
+
+func fillNilRates(rates util.ContainerRateMetrics) util.ContainerRateMetrics {
+	r := &rates
+	if rates.CPU == nil {
+		r.CPU = util.NullContainerRates.CPU
+	}
+	if rates.IO == nil {
+		r.IO = util.NullContainerRates.IO
+	}
+	if rates.NetworkSum == nil {
+		r.NetworkSum = util.NullContainerRates.NetworkSum
+	}
+	return *r
 }

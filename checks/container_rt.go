@@ -93,6 +93,10 @@ func fmtContainerStats(
 			lastCtr = util.NullContainerRates
 		}
 
+		// Just in case the container is found, but refs are nil
+		ctr = fillNilContainer(ctr)
+		lastCtr = fillNilRates(lastCtr)
+
 		ifStats := ctr.Network.SumInterfaces()
 		cpus := runtime.NumCPU()
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage

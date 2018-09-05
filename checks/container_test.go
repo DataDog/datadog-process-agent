@@ -71,3 +71,25 @@ func TestContainerChunking(t *testing.T) {
 
 	}
 }
+
+func TestContainerNils(t *testing.T) {
+	// Make sure formatting doesn't crash with nils
+	cur := []*containers.Container{&containers.Container{}}
+	last := map[string]util.ContainerRateMetrics{}
+	fmtContainers(cur, last, time.Now(), 10)
+	fmtContainerStats(cur, last, time.Now(), 10)
+	// Make sure we get values when we have nils in last.
+	cur = []*containers.Container{
+		&containers.Container{
+			ID:  "1",
+			CPU: &metrics.CgroupTimesStat{},
+		},
+	}
+	last = map[string]util.ContainerRateMetrics{
+		"1": util.ContainerRateMetrics{
+			CPU: &metrics.CgroupTimesStat{},
+		},
+	}
+	fmtContainers(cur, last, time.Now(), 10)
+	fmtContainerStats(cur, last, time.Now(), 10)
+}

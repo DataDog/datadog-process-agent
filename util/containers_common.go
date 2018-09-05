@@ -8,6 +8,7 @@ type ContainerRateMetrics struct {
 	CPU        *metrics.CgroupTimesStat
 	IO         *metrics.CgroupIOStat
 	NetworkSum *metrics.InterfaceNetStats
+	Network    metrics.ContainerNetStats
 }
 
 // NullContainerRates can be safely used for containers that have no
@@ -16,4 +17,5 @@ var NullContainerRates = ContainerRateMetrics{
 	CPU:        &metrics.CgroupTimesStat{},
 	IO:         &metrics.CgroupIOStat{},
 	NetworkSum: &metrics.InterfaceNetStats{},
+	Network:    metrics.ContainerNetStats{},
 }
