@@ -1,5 +1,5 @@
-hash: d738dfeffba5bf154395c952711a2eed607d6279250619d97e1399c64622d4f7
-updated: 2018-09-04T15:18:54.755280466-04:00
+hash: cffd923100f068d7432bd95f553096e467dbf327f25921381a16dbde622ebed1
+updated: 2018-09-05T11:31:17.724908149-04:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -45,7 +45,7 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: dbdec93a04d629f18eeb491d30016da26652b69c
+  version: f3314bf3842ea67aa14647c84353533528254fee
   subpackages:
   - cmd/agent/api/response
   - pkg/api/security
@@ -83,7 +83,7 @@ imports:
   - pkg/util/retry
   - pkg/version
 - name: github.com/DataDog/datadog-go
-  version: 281ae9f2d8950e694e810c78daf74201d869b0d0
+  version: a9c7a9896c1847c9cc2b068a2ae68e9d74540a5d
   subpackages:
   - statsd
 - name: github.com/DataDog/gopsutil
@@ -312,7 +312,7 @@ imports:
   - proxy
   - websocket
 - name: golang.org/x/sys
-  version: 2b024373dcd9800f0cae693839fac6ede8d64a8c
+  version: 95c6576299259db960f6c5b9b69ea52422860fce
   subpackages:
   - unix
   - windows
