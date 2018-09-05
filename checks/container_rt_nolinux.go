@@ -9,7 +9,6 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
-	"github.com/DataDog/datadog-process-agent/util"
 )
 
 // RTContainer is a singleton RTContainerCheck.
@@ -43,8 +42,7 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 // fmtContainerStats formats and chunks the containers into a slice of chunks using a specific
 // number of chunks. len(result) MUST EQUAL chunks.
 func fmtContainerStats(
-	ctrList []*containers.Container,
-	lastRates map[string]util.ContainerRateMetrics,
+	ctrList, lastContainers []*containers.Container,
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.ContainerStat {
