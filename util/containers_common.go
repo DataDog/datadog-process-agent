@@ -1,19 +1,15 @@
 package util
 
-import "github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
+import (
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
+	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
+)
 
-// ContainerRateMetrics holds previous values for a container,
-// in order to compute rates
-type ContainerRateMetrics struct {
-	CPU        *metrics.CgroupTimesStat
-	IO         *metrics.CgroupIOStat
-	NetworkSum *metrics.InterfaceNetStats
-}
-
-// NullContainerRates can be safely used for containers that have no
-// previours rate values stored (new containers)
-var NullContainerRates = ContainerRateMetrics{
-	CPU:        &metrics.CgroupTimesStat{},
-	IO:         &metrics.CgroupIOStat{},
-	NetworkSum: &metrics.InterfaceNetStats{},
+// NullContainer can be safely used for containers that have no
+// previours values stored (new containers)
+var NullContainer = &containers.Container{
+	CPU:     &metrics.CgroupTimesStat{},
+	Memory:  &metrics.CgroupMemStat{},
+	IO:      &metrics.CgroupIOStat{},
+	Network: metrics.ContainerNetStats{},
 }

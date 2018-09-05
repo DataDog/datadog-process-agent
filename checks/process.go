@@ -24,11 +24,11 @@ var Process = &ProcessCheck{}
 type ProcessCheck struct {
 	sync.Mutex
 
-	sysInfo      *model.SystemInfo
-	lastCPUTime  cpu.TimesStat
-	lastProcs    map[int32]*process.FilledProcess
-	lastCtrRates map[string]util.ContainerRateMetrics
-	lastRun      time.Time
+	sysInfo        *model.SystemInfo
+	lastCPUTime    cpu.TimesStat
+	lastProcs      map[int32]*process.FilledProcess
+	lastContainers []*containers.Container
+	lastRun        time.Time
 }
 
 // Init initializes the singleton ProcessCheck.
@@ -71,7 +71,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if p.lastProcs == nil {
 		p.lastProcs = procs
 		p.lastCPUTime = cpuTimes[0]
-		p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
+		p.lastContainers = ctrList
 		p.lastRun = time.Now()
 		return nil, nil
 	}
@@ -83,7 +83,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		return nil, nil
 	}
 	groupSize := len(chunkedProcs)
-	chunkedContainers := fmtContainers(ctrList, p.lastCtrRates, p.lastRun, groupSize)
+	chunkedContainers := fmtContainers(ctrList, p.lastContainers, p.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	totalProcs, totalContainers := float64(0), float64(0)
 	for i := 0; i < groupSize; i++ {
@@ -102,7 +102,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	// Store the last state for comparison on the next run.
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
 	p.lastProcs = procs
-	p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
+	p.lastContainers = ctrList
 	p.lastCPUTime = cpuTimes[0]
 	p.lastRun = time.Now()
 

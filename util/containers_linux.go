@@ -55,18 +55,3 @@ func GetContainers() ([]*containers.Container, error) {
 	log.Tracef("Got %d containers from source %s", len(containers), name)
 	return containers, nil
 }
-
-// ExtractContainerRateMetric extracts relevant rate values from a container list
-// for later reuse, while reducing memory usage to only the needed fields
-func ExtractContainerRateMetric(containers []*containers.Container) map[string]ContainerRateMetrics {
-	out := make(map[string]ContainerRateMetrics)
-	for _, c := range containers {
-		m := ContainerRateMetrics{
-			CPU:        c.CPU,
-			IO:         c.IO,
-			NetworkSum: c.Network.SumInterfaces(),
-		}
-		out[c.ID] = m
-	}
-	return out
-}
