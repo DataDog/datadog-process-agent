@@ -3,11 +3,11 @@
 # source functions library
 . /lib/lsb/init-functions
 
-PIDFILE=/opt/dd-process-agent/run/dd-process-agent.pid
-DAEMON=/opt/dd-process-agent/bin/dd-process-agent
+PIDFILE=/opt/sts-process-agent/run/sts-process-agent.pid
+DAEMON=/opt/sts-process-agent/bin/sts-process-agent
 
 # Exit if the package is not installed
 [ -x "$DAEMON" ] || exit 0
 
-echo "Stopping dd-process-agent..." >&2
+echo "Stopping sts-process-agent..." >&2
 start-stop-daemon --stop --retry 30 --quiet --oknodo --pidfile $PIDFILE && rm -f $PIDFILE

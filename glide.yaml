@@ -1,4 +1,4 @@
-package: github.com/DataDog/datadog-process-agent
+package: github.com/StackVista/stackstate-process-agent
 import:
   - package: github.com/DataDog/datadog-agent
     version: 11509728245f878b662c448fd538184b9ffc88f9

@@ -12,8 +12,8 @@ import (
 	log "github.com/cihub/seelog"
 	"gopkg.in/yaml.v2"
 
-	"github.com/DataDog/datadog-process-agent/util"
-	"github.com/DataDog/datadog-process-agent/util/container"
+	"github.com/StackVista/stackstate-process-agent/util"
+	"github.com/StackVista/stackstate-process-agent/util/container"
 )
 
 // YamlAgentConfig is a structure used for marshaling the datadog.yaml configuration

@@ -10,10 +10,10 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/DataDog/datadog-process-agent/config"
 	cpu "github.com/DataDog/gopsutil/cpu"
 	process "github.com/DataDog/gopsutil/process"
 	"github.com/StackExchange/wmi"
+	"github.com/StackVista/stackstate-process-agent/config"
 	log "github.com/cihub/seelog"
 	"github.com/shirou/w32"
 )

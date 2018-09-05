@@ -6,7 +6,7 @@ import (
 	"flag"
 	_ "net/http/pprof"
 
-	"github.com/DataDog/datadog-process-agent/config"
+	"github.com/StackVista/stackstate-process-agent/config"
 )
 
 func main() {

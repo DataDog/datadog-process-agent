@@ -4,7 +4,7 @@ set passphrase $env(GPG_PASSPHRASE)
 set sign_key_id $env(SIGN_KEY_ID)
 set workspace $env(WORKSPACE)
 
-set debfile [exec find $workspace/go/src/github.com/DataDog/datadog-process-agent/packaging/debian -name *.deb -type f]
+set debfile [exec find $workspace/go/src/github.com/StackVista/stackstate-process-agent/packaging/debian -name *.deb -type f]
 
 spawn debsigs --sign=origin -k $sign_key_id $debfile
 expect "Enter passphrase: "
