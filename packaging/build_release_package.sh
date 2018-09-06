@@ -15,7 +15,7 @@ echo "$RPM_SIGNING_KEY" | gpg --import
 gpg -K
 
 # build deb and rpm package
-cd $WORKSPACE/go/src/github.com/DataDog/datadog-process-agent/packaging
+cd $WORKSPACE/go/src/github.com/StackVista/stackstate-process-agent/packaging
 
 # Expects gimme to be installed
 eval "$(gimme 1.10.1)"
@@ -24,7 +24,7 @@ export GOPATH=$WORKSPACE/go
 export PATH=$PATH:$GOPATH/bin
 export DEBFULLNAME="Datadog, Inc"
 
-agent_path="$WORKSPACE/go/src/github.com/DataDog/datadog-process-agent"
+agent_path="$WORKSPACE/go/src/github.com/StackVista/stackstate-process-agent"
 
 
 if [ -z ${PROCESS_AGENT_VERSION+x} ]; then

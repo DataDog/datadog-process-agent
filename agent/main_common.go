@@ -13,10 +13,10 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
-	"github.com/DataDog/datadog-process-agent/checks"
-	"github.com/DataDog/datadog-process-agent/config"
-	"github.com/DataDog/datadog-process-agent/statsd"
-	"github.com/DataDog/datadog-process-agent/util"
+	"github.com/StackVista/stackstate-process-agent/checks"
+	"github.com/StackVista/stackstate-process-agent/config"
+	"github.com/StackVista/stackstate-process-agent/statsd"
+	"github.com/StackVista/stackstate-process-agent/util"
 )
 
 var opts struct {

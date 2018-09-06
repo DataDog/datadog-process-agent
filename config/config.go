@@ -15,8 +15,8 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
-	"github.com/DataDog/datadog-process-agent/util"
-	"github.com/DataDog/datadog-process-agent/util/container"
+	"github.com/StackVista/stackstate-process-agent/util"
+	"github.com/StackVista/stackstate-process-agent/util/container"
 
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"

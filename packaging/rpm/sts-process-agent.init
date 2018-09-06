@@ -4,18 +4,18 @@
 # description: Datadog Process Agent
 
 ### BEGIN INIT INFO
-# Provides: dd-process-agent
-# Short-Description: Start and stop dd-process-agent
-# Description: dd-process-agent is the process agent component for Datadog
+# Provides: sts-process-agent
+# Short-Description: Start and stop sts-process-agent
+# Description: sts-process-agent is the process agent component for Datadog
 # Required-Start: $remote_fs
 # Required-Stop: $remote_fs
 # Default-Start: 2 3 4 5
 # Default-Stop: 0 1 6
 ### END INIT INFO
 
-PIDFILE=/opt/dd-process-agent/run/dd-process-agent.pid
-DAEMON=/opt/dd-process-agent/bin/dd-process-agent
-CONFIG=/etc/dd-agent/dd-process-agent.ini
+PIDFILE=/opt/sts-process-agent/run/sts-process-agent.pid
+DAEMON=/opt/sts-process-agent/bin/sts-process-agent
+CONFIG=/etc/dd-agent/sts-process-agent.ini
 export DD_PROCESS_AGENT_ENABLED=true
 
 # Source functions library.
@@ -30,11 +30,11 @@ start() {
     # the daemon function does the right thing
     if [ -f $PIDFILE ]; then
             PID=`cat $PIDFILE`
-            echo dd-process-agent already running: $PID
+            echo sts-process-agent already running: $PID
             exit 2;
     else
-        echo "Starting dd-process-agent"
-        daemon --pidfile $PIDFILE --user dd-agent "exec $DAEMON -config=$CONFIG >> /var/log/dd-process-agent.log 2>&1 &"
+        echo "Starting sts-process-agent"
+        daemon --pidfile $PIDFILE --user dd-agent "exec $DAEMON -config=$CONFIG >> /var/log/sts-process-agent.log 2>&1 &"
         [ $? -eq 0 ] && makePid $DAEMON
     fi
     echo
@@ -45,7 +45,7 @@ stop() {
     # no need to test for status before killproc,
     # it does the right thing. and testing supervisorctl status
     # before killproc can lead to states where you cannot stop!
-    echo -n 'Stopping dd-process-agent (using killproc): '
+    echo -n 'Stopping sts-process-agent (using killproc): '
     killproc -p $PIDFILE -d 30
     echo
     return 0
@@ -70,7 +70,7 @@ case "$1" in
         ;;
 
     status)
-        status -p "$PIDFILE" dd-process-agent
+        status -p "$PIDFILE" sts-process-agent
         ;;
 
 esac

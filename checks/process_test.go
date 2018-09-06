@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
-	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
+	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/stretchr/testify/assert"
 )
 

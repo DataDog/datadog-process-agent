@@ -1,7 +1,10 @@
 dd-process-agent
 vendor/
+download/
 
 .vscode
+.idea
+.bashrc
 *.exe
 *.syso
 agent/windows_resources/process-agent-msg.rc
@@ -9,3 +12,5 @@ agent/windows_resources/*.bin
 # file generated at build time by message compiler
 process-agent-msg.h
 process-agent
+packaging/debian/*.deb
+packaging/rpm/*.rpm

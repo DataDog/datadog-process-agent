@@ -1,6 +1,6 @@
 #!/bin/sh
 ### BEGIN INIT INFO
-# Provides:          datadog-process-agent
+# Provides:          stackstate-process-agent
 # Required-Start:    $local_fs $network $remote_fs $syslog
 # Required-Stop:     $local_fs $network $remote_fs $syslog
 # Default-Start:     2 3 4 5
@@ -15,9 +15,9 @@
 . /lib/lsb/init-functions
 
 PATH=$PATH:/sbin
-PIDFILE=/opt/dd-process-agent/run/dd-process-agent.pid
-DAEMON=/opt/dd-process-agent/bin/dd-process-agent
-CONFIG=/etc/dd-agent/dd-process-agent.ini
+PIDFILE=/opt/sts-process-agent/run/sts-process-agent.pid
+DAEMON=/opt/sts-process-agent/bin/sts-process-agent
+CONFIG=/etc/dd-agent/sts-process-agent.ini
 export DD_PROCESS_AGENT_ENABLED=true
 
 # Exit if the package is not installed
@@ -25,22 +25,22 @@ export DD_PROCESS_AGENT_ENABLED=true
 
 start() {
     if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE"); then
-        echo 'dd-process-agent already running' >&2
+        echo 'sts-process-agent already running' >&2
 	return 1
     fi
-    echo 'Starting dd-process-agent...' >&2
+    echo 'Starting sts-process-agent...' >&2
     start-stop-daemon --start --quiet --oknodo --background \
         --make-pidfile --pidfile $PIDFILE --chuid dd-agent \
         --startas /bin/bash -- -c \
-        "exec $DAEMON -config=$CONFIG >> /var/log/dd-process-agent.log 2>&1"
+        "exec $DAEMON -config=$CONFIG >> /var/log/sts-process-agent.log 2>&1"
 }
 
 stop() {
     if [ ! -f "$PIDFILE" ] || ! kill -0 $(cat "$PIDFILE"); then
-        echo 'dd-process-agent not running' >&2
+        echo 'sts-process-agent not running' >&2
 	return 1
     fi
-    echo "Stopping dd-process-agent..." >&2
+    echo "Stopping sts-process-agent..." >&2
     start-stop-daemon --stop --retry 30 --quiet --oknodo --pidfile $PIDFILE && rm -f $PIDFILE
 }
 
@@ -58,7 +58,7 @@ case "$1" in
         start
         ;;
     status)
-        status_of_proc -p "$PIDFILE" "$DAEMON" dd-process-agent
+        status_of_proc -p "$PIDFILE" "$DAEMON" sts-process-agent
         ;;
     *)
         echo "Usage: $0 {start|stop|restart|status}"

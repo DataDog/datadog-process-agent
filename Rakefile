@@ -30,7 +30,7 @@ task :build do
   else 
     bin = "process-agent"
   end
-  go_build("github.com/DataDog/datadog-process-agent/agent", {
+  go_build("github.com/StackVista/stackstate-process-agent/agent", {
     :cmd => "go build -a -o #{bin}",
     :race => ENV['GO_RACE'] == 'true',
     :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
@@ -43,7 +43,7 @@ end
 # Deprecated, should go away once we are fully merged into dd-agent
 desc "DEPRECATED: Build Datadog Process agent for dd-process-agent pkg release"
 task :build_ddpkg do
-  go_build("github.com/DataDog/datadog-process-agent/agent", {
+  go_build("github.com/StackVista/stackstate-process-agent/agent", {
     :cmd => "go build -a -o dd-process-agent",
     :race => ENV['GO_RACE'] == 'true',
     :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
@@ -59,7 +59,7 @@ task :install do
   else 
     bin = "process-agent"
   end    
-  go_build("github.com/DataDog/datadog-process-agent/agent", :cmd=> "go build -i -o $GOPATH/bin/#{bin}")
+  go_build("github.com/StackVista/stackstate-process-agent/agent", :cmd=> "go build -i -o $GOPATH/bin/#{bin}")
 end
 
 desc "Test Datadog Process agent"
@@ -126,5 +126,5 @@ task :ci => [:deps, :fmt, :vet, :test, :lint, :build]
 
 task :err do
   system("go get github.com/kisielk/errcheck")
-  sh "errcheck github.com/DataDog/datadog-process-agent"
+  sh "errcheck github.com/StackVista/stackstate-process-agent"
 end

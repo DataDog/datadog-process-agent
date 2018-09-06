@@ -2,7 +2,7 @@ stages:
   - binary_build
 
 variables:
-  SRC_PATH: /src/github.com/DataDog/datadog-process-agent
+  SRC_PATH: /src/github.com/StackVista/stackstate-process-agent
   DD_REPO_BRANCH_NAME: $CI_COMMIT_REF_NAME
   S3_CP_OPTIONS: --only-show-errors --region us-east-1 --sse AES256
   S3_CP_CMD: aws s3 cp $S3_CP_OPTIONS
