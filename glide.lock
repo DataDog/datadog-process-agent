@@ -1,5 +1,5 @@
-hash: cffd923100f068d7432bd95f553096e467dbf327f25921381a16dbde622ebed1
-updated: 2018-09-05T11:31:17.724908149-04:00
+hash: 3c95a3a4a926abfe62a9ff4d65d34649b6b253fa3ca20067f927cc72b00c273d
+updated: 2018-09-06T10:53:55.615130182-04:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -45,7 +45,7 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: f3314bf3842ea67aa14647c84353533528254fee
+  version: b3fe0acb358dfd48b1f9fed978e797a41e13267f
   subpackages:
   - cmd/agent/api/response
   - pkg/api/security
