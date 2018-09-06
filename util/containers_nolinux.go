@@ -15,3 +15,9 @@ func SetContainerSource(name string) {
 func GetContainers() ([]*containers.Container, error) {
 	return nil, ErrNotImplemented
 }
+
+// ExtractContainerRateMetric extracts relevant rate values from a container list
+// for later reuse, while reducing memory usage to only the needed fields
+func ExtractContainerRateMetric(containers []*containers.Container) map[string]ContainerRateMetrics {
+	return nil
+}

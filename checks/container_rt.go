@@ -18,9 +18,9 @@ var RTContainer = &RTContainerCheck{}
 
 // RTContainerCheck collects numeric statistics about live ctrList.
 type RTContainerCheck struct {
-	sysInfo        *model.SystemInfo
-	lastContainers []*containers.Container
-	lastRun        time.Time
+	sysInfo   *model.SystemInfo
+	lastRates map[string]util.ContainerRateMetrics
+	lastRun   time.Time
 }
 
 // Init initializes a RTContainerCheck instance.
@@ -45,8 +45,8 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 	}
 
 	// End check early if this is our first run.
-	if r.lastContainers == nil {
-		r.lastContainers = ctrList
+	if r.lastRates == nil {
+		r.lastRates = util.ExtractContainerRateMetric(ctrList)
 		r.lastRun = time.Now()
 		return nil, nil
 	}
@@ -55,7 +55,7 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 	if len(ctrList) != cfg.MaxPerMessage {
 		groupSize++
 	}
-	chunked := fmtContainerStats(ctrList, r.lastContainers, r.lastRun, groupSize)
+	chunked := fmtContainerStats(ctrList, r.lastRates, r.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	for i := 0; i < groupSize; i++ {
 		messages = append(messages, &model.CollectorContainerRealTime{
@@ -68,7 +68,7 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 		})
 	}
 
-	r.lastContainers = ctrList
+	r.lastRates = util.ExtractContainerRateMetric(ctrList)
 	r.lastRun = time.Now()
 
 	return messages, nil
@@ -77,31 +77,27 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 // fmtContainerStats formats and chunks the ctrList into a slice of chunks using a specific
 // number of chunks. len(result) MUST EQUAL chunks.
 func fmtContainerStats(
-	ctrList, lastContainers []*containers.Container,
+	ctrList []*containers.Container,
+	lastRates map[string]util.ContainerRateMetrics,
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.ContainerStat {
-	lastByID := make(map[string]*containers.Container, len(ctrList))
-	for _, c := range lastContainers {
-		lastByID[c.ID] = c
-	}
-
 	perChunk := (len(ctrList) / chunks) + 1
 	chunked := make([][]*model.ContainerStat, chunks)
 	chunk := make([]*model.ContainerStat, 0, perChunk)
 	i := 0
 	for _, ctr := range ctrList {
-		lastCtr, ok := lastByID[ctr.ID]
+		lastCtr, ok := lastRates[ctr.ID]
 		if !ok {
 			// Set to an empty container so rate calculations work and use defaults.
-			lastCtr = util.NullContainer
+			lastCtr = util.NullContainerRates
 		}
 
 		// Just in case the container is found, but refs are nil
-		fillNilContainers(ctr, lastCtr)
+		ctr = fillNilContainer(ctr)
+		lastCtr = fillNilRates(lastCtr)
 
 		ifStats := ctr.Network.SumInterfaces()
-		lastIfStats := lastCtr.Network.SumInterfaces()
 		cpus := runtime.NumCPU()
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 		chunk = append(chunk, &model.ContainerStat{
@@ -115,10 +111,10 @@ func fmtContainerStats(
 			MemLimit:   ctr.MemLimit,
 			Rbps:       calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun),
 			Wbps:       calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun),
-			NetRcvdPs:  calculateRate(ifStats.PacketsRcvd, lastIfStats.PacketsRcvd, lastRun),
-			NetSentPs:  calculateRate(ifStats.PacketsSent, lastIfStats.PacketsSent, lastRun),
-			NetRcvdBps: calculateRate(ifStats.BytesRcvd, lastIfStats.BytesRcvd, lastRun),
-			NetSentBps: calculateRate(ifStats.BytesSent, lastIfStats.BytesSent, lastRun),
+			NetRcvdPs:  calculateRate(ifStats.PacketsRcvd, lastCtr.NetworkSum.PacketsRcvd, lastRun),
+			NetSentPs:  calculateRate(ifStats.PacketsSent, lastCtr.NetworkSum.PacketsSent, lastRun),
+			NetRcvdBps: calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun),
+			NetSentBps: calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun),
 			State:      model.ContainerState(model.ContainerState_value[ctr.State]),
 			Health:     model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
 			Started:    ctr.StartedAt,
