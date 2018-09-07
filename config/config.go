@@ -29,7 +29,7 @@ var (
 
 	// defaultNetworkTracerSocketPath is the default unix socket path to be used for connecting to the network tracer
 	// This mirrors the default location defined in the tcptracer-bpf library
-	defaultNetworkTracerSocketPath = "/var/run/datadog/nettracer.sock"
+	defaultNetworkTracerSocketPath = "/opt/datadog-agent/run/nettracer.sock"
 
 	processChecks   = []string{"process", "rtprocess"}
 	containerChecks = []string{"container", "rtcontainer"}
