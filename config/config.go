@@ -511,6 +511,9 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	if ok, _ := isAffirmative(os.Getenv("DD_NETWORK_TRACING_ENABLED")); ok {
 		c.EnabledChecks = append(c.EnabledChecks, "connections")
 	}
+	if v := os.Getenv("DD_NETTRACER_SOCKET"); v != "" {
+		c.NetworkTracerSocketPath = v
+	}
 
 	return c
 }
