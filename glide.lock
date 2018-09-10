@@ -1,5 +1,5 @@
-hash: 3c95a3a4a926abfe62a9ff4d65d34649b6b253fa3ca20067f927cc72b00c273d
-updated: 2018-09-06T10:53:55.615130182-04:00
+hash: 2805d2424929f3b159625d6b0ba51aa5a3e75ca5589548f3e53a1a520a6663d0
+updated: 2018-09-10T12:38:54.570835954-07:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -45,7 +45,7 @@ imports:
   subpackages:
   - gogen
 - name: github.com/DataDog/datadog-agent
-  version: b3fe0acb358dfd48b1f9fed978e797a41e13267f
+  version: f7e28d260d8f491189c4ddf377c36c7ccb55e89c
   subpackages:
   - cmd/agent/api/response
   - pkg/api/security
@@ -98,7 +98,7 @@ imports:
   - net
   - process
 - name: github.com/DataDog/tcptracer-bpf
-  version: 61d5f2947657559a6ee966b2c288756e8c3e5adb
+  version: 636ee01a99a4bd352329de98f40fb9fdf611d1c9
   vcs: git
   subpackages:
   - pkg/tracer
@@ -187,7 +187,7 @@ imports:
   subpackages:
   - simplelru
 - name: github.com/hashicorp/hcl
-  version: 8cb6e5b959231cc1119e43259c4a608f9c51a241
+  version: 65a6292f0157eff210d03ed1bf6c59b190b8b906
   subpackages:
   - hcl/ast
   - hcl/parser
@@ -280,17 +280,17 @@ imports:
 - name: github.com/shirou/w32
   version: bb4de0191aa41b5507caa14b0650cdbddcd9280b
 - name: github.com/spf13/afero
-  version: 787d034dfe70e44075ccc060d346146ef53270ad
+  version: d40851caa0d747393da1ffb28f7f9d8b4eeffebd
   subpackages:
   - mem
 - name: github.com/spf13/cast
   version: 8965335b8c7107321228e3e3702cab9832751bac
 - name: github.com/spf13/jwalterweatherman
-  version: 14d3d4c518341bea657dd8a226f5121c0ff8c9f2
+  version: 4a4406e478ca629068e7768fc33f3f044173c0a6
 - name: github.com/spf13/pflag
   version: 583c0c0531f06d5278b7d917446061adc344b5cd
 - name: github.com/spf13/viper
-  version: 0ac2068de99fd349edc4954d0e9b4a600d75da44
+  version: 3171ef9a229903ce60a9513ec3899b63c003e91c
 - name: github.com/StackExchange/wmi
   version: b12b22c5341f0c26d88c4d66176330500e84db68
 - name: golang.org/x/crypto
