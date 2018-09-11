@@ -1,0 +1,66 @@
+
+# Gopkg.toml example
+#
+# Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
+# for detailed Gopkg.toml documentation.
+#
+# required = ["github.com/user/thing/cmd/thing"]
+# ignored = ["github.com/user/project/pkgX", "bitbucket.org/user/project/pkgA/pkgY"]
+#
+# [[constraint]]
+#   name = "github.com/user/project"
+#   version = "1.0.0"
+#
+# [[constraint]]
+#   name = "github.com/user/project2"
+#   branch = "dev"
+#   source = "github.com/myfork/project2"
+#
+# [[override]]
+#  name = "github.com/x/y"
+#  version = "2.4.0"
+
+
+[[constraint]]
+  name = "github.com/DataDog/agent-payload"
+
+[[constraint]]
+  name = "github.com/DataDog/datadog-agent"
+
+[[constraint]]
+  name = "github.com/DataDog/datadog-go"
+
+[[constraint]]
+  branch = "dd"
+  name = "github.com/DataDog/gopsutil"
+
+[[constraint]]
+  branch = "dd"
+  name = "github.com/DataDog/tcptracer-bpf"
+
+[[constraint]]
+  name = "github.com/DataDog/zstd"
+
+[[constraint]]
+  name = "github.com/StackExchange/wmi"
+
+[[constraint]]
+  name = "github.com/cihub/seelog"
+
+[[constraint]]
+  name = "github.com/go-ini/ini"
+
+[[constraint]]
+  name = "github.com/gogo/protobuf"
+
+[[constraint]]
+  name = "github.com/shirou/w32"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+
+[[constraint]]
+  name = "golang.org/x/sys"
+
+[[constraint]]
+  name = "gopkg.in/yaml.v2"

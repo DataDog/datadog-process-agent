@@ -15,9 +15,9 @@ def os
 
 desc "Setup dependencies"
 task :deps do
-  system("go get github.com/Masterminds/glide")
+  system("go get -u github.com/golang/dep/cmd/dep")
   system("go get -u github.com/golang/lint/golint")
-  system("glide install")
+  system("dep ensure -v -vendor-only")
 end
 
 task :default => [:ci]

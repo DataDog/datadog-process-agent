@@ -34,8 +34,7 @@ agent_path="$WORKSPACE/go/src/github.com/DataDog/datadog-process-agent"
 echo "Getting dependencies..."
 
 cd $agent_path
-go get github.com/Masterminds/glide
-glide install
+rake deps
 
 echo "Building binaries..."
 PROCESS_AGENT_STATIC=true rake build EBPF=$LINUX_EBPF
