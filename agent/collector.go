@@ -259,6 +259,10 @@ func errResponse(format string, a ...interface{}) postResponse {
 }
 
 func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan postResponse) {
+	l.postToAPIwithEncoding(endpoint, checkPath, body, responses, "x-zip")
+}
+
+func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan postResponse, contentEncoding string) {
 	endpoint.Endpoint.Path = checkPath
 	url := endpoint.Endpoint.String()
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
@@ -267,6 +271,7 @@ func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, bod
 		return
 	}
 
+	req.Header.Add("content-encoding", contentEncoding)
 	req.Header.Add("X-Dd-APIKey", endpoint.APIKey)
 	req.Header.Add("X-Dd-Hostname", l.cfg.HostName)
 	req.Header.Add("X-Dd-Processagentversion", Version)
