@@ -3,7 +3,7 @@
 #!/bin/bash
 
 function resolveLatest() {
-	git tag | sort | head -1
+	git tag --sort=-taggerdate | head -1
 }
 
 function _hasGitChanges() {
