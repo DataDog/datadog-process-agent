@@ -1,66 +1,29 @@
-
-# Gopkg.toml example
-#
-# Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
-# for detailed Gopkg.toml documentation.
-#
-# required = ["github.com/user/thing/cmd/thing"]
-# ignored = ["github.com/user/project/pkgX", "bitbucket.org/user/project/pkgA/pkgY"]
-#
-# [[constraint]]
-#   name = "github.com/user/project"
-#   version = "1.0.0"
-#
-# [[constraint]]
-#   name = "github.com/user/project2"
-#   branch = "dev"
-#   source = "github.com/myfork/project2"
-#
-# [[override]]
-#  name = "github.com/x/y"
-#  version = "2.4.0"
-
-
-[[constraint]]
-  name = "github.com/DataDog/agent-payload"
-
 [[constraint]]
   name = "github.com/DataDog/datadog-agent"
+  revision = "f2d7ce69202c8212cae1ebf476d038b28f3a895e"
 
 [[constraint]]
-  name = "github.com/DataDog/datadog-go"
-
-[[constraint]]
-  branch = "dd"
   name = "github.com/DataDog/gopsutil"
+  revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
 
 [[constraint]]
-  branch = "dd"
   name = "github.com/DataDog/tcptracer-bpf"
+  revision = "636ee01a99a4bd352329de98f40fb9fdf611d1c9"
 
 [[constraint]]
   name = "github.com/DataDog/zstd"
-
-[[constraint]]
-  name = "github.com/StackExchange/wmi"
-
-[[constraint]]
-  name = "github.com/cihub/seelog"
+  revision = "2bf71ec4836011b92dc78df3b9ace6b40e65f7df"
 
 [[constraint]]
   name = "github.com/go-ini/ini"
+  revision = "d3de07a94d22b4a0972deb4b96d790c2c0ce8333"
 
 [[constraint]]
   name = "github.com/gogo/protobuf"
-
-[[constraint]]
-  name = "github.com/shirou/w32"
+  revision = "d76fbc1373015ced59b43ac267f28d546b955683"
 
 [[constraint]]
   name = "github.com/stretchr/testify"
 
 [[constraint]]
   name = "golang.org/x/sys"
-
-[[constraint]]
-  name = "gopkg.in/yaml.v2"
