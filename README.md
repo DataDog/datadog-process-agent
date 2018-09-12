@@ -1,6 +1,6 @@
-# Datadog Process Agent
+# StackState Process Agent
 
-[![CircleCI](https://circleci.com/gh/DataDog/datadog-process-agent.svg?style=svg)](https://circleci.com/gh/DataDog/datadog-process-agent)
+[![CircleCI](https://circleci.com/gh/StackVista/stackstate-process-agent.svg?style=svg)](https://circleci.com/gh/StackVista/stackstate-process-agent)
 
 ## Installation
 
@@ -16,9 +16,9 @@ Pre-requisites:
 Check out the repo in your `$GOPATH`
 
 ```
-cd $GOPATH/DataDog
-git clone git@github.com:DataDog/dd-process-agent
-cd dd-process-agent
+cd $GOPATH/StackVista
+git clone git@github.com:StackVista/stackstate-process-agent
+cd stackstate-process-agent
 ```
 
 Pull down the latest dependencies via `glide`:
@@ -30,7 +30,7 @@ rake install
 
 You can now run the Agent on the command-line:
 
-`dd-process-agent -config $PATH_TO_PROCESS_CONFIG_FILE`
+`process-agent -config $PATH_TO_PROCESS_CONFIG_FILE`
 
 If you modify any of the `.proto` files you _must_ rebuild the *.pb.go files with
 
