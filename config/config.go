@@ -430,10 +430,15 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	if v := os.Getenv("DD_LOG_LEVEL"); v != "" {
 		c.LogLevel = v
 	}
+
+	// Logging to console
 	if enabled, err := isAffirmative(os.Getenv("DD_LOGS_STDOUT")); err == nil {
 		c.LogToConsole = enabled
 	}
 	if enabled, err := isAffirmative(os.Getenv("LOG_TO_CONSOLE")); err == nil {
+		c.LogToConsole = enabled
+	}
+	if enabled, err := isAffirmative(os.Getenv("DD_LOG_TO_CONSOLE")); err == nil {
 		c.LogToConsole = enabled
 	}
 
