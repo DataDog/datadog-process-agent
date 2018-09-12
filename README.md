@@ -21,7 +21,7 @@ git clone git@github.com:DataDog/datadog-process-agent.git
 cd datadog-process-agent
 ```
 
-Pull down the latest dependencies via `glide`:
+Pull down the latest dependencies via `dep`:
 
 ```
 rake deps
