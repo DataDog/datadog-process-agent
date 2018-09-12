@@ -39,6 +39,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 
 	if cfg.EnableLocalNetworkTracer {
 		log.Info("starting network tracer locally")
+		c.useLocalTracer = true
 
 		// Checking whether the current kernel version is supported by the tracer
 		if _, err = tracer.IsTracerSupportedByOS(); err != nil {
@@ -53,7 +54,6 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 			return
 		}
 
-		c.useLocalTracer = true
 		c.localTracer = t
 		c.localTracer.Start()
 	} else {
@@ -80,6 +80,7 @@ func (c *ConnectionsCheck) RealTime() bool { return false }
 // that will be bundled up into a `CollectorConnections`.
 // See agent.proto for the schema of the message and models.
 func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
+	// If local tracer failed to initialize, so we shouldn't be doing any checks
 	if c.useLocalTracer && c.localTracer == nil {
 		return nil, nil
 	}
