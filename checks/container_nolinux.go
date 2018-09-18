@@ -50,5 +50,5 @@ func fmtContainers(
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.Container {
-	return nil
+	return make([][]*model.Container, chunks)
 }
