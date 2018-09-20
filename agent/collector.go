@@ -263,8 +263,7 @@ func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, bod
 }
 
 func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan postResponse, contentEncoding string) {
-	endpoint.Endpoint.Path = checkPath
-	url := endpoint.Endpoint.String()
+	url := endpoint.Endpoint.String() + checkPath // Add the checkPath in full Process Agent URL
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	if err != nil {
 		responses <- errResponse("could not create request to %s: %s", url, err)
