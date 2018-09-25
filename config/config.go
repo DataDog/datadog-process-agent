@@ -223,7 +223,7 @@ func isRunningInKubernetes() bool {
 
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
-func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, error) {
+func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *YamlAgentConfig) (*AgentConfig, error) {
 	var err error
 	cfg := NewDefaultAgentConfig()
 
@@ -344,8 +344,13 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 
 	// For Agents >= 6 we will have a YAML config file to use.
 	if agentYaml != nil {
-		cfg, err = mergeYamlConfig(cfg, agentYaml)
-		if err != nil {
+		if cfg, err = mergeYamlConfig(cfg, agentYaml); err != nil {
+			return nil, err
+		}
+	}
+
+	if networkYaml != nil {
+		if cfg, err = mergeNetworkYamlConfig(cfg, networkYaml); err != nil {
 			return nil, err
 		}
 	}
