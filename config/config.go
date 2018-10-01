@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
-	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
 	"github.com/StackVista/stackstate-process-agent/util"
-	"github.com/StackVista/stackstate-process-agent/util/container"
+
+	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
 
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"
@@ -26,6 +26,10 @@ var (
 	// defaultProxyPort is the default port used for proxies.
 	// This mirrors the configuration for the infrastructure agent.
 	defaultProxyPort = 3128
+
+	// defaultNetworkTracerSocketPath is the default unix socket path to be used for connecting to the network tracer
+	// This mirrors the default location defined in the tcptracer-bpf library
+	defaultNetworkTracerSocketPath = "/opt/datadog-agent/run/nettracer.sock"
 
 	processChecks   = []string{"process", "rtprocess"}
 	containerChecks = []string{"container", "rtcontainer"}
@@ -76,11 +80,15 @@ type AgentConfig struct {
 	StatsdHost    string
 	StatsdPort    int
 
+	// Network collection configuration
+	EnableLocalNetworkTracer bool
+	NetworkTracerSocketPath  string
+
 	// Check config
 	EnabledChecks  []string
 	CheckIntervals map[string]time.Duration
 
-	// Docker
+	// Containers
 	ContainerBlacklist     []string
 	ContainerWhitelist     []string
 	CollectDockerNetwork   bool
@@ -113,6 +121,21 @@ const (
 	maxMessageBatch = 100
 )
 
+// NewDefaultTransport provides a http transport configuration with sane default timeouts
+func NewDefaultTransport() *http.Transport {
+	return &http.Transport{
+		MaxIdleConns:    5,
+		IdleConnTimeout: 90 * time.Second,
+		Dial: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 10 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ResponseHeaderTimeout: 5 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+}
+
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
 func NewDefaultAgentConfig() *AgentConfig {
 	u, err := url.Parse(defaultEndpoint)
@@ -121,12 +144,13 @@ func NewDefaultAgentConfig() *AgentConfig {
 		panic(err)
 	}
 
-	_, err = container.GetContainers()
+	// Note: This only considers container sources that are already setup. It's possible that container sources may
+	//       need a few minutes to be ready.
+	_, err = util.GetContainers()
 	canAccessContainers := err == nil
 
 	ac := &AgentConfig{
-		// We'll always run inside of a container.
-		Enabled:       canAccessContainers,
+		Enabled:       canAccessContainers, // We'll always run inside of a container.
 		APIEndpoints:  []APIEndpoint{{Endpoint: u}},
 		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
@@ -136,17 +160,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		MaxPerMessage: 100,
 		AllowRealTime: true,
 		HostName:      "",
-		Transport: &http.Transport{
-			MaxIdleConns:    5,
-			IdleConnTimeout: 90 * time.Second,
-			Dial: (&net.Dialer{
-				Timeout:   10 * time.Second,
-				KeepAlive: 10 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   5 * time.Second,
-			ResponseHeaderTimeout: 5 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
+		Transport:     NewDefaultTransport(),
 
 		// Statsd for internal instrumentation
 		StatsdHost: "127.0.0.1",
@@ -155,6 +169,10 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Path and environment for the dd-agent embedded python
 		DDAgentPy:    defaultDDAgentPy,
 		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
+
+		// Network collection configuration
+		EnableLocalNetworkTracer: false,
+		NetworkTracerSocketPath:  defaultNetworkTracerSocketPath,
 
 		// Check config
 		EnabledChecks: containerChecks,
@@ -183,7 +201,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 	// Set default values for proc/sys paths if unset.
 	// Don't set this is /host is not mounted to use context within container.
 	// Generally only applicable for container-only cases like Fargate.
-	if docker.IsContainerized() && util.PathExists("/host") {
+	if ddconfig.IsContainerized() && util.PathExists("/host") {
 		if v := os.Getenv("HOST_PROC"); v == "" {
 			os.Setenv("HOST_PROC", "/host/proc")
 		}
@@ -254,10 +272,15 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 		cfg.StatsdPort = agentIni.GetIntDefault("Main", "dogstatsd_port", cfg.StatsdPort)
 
 		// All process-agent specific config lives under [process.config] section.
+		// NOTE: we truncate either endpoints or APIEndpoints if the lengths don't match
 		ns = "process.config"
 		endpoints := agentIni.GetStrArrayDefault(ns, "endpoint", ",", []string{defaultEndpoint})
-		if len(endpoints) != len(cfg.APIEndpoints) {
-			return nil, fmt.Errorf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
+		if len(endpoints) < len(cfg.APIEndpoints) {
+			log.Warnf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
+			cfg.APIEndpoints = cfg.APIEndpoints[:len(endpoints)]
+		} else if len(endpoints) > len(cfg.APIEndpoints) {
+			log.Warnf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
+			endpoints = endpoints[:len(cfg.APIEndpoints)]
 		}
 		for i, e := range endpoints {
 			u, err := url.Parse(e)
@@ -298,7 +321,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig) (*AgentConfig, e
 			cfg.MaxPerMessage = maxMessageBatch
 		}
 
-		// Checks intervals can be overriden by configuration.
+		// Checks intervals can be overridden by configuration.
 		for checkName, defaultInterval := range cfg.CheckIntervals {
 			key := fmt.Sprintf("%s_interval", checkName)
 			interval := agentIni.GetDurationDefault(ns, key, time.Second, defaultInterval)
@@ -407,10 +430,15 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	if v := os.Getenv("DD_LOG_LEVEL"); v != "" {
 		c.LogLevel = v
 	}
+
+	// Logging to console
 	if enabled, err := isAffirmative(os.Getenv("DD_LOGS_STDOUT")); err == nil {
 		c.LogToConsole = enabled
 	}
 	if enabled, err := isAffirmative(os.Getenv("LOG_TO_CONSOLE")); err == nil {
+		c.LogToConsole = enabled
+	}
+	if enabled, err := isAffirmative(os.Getenv("DD_LOG_TO_CONSOLE")); err == nil {
 		c.LogToConsole = enabled
 	}
 
@@ -478,9 +506,18 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
 	}
 
+	// Used to override container source auto-detection.
+	// "docker", "ecs_fargate", "kubelet", etc
+	if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
+		util.SetContainerSource(v)
+	}
+
 	// Note: this feature is in development and should not be used in production environments
-	if ok, _ := isAffirmative(os.Getenv("DD_CONNECTIONS_CHECK")); ok {
+	if ok, _ := isAffirmative(os.Getenv("DD_NETWORK_TRACING_ENABLED")); ok {
 		c.EnabledChecks = append(c.EnabledChecks, "connections")
+	}
+	if v := os.Getenv("DD_NETTRACER_SOCKET"); v != "" {
+		c.NetworkTracerSocketPath = v
 	}
 
 	return c

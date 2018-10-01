@@ -12,7 +12,7 @@ def os
       fail 'Unsupported OS'
     end
   end
-  
+
 desc "Setup dependencies"
 task :deps do
   system("go get github.com/Masterminds/glide")
@@ -27,7 +27,7 @@ task :build do
   case os
   when "windows"
     bin = "process-agent.exe"
-  else 
+  else
     bin = "process-agent"
   end
   go_build("github.com/StackVista/stackstate-process-agent/agent", {
@@ -56,7 +56,7 @@ task :install do
   case os
   when "windows"
     bin = "process-agent.exe"
-  else 
+  else
     bin = "process-agent"
   end    
   go_build("github.com/StackVista/stackstate-process-agent/agent", :cmd=> "go build -i -o $GOPATH/bin/#{bin}")

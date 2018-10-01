@@ -16,7 +16,7 @@ RUN apt-get update && \
     apt-add-repository ppa:brightbox/ruby-ng && \
     apt-get update && \
     apt-get install -y build-essential debhelper git gnupg rake curl devscripts ruby-dev zlib1g-dev libxml2-dev wget rpm debsigs expect ruby2.3 ruby2.3-dev createrepo python-dateutil python-dev 
-RUN apt-get install -y linux-headers-generic
+RUN apt-get install -y linux-headers-generic mercurial
 
 RUN gem install deb-s3 inifile
 

@@ -9,10 +9,10 @@ import (
 	"os"
 	"time"
 
-	log "github.com/cihub/seelog"
-
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
+	log "github.com/cihub/seelog"
+
 	"github.com/StackVista/stackstate-process-agent/checks"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/statsd"
@@ -147,10 +147,6 @@ func runAgent(exit chan bool) {
 		return
 	}
 
-	// Initialize the metadata providers so the singletons are available.
-	// This will log any unknown errors
-	initMetadataProviders()
-
 	// update docker socket path in info
 	dockerSock, err := util.GetDockerSocketPath()
 	if err != nil {
@@ -227,7 +223,7 @@ func printResults(cfg *config.AgentConfig, ch checks.Check) error {
 		return fmt.Errorf("collection error: %s", err)
 	}
 
-	if ch.Name() == checks.Connections.Name() {
+	if cfg.EnableLocalNetworkTracer && ch.Name() == checks.Connections.Name() {
 		fmt.Printf("Waiting 5 seconds to allow for active connections to transmit data\n")
 		time.Sleep(5 * time.Second)
 	} else {
