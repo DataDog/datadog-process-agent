@@ -9,8 +9,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/StackVista/stackstate-process-agent/pkg/pidfile"
-	"github.com/StackVista/stackstate-process-agent/pkg/tagger"
+	"github.com/DataDog/datadog-agent/pkg/pidfile"
+	"github.com/DataDog/datadog-agent/pkg/tagger"
+	log "github.com/cihub/seelog"
+
 	"github.com/StackVista/stackstate-process-agent/checks"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/statsd"

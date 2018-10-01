@@ -8,7 +8,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/DataDog/datadog-process-agent/util"
+	"github.com/StackVista/stackstate-process-agent/util"
 )
 
 func makeContainer(id string) *containers.Container {
@@ -74,19 +74,19 @@ func TestContainerChunking(t *testing.T) {
 
 func TestContainerNils(t *testing.T) {
 	// Make sure formatting doesn't crash with nils
-	cur := []*containers.Container{&containers.Container{}}
+	cur := []*containers.Container{{}}
 	last := map[string]util.ContainerRateMetrics{}
 	fmtContainers(cur, last, time.Now(), 10)
 	fmtContainerStats(cur, last, time.Now(), 10)
 	// Make sure we get values when we have nils in last.
 	cur = []*containers.Container{
-		&containers.Container{
+		{
 			ID:  "1",
 			CPU: &metrics.CgroupTimesStat{},
 		},
 	}
 	last = map[string]util.ContainerRateMetrics{
-		"1": util.ContainerRateMetrics{
+		"1": {
 			CPU: &metrics.CgroupTimesStat{},
 		},
 	}
