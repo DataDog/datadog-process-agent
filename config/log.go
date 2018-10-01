@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	ddlog "github.com/DataDog/datadog-agent/pkg/util/log"
 	log "github.com/cihub/seelog"
 )
 
@@ -288,6 +289,12 @@ func replaceLogger(cfg *LoggerConfig) error {
 	if err != nil {
 		return err
 	}
+
+	// If the main agent has a logger, replace it with ours. If not, then set it up.
+	if ddlog.ReplaceLogger(logger) == nil {
+		ddlog.SetupDatadogLogger(logger, cfg.LogLevel)
+	}
+
 	return log.ReplaceLogger(logger)
 }
 

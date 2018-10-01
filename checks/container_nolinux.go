@@ -1,13 +1,15 @@
-// +build !docker
+// +build !linux
 
 package checks
 
 import (
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
+
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
+	"github.com/StackVista/stackstate-process-agent/util"
 )
 
 // Container is a singleton ContainerCheck.
@@ -15,9 +17,8 @@ var Container = &ContainerCheck{}
 
 // ContainerCheck is a check that returns container metadata and stats.
 type ContainerCheck struct {
-	sysInfo        *model.SystemInfo
-	lastContainers []*docker.Container
-	lastRun        time.Time
+	sysInfo *model.SystemInfo
+	lastRun time.Time
 }
 
 // Init initializes a ContainerCheck instance.
@@ -44,31 +45,10 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 // fmtContainers formats and chunks the containers into a slice of chunks using a specific
 // number of chunks. len(result) MUST EQUAL chunks.
 func fmtContainers(
-	containers, lastContainers []*docker.Container,
+	ctrList []*containers.Container,
+	lastRates map[string]util.ContainerRateMetrics,
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.Container {
-	lastByID := make(map[string]*docker.Container, len(containers))
-	for _, c := range lastContainers {
-		lastByID[c.ID] = c
-	}
-
-	perChunk := (len(containers) / chunks) + 1
-	chunked := make([][]*model.Container, chunks)
-	chunk := make([]*model.Container, 0, perChunk)
-	i := 0
-	for range containers {
-
-		chunk = append(chunk, &model.Container{})
-
-		if len(chunk) == perChunk {
-			chunked[i] = chunk
-			chunk = make([]*model.Container, 0, perChunk)
-			i++
-		}
-	}
-	if len(chunk) > 0 {
-		chunked[i] = chunk
-	}
-	return chunked
+	return make([][]*model.Container, chunks)
 }

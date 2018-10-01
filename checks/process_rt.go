@@ -3,13 +3,13 @@ package checks
 import (
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
-	"github.com/StackVista/stackstate-process-agent/util/container"
+	"github.com/StackVista/stackstate-process-agent/util"
 )
 
 // RTProcess is a singleton RTProcessCheck.
@@ -18,11 +18,11 @@ var RTProcess = &RTProcessCheck{}
 // RTProcessCheck collects numeric statistics about the live processes.
 // The instance stores state between checks for calculation of rates and CPU.
 type RTProcessCheck struct {
-	sysInfo        *model.SystemInfo
-	lastCPUTime    cpu.TimesStat
-	lastProcs      map[int32]*process.FilledProcess
-	lastContainers []*docker.Container
-	lastRun        time.Time
+	sysInfo      *model.SystemInfo
+	lastCPUTime  cpu.TimesStat
+	lastProcs    map[int32]*process.FilledProcess
+	lastCtrRates map[string]util.ContainerRateMetrics
+	lastRun      time.Time
 }
 
 // Init initializes a new RTProcessCheck instance.
@@ -54,11 +54,11 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if err != nil {
 		return nil, err
 	}
-	containers, _ := container.GetContainers()
+	ctrList, _ := util.GetContainers()
 
 	// End check early if this is our first run.
 	if r.lastProcs == nil {
-		r.lastContainers = containers
+		r.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
 		r.lastProcs = procs
 		r.lastCPUTime = cpuTimes[0]
 		r.lastRun = time.Now()
@@ -66,9 +66,9 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	}
 
 	chunkedStats := fmtProcessStats(cfg, procs, r.lastProcs,
-		containers, cpuTimes[0], r.lastCPUTime, r.lastRun)
+		ctrList, cpuTimes[0], r.lastCPUTime, r.lastRun)
 	groupSize := len(chunkedStats)
-	chunkedCtrStats := fmtContainerStats(containers, r.lastContainers, r.lastRun, groupSize)
+	chunkedCtrStats := fmtContainerStats(ctrList, r.lastCtrRates, r.lastRun, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	for i := 0; i < groupSize; i++ {
 		messages = append(messages, &model.CollectorRealTime{
@@ -86,7 +86,7 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
 	r.lastRun = time.Now()
 	r.lastProcs = procs
-	r.lastContainers = containers
+	r.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
 	r.lastCPUTime = cpuTimes[0]
 
 	return messages, nil
@@ -96,14 +96,14 @@ func (r *RTProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 func fmtProcessStats(
 	cfg *config.AgentConfig,
 	procs, lastProcs map[int32]*process.FilledProcess,
-	containers []*docker.Container,
+	ctrList []*containers.Container,
 	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
 ) [][]*model.ProcessStat {
-	ctrByPid := make(map[int32]*docker.Container, len(containers))
-	for _, c := range containers {
+	cidByPid := make(map[int32]string, len(ctrList))
+	for _, c := range ctrList {
 		for _, p := range c.Pids {
-			ctrByPid[p] = c
+			cidByPid[p] = c.ID
 		}
 	}
 
@@ -112,11 +112,6 @@ func fmtProcessStats(
 	for _, fp := range procs {
 		if skipProcess(cfg, fp, lastProcs) {
 			continue
-		}
-
-		ctr, ok := ctrByPid[fp.Pid]
-		if !ok {
-			ctr = docker.NullContainer
 		}
 
 		chunk = append(chunk, &model.ProcessStat{
@@ -131,7 +126,7 @@ func fmtProcessStats(
 			IoStat:                 formatIO(fp, lastProcs[fp.Pid].IOStat, lastRun),
 			VoluntaryCtxSwitches:   uint64(fp.CtxSwitches.Voluntary),
 			InvoluntaryCtxSwitches: uint64(fp.CtxSwitches.Involuntary),
-			ContainerId:            ctr.ID,
+			ContainerId:            cidByPid[fp.Pid],
 		})
 		if len(chunk) == cfg.MaxPerMessage {
 			chunked = append(chunked, chunk)

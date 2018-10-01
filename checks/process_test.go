@@ -7,11 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
+	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
 )
 
 func makeProcess(pid int32, cmdline string) *process.FilledProcess {
@@ -30,7 +32,7 @@ func TestProcessChunking(t *testing.T) {
 		makeProcess(3, "datadog-process-agent -ddconfig datadog.conf"),
 		makeProcess(4, "foo -bar -bim"),
 	}
-	containers := []*docker.Container{}
+	containers := []*containers.Container{}
 	lastRun := time.Now().Add(-5 * time.Second)
 	syst1, syst2 := cpu.TimesStat{}, cpu.TimesStat{}
 	cfg := config.NewDefaultAgentConfig()
