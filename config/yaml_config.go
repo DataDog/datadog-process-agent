@@ -20,6 +20,7 @@ import (
 // available in Agent versions >= 6
 type YamlAgentConfig struct {
 	APIKey string `yaml:"api_key"`
+	Site   string `yaml:"site"`
 	// Whether or not the process-agent should output logs to console
 	LogToConsole bool `yaml:"log_to_console"`
 	// Process-specific configuration
@@ -125,6 +126,16 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 			return nil, fmt.Errorf("invalid process_dd_url: %s", err)
 		}
 		agentConf.APIEndpoints[0].Endpoint = u
+		if len(yc.Site) > 0 {
+			log.Infof("Using 'process_dd_url' (%s) and ignoring 'site' (%s)", yc.Process.ProcessDDURL, yc.Site)
+		}
+	} else if len(yc.Site) > 0 {
+		ep := fmt.Sprintf("https://process.%s", yc.Site)
+		url, err := url.Parse(ep)
+		if err != nil {
+			return nil, fmt.Errorf("Error parsing site '%s' (transformed into 'https://process.%s'): %s", yc.Site, yc.Site, err)
+		}
+		agentConf.APIEndpoints[0].Endpoint = url
 	}
 	if yc.LogToConsole {
 		agentConf.LogToConsole = true

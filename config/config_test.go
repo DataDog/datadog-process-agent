@@ -410,6 +410,41 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(15, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(true, agentConfig.Windows.AddNewArgs)
 	assert.Equal(true, agentConfig.Scrubber.Enabled)
+
+	ddy = YamlAgentConfig{}
+	err = yaml.Unmarshal([]byte(strings.Join([]string{
+		"api_key: apikey_20",
+		"process_agent_enabled: true",
+		"site: datadoghq.eu",
+		"process_config:",
+		"  enabled: 'true'",
+		"  process_dd_url: http://test-process.datadoghq.com",
+	}, "\n")), &ddy)
+	assert.NoError(err)
+
+	agentConfig, err = NewAgentConfig(nil, &ddy, nil)
+	assert.NoError(err)
+	assert.Len(agentConfig.APIEndpoints, 1)
+	assert.Equal("apikey_20", agentConfig.APIEndpoints[0].APIKey)
+	assert.Equal("test-process.datadoghq.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
+	assert.Equal(true, agentConfig.Enabled)
+
+	ddy = YamlAgentConfig{}
+	err = yaml.Unmarshal([]byte(strings.Join([]string{
+		"api_key: apikey_20",
+		"process_agent_enabled: true",
+		"site: datadoghq.eu",
+		"process_config:",
+		"  enabled: 'true'",
+	}, "\n")), &ddy)
+	assert.NoError(err)
+
+	agentConfig, err = NewAgentConfig(nil, &ddy, nil)
+	assert.NoError(err)
+	assert.Len(agentConfig.APIEndpoints, 1)
+	assert.Equal("apikey_20", agentConfig.APIEndpoints[0].APIKey)
+	assert.Equal("process.datadoghq.eu", agentConfig.APIEndpoints[0].Endpoint.Hostname())
+	assert.Equal(true, agentConfig.Enabled)
 }
 
 func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
@@ -624,6 +659,39 @@ func TestGetProxySettings(t *testing.T) {
 
 	pass, _ := s.User.Password()
 	assert.Equal("/:!?&=@éÔγλῶσσα", pass)
+}
+
+func TestEnvSiteConfig(t *testing.T) {
+	assert := assert.New(t)
+	for _, tc := range []struct {
+		site     string
+		ddUrl    string
+		expected string
+	}{
+		{
+			"datadoghq.io",
+			"",
+			"process.datadoghq.io",
+		},
+		{
+			"",
+			"https://process.datadoghq.eu",
+			"process.datadoghq.eu",
+		},
+		{
+			"datacathq.eu",
+			"https://burrito.com",
+			"burrito.com",
+		},
+	} {
+		os.Setenv("DD_SITE", tc.site)
+		os.Setenv("DD_PROCESS_AGENT_URL", tc.ddUrl)
+
+		agentConfig, err := NewAgentConfig(nil, nil, nil)
+		assert.NoError(err)
+		assert.Equal(tc.expected, agentConfig.APIEndpoints[0].Endpoint.Hostname())
+	}
+
 }
 
 func TestIsAffirmative(t *testing.T) {
