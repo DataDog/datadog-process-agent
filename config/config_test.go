@@ -665,7 +665,7 @@ func TestEnvSiteConfig(t *testing.T) {
 	assert := assert.New(t)
 	for _, tc := range []struct {
 		site     string
-		ddUrl    string
+		ddURL    string
 		expected string
 	}{
 		{
@@ -685,7 +685,7 @@ func TestEnvSiteConfig(t *testing.T) {
 		},
 	} {
 		os.Setenv("DD_SITE", tc.site)
-		os.Setenv("DD_PROCESS_AGENT_URL", tc.ddUrl)
+		os.Setenv("DD_PROCESS_AGENT_URL", tc.ddURL)
 
 		agentConfig, err := NewAgentConfig(nil, nil, nil)
 		assert.NoError(err)
