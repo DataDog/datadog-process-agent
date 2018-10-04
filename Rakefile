@@ -30,24 +30,13 @@ task :build do
   else
     bin = "process-agent"
   end
-  go_build("github.com/DataDog/datadog-process-agent/agent", {
+  go_build("github.com/DataDog/datadog-process-agent/cmd/agent", {
     :cmd => "go build -o #{bin}",
     :race => ENV['GO_RACE'] == 'true',
     :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
     :static => ENV['PROCESS_AGENT_STATIC'] == 'true',
     :os => os,
     :bpf => ENV['EBPF'] == 'true'
-  })
-end
-
-# Deprecated, should go away once we are fully merged into dd-agent
-desc "DEPRECATED: Build Datadog Process agent for dd-process-agent pkg release"
-task :build_ddpkg do
-  go_build("github.com/DataDog/datadog-process-agent/agent", {
-    :cmd => "go build -a -o dd-process-agent",
-    :race => ENV['GO_RACE'] == 'true',
-    :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
-    :static => ENV['PROCESS_AGENT_STATIC'] == 'true'
   })
 end
 
@@ -75,12 +64,6 @@ desc "Test Datadog Process agent -- cmd"
 task :cmdtest do
   cmd = "for /f %f in ('go list ./... ^| find /V \"vendor\"') do go test %f"
   sh cmd
-end
-
-desc "Run Datadog Process agent"
-task :run do
-  ENV['DD_PROCESS_AGENT_ENABLED'] = 'true'
-  sh "./process-agent -config ./agent/process-agent.ini"
 end
 
 task :vet do
