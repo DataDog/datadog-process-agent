@@ -271,9 +271,9 @@ func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath
 	}
 
 	req.Header.Add("content-encoding", contentEncoding)
-	req.Header.Add("X-Dd-APIKey", endpoint.APIKey)
-	req.Header.Add("X-Dd-Hostname", l.cfg.HostName)
-	req.Header.Add("X-Dd-Processagentversion", Version)
+	req.Header.Add("sts-api-key", endpoint.APIKey)
+	req.Header.Add("sts-hostname", l.cfg.HostName)
+	req.Header.Add("sts-processagentversion", Version)
 
 	ctx, cancel := context.WithTimeout(context.Background(), ReqCtxTimeout)
 	defer cancel()
