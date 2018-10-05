@@ -83,6 +83,7 @@ type AgentConfig struct {
 	// Network collection configuration
 	EnableLocalNetworkTracer bool
 	NetworkTracerSocketPath  string
+	NetworkTracerLogFile     string
 
 	// Check config
 	EnabledChecks  []string

@@ -81,6 +81,8 @@ type YamlAgentConfig struct {
 		NetworkTracingEnabled string `yaml:"network_tracing_enabled"`
 		// The full path to the location of the unix socket where network traces will be accessed
 		UnixSocketPath string `yaml:"nettracer_socket"`
+		// The full path to the file where network-tracer logs will be written.
+		LogFile string `yaml:"log_file"`
 	} `yaml:"network_tracer_config"`
 }
 
@@ -223,6 +225,9 @@ func mergeNetworkYamlConfig(agentConf *AgentConfig, networkConf *YamlAgentConfig
 	}
 	if socketPath := networkConf.Network.UnixSocketPath; socketPath != "" {
 		agentConf.NetworkTracerSocketPath = socketPath
+	}
+	if networkConf.Network.LogFile != "" {
+		agentConf.LogFile = networkConf.Network.LogFile
 	}
 
 	return agentConf, nil
