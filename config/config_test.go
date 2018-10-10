@@ -268,7 +268,6 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 	err := yaml.Unmarshal([]byte(strings.Join([]string{
 		"api_key: apikey_20",
 		"process_config:",
-		"  process_dd_url: " + processDDURL,
 		"  queue_size: 10",
 		"  windows:",
 		"    args_refresh_interval: 40",
@@ -300,7 +299,6 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"process_agent_enabled: true",
 		"process_config:",
 		"  enabled: 'true'",
-		"  process_dd_url: " + processDDURL,
 		"  queue_size: 10",
 		"  intervals:",
 		"    container: 8",
@@ -336,7 +334,6 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"process_agent_enabled: true",
 		"process_config:",
 		"  enabled: 'false'",
-		"  process_dd_url: " + processDDURL,
 		"  queue_size: 10",
 		"  intervals:",
 		"    container: 8",
@@ -367,7 +364,6 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"process_agent_enabled: true",
 		"process_config:",
 		"  enabled: 'disabled'",
-		"  process_dd_url: " + processDDURL,
 		"  queue_size: 10",
 		"  intervals:",
 		"    container: 8",
@@ -394,7 +390,6 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"process_agent_enabled: true",
 		"process_config:",
 		"  enabled: 'disabled'",
-		"  process_dd_url: " + processDDURL,
 		"  additional_endpoints:",
 		"    https://process.datadoghq.eu:",
 		"      - foo",
@@ -433,7 +428,6 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"site: " + site,
 		"process_config:",
 		"  enabled: 'true'",
-		"  process_dd_url: " + processDDURL,
 	}, "\n")), &ddy)
 	assert.NoError(err)
 
@@ -478,7 +472,6 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 		"process_agent_enabled: true",
 		"process_config:",
 		"  enabled: 'true'",
-		"  process_dd_url: " + processDDURL,
 		"  queue_size: 10",
 		"  intervals:",
 		"    container: 8",

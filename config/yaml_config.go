@@ -63,8 +63,6 @@ type YamlAgentConfig struct {
 		DDAgentBin string `yaml:"dd_agent_bin"`
 		// Overrides of the environment we pass to fetch the hostname. The default is usually fine.
 		DDAgentEnv []string `yaml:"dd_agent_env"`
-		// Overrides the submission endpoint URL from the default.
-		ProcessDDURL string `yaml:"process_dd_url"`
 		// Optional additional pairs of endpoint_url => []apiKeys to submit to other locations.
 		AdditionalEndpoints map[string][]string `yaml:"additional_endpoints"`
 		// Windows-specific configuration goes in this section.
