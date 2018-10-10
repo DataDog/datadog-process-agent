@@ -222,6 +222,7 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 func mergeNetworkYamlConfig(agentConf *AgentConfig, networkConf *YamlAgentConfig) (*AgentConfig, error) {
 	if enabled, _ := isAffirmative(networkConf.Network.NetworkTracingEnabled); enabled {
 		agentConf.EnabledChecks = append(agentConf.EnabledChecks, "connections")
+		agentConf.EnableNetworkTracing = enabled
 	}
 	if socketPath := networkConf.Network.UnixSocketPath; socketPath != "" {
 		agentConf.NetworkTracerSocketPath = socketPath

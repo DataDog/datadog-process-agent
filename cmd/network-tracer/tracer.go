@@ -10,8 +10,8 @@ import (
 	log "github.com/cihub/seelog"
 	"github.com/mailru/easyjson"
 
-	"github.com/DataDog/datadog-process-agent/net"
 	"github.com/DataDog/datadog-process-agent/config"
+	"github.com/DataDog/datadog-process-agent/net"
 	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
 )
 

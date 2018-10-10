@@ -33,7 +33,7 @@ echo "Getting dependencies..."
 rake deps
 
 echo "Building binaries..."
-NETWORK_AGENT_STATIC=true rake build-network-agent
+NETWORK_AGENT_STATIC=true rake build-network-tracer
 
 # Upload to s3
 cp network-tracer $FILENAME

@@ -14,7 +14,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	"github.com/DataDog/datadog-process-agent/config"
-	"github.com/DataDog/tcptracer-bpf/agent/config"
 )
 
 // Flag values
@@ -73,7 +72,7 @@ func main() {
 	cfg := parseConfig()
 
 	// Exit if network tracer is disabled
-	if !cfg.EnableLocalNetworkTracer {
+	if !cfg.EnableNetworkTracing {
 		log.Info("network tracer not enabled. exiting.")
 		gracefulExit()
 	}
@@ -139,20 +138,14 @@ func versionString() string {
 
 func parseConfig() *config.AgentConfig {
 	yamlConf, err := config.NewYamlIfExists(opts.configPath) // --yamlConfig
-	if err != nil { // Will return nil if no Yaml file exists
+	if err != nil {                                          // Will return nil if no Yaml file exists
 		log.Criticalf("Error reading YAML formatted config: %s", err)
 		os.Exit(1)
 	}
 
-	cfg, err := config.NewAgentConfig(nil, nil, yamlConf)
+	cfg, err := config.NewNetworkAgentConfig(yamlConf)
 	if err != nil {
-		log.Criticalf("Error parsing config: %s", err)
-		os.Exit(1)
-	}
-
-	// (Re)configure the logging from our configuration, with the network tracer logfile
-	if err := config.NewLoggerLevel(cfg.LogLevel, cfg.NetworkTracerLogFile, cfg.LogToConsole); err != nil {
-		log.Criticalf("Error setting network-specific logger: %s", err)
+		log.Criticalf("Failed to create agent config: %s", err)
 		os.Exit(1)
 	}
 

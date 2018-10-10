@@ -67,7 +67,7 @@ task :cmdtest do
 end
 
 desc "Build Datadog network-tracer agent"
-task "network" do
+task 'build-network-tracer' do
   bin = "network-tracer"
   go_build("github.com/DataDog/datadog-process-agent/cmd/network-tracer", {
     :cmd => "go build -o #{bin}",
