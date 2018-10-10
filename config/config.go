@@ -400,6 +400,8 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 	return cfg, nil
 }
 
+// NewNetworkAgentConfig returns a network-tracer specific AgentConfig using a configuration file. It can be nil
+// if there is no file available. In this case we'll configure only via environment.
 func NewNetworkAgentConfig(networkYaml *YamlAgentConfig) (*AgentConfig, error) {
 	cfg := NewDefaultAgentConfig()
 	var err error

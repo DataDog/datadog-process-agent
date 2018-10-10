@@ -16,7 +16,7 @@ type UDSListener struct {
 	socketPath string
 }
 
-// NewUDSListener returns an idle UDSListener Statsd listener
+// NewUDSListener returns an idle UDSListener
 func NewUDSListener(cfg *config.AgentConfig) (*UDSListener, error) {
 	if len(cfg.NetworkTracerSocketPath) == 0 {
 		return nil, fmt.Errorf("uds: empty socket path provided")
@@ -45,6 +45,7 @@ func NewUDSListener(cfg *config.AgentConfig) (*UDSListener, error) {
 	return listener, nil
 }
 
+// GetListener will return the underlying Conn's net.Listener
 func (l *UDSListener) GetListener() net.Listener {
 	return l.conn
 }

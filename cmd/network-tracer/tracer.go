@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
 )
 
+// TracerUnsupportedError is the unsupported error prefix, for error-class matching from callers
 var TracerUnsupportedError = errors.New("tracer unsupported")
 
 type NetworkTracer struct {
@@ -25,6 +26,8 @@ type NetworkTracer struct {
 	conn      net.Conn
 }
 
+// CreateNetworkTracer creates a NetworkTracer as well as it's UDS socket after confirming that the OS supports BPF-based
+// network tracing
 func CreateNetworkTracer(cfg *config.AgentConfig) (*NetworkTracer, error) {
 	var err error
 	nt := &NetworkTracer{}
@@ -52,6 +55,7 @@ func CreateNetworkTracer(cfg *config.AgentConfig) (*NetworkTracer, error) {
 	return nt, nil
 }
 
+// Run starts the network tracer annd makes available the HTTP endpoint for network collection
 func (nt *NetworkTracer) Run() {
 	nt.tracer.Start()
 
@@ -80,6 +84,7 @@ func (nt *NetworkTracer) Run() {
 	http.Serve(nt.conn.GetListener(), nil)
 }
 
+// Close will stop all network tracing activities
 func (nt *NetworkTracer) Close() {
 	nt.conn.Stop()
 	nt.tracer.Stop()
