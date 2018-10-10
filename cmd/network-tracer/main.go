@@ -78,7 +78,7 @@ func main() {
 	}
 
 	nettracer, err := CreateNetworkTracer(cfg)
-	if err != nil && strings.HasPrefix(err.Error(), TracerUnsupportedError.Error()) {
+	if err != nil && strings.HasPrefix(err.Error(), ErrTracerUnsupported.Error()) {
 		// If tracer is unsupported by this operating system, then exit gracefully
 		log.Infof("%s, exiting.", err)
 		gracefulExit()

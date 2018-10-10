@@ -10,7 +10,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 )
 
-// Unix Domain Socket Listener
+// UDSListener (Unix Domain Socket Listener)
 type UDSListener struct {
 	conn       net.Listener
 	socketPath string
