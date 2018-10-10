@@ -678,6 +678,7 @@ func TestGetProxySettings(t *testing.T) {
 }
 
 func TestEnvSiteConfig(t *testing.T) {
+	ddconfig.Datadog.Set("process_config.process_dd_url", "")
 	assert := assert.New(t)
 	for _, tc := range []struct {
 		site     string
@@ -700,10 +701,11 @@ func TestEnvSiteConfig(t *testing.T) {
 			"burrito.com",
 		},
 	} {
-		os.Setenv("DD_SITE", tc.site)
+		// Fake the os.Setenv("DD_SITE", tc.site)
+		ddconfig.Datadog.Set("site", tc.site)
 		os.Setenv("DD_PROCESS_AGENT_URL", tc.ddURL)
 
-		agentConfig, err := NewAgentConfig(nil, nil, nil)
+		agentConfig, err := NewAgentConfig(nil, &YamlAgentConfig{}, nil)
 		assert.NoError(err)
 		assert.Equal(tc.expected, agentConfig.APIEndpoints[0].Endpoint.Hostname())
 	}

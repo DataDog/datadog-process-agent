@@ -463,14 +463,6 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		if site := os.Getenv("DD_SITE"); site != "" {
 			log.Infof("Using 'process_dd_url' (%s) and ignoring 'site' (%s)", v, site)
 		}
-	} else if site := os.Getenv("DD_SITE"); site != "" {
-		ep := fmt.Sprintf("https://process.%s", site)
-		url, err := url.Parse(ep)
-		if err != nil {
-			log.Warnf("DD_SITE is invalid site '%s' (transformed into 'https://process.%s'): %s", site, site, err)
-		} else {
-			c.APIEndpoints[0].Endpoint = url
-		}
 	}
 
 	// Process Arguments Scrubbing
