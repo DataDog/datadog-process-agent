@@ -120,23 +120,11 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		agentConf.Enabled = true
 		agentConf.EnabledChecks = containerChecks
 	}
-	if yc.Process.ProcessDDURL != "" {
-		u, err := url.Parse(yc.Process.ProcessDDURL)
-		if err != nil {
-			return nil, fmt.Errorf("invalid process_dd_url: %s", err)
-		}
-		agentConf.APIEndpoints[0].Endpoint = u
-		if len(yc.Site) > 0 {
-			log.Infof("Using 'process_dd_url' (%s) and ignoring 'site' (%s)", yc.Process.ProcessDDURL, yc.Site)
-		}
-	} else if len(yc.Site) > 0 {
-		ep := fmt.Sprintf("https://process.%s", yc.Site)
-		url, err := url.Parse(ep)
-		if err != nil {
-			return nil, fmt.Errorf("Error parsing site '%s' (transformed into 'https://process.%s'): %s", yc.Site, yc.Site, err)
-		}
-		agentConf.APIEndpoints[0].Endpoint = url
+	url, err := url.Parse(ddconfig.GetMainEndpoint("https://process.", "process_config.process_dd_url"))
+	if err != nil {
+		return nil, fmt.Errorf("error parsing process_dd_url: %s", err)
 	}
+	agentConf.APIEndpoints[0].Endpoint = url
 	if yc.LogToConsole {
 		agentConf.LogToConsole = true
 	}
