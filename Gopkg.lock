@@ -61,6 +61,22 @@
   revision = "79675a29a402159f9f91bf2f7f7ecbeab03f8f70"
 
 [[projects]]
+  digest = "1:457212d305ca8e8f68765cc6adb4e259a3aecc6513d79066736fbccbefc32485"
+  name = "github.com/CharlyF/custom-metrics-apiserver"
+  packages = [
+    "pkg/apiserver",
+    "pkg/apiserver/installer",
+    "pkg/cmd",
+    "pkg/cmd/server",
+    "pkg/dynamicmapper",
+    "pkg/provider",
+    "pkg/registry/custom_metrics",
+    "pkg/registry/external_metrics",
+  ]
+  pruneopts = ""
+  revision = "56ec6921a4cfec971e5a8c89d5f4629c17cbb21a"
+
+[[projects]]
   digest = "1:7a91a175c283b21c6e99edc1b2fb82fe11eb5b42e7a28a2a67b17d9c28ad1855"
   name = "github.com/DataDog/datadog-go"
   packages = ["statsd"]
@@ -708,12 +724,12 @@
   revision = "d670f9405373e636a5a2765eea47fac0c9bc91a4"
 
 [[projects]]
-  digest = "1:b27efd3925e02eb1ecf54f26bfefc82508afc370506083471d374d000fe6378f"
+  digest = "1:ba5a30c4cac85cf1d1b15f93803f16dcaa7ca7c0c22723aa3477dcd2b8a1b6d8"
   name = "gopkg.in/zorkian/go-datadog-api.v2"
   packages = ["."]
   pruneopts = ""
-  revision = "6c08e2322af96e867e5715aedd6ea194c42cf44f"
-  version = "v2.8.6"
+  revision = "d7b8b10db6a7eb1c1c2424b10a795a1662e80c9a"
+  version = "v2.12.0"
 
 [[projects]]
   digest = "1:063b0970fabddacc03f0e07e1d0193460d050f2048d3244a3071cf2e0509a187"
