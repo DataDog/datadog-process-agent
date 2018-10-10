@@ -48,5 +48,5 @@ func fmtContainerStats(
 	lastRun time.Time,
 	chunks int,
 ) [][]*model.ContainerStat {
-	return nil
+	return make([][]*model.ContainerStat, chunks)
 }
