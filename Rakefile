@@ -16,7 +16,7 @@ def os
 desc "Setup dependencies"
 task :deps do
   system("go get -u github.com/golang/dep/cmd/dep")
-  system("go get -u github.com/golang/lint/golint")
+  system("go get -u golang.org/x/lint/golint")
   system("dep ensure -v -vendor-only")
 end
 
