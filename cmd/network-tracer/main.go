@@ -115,6 +115,7 @@ func handleSignals(exit chan bool) {
 			log.Criticalf("Caught signal '%s'; terminating.", sig)
 			close(exit)
 		default:
+			log.Warnf("Caught signal %s; continuing/ignoring.", sig)
 		}
 	}
 }
