@@ -66,6 +66,18 @@ task :cmdtest do
   sh cmd
 end
 
+desc "Build Datadog network-tracer agent"
+task 'build-network-tracer' do
+  bin = "network-tracer"
+  go_build("github.com/DataDog/datadog-process-agent/cmd/network-tracer", {
+    :cmd => "go build -o #{bin}",
+    :add_build_vars => true,
+    :static => ENV['NETWORK_AGENT_STATIC'] == 'true',
+    :os => os,
+    :bpf => true
+  })
+end
+
 task :vet do
   sh "go list ./... | grep -v vendor | xargs go vet"
 end
