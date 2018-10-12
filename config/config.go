@@ -28,8 +28,9 @@ var (
 	defaultProxyPort = 3128
 
 	// defaultNetworkTracerSocketPath is the default unix socket path to be used for connecting to the network tracer
-	// This mirrors the default location defined in the tcptracer-bpf library
 	defaultNetworkTracerSocketPath = "/opt/datadog-agent/run/nettracer.sock"
+	// defaultNetworkLogFilePath is the default logging file for the network tracer
+	defaultNetworkLogFilePath = "/var/log/datadog/network-tracer.log"
 
 	processChecks   = []string{"process", "rtprocess"}
 	containerChecks = []string{"container", "rtcontainer"}
@@ -81,8 +82,10 @@ type AgentConfig struct {
 	StatsdPort    int
 
 	// Network collection configuration
-	EnableLocalNetworkTracer bool
+	EnableNetworkTracing     bool
+	EnableLocalNetworkTracer bool // To have the network tracer embedded in the process-agent
 	NetworkTracerSocketPath  string
+	NetworkTracerLogFile     string
 
 	// Check config
 	EnabledChecks  []string
@@ -171,8 +174,10 @@ func NewDefaultAgentConfig() *AgentConfig {
 		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
 
 		// Network collection configuration
+		EnableNetworkTracing:     false,
 		EnableLocalNetworkTracer: false,
 		NetworkTracerSocketPath:  defaultNetworkTracerSocketPath,
+		NetworkTracerLogFile:     defaultNetworkLogFilePath,
 
 		// Check config
 		EnabledChecks: containerChecks,
@@ -395,6 +400,28 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 	return cfg, nil
 }
 
+// NewNetworkAgentConfig returns a network-tracer specific AgentConfig using a configuration file. It can be nil
+// if there is no file available. In this case we'll configure only via environment.
+func NewNetworkAgentConfig(networkYaml *YamlAgentConfig) (*AgentConfig, error) {
+	cfg := NewDefaultAgentConfig()
+	var err error
+
+	if networkYaml != nil {
+		if cfg, err = mergeNetworkYamlConfig(cfg, networkYaml); err != nil {
+			return nil, fmt.Errorf("failed to parse config: %s", err)
+		}
+	}
+
+	cfg = mergeEnvironmentVariables(cfg)
+
+	// (Re)configure the logging from our configuration, with the network tracer logfile
+	if err := NewLoggerLevel(cfg.LogLevel, cfg.NetworkTracerLogFile, cfg.LogToConsole); err != nil {
+		return nil, fmt.Errorf("failed to setup network-tracer logger: %s", err)
+	}
+
+	return cfg, nil
+}
+
 // mergeEnvironmentVariables applies overrides from environment variables to the process agent configuration
 func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	var err error
@@ -523,6 +550,7 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	// Note: this feature is in development and should not be used in production environments
 	if ok, _ := isAffirmative(os.Getenv("DD_NETWORK_TRACING_ENABLED")); ok {
 		c.EnabledChecks = append(c.EnabledChecks, "connections")
+		c.EnableNetworkTracing = ok
 	}
 	if v := os.Getenv("DD_NETTRACER_SOCKET"); v != "" {
 		c.NetworkTracerSocketPath = v
