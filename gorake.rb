@@ -67,12 +67,12 @@ def go_build(program, opts={})
   if ENV['windres'] then
     resdir = "cmd/agent/windows_resources"
     # first compile the message table, as it's an input to the resource file
-    msgcmd = "windmc --target pe-x86-64 -r #{res_dir} #{res_dir}/process-agent-msg.mc"
+    msgcmd = "windmc --target pe-x86-64 -r #{resdir} #{resdir}/process-agent-msg.mc"
     puts msgcmd
     sh msgcmd
 
     rescmd = "windres --define MAJ_VER=#{winversion[0]} --define MIN_VER=#{winversion[1]} --define PATCH_VER=#{winversion[2]} "
-    rescmd += "-i #{res_dir}/process-agent.rc --target=pe-x86-64 -O coff -o cmd/agent/rsrc.syso"
+    rescmd += "-i #{resdir}/process-agent.rc --target=pe-x86-64 -O coff -o cmd/agent/rsrc.syso"
     sh rescmd
   end
 
