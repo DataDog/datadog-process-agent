@@ -487,6 +487,9 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 			log.Infof("overriding API endpoint from env")
 			c.APIEndpoints[0].Endpoint = u
 		}
+		if site := os.Getenv("DD_SITE"); site != "" {
+			log.Infof("Using 'process_dd_url' (%s) and ignoring 'site' (%s)", v, site)
+		}
 	}
 
 	// Process Arguments Scrubbing

@@ -20,6 +20,7 @@ import (
 // available in Agent versions >= 6
 type YamlAgentConfig struct {
 	APIKey string `yaml:"api_key"`
+	Site   string `yaml:"site"`
 	// Whether or not the process-agent should output logs to console
 	LogToConsole bool `yaml:"log_to_console"`
 	// Process-specific configuration
@@ -62,8 +63,6 @@ type YamlAgentConfig struct {
 		DDAgentBin string `yaml:"dd_agent_bin"`
 		// Overrides of the environment we pass to fetch the hostname. The default is usually fine.
 		DDAgentEnv []string `yaml:"dd_agent_env"`
-		// Overrides the submission endpoint URL from the default.
-		ProcessDDURL string `yaml:"process_dd_url"`
 		// Optional additional pairs of endpoint_url => []apiKeys to submit to other locations.
 		AdditionalEndpoints map[string][]string `yaml:"additional_endpoints"`
 		// Windows-specific configuration goes in this section.
@@ -121,13 +120,11 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		agentConf.Enabled = true
 		agentConf.EnabledChecks = containerChecks
 	}
-	if yc.Process.ProcessDDURL != "" {
-		u, err := url.Parse(yc.Process.ProcessDDURL)
-		if err != nil {
-			return nil, fmt.Errorf("invalid process_dd_url: %s", err)
-		}
-		agentConf.APIEndpoints[0].Endpoint = u
+	url, err := url.Parse(ddconfig.GetMainEndpoint("https://process.", "process_config.process_dd_url"))
+	if err != nil {
+		return nil, fmt.Errorf("error parsing process_dd_url: %s", err)
 	}
+	agentConf.APIEndpoints[0].Endpoint = url
 	if yc.LogToConsole {
 		agentConf.LogToConsole = true
 	}

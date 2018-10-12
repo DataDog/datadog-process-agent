@@ -1,10 +1,14 @@
 [[constraint]]
   name = "github.com/DataDog/datadog-agent"
-  revision = "f2d7ce69202c8212cae1ebf476d038b28f3a895e"
+  revision = "020e0e819623b29ca1d36ec7e39ed4c2186ce635"
 
 [[constraint]]
   name = "github.com/DataDog/gopsutil"
   revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
+
+[[override]]
+  name = "github.com/CharlyF/custom-metrics-apiserver"
+  revision = "56ec6921a4cfec971e5a8c89d5f4629c17cbb21a"
 
 [[constraint]]
   name = "github.com/DataDog/tcptracer-bpf"
