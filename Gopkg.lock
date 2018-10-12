@@ -58,7 +58,7 @@
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "79675a29a402159f9f91bf2f7f7ecbeab03f8f70"
+  revision = "020e0e819623b29ca1d36ec7e39ed4c2186ce635"
 
 [[projects]]
   digest = "1:457212d305ca8e8f68765cc6adb4e259a3aecc6513d79066736fbccbefc32485"
