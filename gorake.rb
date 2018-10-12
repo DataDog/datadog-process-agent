@@ -25,7 +25,7 @@ def go_build(program, opts={})
   agentversion = ENV["AGENT_VERSION"] || ENV["PROCESS_AGENT_VERSION"] || "0.99.0"
 
   # NOTE: This value is currently hardcoded and needs to be manually incremented during release
-  winversion = "6.5.2".split(".")
+  winversion = "6.6.0".split(".")
 
   vars = {}
   vars["#{dd}.Version"] = agentversion
