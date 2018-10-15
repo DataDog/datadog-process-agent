@@ -6,21 +6,13 @@
   name = "github.com/DataDog/gopsutil"
   revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
 
-[[override]]
-  name = "github.com/CharlyF/custom-metrics-apiserver"
-  revision = "56ec6921a4cfec971e5a8c89d5f4629c17cbb21a"
-
 [[constraint]]
   name = "github.com/DataDog/tcptracer-bpf"
-  revision = "636ee01a99a4bd352329de98f40fb9fdf611d1c9"
+  revision = "e67093561a9e7e3cd7380d68d5022a1626ce32b2"
 
 [[constraint]]
   name = "github.com/DataDog/zstd"
   revision = "2bf71ec4836011b92dc78df3b9ace6b40e65f7df"
-
-[[constraint]]
-  name = "github.com/go-ini/ini"
-  revision = "d3de07a94d22b4a0972deb4b96d790c2c0ce8333"
 
 [[constraint]]
   name = "github.com/gogo/protobuf"
