@@ -10,6 +10,13 @@
   revision = "75cd24fc2f2c2a2088577d12123ddee5f54e0675"
 
 [[projects]]
+  digest = "1:457212d305ca8e8f68765cc6adb4e259a3aecc6513d79066736fbccbefc32485"
+  name = "github.com/CharlyF/custom-metrics-apiserver"
+  packages = ["pkg/provider"]
+  pruneopts = ""
+  revision = "56ec6921a4cfec971e5a8c89d5f4629c17cbb21a"
+
+[[projects]]
   digest = "1:e614c1c911617d660f569202b4680239069793b7ca473a8c3e644240551b12b0"
   name = "github.com/DataDog/agent-payload"
   packages = ["gogen"]
@@ -18,13 +25,14 @@
   version = "4.8"
 
 [[projects]]
-  digest = "1:421c67724b362c98e2891b9380e1129cba699ca0d5ee7d760d86c11987154b02"
+  digest = "1:e0950f6dff4a41409ffc5eb5758c115b9483ca66a3e5ac2f5b879c0a28975e28"
   name = "github.com/DataDog/datadog-agent"
   packages = [
     "cmd/agent/api/response",
     "pkg/api/security",
     "pkg/api/util",
     "pkg/autodiscovery/integration",
+    "pkg/clusteragent/clusterchecks/types",
     "pkg/clusteragent/custommetrics",
     "pkg/config",
     "pkg/diagnose/diagnosis",
@@ -61,22 +69,6 @@
   revision = "020e0e819623b29ca1d36ec7e39ed4c2186ce635"
 
 [[projects]]
-  digest = "1:457212d305ca8e8f68765cc6adb4e259a3aecc6513d79066736fbccbefc32485"
-  name = "github.com/CharlyF/custom-metrics-apiserver"
-  packages = [
-    "pkg/apiserver",
-    "pkg/apiserver/installer",
-    "pkg/cmd",
-    "pkg/cmd/server",
-    "pkg/dynamicmapper",
-    "pkg/provider",
-    "pkg/registry/custom_metrics",
-    "pkg/registry/external_metrics",
-  ]
-  pruneopts = ""
-  revision = "56ec6921a4cfec971e5a8c89d5f4629c17cbb21a"
-
-[[projects]]
   digest = "1:7a91a175c283b21c6e99edc1b2fb82fe11eb5b42e7a28a2a67b17d9c28ad1855"
   name = "github.com/DataDog/datadog-go"
   packages = ["statsd"]
@@ -84,7 +76,6 @@
   revision = "a9c7a9896c1847c9cc2b068a2ae68e9d74540a5d"
 
 [[projects]]
-  branch = "dd"
   digest = "1:cbb07a3235d2b001d93c8439b8fc9325f5ece677533cd06c03642184eff6508f"
   name = "github.com/DataDog/gopsutil"
   packages = [
@@ -99,12 +90,11 @@
   revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
 
 [[projects]]
-  branch = "dd"
-  digest = "1:efcd03142a6b568ad4c860908567b493227fca927450600639040de2ea949578"
+  digest = "1:e812ef308bb3a98d6d4df315d16bdc6e90cab8dfbb6ebbc15e830d4a214d3005"
   name = "github.com/DataDog/tcptracer-bpf"
   packages = ["pkg/tracer"]
   pruneopts = ""
-  revision = "636ee01a99a4bd352329de98f40fb9fdf611d1c9"
+  revision = "e67093561a9e7e3cd7380d68d5022a1626ce32b2"
 
 [[projects]]
   digest = "1:874c0d49e5c272ae160b7c26d2ad2a1e21b54565fc3a84efb8014a0afcf4e63f"
@@ -112,7 +102,6 @@
   packages = ["."]
   pruneopts = ""
   revision = "2bf71ec4836011b92dc78df3b9ace6b40e65f7df"
-  version = "v0.5"
 
 [[projects]]
   digest = "1:c7937d6337f88193ad8aade88c92d7e72b3d5fc6e5002a9515dabca5802624cd"
@@ -428,13 +417,6 @@
   packages = ["."]
   pruneopts = ""
   revision = "f2b4162afba35581b6d4a50d3b8f34e33c144682"
-
-[[projects]]
-  digest = "1:af03d69b06992d952e6f6fd7dc2dc87e1ec98fb2d45a1a91ad03d0b804399aae"
-  name = "github.com/kubernetes-incubator/custom-metrics-apiserver"
-  packages = ["pkg/provider"]
-  pruneopts = ""
-  revision = "e61f72fec56ab519d74ebd396cd3fcf31b084558"
 
 [[projects]]
   digest = "1:961dc3b1d11f969370533390fdf203813162980c858e1dabe827b60940c909a5"
@@ -1019,6 +1001,7 @@
     "github.com/go-ini/ini",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
+    "github.com/mailru/easyjson",
     "github.com/shirou/w32",
     "github.com/stretchr/testify/assert",
     "golang.org/x/sys/windows/svc",
