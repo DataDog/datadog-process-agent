@@ -25,7 +25,7 @@ func TestUpdateRTStatus(t *testing.T) {
 		{ActiveClients: 0, Interval: 2},
 	}
 	c.updateStatus(statuses)
-	assert.Equal(int64(1), atomic.LoadInt64(&c.realTimeEnabled))
+	assert.Equal(int32(1), atomic.LoadInt32(&c.realTimeEnabled))
 
 	// Validate that we stay that way
 	statuses = []*model.CollectorStatus{
@@ -34,7 +34,7 @@ func TestUpdateRTStatus(t *testing.T) {
 		{ActiveClients: 0, Interval: 2},
 	}
 	c.updateStatus(statuses)
-	assert.Equal(int64(1), atomic.LoadInt64(&c.realTimeEnabled))
+	assert.Equal(int32(1), atomic.LoadInt32(&c.realTimeEnabled))
 
 	// And that it can turn back off
 	statuses = []*model.CollectorStatus{
@@ -43,7 +43,7 @@ func TestUpdateRTStatus(t *testing.T) {
 		{ActiveClients: 0, Interval: 2},
 	}
 	c.updateStatus(statuses)
-	assert.Equal(int64(0), atomic.LoadInt64(&c.realTimeEnabled))
+	assert.Equal(int32(0), atomic.LoadInt32(&c.realTimeEnabled))
 }
 
 func TestUpdateRTInterval(t *testing.T) {
@@ -61,6 +61,6 @@ func TestUpdateRTInterval(t *testing.T) {
 		{ActiveClients: 0, Interval: 10},
 	}
 	c.updateStatus(statuses)
-	assert.Equal(int64(1), atomic.LoadInt64(&c.realTimeEnabled))
+	assert.Equal(int32(1), atomic.LoadInt32(&c.realTimeEnabled))
 	assert.Equal(10*time.Second, c.realTimeInterval)
 }
