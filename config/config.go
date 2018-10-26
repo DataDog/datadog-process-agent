@@ -406,6 +406,15 @@ func NewNetworkAgentConfig(networkYaml *YamlAgentConfig) (*AgentConfig, error) {
 	cfg := NewDefaultAgentConfig()
 	var err error
 
+	// When the network-tracer is enabled in a separate container, we need a way to also disable the network-tracer
+	// packaged in the main agent container (without disabling network collection on the process-agent).
+	//
+	// If this environment flag is set, it'll sure it will not start
+	if ok, _ := isAffirmative(os.Getenv("DD_NETWORK_TRACING_EXTERNAL")); ok {
+		cfg.EnableNetworkTracing = false
+		return cfg, nil
+	}
+
 	if networkYaml != nil {
 		if cfg, err = mergeNetworkYamlConfig(cfg, networkYaml); err != nil {
 			return nil, fmt.Errorf("failed to parse config: %s", err)

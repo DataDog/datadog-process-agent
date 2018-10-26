@@ -77,7 +77,7 @@ type YamlAgentConfig struct {
 	// Network-tracing specific configuration
 	Network struct {
 		// A string indicating the enabled state of the network tracer.
-		NetworkTracingEnabled string `yaml:"network_tracing_enabled"`
+		NetworkTracingEnabled bool `yaml:"enabled"`
 		// The full path to the location of the unix socket where network traces will be accessed
 		UnixSocketPath string `yaml:"nettracer_socket"`
 		// The full path to the file where network-tracer logs will be written.
@@ -217,9 +217,9 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 }
 
 func mergeNetworkYamlConfig(agentConf *AgentConfig, networkConf *YamlAgentConfig) (*AgentConfig, error) {
-	if enabled, _ := isAffirmative(networkConf.Network.NetworkTracingEnabled); enabled {
+	if networkConf.Network.NetworkTracingEnabled {
 		agentConf.EnabledChecks = append(agentConf.EnabledChecks, "connections")
-		agentConf.EnableNetworkTracing = enabled
+		agentConf.EnableNetworkTracing = true
 	}
 	if socketPath := networkConf.Network.UnixSocketPath; socketPath != "" {
 		agentConf.NetworkTracerSocketPath = socketPath

@@ -502,7 +502,7 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	var netYamlConf YamlAgentConfig
 	err = yaml.Unmarshal([]byte(strings.Join([]string{
 		"network_tracer_config:",
-		"  network_tracing_enabled: 'true'",
+		"  enabled: true",
 		"  nettracer_socket: /var/my-location/network-tracer.log",
 	}, "\n")), &netYamlConf)
 	assert.NoError(err)
