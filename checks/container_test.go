@@ -93,3 +93,32 @@ func TestContainerNils(t *testing.T) {
 	fmtContainers(cur, last, time.Now(), 10)
 	fmtContainerStats(cur, last, time.Now(), 10)
 }
+
+func TestCalculateCtrPct(t *testing.T) {
+	epsilon := 0.0000001 // Difference less than some epsilon
+
+	before := time.Now().Add(-1 * time.Second)
+
+	var emptyTime time.Time
+
+	// Underflow on cur-prev
+	assert.Equal(t, float32(0), calculateCtrPct(0, 1, 0, 0, 1, before))
+
+	// Underflow on sys2-sys1
+	assert.Equal(t, float32(0), calculateCtrPct(3, 1, 4, 5, 1, before))
+
+	// Time is empty
+	assert.Equal(t, float32(0), calculateCtrPct(3, 1, 0, 0, 1, emptyTime))
+
+	// Elapsed time is less than 1s
+	assert.Equal(t, float32(0), calculateCtrPct(3, 1, 0, 0, 1, time.Now()))
+
+	// Div by zero on sys2/sys1, fallback to normal cpu calculation
+	assert.InEpsilon(t, 2, calculateCtrPct(3, 1, 1, 1, 1, before), epsilon)
+
+	// Calculate based off cur & prev
+	assert.InEpsilon(t, 2, calculateCtrPct(3, 1, 0, 0, 1, before), epsilon)
+
+	// Calculate based off all values
+	assert.InEpsilon(t, 66.66667, calculateCtrPct(3, 1, 4, 1, 1, before), epsilon)
+}

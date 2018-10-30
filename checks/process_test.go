@@ -135,6 +135,9 @@ func TestRateCalculation(t *testing.T) {
 	assert.True(t, floatEquals(calculateRate(5, 1, now), 0))
 	assert.True(t, floatEquals(calculateRate(5, 0, prev), 0))
 	assert.True(t, floatEquals(calculateRate(5, 1, empty), 0))
+
+	// Underflow on cur - prev
+	assert.True(t, floatEquals(calculateRate(0, 1, prev), 0))
 }
 
 func floatEquals(a, b float32) bool {
