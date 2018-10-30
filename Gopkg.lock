@@ -97,11 +97,11 @@
   revision = "e67093561a9e7e3cd7380d68d5022a1626ce32b2"
 
 [[projects]]
-  digest = "1:874c0d49e5c272ae160b7c26d2ad2a1e21b54565fc3a84efb8014a0afcf4e63f"
+  digest = "1:f3662169bf21f0406cdad064a592c5a052e8ba32f64a360d755544cd5a98dba8"
   name = "github.com/DataDog/zstd"
   packages = ["."]
   pruneopts = ""
-  revision = "2bf71ec4836011b92dc78df3b9ace6b40e65f7df"
+  revision = "2b373cbe6ac0c8e6960bbd18026ceb269eef89f5"
 
 [[projects]]
   digest = "1:c7937d6337f88193ad8aade88c92d7e72b3d5fc6e5002a9515dabca5802624cd"
