@@ -53,6 +53,7 @@
     "pkg/util/docker",
     "pkg/util/ec2",
     "pkg/util/ecs",
+    "pkg/util/executable",
     "pkg/util/gce",
     "pkg/util/hostname",
     "pkg/util/kubernetes",
@@ -63,6 +64,7 @@
     "pkg/util/kubernetes/kubelet",
     "pkg/util/log",
     "pkg/util/retry",
+    "pkg/util/winutil",
     "pkg/version",
   ]
   pruneopts = ""
@@ -197,7 +199,7 @@
   version = "v2.6.2"
 
 [[projects]]
-  digest = "1:a60acfb78bd12ce7b2101f0cc0bca8cd83db6aa60bf1e6ddfd33e83013083ddf"
+  digest = "1:577f411de1bb123e61cdebd59cb51124bb68b9e22b28a869829a30e8e8ce7ec6"
   name = "github.com/docker/docker"
   packages = [
     "api/types",
@@ -419,6 +421,13 @@
   revision = "f2b4162afba35581b6d4a50d3b8f34e33c144682"
 
 [[projects]]
+  digest = "1:2c5ad58492804c40bdaf5d92039b0cde8b5becd2b7feeb37d7d1cc36a8aa8dbe"
+  name = "github.com/kardianos/osext"
+  packages = ["."]
+  pruneopts = ""
+  revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
+
+[[projects]]
   digest = "1:961dc3b1d11f969370533390fdf203813162980c858e1dabe827b60940c909a5"
   name = "github.com/magiconair/properties"
   packages = ["."]
@@ -534,7 +543,7 @@
   revision = "13ba4ddd0caa9c28ca7b7bffe1dfa9ed8d5ef207"
 
 [[projects]]
-  digest = "1:519e27be74befe28370fbade86b17c2f385c8043c7ae74394b63644c0838bc52"
+  digest = "1:05594cbd452a4dcc781e4464de6b2a6c70cbb7822b3c284665ff6fc79ad432cb"
   name = "github.com/prometheus/procfs"
   packages = [
     ".",
@@ -987,8 +996,10 @@
     "github.com/DataDog/datadog-agent/pkg/util/containers/metrics",
     "github.com/DataDog/datadog-agent/pkg/util/docker",
     "github.com/DataDog/datadog-agent/pkg/util/ecs",
+    "github.com/DataDog/datadog-agent/pkg/util/executable",
     "github.com/DataDog/datadog-agent/pkg/util/log",
     "github.com/DataDog/datadog-agent/pkg/util/retry",
+    "github.com/DataDog/datadog-agent/pkg/util/winutil",
     "github.com/DataDog/datadog-go/statsd",
     "github.com/DataDog/gopsutil/cpu",
     "github.com/DataDog/gopsutil/host",
@@ -1001,6 +1012,7 @@
     "github.com/go-ini/ini",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
+    "github.com/kardianos/osext",
     "github.com/mailru/easyjson",
     "github.com/shirou/w32",
     "github.com/stretchr/testify/assert",

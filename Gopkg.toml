@@ -19,3 +19,7 @@
 
 [[constraint]]
   name = "golang.org/x/sys"
+
+[[override]]
+  name = "github.com/kardianos/osext"
+  revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
