@@ -69,7 +69,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 func (c *ConnectionsCheck) Name() string { return "connections" }
 
 // Endpoint returns the endpoint where this check is submitted.
-func (c *ConnectionsCheck) Endpoint() string { return "/api/v1/collector" }
+func (c *ConnectionsCheck) Endpoint() string { return "/api/v1/connections" }
 
 // RealTime indicates if this check only runs in real-time mode.
 func (c *ConnectionsCheck) RealTime() bool { return false }

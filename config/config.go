@@ -171,7 +171,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
 
 		// Network collection configuration
-		EnableLocalNetworkTracer: false,
+		EnableLocalNetworkTracer: true,
 		NetworkTracerSocketPath:  defaultNetworkTracerSocketPath,
 
 		// Check config

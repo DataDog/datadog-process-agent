@@ -36,7 +36,7 @@ task :build do
     :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
     :static => ENV['PROCESS_AGENT_STATIC'] == 'true',
     :os => os,
-    :bpf => ENV['EBPF'] == 'true'
+    :bpf => ENV['EBPF'] != 'false'
   })
 end
 

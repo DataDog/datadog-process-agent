@@ -150,10 +150,12 @@ func fmtProcesses(
 			InvoluntaryCtxSwitches: uint64(fp.CtxSwitches.Involuntary),
 			ContainerId:            cidByPid[fp.Pid],
 		})
-		if len(chunk) == cfg.MaxPerMessage {
-			chunked = append(chunked, chunk)
-			chunk = make([]*model.Process, 0, cfg.MaxPerMessage)
-		}
+		// STS: for now we disable chunking until we support chunked receiving. Otherwise ppid
+		// get separated
+		// if len(chunk) == cfg.MaxPerMessage {
+		//  	chunked = append(chunked, chunk)
+		//  	chunk = make([]*model.Process, 0, cfg.MaxPerMessage)
+		// }
 	}
 	if len(chunk) > 0 {
 		chunked = append(chunked, chunk)

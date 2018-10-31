@@ -321,6 +321,8 @@ message Connection {
 	ConnectionFamily family = 10;
 	ConnectionType type = 11;
 	int64 pidCreateTime = 12;
+	bool incoming = 51;
+	string namespace = 50; // local
 }
 
 message Addr {
