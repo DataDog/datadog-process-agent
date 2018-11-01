@@ -21,16 +21,18 @@ git clone git@github.com:StackVista/stackstate-process-agent
 cd stackstate-process-agent
 ```
 
-Pull down the latest dependencies via `glide`:
+Pull down the latest dependencies via `glide` and build the process-agent:
 
 ```
 rake deps
-rake install
+rake build
 ```
 
 You can now run the Agent on the command-line:
 
-`process-agent -config $PATH_TO_PROCESS_CONFIG_FILE`
+```
+sudo ./process-agent -config $PATH_TO_PROCESS_CONFIG_FILE
+```
 
 If you modify any of the `.proto` files you _must_ rebuild the *.pb.go files with
 
@@ -38,7 +40,10 @@ If you modify any of the `.proto` files you _must_ rebuild the *.pb.go files wit
 rake protobuf
 ```
 
+## Testing
+
+Instructions related to manual testing can be found in [Testing.md](Testing.md)
+
 ## Contributing
 
 In order for your contributions you will be required to sign a CLA. When a PR is opened a bot will prompt you to sign the CLA. Once signed you will be set for all contributions going forward.
-
