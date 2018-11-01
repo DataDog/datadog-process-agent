@@ -27,7 +27,7 @@ const ServiceName = "datadog-process-agent"
 var defaultConfigPath = "c:\\programdata\\datadog\\datadog.yaml"
 var defaultOldConfigPath = "c:\\programdata\\datadog\\datadog.conf"
 var defaultConfdPath = "c:\\programdata\\datadog\\conf.d"
-var defaultLogFilePath ="c:\\programdata\\datadog\\logs\\process-agent.log"
+var defaultLogFilePath = "c:\\programdata\\datadog\\logs\\process-agent.log"
 
 var winopts struct {
 	installService   bool
@@ -43,7 +43,7 @@ func init() {
 		defaultConfigPath = filepath.Join(pd, "Datadog", "datadog.yaml")
 		defaultOldConfigPath = filepath.Join(pd, "Datadog", "datadog.conf")
 		defaultConfdPath = filepath.Join(pd, "Datadog", "conf.d")
-		defaultLogFilePath= filepath.Join(pd, "Datadog", "logs", "process.log")
+		defaultLogFilePath = filepath.Join(pd, "Datadog", "logs", "process.log")
 	}
 }
 
@@ -112,12 +112,7 @@ func runService(isDebug bool) {
 }
 
 func EnableLoggingToFile() {
-	seeConfig := fmt.Sprintf("
-	<seelog minlevel=\"debug\">
-	<outputs>
-		<rollingfile type="size" filename=\"%s\" maxsize=\"1000000\" maxrolls=\"2\" />
-	</outputs>
-</seelog>", defaultLogFilePath)
+	seeConfig := fmt.Sprintf("<seelog minlevel=\"debug\"> <outputs>	<rollingfile type=\"size\" filename=\"%s\" maxsize=\"1000000\" maxrolls=\"2\" />	</outputs></seelog>", defaultLogFilePath)
 	logger, _ := log.LoggerFromConfigAsBytes([]byte(seeConfig))
 	log.ReplaceLogger(logger)
 }
