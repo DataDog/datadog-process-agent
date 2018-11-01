@@ -25,7 +25,7 @@
   version = "4.8"
 
 [[projects]]
-  digest = "1:e0950f6dff4a41409ffc5eb5758c115b9483ca66a3e5ac2f5b879c0a28975e28"
+  digest = "1:8555b3756f21d4030b329489c87f126814b6031fa72efc4be4af661d54646b08"
   name = "github.com/DataDog/datadog-agent"
   packages = [
     "cmd/agent/api/response",
@@ -64,11 +64,12 @@
     "pkg/util/kubernetes/kubelet",
     "pkg/util/log",
     "pkg/util/retry",
+    "pkg/util/tmplvar",
     "pkg/util/winutil",
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "020e0e819623b29ca1d36ec7e39ed4c2186ce635"
+  revision = "7f45ecfbab1d4f98fc84842df6e3fd4e32486ff8"
 
 [[projects]]
   digest = "1:7a91a175c283b21c6e99edc1b2fb82fe11eb5b42e7a28a2a67b17d9c28ad1855"
@@ -1012,7 +1013,6 @@
     "github.com/go-ini/ini",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
-    "github.com/kardianos/osext",
     "github.com/mailru/easyjson",
     "github.com/shirou/w32",
     "github.com/stretchr/testify/assert",
