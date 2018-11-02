@@ -413,7 +413,7 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	}
 	if v := os.Getenv("DD_API_KEY"); v != "" {
 		apiKey = v
-		log.Info("overriding API key from env DD_API_KEY value")
+		log.Infof("overriding API key from env DD_API_KEY value %s", apiKey)
 	}
 	if apiKey != "" {
 		vals := strings.Split(apiKey, ",")

@@ -8,7 +8,7 @@ process_config:
 #  process_dd_url: http://localhost:7077/stsAgent
 
 # Use this when running process agent in the vagrant vms
-  process_dd_url: http://192.168.56.1:7077/stsAgent
+  process_sts_url: http://192.168.56.1:7077/stsAgent
 
   queue_size: 10
   network_tracing_enabled: 'true'

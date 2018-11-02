@@ -1,22 +1,22 @@
 #!/bin/sh
 #
 # chkconfig: 345 85 15
-# description: Datadog Process Agent
+# description: StackState Process Agent
 
 ### BEGIN INIT INFO
-# Provides: sts-process-agent
-# Short-Description: Start and stop sts-process-agent
-# Description: sts-process-agent is the process agent component for Datadog
+# Provides: stackstate-process-agent
+# Short-Description: Start and stop stackstate-process-agent
+# Description: stackstate-process-agent is the process agent component for StackState
 # Required-Start: $remote_fs
 # Required-Stop: $remote_fs
 # Default-Start: 2 3 4 5
 # Default-Stop: 0 1 6
 ### END INIT INFO
 
-PIDFILE=/opt/sts-process-agent/run/sts-process-agent.pid
-DAEMON=/opt/sts-process-agent/bin/sts-process-agent
-CONFIG=/etc/dd-agent/sts-process-agent.ini
-export DD_PROCESS_AGENT_ENABLED=true
+PIDFILE=/opt/stackstate-process-agent/run/stackstate-process-agent.pid
+DAEMON=/opt/stackstate-process-agent/bin/stackstate-process-agent
+CONFIG=/etc/stackstate-agent/stackstate-process-agent.ini
+export STS_PROCESS_AGENT_ENABLED=true
 
 # Source functions library.
 . /etc/init.d/functions
@@ -30,11 +30,11 @@ start() {
     # the daemon function does the right thing
     if [ -f $PIDFILE ]; then
             PID=`cat $PIDFILE`
-            echo sts-process-agent already running: $PID
+            echo stackstate-process-agent already running: $PID
             exit 2;
     else
-        echo "Starting sts-process-agent"
-        daemon --pidfile $PIDFILE --user dd-agent "exec $DAEMON -config=$CONFIG >> /var/log/sts-process-agent.log 2>&1 &"
+        echo "Starting stackstate-process-agent"
+        daemon --pidfile $PIDFILE --user stackstate-agent "exec $DAEMON -config=$CONFIG >> /var/log/stackstate-process-agent.log 2>&1 &"
         [ $? -eq 0 ] && makePid $DAEMON
     fi
     echo
@@ -45,7 +45,7 @@ stop() {
     # no need to test for status before killproc,
     # it does the right thing. and testing supervisorctl status
     # before killproc can lead to states where you cannot stop!
-    echo -n 'Stopping sts-process-agent (using killproc): '
+    echo -n 'Stopping stackstate-process-agent (using killproc): '
     killproc -p $PIDFILE -d 30
     echo
     return 0
@@ -70,7 +70,7 @@ case "$1" in
         ;;
 
     status)
-        status -p "$PIDFILE" sts-process-agent
+        status -p "$PIDFILE" stackstate-process-agent
         ;;
 
 esac

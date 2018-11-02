@@ -1,0 +1,20 @@
+#!/bin/sh -x
+
+INSTALL_DIR=/opt/stackstate-process-agent
+LOG_DIR=/var/log/stackstate-process-agent.log
+
+getent group stackstate-agent >/dev/null || groupadd -r stackstate-agent
+getent passwd stackstate-agent >/dev/null || \
+useradd -r -M -g stackstate-agent -d $INSTALL_DIR -s /bin/bash -c "StackState Agent" stackstate-agent
+
+# set proper rights to stackstate-agent user
+chown -R stackstate-agent:stackstate-agent ${INSTALL_DIR}
+if [ -f $LOG_DIR ]; then
+    chown -R stackstate-agent:stackstate-agent ${LOG_DIR}
+else
+    touch ${LOG_DIR}
+    chown -R stackstate-agent:stackstate-agent ${LOG_DIR}
+fi
+
+echo "Adding stackstate-process-agent to start on boot..."
+chkconfig --add stackstate-process-agent

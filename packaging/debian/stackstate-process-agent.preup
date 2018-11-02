@@ -3,11 +3,11 @@
 # source functions library
 . /lib/lsb/init-functions
 
-PIDFILE=/opt/sts-process-agent/run/sts-process-agent.pid
-DAEMON=/opt/sts-process-agent/bin/sts-process-agent
+PIDFILE=/opt/stackstate-process-agent/run/stackstate-process-agent.pid
+DAEMON=/opt/stackstate-process-agent/bin/stackstate-process-agent
 
 # Exit if the package is not installed
 [ -x "$DAEMON" ] || exit 0
 
-echo "Stopping sts-process-agent..." >&2
+echo "Stopping stackstate-process-agent..." >&2
 start-stop-daemon --stop --retry 30 --quiet --oknodo --pidfile $PIDFILE && rm -f $PIDFILE

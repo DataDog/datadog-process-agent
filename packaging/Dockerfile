@@ -1,5 +1,5 @@
 #
-# dd-process-agent
+# stackstate-process-agent
 # Jenkins Dockerfile
 #
 # Used by Jenkins to build process-agent package

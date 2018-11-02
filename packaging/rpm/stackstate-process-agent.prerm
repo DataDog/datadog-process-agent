@@ -1,0 +1,9 @@
+#!/bin/sh
+
+
+echo "Removing stackstate-process-agent to start on boot..."
+chkconfig --del stackstate-process-agent
+
+echo "Trying to stop stackstate-process-agent with init.d"
+/etc/init.d/stackstate-process-agent stop || true
+exit 0

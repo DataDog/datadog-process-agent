@@ -63,16 +63,16 @@ func versionString() string {
 
 const (
 	agent5DisabledMessage = `process-agent not enabled.
-Set env var DD_PROCESS_AGENT_ENABLED=true or add
+Set env var STS_PROCESS_AGENT_ENABLED=true or add
 process_agent_enabled: true
-to your datadog.conf file.
+to your stackstate.conf file.
 Exiting.`
 
 	agent6DisabledMessage = `process-agent not enabled.
-Set env var DD_PROCESS_AGENT_ENABLED=true or add
+Set env var STS_PROCESS_AGENT_ENABLED=true or add
 process_config:
   enabled: "true"
-to your datadog.yaml file.
+to your stackstate.yaml file.
 Exiting.`
 )
 
@@ -98,13 +98,13 @@ func runAgent(exit chan bool) {
 
 	agentConf, err := config.NewIfExists(opts.ddConfigPath)
 	if err != nil {
-		log.Criticalf("Error reading dd-agent config: %s", err)
+		log.Criticalf("Error reading sts-agent config: %s", err)
 		os.Exit(1)
 	}
 
 	yamlConf, err := config.NewYamlIfExists(opts.configPath)
 	if err != nil {
-		log.Criticalf("Error reading datadog.yaml: %s", err)
+		log.Criticalf("Error reading stackstate.yaml: %s", err)
 		os.Exit(1)
 	}
 	if yamlConf != nil {
@@ -114,7 +114,7 @@ func runAgent(exit chan bool) {
 	if err := tagger.Init(); err == nil {
 		defer tagger.Stop()
 	} else {
-		log.Errorf("unable to initialize Datadog entity tagger: %s", err)
+		log.Errorf("unable to initialize StackState entity tagger: %s", err)
 	}
 
 	cfg, err := config.NewAgentConfig(agentConf, yamlConf)

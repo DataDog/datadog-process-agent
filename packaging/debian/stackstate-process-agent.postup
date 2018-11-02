@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# source functions library
+. /lib/lsb/init-functions
+
+PIDFILE=/opt/stackstate-process-agent/run/stackstate-process-agent.pid
+DAEMON=/opt/stackstate-process-agent/bin/stackstate-process-agent
+CONFIG=/etc/stackstate-agent/stackstate-process-agent.ini
+
+# Exit if the package is not installed
+[ -x "$DAEMON" ] || exit 0
+
+# make stackstate-process-agent start on boot
+echo "Adding stackstate-process-agent to start on boot..."
+update-rc.d -f stackstate-process-agent defaults
+
+echo "Starting stackstate-process-agent..."
+export STS_PROCESS_AGENT_ENABLED=true
+start-stop-daemon --start --quiet --oknodo --background \
+--make-pidfile --pidfile $PIDFILE --chuid stackstate-agent \
+--startas /bin/bash -- -c \
+"exec $DAEMON -config=$CONFIG >> /var/log/stackstate-process-agent.log 2>&1"

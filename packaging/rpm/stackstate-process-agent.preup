@@ -1,0 +1,11 @@
+#!/bin/sh
+
+PIDFILE=/opt/stackstate-process-agent/run/stackstate-process-agent.pid
+
+# Source functions library.
+. /etc/init.d/functions
+
+echo "Stopping stackstate-process-agent (using killproc): "
+killproc -p $PIDFILE -d 30
+echo
+return 0

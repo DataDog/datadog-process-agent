@@ -1,0 +1,21 @@
+#!/bin/sh
+
+PIDFILE=/opt/stackstate-process-agent/run/stackstate-process-agent.pid
+DAEMON=/opt/stackstate-process-agent/bin/stackstate-process-agent
+
+# Source functions library.
+. /etc/init.d/functions
+
+makePid() {
+    echo `ps auxf | grep -v grep | grep $1 | awk '{print $2}'` > $PIDFILE
+}
+
+echo "Adding stackstate-process-agent to start on boot..."
+chkconfig --add stackstate-process-agent
+
+echo "Starting stackstate-process-agent"
+export STS_PROCESS_AGENT_ENABLED=true
+daemon --pidfile $PIDFILE --user stackstate-agent "exec $DAEMON >> /var/log/stackstate-process-agent.log 2>&1 &"
+[ $? -eq 0 ] && makePid $DAEMON
+
+exit $?

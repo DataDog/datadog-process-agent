@@ -43,8 +43,12 @@ jobs:
             - .
       - run: rsync -azC --delete ./ $IMPORT_PATH
       - run: curl https://glide.sh/get | sh
+      - run: go get golang.org/x/lint/golint
       - run: printenv
+      - run: go version
       - run: cd $IMPORT_PATH && rake ci
+      - run: cd $IMPORT_PATH/packaging && ./apply_branding.sh
+      - run: cd $IMPORT_PATH && rake build
       - run:
           name: Move compiled binaries to workspace
           command: |

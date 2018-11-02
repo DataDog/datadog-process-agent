@@ -44,7 +44,7 @@ end
 desc "DEPRECATED: Build Datadog Process agent for dd-process-agent pkg release"
 task :build_ddpkg do
   go_build("github.com/StackVista/stackstate-process-agent/agent", {
-    :cmd => "go build -a -o dd-process-agent",
+    :cmd => "go build -a -o stackstate-process-agent",
     :race => ENV['GO_RACE'] == 'true',
     :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
     :static => ENV['PROCESS_AGENT_STATIC'] == 'true'
@@ -79,7 +79,7 @@ end
 
 desc "Run Datadog Process agent"
 task :run do
-  ENV['DD_PROCESS_AGENT_ENABLED'] = 'true'
+  ENV['STS_PROCESS_AGENT_ENABLED'] = 'true'
   sh "./process-agent -config ./agent/process-agent.ini"
 end
 

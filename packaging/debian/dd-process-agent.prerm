@@ -1,8 +1,0 @@
-#!/bin/sh
-
-echo "Removing sts-process-agent from auto start on boot..."
-update-rc.d -f sts-process-agent remove
-
-echo "Trying to stop sts-process-agent with init.d"
-/etc/init.d/sts-process-agent stop || true
-exit 0

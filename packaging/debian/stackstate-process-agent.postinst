@@ -1,0 +1,30 @@
+#!/bin/sh
+
+INSTALL_DIR=/opt/stackstate-process-agent
+LOG_DIR=/var/log/stackstate-process-agent.log
+
+# added stackstate-agent group if not exists
+getent group stackstate-agent >/dev/null || (echo "Creating stackstate-agent group" && addgroup --system stackstate-agent --quiet)
+# check if stackstate-agent user exists
+id -u stackstate-agent >/dev/null 2>&1
+USER_EXISTS=$?
+if [ ! $USER_EXISTS -eq 0 ]; then
+    echo "Creating stackstate-agent user"
+    adduser --system stackstate-agent --disabled-login --shell /bin/bash --home ${INSTALL_DIR} --no-create-home --group --quiet
+elif id -nG stackstate-agent | grep --invert-match --word-regexp --quiet 'stackstate-agent'; then
+    # User exists but is not part of the stackstate-agent group
+    echo "Adding stackstate-agent user to stackstate-agent group"
+    usermod -g stackstate-agent stackstate-agent
+fi
+
+# set proper rights to sts-agent user
+chown -R stackstate-agent:stackstate-agent ${INSTALL_DIR}
+if [ -f $LOG_DIR ]; then
+    chown -R stackstate-agent:stackstate-agent ${LOG_DIR}
+else
+    touch ${LOG_DIR}
+    chown -R stackstate-agent:stackstate-agent ${LOG_DIR}
+fi
+
+echo "Adding stackstate-process-agent to start on boot..."
+update-rc.d -f stackstate-process-agent defaults
