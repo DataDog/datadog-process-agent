@@ -181,7 +181,7 @@ func formatIO(fp *process.FilledProcess, lastIO *process.IOCountersStat, before 
 
 	diff := time.Now().Unix() - before.Unix()
 	if before.IsZero() || diff <= 0 {
-		return nil
+		return &model.IOStat{}
 	}
 	// Reading 0 as a counter means the file could not be opened due to permissions. We distinguish this from a real 0 in rates.
 	var readRate float32
