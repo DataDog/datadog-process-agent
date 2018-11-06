@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"github.com/stretchr/testify/require"
 	"regexp"
 	"runtime"
 	"strings"
@@ -138,6 +139,39 @@ func TestRateCalculation(t *testing.T) {
 
 	// Underflow on cur - prev
 	assert.True(t, floatEquals(calculateRate(0, 1, prev), 0))
+}
+
+func TestFormatIO(t *testing.T) {
+	fp := &process.FilledProcess{
+		IOStat: &process.IOCountersStat{
+			ReadCount:  6,
+			WriteCount: 8,
+			ReadBytes:  10,
+			WriteBytes: 12,
+		},
+	}
+
+	last := &process.IOCountersStat{
+		ReadCount:  1,
+		WriteCount: 2,
+		ReadBytes:  3,
+		WriteBytes: 4,
+	}
+
+	// fp.IoStat is nil
+	assert.NotNil(t, formatIO(&process.FilledProcess{}, last, time.Now().Add(-2*time.Second)))
+
+	// Elapsed time < 1s
+	assert.NotNil(t, formatIO(fp, last, time.Now()))
+
+	result := formatIO(fp, last, time.Now().Add(-1*time.Second))
+	require.NotNil(t, result)
+
+	assert.Equal(t, float32(5), result.ReadRate)
+	assert.Equal(t, float32(6), result.WriteRate)
+	assert.Equal(t, float32(7), result.ReadBytesRate)
+	assert.Equal(t, float32(8), result.WriteBytesRate)
+
 }
 
 func floatEquals(a, b float32) bool {
