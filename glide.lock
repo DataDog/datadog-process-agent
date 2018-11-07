@@ -1,5 +1,5 @@
-hash: 2805d2424929f3b159625d6b0ba51aa5a3e75ca5589548f3e53a1a520a6663d0
-updated: 2018-09-10T12:38:54.570835954-07:00
+hash: 8e0c604401ba1448bde5432d51534dd7abec14104e81cd93dc078501538c2ad5
+updated: 2018-11-07T13:29:48.297020036+01:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -99,7 +99,6 @@ imports:
   - process
 - name: github.com/DataDog/tcptracer-bpf
   version: 636ee01a99a4bd352329de98f40fb9fdf611d1c9
-  vcs: git
   subpackages:
   - pkg/tracer
 - name: github.com/DataDog/zstd
@@ -293,6 +292,9 @@ imports:
   version: 3171ef9a229903ce60a9513ec3899b63c003e91c
 - name: github.com/StackExchange/wmi
   version: b12b22c5341f0c26d88c4d66176330500e84db68
+- name: github.com/StackVista/tcptracer-bpf
+  version: 9a7a177348efa47ace15218e34738ccce049e260
+  vcs: git
 - name: golang.org/x/crypto
   version: c10c31b5e94b6f7a0283272dc2bb27163dcea24b
   subpackages:

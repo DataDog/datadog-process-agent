@@ -2,9 +2,9 @@ package: github.com/StackVista/stackstate-process-agent
 import:
   - package: github.com/DataDog/datadog-agent
     version: f7e28d260d8f491189c4ddf377c36c7ccb55e89c
-  - package: github.com/DataDog/tcptracer-bpf
+  - package: github.com/StackVista/tcptracer-bpf
     vcs: git
-    version: dd
+    version: add-connection-direction
   - package: github.com/DataDog/gopsutil
     vcs: git
     version: dd
