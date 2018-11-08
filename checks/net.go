@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
 	"github.com/StackVista/stackstate-process-agent/net"
+	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
 	log "github.com/cihub/seelog"
 )
 

@@ -1,18 +1,19 @@
 Vagrant.configure("2") do |config|
 
-  config.vm.define "agent1" do |agent1|
-    agent1.vm.box = "ubuntu/xenial64"
-    agent1.vm.hostname = 'agent1'
-    agent1.vm.box_url = "ubuntu/xenial64"
+  config.vm.define "process-agent" do |vm|
+    vm.vm.box = "ubuntu/bionic64"
+    vm.vm.hostname = 'process-agent'
+    vm.vm.box_url = "ubuntu/bionic64"
 
-    agent1.vm.network :private_network, ip: "192.168.56.101"
+    vm.vm.network :private_network, ip: "192.168.56.101"
 
-    config.vm.synced_folder ".", "/opt/stackstate-process-agent"
+    config.vm.synced_folder "../../../..", "/opt/stackstate-go"
+    config.vm.provision :shell, path: "bootstrap.sh"
 
-    agent1.vm.provider :virtualbox do |v|
+    vm.vm.provider :virtualbox do |v|
       v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-      v.customize ["modifyvm", :id, "--memory", 512]
-      v.customize ["modifyvm", :id, "--name", "agent1"]
+      v.customize ["modifyvm", :id, "--memory", 1024]
+      v.customize ["modifyvm", :id, "--name", "process-agent"]
     end
   end
 
