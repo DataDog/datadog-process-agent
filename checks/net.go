@@ -169,6 +169,7 @@ func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, las
 			},
 			BytesSent:     calculateRate(conn.SendBytes, lastConns[key].SendBytes, lastCheckTime),
 			BytesRecieved: calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
+			Incoming:      isIncoming(conn.Direction),
 		})
 	}
 	c.prevCheckConns = conns
@@ -194,6 +195,15 @@ func formatType(f tracer.ConnectionType) model.ConnectionType {
 		return model.ConnectionType_udp
 	default:
 		return -1
+	}
+}
+
+func isIncoming(d tracer.Direction) bool {
+	switch d {
+	case tracer.INCOMING:
+		return true
+	default:
+		return false
 	}
 }
 
