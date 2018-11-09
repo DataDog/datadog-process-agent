@@ -40,6 +40,16 @@ If you modify any of the `.proto` files you _must_ rebuild the *.pb.go files wit
 rake protobuf
 ```
 
+## Development or Running with Vagrant
+There is a Vagrantfile in the root directory, that can be used to create a vagrant vm where the StackState process agent can be run.
+
+```
+$ vagrant up process-agent
+...
+$ vagrant ssh process-agent
+$ cd $GOPATH/src/github.com/StackVista/stackstate-process-agent
+```
+
 ## Testing
 
 Instructions related to manual testing can be found in [Testing.md](Testing.md)

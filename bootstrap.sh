@@ -17,7 +17,7 @@ sudo add-apt-repository \
 sudo add-apt-repository ppa:gophers/archive
 sudo add-apt-repository ppa:masterminds/glide
 
-sudo apt-get update && sudo apt-get install -y golang-1.10-go docker-ce glide gogoprotobuf
+sudo apt-get update && sudo apt-get install -y mercurial golang-1.10-go docker-ce glide gogoprotobuf
 
 # INSTALL PROTOBUF
 # Make sure you grab the latest version
