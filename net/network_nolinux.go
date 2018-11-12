@@ -3,7 +3,7 @@
 package net
 
 import (
-	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
+	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
 )
 
 // RemoteNetTracerUtil is only implemented on linux

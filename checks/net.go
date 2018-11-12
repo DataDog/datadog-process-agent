@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
 	"github.com/StackVista/stackstate-process-agent/net"
+	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
 	log "github.com/cihub/seelog"
 )
 
@@ -169,6 +169,7 @@ func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, las
 			},
 			BytesSent:     calculateRate(conn.SendBytes, lastConns[key].SendBytes, lastCheckTime),
 			BytesRecieved: calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
+			Direction:     calculateDirection(conn.Direction),
 		})
 	}
 	c.prevCheckConns = conns
@@ -194,6 +195,17 @@ func formatType(f tracer.ConnectionType) model.ConnectionType {
 		return model.ConnectionType_udp
 	default:
 		return -1
+	}
+}
+
+func calculateDirection(d tracer.Direction) model.ConnectionDirection {
+	switch d {
+	case tracer.OUTGOING:
+		return model.ConnectionDirection_outgoing
+	case tracer.INCOMING:
+		return model.ConnectionDirection_incoming
+	default:
+		return model.ConnectionDirection_none
 	}
 }
 

@@ -308,6 +308,12 @@ enum ConnectionFamily {
 	v6 = 1;
 }
 
+enum ConnectionDirection { 
+	none = 0;
+	outgoing = 1;
+	incoming = 2;
+}
+
 message Connection {
 	int32 pid = 1;
 	// 2 is deprecated
@@ -321,8 +327,8 @@ message Connection {
 	ConnectionFamily family = 10;
 	ConnectionType type = 11;
 	int64 pidCreateTime = 12;
-	bool incoming = 51;
 	string namespace = 50; // local
+	ConnectionDirection direction = 51;
 }
 
 message Addr {
