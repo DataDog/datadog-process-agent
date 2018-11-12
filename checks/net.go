@@ -169,7 +169,7 @@ func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, las
 			},
 			BytesSent:     calculateRate(conn.SendBytes, lastConns[key].SendBytes, lastCheckTime),
 			BytesRecieved: calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
-			Incoming:      isIncoming(conn.Direction),
+			Direction:      calculateDirection(conn.Direction),
 		})
 	}
 	c.prevCheckConns = conns
@@ -198,13 +198,15 @@ func formatType(f tracer.ConnectionType) model.ConnectionType {
 	}
 }
 
-func isIncoming(d tracer.Direction) bool {
-	switch d {
-	case tracer.INCOMING:
-		return true
-	default:
-		return false
-	}
+func calculateDirection(d tracer.Direction) model.ConnectionDirection {
+    switch d {
+    case tracer.OUTGOING:
+        return model.ConnectionDirection_outgoing
+    case tracer.INCOMING:
+        return model.ConnectionDirection_incoming
+    default:
+        return model.ConnectionDirection_none
+    }
 }
 
 func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
