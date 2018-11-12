@@ -12,6 +12,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/net"
+	"github.com/DataDog/datadog-process-agent/util"
 	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
 )
 
@@ -79,6 +80,7 @@ func (nt *NetworkTracer) Run() {
 			return
 		}
 
+		filterDeadConnections(cs)
 		w.Write(buf)
 		log.Debugf("/connections: %d connections, %d bytes", len(cs.Conns), len(buf))
 	})
@@ -90,4 +92,35 @@ func (nt *NetworkTracer) Run() {
 func (nt *NetworkTracer) Close() {
 	nt.conn.Stop()
 	nt.tracer.Stop()
+}
+
+// occasionally the eBPF module will miss tcp_close calls and leave TCP
+// connections in an open state. This method filters out TCP connections
+// associated with processes that aren't alive
+func filterDeadConnections(conns *tracer.Connections) {
+	if conns == nil {
+		return
+	}
+
+	var filteredConnections []tracer.ConnectionStats
+
+	deadProcs := 0
+	for _, conn := range conns.Conns {
+		if conn.Type == tracer.TCP && isDeadPID(conn.Pid) {
+			deadProcs++
+		} else {
+			filteredConnections = append(filteredConnections, conn)
+		}
+	}
+	log.Infof("there were %d dead connections in connection capture")
+
+	conns.Conns = filteredConnections
+}
+
+func isDeadPID(PID uint32) bool {
+	path := util.HostProc(string(PID))
+	if _, err := os.Stat(path); err != nil {
+		return true
+	}
+	return false
 }
