@@ -4,7 +4,7 @@ import:
     version: f7e28d260d8f491189c4ddf377c36c7ccb55e89c
   - package: github.com/StackVista/tcptracer-bpf
     vcs: git
-    version: add-connection-direction
+    version: master
   - package: github.com/DataDog/gopsutil
     vcs: git
     version: dd
