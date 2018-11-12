@@ -30,10 +30,6 @@ message CollectorProc {
 	int32 groupId = 6;
 	int32 groupSize = 7;
 
-	// Optional metadata fields
-	datadog.agentpayload.KubeMetadataPayload kubernetes = 8; // DEPRECATED - left in place to support previous versions
-	datadog.agentpayload.ECSMetadataPayload ecs = 9; // DEPRECATED - left in place to support previous versions
-
 	repeated Container containers = 10;
 }
 
@@ -69,10 +65,6 @@ message CollectorContainer {
 	repeated Container containers = 3;
 	int32 groupId = 4;
 	int32 groupSize = 5;
-
-	// Optional metadata fields
-	datadog.agentpayload.KubeMetadataPayload kubernetes = 6; // DEPRECATED - left in place to support previous versions
-	datadog.agentpayload.ECSMetadataPayload ecs = 7; // DEPRECATED - left in place to support previous versions
 
 	// Post-resolved fields
 	Host host = 8;
