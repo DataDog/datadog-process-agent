@@ -185,25 +185,13 @@ func (l *Collector) postMessage(checkPath string, m model.MessageBody) {
 	// Wait for all responses to come back before moving on.
 	statuses := make([]*model.CollectorStatus, 0, len(l.cfg.APIEndpoints))
 	for i := 0; i < len(l.cfg.APIEndpoints); i++ {
-		url := l.cfg.APIEndpoints[i].Endpoint.String()
 		res := <-responses
 		if res.err != nil {
 			log.Error(res.err)
 			continue
 		}
 
-		r := res.msg
-		switch r.Header.Type {
-		case model.TypeResCollector:
-			rm := r.Body.(*model.ResCollector)
-			if len(rm.Message) > 0 {
-				log.Errorf("error in response from %s: %s", url, rm.Message)
-			} else {
-				statuses = append(statuses, rm.Status)
-			}
-		default:
-			log.Errorf("unexpected response type from %s: %d", url, r.Header.Type)
-		}
+		// STS: We do not do anything with response messages right now
 	}
 
 	if len(statuses) > 0 {
@@ -250,7 +238,6 @@ func (l *Collector) updateStatus(statuses []*model.CollectorStatus) {
 }
 
 type postResponse struct {
-	msg model.Message
 	err error
 }
 
@@ -302,9 +289,5 @@ func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath
 		return
 	}
 
-	r, err := model.DecodeMessage(body)
-	if err != nil {
-		responses <- errResponse("could not decode message from %s: %s", url, err)
-	}
-	responses <- postResponse{r, err}
+	responses <- postResponse{nil}
 }
