@@ -215,15 +215,11 @@ func NewDefaultAgentConfig() *AgentConfig {
 		}
 	}
 
-	if isRunningInKubernetes() {
+	if ddconfig.IsKubernetes() {
 		ac.ContainerBlacklist = defaultKubeBlacklist
 	}
 
 	return ac
-}
-
-func isRunningInKubernetes() bool {
-	return os.Getenv("KUBERNETES_SERVICE_HOST") != ""
 }
 
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
