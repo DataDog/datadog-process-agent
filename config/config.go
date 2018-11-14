@@ -104,6 +104,12 @@ type AgentConfig struct {
 	Windows WindowsConfig
 }
 
+// same function as ddconfig.BindEnvAndSetDefault but allow to pass a different env key
+func bindEnvAndSetDefault(c ddconfig.Config, key string, val interface{}, envKey ...string) {
+	c.SetDefault(key, val)
+	c.BindEnv(append([]string{key}, envKey...)...)
+}
+
 // CheckIsEnabled returns a bool indicating if the given check name is enabled.
 func (a AgentConfig) CheckIsEnabled(checkName string) bool {
 	return util.StringInSlice(a.EnabledChecks, checkName)
@@ -139,28 +145,52 @@ func NewDefaultTransport() *http.Transport {
 	}
 }
 
-// NewDefaultAgentConfig returns an AgentConfig with defaults initialized
-func NewDefaultAgentConfig() *AgentConfig {
-	u, err := url.Parse(defaultEndpoint)
-	if err != nil {
-		// This is a hardcoded URL so parsing it should not fail
-		panic(err)
-	}
+func initConfig(c ddconfig.Config) {
+	c.BindEnvAndSetDefault(kLogFile, defaultLogFilePath)
+	// All the following durations are in seconds
+	c.BindEnvAndSetDefault(kIntervalsProcess, 10)
+	c.BindEnvAndSetDefault(kIntervalsProcessRT, 2)
+	c.BindEnvAndSetDefault(kIntervalsContainer, 10)
+	c.BindEnvAndSetDefault(kIntervalsContainerRT, 2)
+	c.BindEnvAndSetDefault(kIntervalsConnections, 10)
 
+	c.BindEnvAndSetDefault(kQueueSize, 20)
+	c.BindEnvAndSetDefault(kMaxProcFDs, 200)
+	c.BindEnvAndSetDefault(kMaxPerMessage, 100)
+
+	c.BindEnvAndSetDefault(kWinAddNewArgs, true)
+
+	// Variables that don't have the same name in the config and in the env
+
+	bindEnvAndSetDefault(c, "dd_url", defaultEndpoint, "PROCESS_AGENT_URL")
 	// Note: This only considers container sources that are already setup. It's possible that container sources may
 	//       need a few minutes to be ready.
-	_, err = util.GetContainers()
-	canAccessContainers := err == nil
+	_, err := util.GetContainers()
+	canAccessContainers := "false"
+	if err == nil {
+		canAccessContainers = "true"
+	}
+	bindEnvAndSetDefault(c, kEnabled, canAccessContainers, "PROCESS_AGENT_ENABLED")
+	bindEnvAndSetDefault(c, kDDAgentBin, defaultDDAgentBin, "AGENT_BIN")
+	bindEnvAndSetDefault(c, kDDAgentEnv, defaultDDAgentPyEnv, "AGENT_ENV")
+	bindEnvAndSetDefault(c, kScrubArgs, true, "SCRUB_ARGS")
 
+	c.BindEnv(kCustomSensitiveWords, "CUSTOM_SENSITIVE_WORDS")
+	c.BindEnv(kStripProcessArguments, "STRIP_PROCESS_ARGS")
+}
+
+func initNetworkConfig(c ddconfig.Config) {
+	c.BindEnvAndSetDefault(kNetworkLogFile, defaultNetworkLogFilePath)
+
+	// Variables that don't have the same name in the config and in the env
+	bindEnvAndSetDefault(c, kNetworkTracingEnabled, false, "NETWORK_TRACING_ENABLED")
+	bindEnvAndSetDefault(c, kNetworkUnixSocketPath, defaultNetworkTracerSocketPath, "NETTRACER_SOCKET")
+}
+
+// NewDefaultAgentConfig returns an AgentConfig with defaults initialized
+func NewDefaultAgentConfig() *AgentConfig {
 	ac := &AgentConfig{
-		Enabled:       canAccessContainers, // We'll always run inside of a container.
-		APIEndpoints:  []APIEndpoint{{Endpoint: u}},
-		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
-		LogToConsole:  false,
-		QueueSize:     20,
-		MaxProcFDs:    200,
-		MaxPerMessage: 100,
 		AllowRealTime: true,
 		HostName:      "",
 		Transport:     NewDefaultTransport(),
@@ -170,24 +200,13 @@ func NewDefaultAgentConfig() *AgentConfig {
 		StatsdPort: 8125,
 
 		// Path and environment for the dd-agent embedded python
-		DDAgentPy:    defaultDDAgentPy,
-		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
+		DDAgentPy: defaultDDAgentPy,
 
 		// Network collection configuration
-		EnableNetworkTracing:     false,
 		EnableLocalNetworkTracer: false,
-		NetworkTracerSocketPath:  defaultNetworkTracerSocketPath,
-		NetworkTracerLogFile:     defaultNetworkLogFilePath,
 
 		// Check config
 		EnabledChecks: containerChecks,
-		CheckIntervals: map[string]time.Duration{
-			"process":     10 * time.Second,
-			"rtprocess":   2 * time.Second,
-			"container":   10 * time.Second,
-			"rtcontainer": 2 * time.Second,
-			"connections": 10 * time.Second,
-		},
 
 		// Docker
 		ContainerCacheDuration: 10 * time.Second,
@@ -225,7 +244,14 @@ func NewDefaultAgentConfig() *AgentConfig {
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
 func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *YamlAgentConfig) (*AgentConfig, error) {
+	initConfig(ddconfig.Datadog)
+	initNetworkConfig(ddconfig.Datadog)
 	var err error
+	err = ddconfig.Load()
+	if err != nil {
+		// TODO remove this
+		// panic(err)
+	}
 	cfg := NewDefaultAgentConfig()
 
 	var ns string
@@ -345,13 +371,13 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 
 	// For Agents >= 6 we will have a YAML config file to use.
 	if agentYaml != nil {
-		if cfg, err = mergeYamlConfig(cfg, agentYaml); err != nil {
+		if cfg, err = mergeYamlConfig(cfg); err != nil {
 			return nil, err
 		}
 	}
 
 	if networkYaml != nil {
-		if cfg, err = mergeNetworkYamlConfig(cfg, networkYaml); err != nil {
+		if cfg, err = mergeNetworkConfig(cfg); err != nil {
 			return nil, err
 		}
 	}
@@ -402,17 +428,8 @@ func NewNetworkAgentConfig(networkYaml *YamlAgentConfig) (*AgentConfig, error) {
 	cfg := NewDefaultAgentConfig()
 	var err error
 
-	// When the network-tracer is enabled in a separate container, we need a way to also disable the network-tracer
-	// packaged in the main agent container (without disabling network collection on the process-agent).
-	//
-	// If this environment flag is set, it'll sure it will not start
-	if ok, _ := isAffirmative(os.Getenv("DD_NETWORK_TRACING_EXTERNAL")); ok {
-		cfg.EnableNetworkTracing = false
-		return cfg, nil
-	}
-
 	if networkYaml != nil {
-		if cfg, err = mergeNetworkYamlConfig(cfg, networkYaml); err != nil {
+		if cfg, err = mergeNetworkConfig(cfg); err != nil {
 			return nil, fmt.Errorf("failed to parse config: %s", err)
 		}
 	}
@@ -430,137 +447,75 @@ func NewNetworkAgentConfig(networkYaml *YamlAgentConfig) (*AgentConfig, error) {
 // mergeEnvironmentVariables applies overrides from environment variables to the process agent configuration
 func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	var err error
-	if enabled, err := isAffirmative(os.Getenv("DD_PROCESS_AGENT_ENABLED")); enabled {
-		c.Enabled = true
-		c.EnabledChecks = processChecks
-	} else if !enabled && err == nil {
-		c.Enabled = false
-	}
-
-	if v := os.Getenv("DD_HOSTNAME"); v != "" {
-		log.Info("overriding hostname from env DD_HOSTNAME value")
-		c.HostName = v
-	}
 
 	// Support API_KEY and DD_API_KEY but prefer DD_API_KEY.
-	var apiKey string
 	if v := os.Getenv("API_KEY"); v != "" {
-		apiKey = v
+		ddconfig.Datadog.Set("api_key", v)
 		log.Info("overriding API key from env API_KEY value")
-	}
-	if v := os.Getenv("DD_API_KEY"); v != "" {
-		apiKey = v
-		log.Info("overriding API key from env DD_API_KEY value")
-	}
-	if apiKey != "" {
-		vals := strings.Split(apiKey, ",")
-		for i := range vals {
-			vals[i] = strings.TrimSpace(vals[i])
-		}
-		c.APIEndpoints[0].APIKey = vals[0]
 	}
 
 	// Support LOG_LEVEL and DD_LOG_LEVEL but prefer DD_LOG_LEVEL
 	if v := os.Getenv("LOG_LEVEL"); v != "" {
 		c.LogLevel = v
 	}
-	if v := os.Getenv("DD_LOG_LEVEL"); v != "" {
-		c.LogLevel = v
-	}
 
-	// Logging to console
-	if enabled, err := isAffirmative(os.Getenv("DD_LOGS_STDOUT")); err == nil {
-		c.LogToConsole = enabled
-	}
-	if enabled, err := isAffirmative(os.Getenv("LOG_TO_CONSOLE")); err == nil {
-		c.LogToConsole = enabled
-	}
-	if enabled, err := isAffirmative(os.Getenv("DD_LOG_TO_CONSOLE")); err == nil {
-		c.LogToConsole = enabled
-	}
-
+	// TODO
 	if c.proxy, err = proxyFromEnv(c.proxy); err != nil {
 		log.Errorf("error parsing proxy settings, not using a proxy: %s", err)
 		c.proxy = nil
 	}
 
-	if v := os.Getenv("DD_PROCESS_AGENT_URL"); v != "" {
+	if v := ddconfig.Datadog.GetString("dd_url"); v != "" {
 		u, err := url.Parse(v)
+		// TODO remove this since we can now retrieve the url from the config
 		if err != nil {
 			log.Warnf("DD_PROCESS_AGENT_URL is invalid: %s", err)
 		} else {
 			log.Infof("overriding API endpoint from env")
-			c.APIEndpoints[0].Endpoint = u
+			if len(c.APIEndpoints) > 0 {
+				c.APIEndpoints[0].Endpoint = u
+			} else {
+				c.APIEndpoints = []APIEndpoint{{Endpoint: u}}
+			}
 		}
+		// TODO
 		if site := os.Getenv("DD_SITE"); site != "" {
 			log.Infof("Using 'process_dd_url' (%s) and ignoring 'site' (%s)", v, site)
 		}
 	}
 
-	// Process Arguments Scrubbing
-	if enabled, err := isAffirmative(os.Getenv("DD_SCRUB_ARGS")); enabled {
-		c.Scrubber.Enabled = true
-	} else if !enabled && err == nil {
-		c.Scrubber.Enabled = false
-	}
-
-	if v := os.Getenv("DD_CUSTOM_SENSITIVE_WORDS"); v != "" {
-		c.Scrubber.AddCustomSensitiveWords(strings.Split(v, ","))
-	}
-	if ok, _ := isAffirmative(os.Getenv("DD_STRIP_PROCESS_ARGS")); ok {
-		c.Scrubber.StripAllArguments = true
-	}
-
+	// TODO
 	if v := os.Getenv("DD_AGENT_PY"); v != "" {
 		c.DDAgentPy = v
 	}
+	// TODO
 	if v := os.Getenv("DD_AGENT_PY_ENV"); v != "" {
 		c.DDAgentPyEnv = strings.Split(v, ",")
 	}
 
-	if v := os.Getenv("DD_DOGSTATSD_PORT"); v != "" {
-		port, err := strconv.Atoi(v)
-		if err != nil {
-			log.Info("Failed to parse DD_DOGSTATSD_PORT: it should be a port number")
-		} else {
-			c.StatsdPort = port
-		}
-	}
-
-	if v := os.Getenv("DD_BIND_HOST"); v != "" {
-		c.StatsdHost = v
-	}
-
 	// Docker config
-	if v := os.Getenv("DD_COLLECT_DOCKER_NETWORK"); v == "false" {
-		c.CollectDockerNetwork = false
-	}
-	if v := os.Getenv("DD_CONTAINER_BLACKLIST"); v != "" {
+	c.CollectDockerNetwork, _ = isAffirmative(ddconfig.Datadog.GetString("COLLECT_DOCKER_NETWORK"))
+
+	if v := ddconfig.Datadog.GetString("CONTAINER_BLACKLIST"); v != "" {
 		c.ContainerBlacklist = strings.Split(v, ",")
 	}
-	if v := os.Getenv("DD_CONTAINER_WHITELIST"); v != "" {
+	if v := ddconfig.Datadog.GetString("CONTAINER_WHITELIST"); v != "" {
 		c.ContainerWhitelist = strings.Split(v, ",")
 	}
-	if v := os.Getenv("DD_CONTAINER_CACHE_DURATION"); v != "" {
+	if v := ddconfig.Datadog.GetString("CONTAINER_CACHE_DURATION"); v != "" {
 		durationS, _ := strconv.Atoi(v)
 		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
 	}
 
+	// TODO
 	// Used to override container source auto-detection.
 	// "docker", "ecs_fargate", "kubelet", etc
-	if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
+	if v := ddconfig.Datadog.GetString("PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
 		util.SetContainerSource(v)
 	}
 
-	// Note: this feature is in development and should not be used in production environments
-	if ok, _ := isAffirmative(os.Getenv("DD_NETWORK_TRACING_ENABLED")); ok {
-		c.EnabledChecks = append(c.EnabledChecks, "connections")
-		c.EnableNetworkTracing = ok
-	}
-	if v := os.Getenv("DD_NETTRACER_SOCKET"); v != "" {
-		c.NetworkTracerSocketPath = v
-	}
-	if ok, _ := isAffirmative(os.Getenv("DD_USE_LOCAL_NETWORK_TRACER")); ok {
+	// TODO
+	if ok, _ := isAffirmative(ddconfig.Datadog.GetString("USE_LOCAL_NETWORK_TRACER")); ok {
 		c.EnableLocalNetworkTracer = ok
 	}
 

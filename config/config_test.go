@@ -75,6 +75,8 @@ func TestOnlyEnvConfig(t *testing.T) {
 	os.Setenv("DD_API_KEY", "apikey_from_env")
 
 	agentConfig, _ := NewAgentConfig(nil, nil, nil)
+	fmt.Println("HEYAJk")
+	fmt.Printf("agentConfig = %+v\n", agentConfig)
 	assert.Equal(t, "apikey_from_env", agentConfig.APIEndpoints[0].APIKey)
 
 	os.Setenv("DD_API_KEY", "")
