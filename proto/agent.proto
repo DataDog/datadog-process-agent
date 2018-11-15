@@ -325,11 +325,18 @@ message Connection {
 	uint64 totalBytesReceived = 14;
 }
 
+// ContainerMetadata only holds enough information to identify a container in connection data
+message ContainerMetadata {
+	string id = 1;
+	uint32 key = 2;
+	bytes byteKey = 3;
+}
+
 message Addr {
 	Host host = 1;
 	string ip = 2;
 	int32 port = 3;
-	Container container = 4;
+	ContainerMetadata container = 4;
 }
 
 message MemoryStat {
