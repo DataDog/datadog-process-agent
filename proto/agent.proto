@@ -329,6 +329,7 @@ message Addr {
 	Host host = 1;
 	string ip = 2;
 	int32 port = 3;
+	Container container = 4;
 }
 
 message MemoryStat {
