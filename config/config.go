@@ -253,127 +253,20 @@ func NewAgentConfig(agentIni *File, agentYaml io.Reader, networkYaml *YamlAgentC
 	}
 	var err error
 	err = ddconfig.Load()
+
 	if err != nil {
 		// TODO remove this
 		// panic(err)
 	}
+
+	// Initialize default config
 	cfg := NewDefaultAgentConfig()
 
-	var ns string
-	var section *ini.Section
-	if agentIni != nil {
-		section, _ = agentIni.GetSection("Main")
-	}
-
 	// Pull from the ini Agent config by default.
-	if section != nil {
-		a, err := agentIni.Get("Main", "api_key")
-		if err != nil {
+	if agentIni != nil {
+		if cfg, err = mergeIniConfig(agentIni, cfg); err != nil {
 			return nil, err
 		}
-		ak := strings.Split(a, ",")
-		if len(cfg.APIEndpoints) == 0 {
-			cfg.APIEndpoints = []APIEndpoint{{APIKey: ak[0]}}
-		}
-		if len(ak) > 1 {
-			for i := 1; i < len(ak); i++ {
-				cfg.APIEndpoints = append(cfg.APIEndpoints, APIEndpoint{APIKey: ak[i]})
-			}
-		}
-
-		cfg.LogLevel = strings.ToLower(agentIni.GetDefault("Main", "log_level", "INFO"))
-		cfg.proxy, err = getProxySettings(section)
-		if err != nil {
-			log.Errorf("error parsing proxy settings, not using a proxy: %s", err)
-		}
-
-		v, _ := agentIni.Get("Main", "process_agent_enabled")
-		if enabled, err := isAffirmative(v); enabled {
-			cfg.Enabled = true
-			cfg.EnabledChecks = processChecks
-		} else if !enabled && err == nil { // Only want to disable the process agent if it's explicitly disabled
-			cfg.Enabled = false
-		}
-
-		cfg.StatsdHost = agentIni.GetDefault("Main", "bind_host", cfg.StatsdHost)
-		// non_local_traffic is a shorthand in dd-agent configuration that is
-		// equivalent to setting `bind_host: 0.0.0.0`. Respect this flag
-		// since it defaults to true in Docker and saves us a command-line param
-		v, _ = agentIni.Get("Main", "non_local_traffic")
-		if enabled, _ := isAffirmative(v); enabled {
-			cfg.StatsdHost = "0.0.0.0"
-		}
-		cfg.StatsdPort = agentIni.GetIntDefault("Main", "dogstatsd_port", cfg.StatsdPort)
-
-		// All process-agent specific config lives under [process.config] section.
-		// NOTE: we truncate either endpoints or APIEndpoints if the lengths don't match
-		ns = "process.config"
-		endpoints := agentIni.GetStrArrayDefault(ns, "endpoint", ",", []string{defaultEndpoint})
-		if len(endpoints) < len(cfg.APIEndpoints) {
-			log.Warnf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
-			cfg.APIEndpoints = cfg.APIEndpoints[:len(endpoints)]
-		} else if len(endpoints) > len(cfg.APIEndpoints) {
-			log.Warnf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
-			endpoints = endpoints[:len(cfg.APIEndpoints)]
-		}
-		for i, e := range endpoints {
-			u, err := url.Parse(e)
-			if err != nil {
-				return nil, fmt.Errorf("invalid endpoint URL: %s", err)
-			}
-			cfg.APIEndpoints[i].Endpoint = u
-		}
-
-		cfg.QueueSize = agentIni.GetIntDefault(ns, "queue_size", cfg.QueueSize)
-		cfg.MaxProcFDs = agentIni.GetIntDefault(ns, "max_proc_fds", cfg.MaxProcFDs)
-		cfg.AllowRealTime = agentIni.GetBool(ns, "allow_real_time", cfg.AllowRealTime)
-		cfg.LogFile = agentIni.GetDefault(ns, "log_file", cfg.LogFile)
-		cfg.DDAgentPy = agentIni.GetDefault(ns, "dd_agent_py", cfg.DDAgentPy)
-		cfg.DDAgentPyEnv = agentIni.GetStrArrayDefault(ns, "dd_agent_py_env", ",", cfg.DDAgentPyEnv)
-
-		blacklistPats := agentIni.GetStrArrayDefault(ns, "blacklist", ",", []string{})
-		blacklist := make([]*regexp.Regexp, 0, len(blacklistPats))
-		for _, b := range blacklistPats {
-			r, err := regexp.Compile(b)
-			if err == nil {
-				blacklist = append(blacklist, r)
-			}
-		}
-		cfg.Blacklist = blacklist
-
-		// DataScrubber
-		cfg.Scrubber.Enabled = agentIni.GetBool(ns, "scrub_args", true)
-		customSensitiveWords := agentIni.GetStrArrayDefault(ns, "custom_sensitive_words", ",", []string{})
-		cfg.Scrubber.AddCustomSensitiveWords(customSensitiveWords)
-		cfg.Scrubber.StripAllArguments = agentIni.GetBool(ns, "strip_proc_arguments", false)
-
-		batchSize := agentIni.GetIntDefault(ns, "proc_limit", cfg.MaxPerMessage)
-		if batchSize <= maxMessageBatch {
-			cfg.MaxPerMessage = batchSize
-		} else {
-			log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
-			cfg.MaxPerMessage = maxMessageBatch
-		}
-
-		// Checks intervals can be overridden by configuration.
-		for checkName, defaultInterval := range cfg.CheckIntervals {
-			key := fmt.Sprintf("%s_interval", checkName)
-			interval := agentIni.GetDurationDefault(ns, key, time.Second, defaultInterval)
-			if interval != defaultInterval {
-				log.Infof("Overriding check interval for %s to %s", checkName, interval)
-				cfg.CheckIntervals[checkName] = interval
-			}
-		}
-
-		// Docker config
-		cfg.CollectDockerNetwork = agentIni.GetBool(ns, "collect_docker_network", cfg.CollectDockerNetwork)
-		cfg.ContainerBlacklist = agentIni.GetStrArrayDefault(ns, "container_blacklist", ",", cfg.ContainerBlacklist)
-		cfg.ContainerWhitelist = agentIni.GetStrArrayDefault(ns, "container_whitelist", ",", cfg.ContainerWhitelist)
-		cfg.ContainerCacheDuration = agentIni.GetDurationDefault(ns, "container_cache_duration", time.Second, 30*time.Second)
-
-		// windows args config
-		cfg.Windows.ArgsRefreshInterval = agentIni.GetIntDefault(ns, "windows_args_refresh_interval", cfg.Windows.ArgsRefreshInterval)
-		cfg.Windows.AddNewArgs = agentIni.GetBool(ns, "windows_add_new_args", true)
 	}
 
 	fmt.Printf("cfg = %+v\n", cfg)
@@ -382,11 +275,12 @@ func NewAgentConfig(agentIni *File, agentYaml io.Reader, networkYaml *YamlAgentC
 		return nil, err
 	}
 
+	// Network config
 	if cfg, err = mergeNetworkConfig(cfg); err != nil {
 		return nil, err
 	}
 
-	// Use environment to override any additional config.
+	// Environment variables
 	cfg = mergeEnvironmentVariables(cfg)
 
 	// Python-style log level has WARNING vs WARN
@@ -683,4 +577,127 @@ func constructProxy(host, scheme string, port int, user, password string) (proxy
 		return nil, err
 	}
 	return http.ProxyURL(u), nil
+}
+
+func mergeIniConfig(agentIni *File, cfg *AgentConfig) (*AgentConfig, error) {
+	section, _ := agentIni.GetSection("Main")
+
+	// Not considered as an error
+	if section != nil {
+		return cfg, nil
+	}
+
+	a, err := agentIni.Get("Main", "api_key")
+
+	if err != nil {
+		return nil, err
+	}
+
+	ak := strings.Split(a, ",")
+	if len(cfg.APIEndpoints) == 0 {
+		cfg.APIEndpoints = []APIEndpoint{{APIKey: ak[0]}}
+	}
+	if len(ak) > 1 {
+		for i := 1; i < len(ak); i++ {
+			cfg.APIEndpoints = append(cfg.APIEndpoints, APIEndpoint{APIKey: ak[i]})
+		}
+	}
+
+	cfg.LogLevel = strings.ToLower(agentIni.GetDefault("Main", "log_level", "INFO"))
+	cfg.proxy, err = getProxySettings(section)
+	if err != nil {
+		log.Errorf("error parsing proxy settings, not using a proxy: %s", err)
+	}
+
+	v, _ := agentIni.Get("Main", "process_agent_enabled")
+	if enabled, err := isAffirmative(v); enabled {
+		cfg.Enabled = true
+		cfg.EnabledChecks = processChecks
+	} else if !enabled && err == nil { // Only want to disable the process agent if it's explicitly disabled
+		cfg.Enabled = false
+	}
+
+	cfg.StatsdHost = agentIni.GetDefault("Main", "bind_host", cfg.StatsdHost)
+	// non_local_traffic is a shorthand in dd-agent configuration that is
+	// equivalent to setting `bind_host: 0.0.0.0`. Respect this flag
+	// since it defaults to true in Docker and saves us a command-line param
+	v, _ = agentIni.Get("Main", "non_local_traffic")
+	if enabled, _ := isAffirmative(v); enabled {
+		cfg.StatsdHost = "0.0.0.0"
+	}
+	cfg.StatsdPort = agentIni.GetIntDefault("Main", "dogstatsd_port", cfg.StatsdPort)
+
+	// All process-agent specific config lives under [process.config] section.
+	// NOTE: we truncate either endpoints or APIEndpoints if the lengths don't match
+	ns := "process.config"
+	endpoints := agentIni.GetStrArrayDefault(ns, "endpoint", ",", []string{defaultEndpoint})
+	fmt.Printf("endpoints = %+v\n", endpoints)
+	fmt.Printf("cfg.APIEndpoint = %+v\n", cfg.APIEndpoints)
+	if len(endpoints) < len(cfg.APIEndpoints) {
+		log.Warnf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
+		cfg.APIEndpoints = cfg.APIEndpoints[:len(endpoints)]
+	} else if len(endpoints) > len(cfg.APIEndpoints) {
+		log.Warnf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
+		endpoints = endpoints[:len(cfg.APIEndpoints)]
+	}
+	for i, e := range endpoints {
+		u, err := url.Parse(e)
+		if err != nil {
+			return nil, fmt.Errorf("invalid endpoint URL: %s", err)
+		}
+		cfg.APIEndpoints[i].Endpoint = u
+	}
+
+	cfg.QueueSize = agentIni.GetIntDefault(ns, "queue_size", cfg.QueueSize)
+	cfg.MaxProcFDs = agentIni.GetIntDefault(ns, "max_proc_fds", cfg.MaxProcFDs)
+	cfg.AllowRealTime = agentIni.GetBool(ns, "allow_real_time", cfg.AllowRealTime)
+	cfg.LogFile = agentIni.GetDefault(ns, "log_file", cfg.LogFile)
+	cfg.DDAgentPy = agentIni.GetDefault(ns, "dd_agent_py", cfg.DDAgentPy)
+	cfg.DDAgentPyEnv = agentIni.GetStrArrayDefault(ns, "dd_agent_py_env", ",", cfg.DDAgentPyEnv)
+
+	blacklistPats := agentIni.GetStrArrayDefault(ns, "blacklist", ",", []string{})
+	blacklist := make([]*regexp.Regexp, 0, len(blacklistPats))
+	for _, b := range blacklistPats {
+		r, err := regexp.Compile(b)
+		if err == nil {
+			blacklist = append(blacklist, r)
+		}
+	}
+	cfg.Blacklist = blacklist
+
+	// DataScrubber
+	cfg.Scrubber.Enabled = agentIni.GetBool(ns, "scrub_args", true)
+	customSensitiveWords := agentIni.GetStrArrayDefault(ns, "custom_sensitive_words", ",", []string{})
+	cfg.Scrubber.AddCustomSensitiveWords(customSensitiveWords)
+	cfg.Scrubber.StripAllArguments = agentIni.GetBool(ns, "strip_proc_arguments", false)
+
+	batchSize := agentIni.GetIntDefault(ns, "proc_limit", cfg.MaxPerMessage)
+	if batchSize <= maxMessageBatch {
+		cfg.MaxPerMessage = batchSize
+	} else {
+		log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
+		cfg.MaxPerMessage = maxMessageBatch
+	}
+
+	// Checks intervals can be overridden by configuration.
+	for checkName, defaultInterval := range cfg.CheckIntervals {
+		key := fmt.Sprintf("%s_interval", checkName)
+		interval := agentIni.GetDurationDefault(ns, key, time.Second, defaultInterval)
+		if interval != defaultInterval {
+			log.Infof("Overriding check interval for %s to %s", checkName, interval)
+			cfg.CheckIntervals[checkName] = interval
+		}
+	}
+
+	// Docker config
+	cfg.CollectDockerNetwork = agentIni.GetBool(ns, "collect_docker_network", cfg.CollectDockerNetwork)
+	cfg.ContainerBlacklist = agentIni.GetStrArrayDefault(ns, "container_blacklist", ",", cfg.ContainerBlacklist)
+	cfg.ContainerWhitelist = agentIni.GetStrArrayDefault(ns, "container_whitelist", ",", cfg.ContainerWhitelist)
+	cfg.ContainerCacheDuration = agentIni.GetDurationDefault(ns, "container_cache_duration", time.Second, 30*time.Second)
+
+	// windows args config
+	cfg.Windows.ArgsRefreshInterval = agentIni.GetIntDefault(ns, "windows_args_refresh_interval", cfg.Windows.ArgsRefreshInterval)
+	cfg.Windows.AddNewArgs = agentIni.GetBool(ns, "windows_add_new_args", true)
+
+	return cfg, nil
 }
