@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -162,7 +163,7 @@ func initConfig(c ddconfig.Config) {
 
 	// Variables that don't have the same name in the config and in the env
 
-	bindEnvAndSetDefault(c, "dd_url", defaultEndpoint, "PROCESS_AGENT_URL")
+	bindEnvAndSetDefault(c, "dd_url", defaultEndpoint, "DD_PROCESS_AGENT_URL")
 	// Note: This only considers container sources that are already setup. It's possible that container sources may
 	//       need a few minutes to be ready.
 	_, err := util.GetContainers()
@@ -170,21 +171,21 @@ func initConfig(c ddconfig.Config) {
 	if err == nil {
 		canAccessContainers = "true"
 	}
-	bindEnvAndSetDefault(c, kEnabled, canAccessContainers, "PROCESS_AGENT_ENABLED")
-	bindEnvAndSetDefault(c, kDDAgentBin, defaultDDAgentBin, "AGENT_BIN")
-	bindEnvAndSetDefault(c, kDDAgentEnv, defaultDDAgentPyEnv, "AGENT_ENV")
-	bindEnvAndSetDefault(c, kScrubArgs, true, "SCRUB_ARGS")
+	bindEnvAndSetDefault(c, kEnabled, canAccessContainers, "DD_PROCESS_AGENT_ENABLED")
+	bindEnvAndSetDefault(c, kDDAgentBin, defaultDDAgentBin, "DD_AGENT_BIN")
+	bindEnvAndSetDefault(c, kDDAgentEnv, defaultDDAgentPyEnv, "DD_AGENT_ENV")
+	bindEnvAndSetDefault(c, kScrubArgs, true, "DD_SCRUB_ARGS")
 
-	c.BindEnv(kCustomSensitiveWords, "CUSTOM_SENSITIVE_WORDS")
-	c.BindEnv(kStripProcessArguments, "STRIP_PROCESS_ARGS")
+	c.BindEnv(kCustomSensitiveWords, "DD_CUSTOM_SENSITIVE_WORDS")
+	c.BindEnv(kStripProcessArguments, "DD_STRIP_PROCESS_ARGS")
 }
 
 func initNetworkConfig(c ddconfig.Config) {
 	c.BindEnvAndSetDefault(kNetworkLogFile, defaultNetworkLogFilePath)
 
 	// Variables that don't have the same name in the config and in the env
-	bindEnvAndSetDefault(c, kNetworkTracingEnabled, false, "NETWORK_TRACING_ENABLED")
-	bindEnvAndSetDefault(c, kNetworkUnixSocketPath, defaultNetworkTracerSocketPath, "NETTRACER_SOCKET")
+	bindEnvAndSetDefault(c, kNetworkTracingEnabled, false, "DD_NETWORK_TRACING_ENABLED")
+	bindEnvAndSetDefault(c, kNetworkUnixSocketPath, defaultNetworkTracerSocketPath, "DD_NETTRACER_SOCKET")
 }
 
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
@@ -198,6 +199,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Statsd for internal instrumentation
 		StatsdHost: "127.0.0.1",
 		StatsdPort: 8125,
+
+		CheckIntervals: map[string]time.Duration{},
 
 		// Path and environment for the dd-agent embedded python
 		DDAgentPy: defaultDDAgentPy,
@@ -243,9 +246,12 @@ func NewDefaultAgentConfig() *AgentConfig {
 
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
-func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *YamlAgentConfig) (*AgentConfig, error) {
+func NewAgentConfig(agentIni *File, agentYaml io.Reader, networkYaml *YamlAgentConfig) (*AgentConfig, error) {
 	initConfig(ddconfig.Datadog)
 	initNetworkConfig(ddconfig.Datadog)
+	if agentYaml != nil {
+		ddconfig.Datadog.ReadConfig(agentYaml)
+	}
 	var err error
 	err = ddconfig.Load()
 	if err != nil {
@@ -267,7 +273,9 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 			return nil, err
 		}
 		ak := strings.Split(a, ",")
-		cfg.APIEndpoints[0].APIKey = ak[0]
+		if len(cfg.APIEndpoints) == 0 {
+			cfg.APIEndpoints = []APIEndpoint{{APIKey: ak[0]}}
+		}
 		if len(ak) > 1 {
 			for i := 1; i < len(ak); i++ {
 				cfg.APIEndpoints = append(cfg.APIEndpoints, APIEndpoint{APIKey: ak[i]})
@@ -369,17 +377,14 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 		cfg.Windows.AddNewArgs = agentIni.GetBool(ns, "windows_add_new_args", true)
 	}
 
+	fmt.Printf("cfg = %+v\n", cfg)
 	// For Agents >= 6 we will have a YAML config file to use.
-	if agentYaml != nil {
-		if cfg, err = mergeYamlConfig(cfg); err != nil {
-			return nil, err
-		}
+	if cfg, err = mergeYamlConfig(cfg); err != nil {
+		return nil, err
 	}
 
-	if networkYaml != nil {
-		if cfg, err = mergeNetworkConfig(cfg); err != nil {
-			return nil, err
-		}
+	if cfg, err = mergeNetworkConfig(cfg); err != nil {
+		return nil, err
 	}
 
 	// Use environment to override any additional config.

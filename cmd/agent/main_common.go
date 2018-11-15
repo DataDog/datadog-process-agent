@@ -103,7 +103,7 @@ func runAgent(exit chan bool) {
 		os.Exit(1)
 	}
 
-	yamlConf, err := config.NewYamlIfExists(opts.configPath)
+	yamlConf, err := config.NewReaderIfExists(opts.configPath)
 	if err != nil {
 		log.Criticalf("Error reading datadog.yaml: %s", err)
 		os.Exit(1)

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"net/url"
 	"regexp"
 	"strings"
@@ -45,6 +46,20 @@ func NewYamlIfExists(configPath string) (*YamlAgentConfig, error) {
 	return nil, nil
 }
 
+// NewReaderIfExists returns a new io.Reader if the given configPath is exists.
+func NewReaderIfExists(configPath string) (io.Reader, error) {
+	if !util.PathExists(configPath) {
+		return nil, fmt.Errorf("error path not found: %s", configPath)
+	}
+
+	lines, err := util.ReadLines(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("read error: %s", err)
+	}
+
+	return strings.NewReader(strings.Join(lines, "\n")), nil
+}
+
 func mergeYamlConfig(agentConf *AgentConfig) (*AgentConfig, error) {
 	apiKey := ddconfig.Datadog.GetString("api_key")
 	if apiKey != "" {
@@ -52,7 +67,11 @@ func mergeYamlConfig(agentConf *AgentConfig) (*AgentConfig, error) {
 		for i := range vals {
 			vals[i] = strings.TrimSpace(vals[i])
 		}
-		agentConf.APIEndpoints[0].APIKey = vals[0]
+		if len(agentConf.APIEndpoints) > 0 {
+			agentConf.APIEndpoints[0].APIKey = vals[0]
+		} else {
+			agentConf.APIEndpoints = []APIEndpoint{{APIKey: vals[0]}}
+		}
 	}
 
 	en := ddconfig.Datadog.GetString(kEnabled)
@@ -70,7 +89,11 @@ func mergeYamlConfig(agentConf *AgentConfig) (*AgentConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error parsing process_dd_url: %s", err)
 	}
-	agentConf.APIEndpoints[0].Endpoint = url
+	if len(agentConf.APIEndpoints) > 0 {
+		agentConf.APIEndpoints[0].Endpoint = url
+	} else {
+		agentConf.APIEndpoints = []APIEndpoint{{Endpoint: url}}
+	}
 
 	if enabled, err := isAffirmative(ddconfig.Datadog.GetString("LOGS_STDOUT")); err == nil {
 		agentConf.LogToConsole = enabled
@@ -102,8 +125,8 @@ func mergeYamlConfig(agentConf *AgentConfig) (*AgentConfig, error) {
 		agentConf.Scrubber.Enabled = ddconfig.Datadog.GetBool(kScrubArgs)
 	}
 
-	csw := ddconfig.Datadog.GetStringSlice(kCustomSensitiveWords)
-	agentConf.Scrubber.AddCustomSensitiveWords(csw)
+	csw := ddconfig.Datadog.GetString(kCustomSensitiveWords)
+	agentConf.Scrubber.AddCustomSensitiveWords(strings.Split(csw, ","))
 
 	agentConf.Scrubber.StripAllArguments = ddconfig.Datadog.GetBool(kStripProcessArguments)
 
