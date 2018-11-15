@@ -97,7 +97,7 @@ func runAgent(exit chan bool) {
 		}()
 	}
 
-	agentConf, err := config.NewIfExists(opts.ddConfigPath)
+	agentConf, err := config.NewReaderIfExists(opts.ddConfigPath)
 	if err != nil {
 		log.Criticalf("Error reading dd-agent config: %s", err)
 		os.Exit(1)
@@ -119,7 +119,7 @@ func runAgent(exit chan bool) {
 		log.Errorf("unable to initialize Datadog entity tagger: %s", err)
 	}
 
-	networkConf, err := config.NewYamlIfExists(opts.netConfigPath)
+	networkConf, err := config.NewReaderIfExists(opts.netConfigPath)
 	if err != nil {
 		log.Criticalf("Error reading network-tracer.yaml: %s", err)
 		os.Exit(1)

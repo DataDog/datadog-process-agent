@@ -171,10 +171,7 @@ func mergeYamlConfig(agentConf *AgentConfig) (*AgentConfig, error) {
 	agentConf.StatsdHost = ddconfig.Datadog.GetString("bind_host")
 	agentConf.Transport = ddutil.CreateHTTPTransport()
 
-	return agentConf, nil
-}
-
-func mergeNetworkConfig(agentConf *AgentConfig) (*AgentConfig, error) {
+	// Network related config
 	if ok, _ := isAffirmative(ddconfig.Datadog.GetString(kNetworkTracingEnabled)); ok {
 		agentConf.EnabledChecks = append(agentConf.EnabledChecks, "connections")
 		agentConf.EnableNetworkTracing = true

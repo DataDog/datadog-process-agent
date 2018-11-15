@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"syscall"
@@ -28,6 +30,27 @@ func New(configPath string) (*File, error) {
 		return nil, err
 	}
 	globalConfig = &File{instance: config, Path: configPath}
+	return globalConfig, nil
+}
+
+// NewFromReaderIfExists reads the config from the given reader and returns a corresponding *File
+// or an error if encountered.  This File is set as the default active
+// config file.
+func NewFromReaderIfExists(conf io.Reader) (*File, error) {
+	if conf == nil {
+		return nil, nil
+	}
+
+	str, err := ioutil.ReadAll(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	config, err := ini.Load(str)
+	if err != nil {
+		return nil, err
+	}
+	globalConfig = &File{instance: config}
 	return globalConfig, nil
 }
 

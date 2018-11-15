@@ -134,6 +134,18 @@ func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
 	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "")
 }
 
+func TestConfigNewFromReaderIfExists(t *testing.T) {
+	// nil reader
+	conf, err := NewFromReaderIfExists(nil)
+	assert.Nil(t, err)
+	assert.Nil(t, conf)
+
+	// Valid reader
+	conf, err = NewFromReaderIfExists(strings.NewReader("[Main]\ntest = 5"))
+	assert.Nil(t, err)
+	assert.NotNil(t, conf)
+}
+
 func TestConfigNewIfExists(t *testing.T) {
 	// The file does not exist: no error returned
 	conf, err := NewIfExists("/does-not-exist")
@@ -170,21 +182,19 @@ func TestDDAgentMultiAPIKeys(t *testing.T) {
 	// if no endpoint is given but api_keys are there, match the first api_key
 	// with the default endpoint
 	assert := assert.New(t)
-	ddAgentConf, _ := ini.Load([]byte("[Main]\n\napi_key=foo,bar "))
-	configFile := &File{instance: ddAgentConf, Path: "whatever"}
+	configFile := strings.NewReader("[Main]\n\napi_key=foo,bar ")
 	agentConfig, err := NewAgentConfig(configFile, nil, nil)
 	assert.NoError(err)
 	assert.Equal(1, len(agentConfig.APIEndpoints))
 	assert.Equal("foo", agentConfig.APIEndpoints[0].APIKey)
 	assert.Equal("process.datadoghq.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
-	ddAgentConf, _ = ini.Load([]byte(strings.Join([]string{
+	configFile = strings.NewReader(strings.Join([]string{
 		"[Main]",
 		"api_key=foo,bar",
 		"[process.config]",
 		"endpoint=https://process.datadoghq.com,https://process.datadoghq.eu",
-	}, "\n")))
-	configFile = &File{instance: ddAgentConf, Path: "whatever"}
+	}, "\n"))
 	agentConfig, err = NewAgentConfig(configFile, nil, nil)
 	assert.NoError(err)
 	assert.Equal(2, len(agentConfig.APIEndpoints))
@@ -194,13 +204,12 @@ func TestDDAgentMultiAPIKeys(t *testing.T) {
 	assert.Equal("process.datadoghq.eu", agentConfig.APIEndpoints[1].Endpoint.Hostname())
 
 	// if endpoint count is greater than api_key count, drop additional endpoints
-	ddAgentConf, _ = ini.Load([]byte(strings.Join([]string{
+	configFile = strings.NewReader(strings.Join([]string{
 		"[Main]",
 		"api_key=foo",
 		"[process.config]",
 		"endpoint=https://process.datadoghq.com,https://process.datadoghq.eu",
-	}, "\n")))
-	configFile = &File{instance: ddAgentConf, Path: "whatever"}
+	}, "\n"))
 	agentConfig, err = NewAgentConfig(configFile, nil, nil)
 	assert.NoError(err)
 	assert.Equal(1, len(agentConfig.APIEndpoints))
@@ -229,7 +238,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestDDAgentConfigWithNewOpts(t *testing.T) {
 	assert := assert.New(t)
 	// Check that providing process.* options in the dd-agent conf file works
-	dd, _ := ini.Load([]byte(strings.Join([]string{
+	conf := strings.NewReader(strings.Join([]string{
 		"[Main]",
 		"hostname = thing",
 		"api_key = apikey_12",
@@ -237,9 +246,8 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 		"queue_size = 5",
 		"allow_real_time = false",
 		"windows_args_refresh_interval = 20",
-	}, "\n")))
+	}, "\n"))
 
-	conf := &File{instance: dd, Path: "whatever"}
 	agentConfig, err := NewAgentConfig(conf, nil, nil)
 	assert.NoError(err)
 
@@ -255,7 +263,7 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 func TestDDAgentConfigBothVersions(t *testing.T) {
 	assert := assert.New(t)
 	// Check that providing process.* options in the dd-agent conf file works
-	dd, _ := ini.Load([]byte(strings.Join([]string{
+	conf := strings.NewReader(strings.Join([]string{
 		"[Main]",
 		"hostname = thing",
 		"api_key = apikey_12",
@@ -263,7 +271,7 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 		"queue_size = 5",
 		"allow_real_time = false",
 		"windows_args_refresh_interval = 30",
-	}, "\n")))
+	}, "\n"))
 
 	processDDURL := "http://my-process-app.datadoghq.com"
 	ddconfig.Datadog.Set("process_config.process_dd_url", processDDURL)
@@ -275,7 +283,6 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 		"    args_refresh_interval: 40",
 	}, "\n"))
 
-	conf := &File{instance: dd, Path: "whatever"}
 	agentConfig, err := NewAgentConfig(conf, ddy, nil)
 	assert.NoError(err)
 
@@ -486,14 +493,13 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(false, agentConfig.Windows.AddNewArgs)
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
 
-	var netYamlConf YamlAgentConfig
-	ddy = strings.NewReader(strings.Join([]string{
+	nety := strings.NewReader(strings.Join([]string{
 		"network_tracer_config:",
 		"  enabled: true",
 		"  nettracer_socket: /var/my-location/network-tracer.log",
 	}, "\n"))
 
-	agentConfig, err = NewAgentConfig(nil, ddy, &netYamlConf)
+	agentConfig, err = NewAgentConfig(nil, ddy, nety)
 
 	assert.Equal("apikey_20", ep.APIKey)
 	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())

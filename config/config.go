@@ -246,16 +246,25 @@ func NewDefaultAgentConfig() *AgentConfig {
 
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
-func NewAgentConfig(agentIni *File, agentYaml io.Reader, networkYaml *YamlAgentConfig) (*AgentConfig, error) {
+func NewAgentConfig(agentIni, agentYaml, networkYaml io.Reader) (*AgentConfig, error) {
+	// Init the bindings
 	initConfig(ddconfig.Datadog)
+
+	// Read process config
 	if agentYaml != nil {
 		ddconfig.Datadog.ReadConfig(agentYaml)
 	}
+
+	// Read network config
+	if networkYaml != nil {
+		ddconfig.Datadog.ReadConfig(networkYaml)
+	}
+
 	var err error
 	err = ddconfig.Load()
 
+	// TODO remove this
 	if err != nil {
-		// TODO remove this
 		// panic(err)
 	}
 
@@ -269,14 +278,8 @@ func NewAgentConfig(agentIni *File, agentYaml io.Reader, networkYaml *YamlAgentC
 		}
 	}
 
-	fmt.Printf("cfg = %+v\n", cfg)
 	// For Agents >= 6 we will have a YAML config file to use.
 	if cfg, err = mergeYamlConfig(cfg); err != nil {
-		return nil, err
-	}
-
-	// Network config
-	if cfg, err = mergeNetworkConfig(cfg); err != nil {
 		return nil, err
 	}
 
@@ -291,6 +294,13 @@ func NewAgentConfig(agentIni *File, agentYaml io.Reader, networkYaml *YamlAgentC
 	// (Re)configure the logging from our configuration
 	if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile, cfg.LogToConsole); err != nil {
 		return nil, err
+	}
+
+	if networkYaml != nil {
+		// (Re)configure the logging from our configuration, with the network tracer logfile
+		if err := NewLoggerLevel(cfg.LogLevel, cfg.NetworkTracerLogFile, cfg.LogToConsole); err != nil {
+			return nil, fmt.Errorf("failed to setup network-tracer logger: %s", err)
+		}
 	}
 
 	if cfg.HostName == "" {
@@ -320,34 +330,13 @@ func NewAgentConfig(agentIni *File, agentYaml io.Reader, networkYaml *YamlAgentC
 	return cfg, nil
 }
 
-// NewNetworkAgentConfig returns a network-tracer specific AgentConfig using a configuration file. It can be nil
-// if there is no file available. In this case we'll configure only via environment.
-func NewNetworkAgentConfig(networkYaml *YamlAgentConfig) (*AgentConfig, error) {
-	cfg := NewDefaultAgentConfig()
-	var err error
-
-	if networkYaml != nil {
-		if cfg, err = mergeNetworkConfig(cfg); err != nil {
-			return nil, fmt.Errorf("failed to parse config: %s", err)
-		}
-	}
-
-	cfg = mergeEnvironmentVariables(cfg)
-
-	// (Re)configure the logging from our configuration, with the network tracer logfile
-	if err := NewLoggerLevel(cfg.LogLevel, cfg.NetworkTracerLogFile, cfg.LogToConsole); err != nil {
-		return nil, fmt.Errorf("failed to setup network-tracer logger: %s", err)
-	}
-
-	return cfg, nil
-}
-
 // mergeEnvironmentVariables applies overrides from environment variables to the process agent configuration
 func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	var err error
 
 	// Support API_KEY and DD_API_KEY but prefer DD_API_KEY.
 	if v := os.Getenv("API_KEY"); v != "" {
+		// TODO remove this we should not use Set outside tests
 		ddconfig.Datadog.Set("api_key", v)
 		log.Info("overriding API key from env API_KEY value")
 	}
@@ -579,12 +568,18 @@ func constructProxy(host, scheme string, port int, user, password string) (proxy
 	return http.ProxyURL(u), nil
 }
 
-func mergeIniConfig(agentIni *File, cfg *AgentConfig) (*AgentConfig, error) {
-	section, _ := agentIni.GetSection("Main")
+func mergeIniConfig(conf io.Reader, cfg *AgentConfig) (*AgentConfig, error) {
+	agentIni, err := NewFromReaderIfExists(conf)
+	if err != nil {
+		return nil, err
+	}
 
+	var section *ini.Section
 	// Not considered as an error
-	if section != nil {
-		return cfg, nil
+	if agentIni != nil {
+		if section, _ = agentIni.GetSection("Main"); section != nil {
+			return cfg, nil
+		}
 	}
 
 	a, err := agentIni.Get("Main", "api_key")
