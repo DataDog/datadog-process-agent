@@ -163,7 +163,7 @@ func initConfig(c ddconfig.Config) {
 
 	// Variables that don't have the same name in the config and in the env
 
-	bindEnvAndSetDefault(c, "dd_url", defaultEndpoint, "DD_PROCESS_AGENT_URL")
+	bindEnvAndSetDefault(c, kDDURL, defaultEndpoint, envDDURL)
 	// Note: This only considers container sources that are already setup. It's possible that container sources may
 	//       need a few minutes to be ready.
 	_, err := util.GetContainers()
@@ -171,21 +171,21 @@ func initConfig(c ddconfig.Config) {
 	if err == nil {
 		canAccessContainers = "true"
 	}
-	bindEnvAndSetDefault(c, kEnabled, canAccessContainers, "DD_PROCESS_AGENT_ENABLED")
-	bindEnvAndSetDefault(c, kDDAgentBin, defaultDDAgentBin, "DD_AGENT_BIN")
-	bindEnvAndSetDefault(c, kDDAgentEnv, defaultDDAgentPyEnv, "DD_AGENT_ENV")
-	bindEnvAndSetDefault(c, kScrubArgs, true, "DD_SCRUB_ARGS")
+	bindEnvAndSetDefault(c, kEnabled, canAccessContainers, envEnabled)
+	bindEnvAndSetDefault(c, kDDAgentBin, defaultDDAgentBin, envDDAgentBin)
+	bindEnvAndSetDefault(c, kDDAgentEnv, defaultDDAgentPyEnv, envDDAgentEnv)
+	bindEnvAndSetDefault(c, kScrubArgs, true, envScrubArgs)
 
-	c.BindEnv(kCustomSensitiveWords, "DD_CUSTOM_SENSITIVE_WORDS")
-	c.BindEnv(kStripProcessArguments, "DD_STRIP_PROCESS_ARGS")
+	c.BindEnv(kCustomSensitiveWords, envCustomSensitiveWords)
+	c.BindEnv(kStripProcessArguments, envStripProcessArguments)
 
 	// Network tracer config
 
 	c.BindEnvAndSetDefault(kNetworkLogFile, defaultNetworkLogFilePath)
 
 	// Variables that don't have the same name in the config and in the env
-	bindEnvAndSetDefault(c, kNetworkTracingEnabled, false, "DD_NETWORK_TRACING_ENABLED")
-	bindEnvAndSetDefault(c, kNetworkUnixSocketPath, defaultNetworkTracerSocketPath, "DD_NETTRACER_SOCKET")
+	bindEnvAndSetDefault(c, kNetworkTracingEnabled, false, envNetworkTracingEnabled)
+	bindEnvAndSetDefault(c, kNetworkUnixSocketPath, defaultNetworkTracerSocketPath, envNetworkUnixSocketPath)
 }
 
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
