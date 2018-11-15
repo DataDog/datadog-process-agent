@@ -178,9 +178,9 @@ func initConfig(c ddconfig.Config) {
 
 	c.BindEnv(kCustomSensitiveWords, "DD_CUSTOM_SENSITIVE_WORDS")
 	c.BindEnv(kStripProcessArguments, "DD_STRIP_PROCESS_ARGS")
-}
 
-func initNetworkConfig(c ddconfig.Config) {
+	// Network tracer config
+
 	c.BindEnvAndSetDefault(kNetworkLogFile, defaultNetworkLogFilePath)
 
 	// Variables that don't have the same name in the config and in the env
@@ -248,7 +248,6 @@ func NewDefaultAgentConfig() *AgentConfig {
 // if there is no file available. In this case we'll configure only via environment.
 func NewAgentConfig(agentIni *File, agentYaml io.Reader, networkYaml *YamlAgentConfig) (*AgentConfig, error) {
 	initConfig(ddconfig.Datadog)
-	initNetworkConfig(ddconfig.Datadog)
 	if agentYaml != nil {
 		ddconfig.Datadog.ReadConfig(agentYaml)
 	}

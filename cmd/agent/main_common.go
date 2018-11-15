@@ -108,6 +108,7 @@ func runAgent(exit chan bool) {
 		log.Criticalf("Error reading datadog.yaml: %s", err)
 		os.Exit(1)
 	} else if yamlConf != nil {
+		// TODO this should be done in the config package
 		config.SetupDDAgentConfig(opts.configPath)
 	}
 
@@ -129,11 +130,13 @@ func runAgent(exit chan bool) {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)
 	}
+
 	err = initInfo(cfg)
 	if err != nil {
 		log.Criticalf("Error initializing info: %s", err)
 		os.Exit(1)
 	}
+
 	if err := statsd.Configure(cfg); err != nil {
 		log.Criticalf("Error configuring statsd: %s", err)
 		os.Exit(1)
