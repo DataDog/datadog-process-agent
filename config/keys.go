@@ -72,7 +72,7 @@ const (
 	// Sets windows process table refresh rate (in number of check runs)
 	kWinArgsRefreshInterval = windowsPrefix + "args_refresh_interval"
 	// Controls getting process arguments immediately when a new process is discovered
-	kWinAddNewArgs = windowsPrefix + "add_new_args,omitempty"
+	kWinAddNewArgs = windowsPrefix + "add_new_args"
 
 	// Network tracer config
 	// A string indicating the enabled state of the network tracer.
