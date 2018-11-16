@@ -64,15 +64,7 @@ func mergeYamlConfig(dc ddconfig.Config, agentConf *AgentConfig) (*AgentConfig, 
 	apiKey := dc.GetString("api_key")
 
 	if apiKey != "" {
-		vals := strings.Split(apiKey, ",")
-		for i := range vals {
-			vals[i] = strings.TrimSpace(vals[i])
-		}
-		if len(agentConf.APIEndpoints) > 0 {
-			agentConf.APIEndpoints[0].APIKey = vals[0]
-		} else {
-			agentConf.APIEndpoints = []APIEndpoint{{APIKey: vals[0]}}
-		}
+		mergeAPIKeys(apiKey, agentConf)
 	}
 
 	en := dc.GetString(kEnabled)

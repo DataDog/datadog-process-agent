@@ -345,9 +345,8 @@ func mergeEnvironmentVariables(dc ddconfig.Config, c *AgentConfig) *AgentConfig 
 
 	// Support API_KEY and DD_API_KEY but prefer DD_API_KEY.
 	if v := os.Getenv("API_KEY"); v != "" {
-		// TODO remove this we should not use Set outside tests
-		dc.Set("api_key", v)
 		log.Info("overriding API key from env API_KEY value")
+		mergeAPIKeys(v, c)
 	}
 
 	// Support LOG_LEVEL and DD_LOG_LEVEL but prefer DD_LOG_LEVEL
@@ -373,7 +372,6 @@ func mergeEnvironmentVariables(dc ddconfig.Config, c *AgentConfig) *AgentConfig 
 			}
 		}
 		if site := os.Getenv("DD_SITE"); site != "" {
-			// TODO
 			log.Infof("Using 'process_dd_url' (%s) and ignoring 'site' (%s)", v, site)
 		}
 	}
@@ -401,14 +399,12 @@ func mergeEnvironmentVariables(dc ddconfig.Config, c *AgentConfig) *AgentConfig 
 		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
 	}
 
-	// TODO
 	// Used to override container source auto-detection.
 	// "docker", "ecs_fargate", "kubelet", etc
 	if v := dc.GetString("PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
 		util.SetContainerSource(v)
 	}
 
-	// TODO
 	if ok, _ := isAffirmative(dc.GetString("USE_LOCAL_NETWORK_TRACER")); ok {
 		c.EnableLocalNetworkTracer = ok
 	}
@@ -573,6 +569,18 @@ func constructProxy(host, scheme string, port int, user, password string) (proxy
 		return nil, err
 	}
 	return http.ProxyURL(u), nil
+}
+
+func mergeAPIKeys(apiKey string, agentConf *AgentConfig) {
+	vals := strings.Split(apiKey, ",")
+	for i := range vals {
+		vals[i] = strings.TrimSpace(vals[i])
+	}
+	if len(agentConf.APIEndpoints) > 0 {
+		agentConf.APIEndpoints[0].APIKey = vals[0]
+	} else {
+		agentConf.APIEndpoints = []APIEndpoint{{APIKey: vals[0]}}
+	}
 }
 
 func mergeIniConfig(conf io.Reader, cfg *AgentConfig) (*AgentConfig, error) {
