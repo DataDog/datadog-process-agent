@@ -105,12 +105,6 @@ type AgentConfig struct {
 	Windows WindowsConfig
 }
 
-// same function as ddconfig.BindEnvAndSetDefault but allow to pass a different env key
-func bindEnvAndSetDefault(c ddconfig.Config, key string, val interface{}, envKey ...string) {
-	c.SetDefault(key, val)
-	c.BindEnv(append([]string{key}, envKey...)...)
-}
-
 // CheckIsEnabled returns a bool indicating if the given check name is enabled.
 func (a AgentConfig) CheckIsEnabled(checkName string) bool {
 	return util.StringInSlice(a.EnabledChecks, checkName)
@@ -147,51 +141,56 @@ func NewDefaultTransport() *http.Transport {
 }
 
 func initConfig(dc ddconfig.Config) {
-	dc.BindEnvAndSetDefault(kLogFile, defaultLogFilePath)
+	dc.BindEnv(kLogFile)
 	// All the following durations are in seconds
-	dc.BindEnvAndSetDefault(kIntervalsProcess, 10)
-	dc.BindEnvAndSetDefault(kIntervalsProcessRT, 2)
-	dc.BindEnvAndSetDefault(kIntervalsContainer, 10)
-	dc.BindEnvAndSetDefault(kIntervalsContainerRT, 2)
-	dc.BindEnvAndSetDefault(kIntervalsConnections, 10)
+	dc.BindEnv(kQueueSize)
+	dc.BindEnv(kMaxProcFDs)
+	dc.BindEnv(kMaxPerMessage)
 
-	dc.BindEnvAndSetDefault(kQueueSize, 20)
-	dc.BindEnvAndSetDefault(kMaxProcFDs, 200)
-	dc.BindEnvAndSetDefault(kMaxPerMessage, 100)
-
-	dc.BindEnvAndSetDefault(kWinAddNewArgs, true)
+	dc.BindEnv(kWinAddNewArgs)
 
 	// Variables that don't have the same name in the config and in the env
 
-	bindEnvAndSetDefault(dc, kDDURL, defaultEndpoint, envDDURL)
-	// Note: This only considers container sources that are already setup. It's possible that container sources may
-	//       need a few minutes to be ready.
-	_, err := util.GetContainers()
-	canAccessContainers := "false"
-	if err == nil {
-		canAccessContainers = "true"
-	}
-	bindEnvAndSetDefault(dc, kEnabled, canAccessContainers, envEnabled)
-	bindEnvAndSetDefault(dc, kDDAgentBin, defaultDDAgentBin, envDDAgentBin)
-	bindEnvAndSetDefault(dc, kDDAgentEnv, defaultDDAgentPyEnv, envDDAgentEnv)
-	bindEnvAndSetDefault(dc, kScrubArgs, true, envScrubArgs)
-
+	dc.BindEnv(kDDURL, envDDURL)
+	dc.BindEnv(kEnabled, envEnabled)
+	dc.BindEnv(kDDAgentBin, envDDAgentBin)
+	dc.BindEnv(kDDAgentEnv, envDDAgentEnv)
+	dc.BindEnv(kScrubArgs, envScrubArgs)
 	dc.BindEnv(kCustomSensitiveWords, envCustomSensitiveWords)
 	dc.BindEnv(kStripProcessArguments, envStripProcessArguments)
+	dc.BindEnv(kAPIKey)
 
 	// Network tracer config
 
-	dc.BindEnvAndSetDefault(kNetworkLogFile, defaultNetworkLogFilePath)
+	dc.BindEnv(kNetworkLogFile)
 
 	// Variables that don't have the same name in the config and in the env
-	bindEnvAndSetDefault(dc, kNetworkTracingEnabled, false, envNetworkTracingEnabled)
-	bindEnvAndSetDefault(dc, kNetworkUnixSocketPath, defaultNetworkTracerSocketPath, envNetworkUnixSocketPath)
+	dc.BindEnv(kNetworkTracingEnabled, envNetworkTracingEnabled)
+	dc.BindEnv(kNetworkUnixSocketPath, envNetworkUnixSocketPath)
 }
 
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
 func NewDefaultAgentConfig() *AgentConfig {
+	u, err := url.Parse(defaultEndpoint)
+	if err != nil {
+		// This is a hardcoded URL so parsing it should not fail
+		panic(err)
+	}
+
+	// Note: This only considers container sources that are already setup. It's possible that container sources may
+	//       need a few minutes to be ready.
+	_, err = util.GetContainers()
+	canAccessContainers := err == nil
+
 	ac := &AgentConfig{
+		Enabled:       canAccessContainers, // We'll always run inside of a container.
+		APIEndpoints:  []APIEndpoint{{Endpoint: u}},
+		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
+		LogToConsole:  false,
+		QueueSize:     20,
+		MaxProcFDs:    200,
+		MaxPerMessage: 100,
 		AllowRealTime: true,
 		HostName:      "",
 		Transport:     NewDefaultTransport(),
@@ -200,16 +199,25 @@ func NewDefaultAgentConfig() *AgentConfig {
 		StatsdHost: "127.0.0.1",
 		StatsdPort: 8125,
 
-		CheckIntervals: map[string]time.Duration{},
-
 		// Path and environment for the dd-agent embedded python
-		DDAgentPy: defaultDDAgentPy,
+		DDAgentPy:    defaultDDAgentPy,
+		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
 
 		// Network collection configuration
+		EnableNetworkTracing:     false,
 		EnableLocalNetworkTracer: false,
+		NetworkTracerSocketPath:  defaultNetworkTracerSocketPath,
+		NetworkTracerLogFile:     defaultNetworkLogFilePath,
 
 		// Check config
 		EnabledChecks: containerChecks,
+		CheckIntervals: map[string]time.Duration{
+			"process":     10 * time.Second,
+			"rtprocess":   2 * time.Second,
+			"container":   10 * time.Second,
+			"rtcontainer": 2 * time.Second,
+			"connections": 10 * time.Second,
+		},
 
 		// Docker
 		ContainerCacheDuration: 10 * time.Second,
@@ -292,10 +300,11 @@ func NewAgentConfig(dc ddconfig.Config, agentIni, agentYaml, networkYaml io.Read
 		cfg.LogLevel = "warn"
 	}
 
+	// TODO uncomment this
 	// (Re)configure the logging from our configuration
-	if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile, cfg.LogToConsole); err != nil {
-		return nil, err
-	}
+	// if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile, cfg.LogToConsole); err != nil {
+	// 	return nil, err
+	// }
 
 	if networkYaml != nil {
 		// (Re)configure the logging from our configuration, with the network tracer logfile
@@ -592,7 +601,10 @@ func mergeIniConfig(conf io.Reader, cfg *AgentConfig) (*AgentConfig, error) {
 	ak := strings.Split(a, ",")
 	if len(cfg.APIEndpoints) == 0 {
 		cfg.APIEndpoints = []APIEndpoint{{APIKey: ak[0]}}
+	} else {
+		cfg.APIEndpoints[0].APIKey = ak[0]
 	}
+
 	if len(ak) > 1 {
 		for i := 1; i < len(ak); i++ {
 			cfg.APIEndpoints = append(cfg.APIEndpoints, APIEndpoint{APIKey: ak[i]})

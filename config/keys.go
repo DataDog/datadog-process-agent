@@ -12,6 +12,7 @@ const windowsPrefix = procPrefix + "windows."
 const (
 	// Top level
 	kDDURL   = "dd_url"
+	kAPIKey  = "api_key"
 	envDDURL = "DD_PROCESS_AGENT_URL"
 
 	// All keys in the Yaml file

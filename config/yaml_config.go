@@ -103,66 +103,96 @@ func mergeYamlConfig(dc ddconfig.Config, agentConf *AgentConfig) (*AgentConfig, 
 		agentConf.LogToConsole = enabled
 	}
 
-	agentConf.LogFile = dc.GetString(kLogFile)
-
-	agentConf.CheckIntervals["container"] = time.Duration(dc.GetInt(kIntervalsContainer)) * time.Second
-	agentConf.CheckIntervals["rtcontainer"] = time.Duration(dc.GetInt(kIntervalsContainerRT)) * time.Second
-	agentConf.CheckIntervals["process"] = time.Duration(dc.GetInt(kIntervalsProcess)) * time.Second
-	agentConf.CheckIntervals["rtprocess"] = time.Duration(dc.GetInt(kIntervalsProcessRT)) * time.Second
-	agentConf.CheckIntervals["connections"] = time.Duration(dc.GetInt(kIntervalsConnections)) * time.Second
-
-	blackPat := dc.GetStringSlice(kBlacklistPatterns)
-	blacklist := make([]*regexp.Regexp, 0, len(blackPat))
-	for _, b := range blackPat {
-		r, err := regexp.Compile(b)
-		if err != nil {
-			log.Warnf("Invalid blacklist pattern: %s", b)
-		}
-		blacklist = append(blacklist, r)
+	if dc.IsSet(kLogFile) {
+		agentConf.LogFile = dc.GetString(kLogFile)
 	}
-	agentConf.Blacklist = blacklist
+
+	if dc.IsSet(kIntervalsContainer) {
+		agentConf.CheckIntervals["container"] = time.Duration(dc.GetInt(kIntervalsContainer)) * time.Second
+	}
+	if dc.IsSet(kIntervalsContainerRT) {
+		agentConf.CheckIntervals["rtcontainer"] = time.Duration(dc.GetInt(kIntervalsContainerRT)) * time.Second
+	}
+	if dc.IsSet(kIntervalsProcess) {
+		agentConf.CheckIntervals["process"] = time.Duration(dc.GetInt(kIntervalsProcess)) * time.Second
+	}
+	if dc.IsSet(kIntervalsProcessRT) {
+		agentConf.CheckIntervals["rtprocess"] = time.Duration(dc.GetInt(kIntervalsProcessRT)) * time.Second
+	}
+	if dc.IsSet(kIntervalsConnections) {
+		agentConf.CheckIntervals["connections"] = time.Duration(dc.GetInt(kIntervalsConnections)) * time.Second
+	}
+
+	if dc.IsSet(kBlacklistPatterns) {
+		blackPat := dc.GetStringSlice(kBlacklistPatterns)
+		blacklist := make([]*regexp.Regexp, 0, len(blackPat))
+		for _, b := range blackPat {
+			r, err := regexp.Compile(b)
+			if err != nil {
+				log.Warnf("Invalid blacklist pattern: %s", b)
+			}
+			blacklist = append(blacklist, r)
+		}
+		agentConf.Blacklist = blacklist
+	}
 
 	if dc.IsSet(kScrubArgs) {
 		agentConf.Scrubber.Enabled = dc.GetBool(kScrubArgs)
 	}
 
-	csw := dc.GetString(kCustomSensitiveWords)
-	agentConf.Scrubber.AddCustomSensitiveWords(strings.Split(csw, ","))
-
-	agentConf.Scrubber.StripAllArguments = dc.GetBool(kStripProcessArguments)
-
-	agentConf.QueueSize = dc.GetInt(kQueueSize)
-
-	agentConf.MaxProcFDs = dc.GetInt(kMaxProcFDs)
-
-	if mpm := dc.GetInt(kMaxPerMessage); mpm <= maxMessageBatch {
-		agentConf.MaxPerMessage = mpm
-	} else {
-		log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
+	if dc.IsSet(kCustomSensitiveWords) {
+		csw := dc.GetString(kCustomSensitiveWords)
+		agentConf.Scrubber.AddCustomSensitiveWords(strings.Split(csw, ","))
 	}
 
-	agentConf.DDAgentBin = dc.GetString(kDDAgentBin)
+	if dc.IsSet(kStripProcessArguments) {
+		agentConf.Scrubber.StripAllArguments = dc.GetBool(kStripProcessArguments)
+	}
 
-	winAri := dc.GetInt(kWinArgsRefreshInterval)
-	if winAri != 0 {
-		agentConf.Windows.ArgsRefreshInterval = winAri
+	if dc.IsSet(kQueueSize) {
+		agentConf.QueueSize = dc.GetInt(kQueueSize)
+	}
+
+	if dc.IsSet(kMaxProcFDs) {
+		agentConf.MaxProcFDs = dc.GetInt(kMaxProcFDs)
+	}
+
+	if dc.IsSet(kMaxPerMessage) {
+		if mpm := dc.GetInt(kMaxPerMessage); mpm <= maxMessageBatch {
+			agentConf.MaxPerMessage = mpm
+		} else {
+			log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
+		}
+	}
+
+	if dc.IsSet(kDDAgentBin) {
+		agentConf.DDAgentBin = dc.GetString(kDDAgentBin)
+	}
+
+	if dc.IsSet(kWinArgsRefreshInterval) {
+		winAri := dc.GetInt(kWinArgsRefreshInterval)
+		if winAri != 0 {
+			agentConf.Windows.ArgsRefreshInterval = winAri
+		}
 	}
 
 	if dc.IsSet(kWinAddNewArgs) {
 		agentConf.Windows.AddNewArgs = dc.GetBool(kWinAddNewArgs)
 	}
 
-	additionalEndpoints := dc.GetStringMapStringSlice(kAdditionalEndpoints)
-	for endpointURL, apiKeys := range additionalEndpoints {
-		u, err := url.Parse(endpointURL)
-		if err != nil {
-			return nil, fmt.Errorf("invalid additional endpoint url '%s': %s", endpointURL, err)
-		}
-		for _, k := range apiKeys {
-			agentConf.APIEndpoints = append(agentConf.APIEndpoints, APIEndpoint{
-				APIKey:   k,
-				Endpoint: u,
-			})
+	if dc.IsSet(kAdditionalEndpoints) {
+		additionalEndpoints := dc.GetStringMapStringSlice(kAdditionalEndpoints)
+		for endpointURL, apiKeys := range additionalEndpoints {
+			u, err := url.Parse(endpointURL)
+			if err != nil {
+				return nil, fmt.Errorf("invalid additional endpoint url '%s': %s", endpointURL, err)
+			}
+			for _, k := range apiKeys {
+				agentConf.APIEndpoints = append(agentConf.APIEndpoints, APIEndpoint{
+					APIKey:   k,
+					Endpoint: u,
+				})
+			}
 		}
 	}
 
@@ -180,12 +210,12 @@ func mergeYamlConfig(dc ddconfig.Config, agentConf *AgentConfig) (*AgentConfig, 
 		agentConf.EnableNetworkTracing = true
 	}
 
-	if socketPath := dc.GetString(kNetworkUnixSocketPath); socketPath != "" {
-		agentConf.NetworkTracerSocketPath = socketPath
+	if dc.IsSet(kNetworkUnixSocketPath) {
+		agentConf.NetworkTracerSocketPath = dc.GetString(kNetworkUnixSocketPath)
 	}
 
-	if logFile := dc.GetString(kNetworkLogFile); logFile != "" {
-		agentConf.LogFile = logFile
+	if dc.IsSet(kNetworkLogFile) {
+		agentConf.LogFile = dc.GetString(kNetworkLogFile)
 	}
 
 	return agentConf, nil
