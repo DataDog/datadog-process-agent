@@ -64,6 +64,13 @@ const (
 	kDDAgentEnv   = procPrefix + "dd_agent_env"
 	envDDAgentEnv = "DD_AGENT_ENV"
 
+	kDDAgentPy   = procPrefix + "dd_agent_py"
+	envDDAgentPy = "DD_AGENT_PY"
+
+	// Comma separated env variables
+	kDDAgentPyEnv   = procPrefix + "dd_agent_py_env"
+	envDDAgentPyEnv = "DD_AGENT_PY_ENV"
+
 	// Optional additional pairs of endpoint_url => []apiKeys to submit to other locations.
 	kAdditionalEndpoints = procPrefix + "additional_endpoints"
 

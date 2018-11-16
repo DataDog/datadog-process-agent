@@ -177,6 +177,14 @@ func mergeYamlConfig(dc ddconfig.Config, agentConf *AgentConfig) (*AgentConfig, 
 		agentConf.DDAgentBin = dc.GetString(kDDAgentBin)
 	}
 
+	if dc.IsSet(kDDAgentPy) {
+		agentConf.DDAgentPy = dc.GetString(kDDAgentPy)
+	}
+
+	if dc.IsSet(kDDAgentPyEnv) {
+		agentConf.DDAgentPyEnv = strings.Split(dc.GetString(kDDAgentPyEnv), ",")
+	}
+
 	if dc.IsSet(kWinArgsRefreshInterval) {
 		winAri := dc.GetInt(kWinArgsRefreshInterval)
 		if winAri != 0 {

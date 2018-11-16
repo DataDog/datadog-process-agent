@@ -155,6 +155,8 @@ func initConfig(dc ddconfig.Config) {
 	dc.BindEnv(kEnabled, envEnabled)
 	dc.BindEnv(kDDAgentBin, envDDAgentBin)
 	dc.BindEnv(kDDAgentEnv, envDDAgentEnv)
+	dc.BindEnv(kDDAgentPy, envDDAgentPy)
+	dc.BindEnv(kDDAgentPyEnv, envDDAgentPyEnv)
 	dc.BindEnv(kScrubArgs, envScrubArgs)
 	dc.BindEnv(kCustomSensitiveWords, envCustomSensitiveWords)
 	dc.BindEnv(kStripProcessArguments, envStripProcessArguments)
@@ -374,15 +376,6 @@ func mergeEnvironmentVariables(dc ddconfig.Config, c *AgentConfig) *AgentConfig 
 		if site := os.Getenv("DD_SITE"); site != "" {
 			log.Infof("Using 'process_dd_url' (%s) and ignoring 'site' (%s)", v, site)
 		}
-	}
-
-	// TODO
-	if v := os.Getenv("DD_AGENT_PY"); v != "" {
-		c.DDAgentPy = v
-	}
-	// TODO
-	if v := os.Getenv("DD_AGENT_PY_ENV"); v != "" {
-		c.DDAgentPyEnv = strings.Split(v, ",")
 	}
 
 	// Docker config

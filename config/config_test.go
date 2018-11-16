@@ -721,6 +721,26 @@ func TestEnvSiteConfig(t *testing.T) {
 
 }
 
+func TestAgentPyConfig(t *testing.T) {
+	assert := assert.New(t)
+	os.Setenv("DD_AGENT_PY", "testpy")
+	defer os.Unsetenv("DD_AGENT_PY")
+
+	agentConfig, err := newAgentConfig(nil, nil, nil)
+	assert.NoError(err)
+	assert.Equal("testpy", agentConfig.DDAgentPy)
+}
+
+func TestAgentPyEnvConfig(t *testing.T) {
+	assert := assert.New(t)
+	os.Setenv("DD_AGENT_PY_ENV", "env1=testpyenv1,env2=testpyenv2")
+	defer os.Unsetenv("DD_AGENT_PY_ENV")
+
+	agentConfig, err := newAgentConfig(nil, nil, nil)
+	assert.NoError(err)
+	assert.Equal([]string{"env1=testpyenv1", "env2=testpyenv2"}, agentConfig.DDAgentPyEnv)
+}
+
 func TestIsAffirmative(t *testing.T) {
 	value, err := isAffirmative("yes")
 	assert.Nil(t, err)
