@@ -84,8 +84,6 @@ func TestOnlyEnvConfig(t *testing.T) {
 
 	agentConfig, err := newAgentConfig(nil, nil, nil)
 	assert.Nil(t, err)
-	fmt.Println("HEYAJk")
-	fmt.Printf("agentConfig = %+v\n", agentConfig)
 	assert.Equal(t, "apikey_from_env", agentConfig.APIEndpoints[0].APIKey)
 
 	os.Setenv("DD_API_KEY", "")
@@ -193,7 +191,6 @@ func TestDDAgentMultiAPIKeys(t *testing.T) {
 	assert := assert.New(t)
 	configFile := strings.NewReader("[Main]\n\napi_key=foo,bar ")
 	agentConfig, err := newAgentConfig(configFile, nil, nil)
-	fmt.Printf("\n\nagentConfig = %+v\n\n\n", agentConfig)
 	assert.NoError(err)
 	assert.Equal(1, len(agentConfig.APIEndpoints))
 	assert.Equal("foo", agentConfig.APIEndpoints[0].APIKey)

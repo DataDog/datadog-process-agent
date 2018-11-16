@@ -636,8 +636,6 @@ func mergeIniConfig(conf io.Reader, cfg *AgentConfig) (*AgentConfig, error) {
 	// NOTE: we truncate either endpoints or APIEndpoints if the lengths don't match
 	ns := "process.config"
 	endpoints := agentIni.GetStrArrayDefault(ns, "endpoint", ",", []string{defaultEndpoint})
-	fmt.Printf("endpoints = %+v\n", endpoints)
-	fmt.Printf("cfg.APIEndpoint = %+v\n", cfg.APIEndpoints)
 	if len(endpoints) < len(cfg.APIEndpoints) {
 		log.Warnf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
 		cfg.APIEndpoints = cfg.APIEndpoints[:len(endpoints)]
