@@ -300,11 +300,10 @@ func NewAgentConfig(dc ddconfig.Config, agentIni, agentYaml, networkYaml io.Read
 		cfg.LogLevel = "warn"
 	}
 
-	// TODO uncomment this
 	// (Re)configure the logging from our configuration
-	// if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile, cfg.LogToConsole); err != nil {
-	// 	return nil, err
-	// }
+	if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile, cfg.LogToConsole); err != nil {
+		return nil, err
+	}
 
 	if networkYaml != nil {
 		// (Re)configure the logging from our configuration, with the network tracer logfile
@@ -362,21 +361,19 @@ func mergeEnvironmentVariables(dc ddconfig.Config, c *AgentConfig) *AgentConfig 
 		c.proxy = nil
 	}
 
-	if v := ddconfig.Datadog.GetString("dd_url"); v != "" {
+	if v := dc.GetString("dd_url"); v != "" {
 		u, err := url.Parse(v)
-		// TODO remove this since we can now retrieve the url from the config
 		if err != nil {
-			log.Warnf("DD_PROCESS_AGENT_URL is invalid: %s", err)
+			log.Warnf("DD_PROCESS_AGENT_URL/process_dd_url is invalid: %s", err)
 		} else {
-			log.Infof("overriding API endpoint from env")
 			if len(c.APIEndpoints) > 0 {
 				c.APIEndpoints[0].Endpoint = u
 			} else {
 				c.APIEndpoints = []APIEndpoint{{Endpoint: u}}
 			}
 		}
-		// TODO
 		if site := os.Getenv("DD_SITE"); site != "" {
+			// TODO
 			log.Infof("Using 'process_dd_url' (%s) and ignoring 'site' (%s)", v, site)
 		}
 	}

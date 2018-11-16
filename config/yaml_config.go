@@ -86,7 +86,23 @@ func mergeYamlConfig(dc ddconfig.Config, agentConf *AgentConfig) (*AgentConfig, 
 		agentConf.EnabledChecks = containerChecks
 	}
 
-	url, err := url.Parse(ddconfig.GetMainEndpoint("https://process.", "process_config.process_dd_url"))
+	// TODO this should use the agent one
+	getMainEndpoint := func(config ddconfig.Config, prefix string, ddURLKey string) (resolvedDDURL string) {
+		if config.IsSet(ddURLKey) && config.GetString(ddURLKey) != "" {
+			// value under ddURLKey takes precedence over 'site'
+			resolvedDDURL = config.GetString(ddURLKey)
+			if config.IsSet("site") {
+				log.Infof("'site' and '%s' are both set in config: setting main endpoint to '%s': \"%s\"", ddURLKey, ddURLKey, config.GetString(ddURLKey))
+			}
+		} else if config.GetString("site") != "" {
+			resolvedDDURL = prefix + strings.TrimSpace(config.GetString("site"))
+		} else {
+			resolvedDDURL = prefix + ddconfig.DefaultSite
+		}
+		return
+	}
+
+	url, err := url.Parse(getMainEndpoint(dc, "https://process.", "process_config.process_dd_url"))
 	if err != nil {
 		return nil, fmt.Errorf("error parsing process_dd_url: %s", err)
 	}
