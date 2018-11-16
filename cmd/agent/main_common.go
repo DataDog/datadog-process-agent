@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	log "github.com/cihub/seelog"
 
+	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
@@ -125,7 +126,7 @@ func runAgent(exit chan bool) {
 		os.Exit(1)
 	}
 
-	cfg, err := config.NewAgentConfig(agentConf, yamlConf, networkConf)
+	cfg, err := config.NewAgentConfig(ddconfig.Datadog, agentConf, yamlConf, networkConf)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)

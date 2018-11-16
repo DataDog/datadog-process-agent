@@ -60,8 +60,9 @@ func NewReaderIfExists(configPath string) (io.Reader, error) {
 	return strings.NewReader(strings.Join(lines, "\n")), nil
 }
 
-func mergeYamlConfig(agentConf *AgentConfig) (*AgentConfig, error) {
-	apiKey := ddconfig.Datadog.GetString("api_key")
+func mergeYamlConfig(dc ddconfig.Config, agentConf *AgentConfig) (*AgentConfig, error) {
+	apiKey := dc.GetString("api_key")
+
 	if apiKey != "" {
 		vals := strings.Split(apiKey, ",")
 		for i := range vals {
@@ -74,7 +75,7 @@ func mergeYamlConfig(agentConf *AgentConfig) (*AgentConfig, error) {
 		}
 	}
 
-	en := ddconfig.Datadog.GetString(kEnabled)
+	en := dc.GetString(kEnabled)
 	if enabled, err := isAffirmative(en); enabled {
 		agentConf.Enabled = true
 		agentConf.EnabledChecks = processChecks
@@ -95,22 +96,22 @@ func mergeYamlConfig(agentConf *AgentConfig) (*AgentConfig, error) {
 		agentConf.APIEndpoints = []APIEndpoint{{Endpoint: url}}
 	}
 
-	if enabled, err := isAffirmative(ddconfig.Datadog.GetString("LOGS_STDOUT")); err == nil {
+	if enabled, err := isAffirmative(dc.GetString("LOGS_STDOUT")); err == nil {
 		agentConf.LogToConsole = enabled
 	}
-	if enabled, err := isAffirmative(ddconfig.Datadog.GetString("LOG_TO_CONSOLE")); err == nil {
+	if enabled, err := isAffirmative(dc.GetString("LOG_TO_CONSOLE")); err == nil {
 		agentConf.LogToConsole = enabled
 	}
 
-	agentConf.LogFile = ddconfig.Datadog.GetString(kLogFile)
+	agentConf.LogFile = dc.GetString(kLogFile)
 
-	agentConf.CheckIntervals["container"] = time.Duration(ddconfig.Datadog.GetInt(kIntervalsContainer)) * time.Second
-	agentConf.CheckIntervals["rtcontainer"] = time.Duration(ddconfig.Datadog.GetInt(kIntervalsContainerRT)) * time.Second
-	agentConf.CheckIntervals["process"] = time.Duration(ddconfig.Datadog.GetInt(kIntervalsProcess)) * time.Second
-	agentConf.CheckIntervals["rtprocess"] = time.Duration(ddconfig.Datadog.GetInt(kIntervalsProcessRT)) * time.Second
-	agentConf.CheckIntervals["connections"] = time.Duration(ddconfig.Datadog.GetInt(kIntervalsConnections)) * time.Second
+	agentConf.CheckIntervals["container"] = time.Duration(dc.GetInt(kIntervalsContainer)) * time.Second
+	agentConf.CheckIntervals["rtcontainer"] = time.Duration(dc.GetInt(kIntervalsContainerRT)) * time.Second
+	agentConf.CheckIntervals["process"] = time.Duration(dc.GetInt(kIntervalsProcess)) * time.Second
+	agentConf.CheckIntervals["rtprocess"] = time.Duration(dc.GetInt(kIntervalsProcessRT)) * time.Second
+	agentConf.CheckIntervals["connections"] = time.Duration(dc.GetInt(kIntervalsConnections)) * time.Second
 
-	blackPat := ddconfig.Datadog.GetStringSlice(kBlacklistPatterns)
+	blackPat := dc.GetStringSlice(kBlacklistPatterns)
 	blacklist := make([]*regexp.Regexp, 0, len(blackPat))
 	for _, b := range blackPat {
 		r, err := regexp.Compile(b)
@@ -121,37 +122,37 @@ func mergeYamlConfig(agentConf *AgentConfig) (*AgentConfig, error) {
 	}
 	agentConf.Blacklist = blacklist
 
-	if ddconfig.Datadog.IsSet(kScrubArgs) {
-		agentConf.Scrubber.Enabled = ddconfig.Datadog.GetBool(kScrubArgs)
+	if dc.IsSet(kScrubArgs) {
+		agentConf.Scrubber.Enabled = dc.GetBool(kScrubArgs)
 	}
 
-	csw := ddconfig.Datadog.GetString(kCustomSensitiveWords)
+	csw := dc.GetString(kCustomSensitiveWords)
 	agentConf.Scrubber.AddCustomSensitiveWords(strings.Split(csw, ","))
 
-	agentConf.Scrubber.StripAllArguments = ddconfig.Datadog.GetBool(kStripProcessArguments)
+	agentConf.Scrubber.StripAllArguments = dc.GetBool(kStripProcessArguments)
 
-	agentConf.QueueSize = ddconfig.Datadog.GetInt(kQueueSize)
+	agentConf.QueueSize = dc.GetInt(kQueueSize)
 
-	agentConf.MaxProcFDs = ddconfig.Datadog.GetInt(kMaxProcFDs)
+	agentConf.MaxProcFDs = dc.GetInt(kMaxProcFDs)
 
-	if mpm := ddconfig.Datadog.GetInt(kMaxPerMessage); mpm <= maxMessageBatch {
+	if mpm := dc.GetInt(kMaxPerMessage); mpm <= maxMessageBatch {
 		agentConf.MaxPerMessage = mpm
 	} else {
 		log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
 	}
 
-	agentConf.DDAgentBin = ddconfig.Datadog.GetString(kDDAgentBin)
+	agentConf.DDAgentBin = dc.GetString(kDDAgentBin)
 
-	winAri := ddconfig.Datadog.GetInt(kWinArgsRefreshInterval)
+	winAri := dc.GetInt(kWinArgsRefreshInterval)
 	if winAri != 0 {
 		agentConf.Windows.ArgsRefreshInterval = winAri
 	}
 
-	if ddconfig.Datadog.IsSet(kWinAddNewArgs) {
-		agentConf.Windows.AddNewArgs = ddconfig.Datadog.GetBool(kWinAddNewArgs)
+	if dc.IsSet(kWinAddNewArgs) {
+		agentConf.Windows.AddNewArgs = dc.GetBool(kWinAddNewArgs)
 	}
 
-	additionalEndpoints := ddconfig.Datadog.GetStringMapStringSlice(kAdditionalEndpoints)
+	additionalEndpoints := dc.GetStringMapStringSlice(kAdditionalEndpoints)
 	for endpointURL, apiKeys := range additionalEndpoints {
 		u, err := url.Parse(endpointURL)
 		if err != nil {
@@ -166,22 +167,24 @@ func mergeYamlConfig(agentConf *AgentConfig) (*AgentConfig, error) {
 	}
 
 	// Pull additional parameters from the global config file.
-	agentConf.LogLevel = ddconfig.Datadog.GetString("log_level")
-	agentConf.StatsdPort = ddconfig.Datadog.GetInt("dogstatsd_port")
-	agentConf.StatsdHost = ddconfig.Datadog.GetString("bind_host")
+	if ok := dc.IsSet("log_level"); ok {
+		agentConf.LogLevel = dc.GetString("log_level")
+	}
+	agentConf.StatsdPort = dc.GetInt("dogstatsd_port")
+	agentConf.StatsdHost = dc.GetString("bind_host")
 	agentConf.Transport = ddutil.CreateHTTPTransport()
 
 	// Network related config
-	if ok, _ := isAffirmative(ddconfig.Datadog.GetString(kNetworkTracingEnabled)); ok {
+	if ok, _ := isAffirmative(dc.GetString(kNetworkTracingEnabled)); ok {
 		agentConf.EnabledChecks = append(agentConf.EnabledChecks, "connections")
 		agentConf.EnableNetworkTracing = true
 	}
 
-	if socketPath := ddconfig.Datadog.GetString(kNetworkUnixSocketPath); socketPath != "" {
+	if socketPath := dc.GetString(kNetworkUnixSocketPath); socketPath != "" {
 		agentConf.NetworkTracerSocketPath = socketPath
 	}
 
-	if logFile := ddconfig.Datadog.GetString(kNetworkLogFile); logFile != "" {
+	if logFile := dc.GetString(kNetworkLogFile); logFile != "" {
 		agentConf.LogFile = logFile
 	}
 
