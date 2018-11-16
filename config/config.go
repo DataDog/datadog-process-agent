@@ -284,18 +284,18 @@ func NewAgentConfig(dc ddconfig.Config, agentIni, agentYaml, networkYaml io.Read
 
 	// Pull from the ini Agent config by default.
 	if agentIni != nil {
-		if cfg, err = mergeIniConfig(agentIni, cfg); err != nil {
+		if err = mergeIniConfig(agentIni, cfg); err != nil {
 			return nil, fmt.Errorf("error reading the ini config")
 		}
 	}
 
 	// For Agents >= 6 we will have a YAML config file to use.
-	if cfg, err = mergeYamlConfig(dc, cfg); err != nil {
+	if err = mergeConfig(dc, cfg); err != nil {
 		return nil, err
 	}
 
 	// Environment variables
-	cfg = mergeEnvironmentVariables(dc, cfg)
+	mergeEnvironmentVariables(dc, cfg)
 
 	// Python-style log level has WARNING vs WARN
 	if strings.ToLower(cfg.LogLevel) == "warning" {
@@ -341,68 +341,35 @@ func NewAgentConfig(dc ddconfig.Config, agentIni, agentYaml, networkYaml io.Read
 	return cfg, nil
 }
 
-// mergeEnvironmentVariables applies overrides from environment variables to the process agent configuration
-func mergeEnvironmentVariables(dc ddconfig.Config, c *AgentConfig) *AgentConfig {
-	var err error
-
-	// Support API_KEY and DD_API_KEY but prefer DD_API_KEY.
-	if v := os.Getenv("API_KEY"); v != "" {
-		log.Info("overriding API key from env API_KEY value")
-		mergeAPIKeys(v, c)
+// NewReaderIfExists returns a new io.Reader if the given configPath is exists.
+func NewReaderIfExists(configPath string) (io.Reader, error) {
+	if !util.PathExists(configPath) {
+		return nil, nil
 	}
 
-	// Support LOG_LEVEL and DD_LOG_LEVEL but prefer DD_LOG_LEVEL
-	if v := os.Getenv("LOG_LEVEL"); v != "" {
-		c.LogLevel = v
+	lines, err := util.ReadLines(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("read error: %s", err)
 	}
 
-	// TODO
-	if c.proxy, err = proxyFromEnv(c.proxy); err != nil {
-		log.Errorf("error parsing proxy settings, not using a proxy: %s", err)
-		c.proxy = nil
+	return strings.NewReader(strings.Join(lines, "\n")), nil
+}
+
+// SetupDDAgentConfig initializes the datadog-agent config with a YAML file.
+// This is required for configuration to be available for container listeners.
+func SetupDDAgentConfig(configPath string) error {
+	ddconfig.Datadog.AddConfigPath(configPath)
+	// If they set a config file directly, let's try to honor that
+	if strings.HasSuffix(configPath, ".yaml") {
+		ddconfig.Datadog.SetConfigFile(configPath)
 	}
 
-	if v := dc.GetString("dd_url"); v != "" {
-		u, err := url.Parse(v)
-		if err != nil {
-			log.Warnf("DD_PROCESS_AGENT_URL/process_dd_url is invalid: %s", err)
-		} else {
-			if len(c.APIEndpoints) > 0 {
-				c.APIEndpoints[0].Endpoint = u
-			} else {
-				c.APIEndpoints = []APIEndpoint{{Endpoint: u}}
-			}
-		}
-		if site := os.Getenv("DD_SITE"); site != "" {
-			log.Infof("Using 'process_dd_url' (%s) and ignoring 'site' (%s)", v, site)
-		}
+	// load the configuration
+	if err := ddconfig.Load(); err != nil {
+		return fmt.Errorf("unable to load Datadog config file: %s", err)
 	}
 
-	// Docker config
-	c.CollectDockerNetwork, _ = isAffirmative(dc.GetString("COLLECT_DOCKER_NETWORK"))
-
-	if v := dc.GetString("CONTAINER_BLACKLIST"); v != "" {
-		c.ContainerBlacklist = strings.Split(v, ",")
-	}
-	if v := dc.GetString("CONTAINER_WHITELIST"); v != "" {
-		c.ContainerWhitelist = strings.Split(v, ",")
-	}
-	if v := dc.GetString("CONTAINER_CACHE_DURATION"); v != "" {
-		durationS, _ := strconv.Atoi(v)
-		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
-	}
-
-	// Used to override container source auto-detection.
-	// "docker", "ecs_fargate", "kubelet", etc
-	if v := dc.GetString("PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
-		util.SetContainerSource(v)
-	}
-
-	if ok, _ := isAffirmative(dc.GetString("USE_LOCAL_NETWORK_TRACER")); ok {
-		c.EnableLocalNetworkTracer = ok
-	}
-
-	return c
+	return nil
 }
 
 // IsBlacklisted returns a boolean indicating if the given command is blacklisted by our config.
@@ -562,146 +529,4 @@ func constructProxy(host, scheme string, port int, user, password string) (proxy
 		return nil, err
 	}
 	return http.ProxyURL(u), nil
-}
-
-func mergeAPIKeys(apiKey string, agentConf *AgentConfig) {
-	vals := strings.Split(apiKey, ",")
-	for i := range vals {
-		vals[i] = strings.TrimSpace(vals[i])
-	}
-	if len(agentConf.APIEndpoints) > 0 {
-		agentConf.APIEndpoints[0].APIKey = vals[0]
-	} else {
-		agentConf.APIEndpoints = []APIEndpoint{{APIKey: vals[0]}}
-	}
-}
-
-func mergeIniConfig(conf io.Reader, cfg *AgentConfig) (*AgentConfig, error) {
-	agentIni, err := NewFromReaderIfExists(conf)
-	if err != nil {
-		return nil, err
-	}
-
-	var section *ini.Section
-	// Not considered as an error
-	if agentIni != nil {
-		if section, _ = agentIni.GetSection("Main"); section == nil {
-			return cfg, nil
-		}
-	}
-
-	a, err := agentIni.Get("Main", "api_key")
-
-	if err != nil {
-		return nil, err
-	}
-
-	ak := strings.Split(a, ",")
-	if len(cfg.APIEndpoints) == 0 {
-		cfg.APIEndpoints = []APIEndpoint{{APIKey: ak[0]}}
-	} else {
-		cfg.APIEndpoints[0].APIKey = ak[0]
-	}
-
-	if len(ak) > 1 {
-		for i := 1; i < len(ak); i++ {
-			cfg.APIEndpoints = append(cfg.APIEndpoints, APIEndpoint{APIKey: ak[i]})
-		}
-	}
-
-	cfg.LogLevel = strings.ToLower(agentIni.GetDefault("Main", "log_level", "INFO"))
-	cfg.proxy, err = getProxySettings(section)
-	if err != nil {
-		log.Errorf("error parsing proxy settings, not using a proxy: %s", err)
-	}
-
-	v, _ := agentIni.Get("Main", "process_agent_enabled")
-	if enabled, err := isAffirmative(v); enabled {
-		cfg.Enabled = true
-		cfg.EnabledChecks = processChecks
-	} else if !enabled && err == nil { // Only want to disable the process agent if it's explicitly disabled
-		cfg.Enabled = false
-	}
-
-	cfg.StatsdHost = agentIni.GetDefault("Main", "bind_host", cfg.StatsdHost)
-	// non_local_traffic is a shorthand in dd-agent configuration that is
-	// equivalent to setting `bind_host: 0.0.0.0`. Respect this flag
-	// since it defaults to true in Docker and saves us a command-line param
-	v, _ = agentIni.Get("Main", "non_local_traffic")
-	if enabled, _ := isAffirmative(v); enabled {
-		cfg.StatsdHost = "0.0.0.0"
-	}
-	cfg.StatsdPort = agentIni.GetIntDefault("Main", "dogstatsd_port", cfg.StatsdPort)
-
-	// All process-agent specific config lives under [process.config] section.
-	// NOTE: we truncate either endpoints or APIEndpoints if the lengths don't match
-	ns := "process.config"
-	endpoints := agentIni.GetStrArrayDefault(ns, "endpoint", ",", []string{defaultEndpoint})
-	if len(endpoints) < len(cfg.APIEndpoints) {
-		log.Warnf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
-		cfg.APIEndpoints = cfg.APIEndpoints[:len(endpoints)]
-	} else if len(endpoints) > len(cfg.APIEndpoints) {
-		log.Warnf("found %d api keys and %d endpoints", len(cfg.APIEndpoints), len(endpoints))
-		endpoints = endpoints[:len(cfg.APIEndpoints)]
-	}
-	for i, e := range endpoints {
-		u, err := url.Parse(e)
-		if err != nil {
-			return nil, fmt.Errorf("invalid endpoint URL: %s", err)
-		}
-		cfg.APIEndpoints[i].Endpoint = u
-	}
-
-	cfg.QueueSize = agentIni.GetIntDefault(ns, "queue_size", cfg.QueueSize)
-	cfg.MaxProcFDs = agentIni.GetIntDefault(ns, "max_proc_fds", cfg.MaxProcFDs)
-	cfg.AllowRealTime = agentIni.GetBool(ns, "allow_real_time", cfg.AllowRealTime)
-	cfg.LogFile = agentIni.GetDefault(ns, "log_file", cfg.LogFile)
-	cfg.DDAgentPy = agentIni.GetDefault(ns, "dd_agent_py", cfg.DDAgentPy)
-	cfg.DDAgentPyEnv = agentIni.GetStrArrayDefault(ns, "dd_agent_py_env", ",", cfg.DDAgentPyEnv)
-
-	blacklistPats := agentIni.GetStrArrayDefault(ns, "blacklist", ",", []string{})
-	blacklist := make([]*regexp.Regexp, 0, len(blacklistPats))
-	for _, b := range blacklistPats {
-		r, err := regexp.Compile(b)
-		if err == nil {
-			blacklist = append(blacklist, r)
-		}
-	}
-	cfg.Blacklist = blacklist
-
-	// DataScrubber
-	cfg.Scrubber.Enabled = agentIni.GetBool(ns, "scrub_args", true)
-	customSensitiveWords := agentIni.GetStrArrayDefault(ns, "custom_sensitive_words", ",", []string{})
-	cfg.Scrubber.AddCustomSensitiveWords(customSensitiveWords)
-	cfg.Scrubber.StripAllArguments = agentIni.GetBool(ns, "strip_proc_arguments", false)
-
-	batchSize := agentIni.GetIntDefault(ns, "proc_limit", cfg.MaxPerMessage)
-	if batchSize <= maxMessageBatch {
-		cfg.MaxPerMessage = batchSize
-	} else {
-		log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
-		cfg.MaxPerMessage = maxMessageBatch
-	}
-
-	// Checks intervals can be overridden by configuration.
-	for checkName, defaultInterval := range cfg.CheckIntervals {
-		key := fmt.Sprintf("%s_interval", checkName)
-		interval := agentIni.GetDurationDefault(ns, key, time.Second, defaultInterval)
-		if interval != defaultInterval {
-			log.Infof("Overriding check interval for %s to %s", checkName, interval)
-			cfg.CheckIntervals[checkName] = interval
-		}
-	}
-
-	// Docker config
-	cfg.CollectDockerNetwork = agentIni.GetBool(ns, "collect_docker_network", cfg.CollectDockerNetwork)
-	cfg.ContainerBlacklist = agentIni.GetStrArrayDefault(ns, "container_blacklist", ",", cfg.ContainerBlacklist)
-	cfg.ContainerWhitelist = agentIni.GetStrArrayDefault(ns, "container_whitelist", ",", cfg.ContainerWhitelist)
-	cfg.ContainerCacheDuration = agentIni.GetDurationDefault(ns, "container_cache_duration", time.Second, 30*time.Second)
-
-	// windows args config
-	cfg.Windows.ArgsRefreshInterval = agentIni.GetIntDefault(ns, "windows_args_refresh_interval", cfg.Windows.ArgsRefreshInterval)
-	cfg.Windows.AddNewArgs = agentIni.GetBool(ns, "windows_add_new_args", true)
-
-	return cfg, nil
 }
