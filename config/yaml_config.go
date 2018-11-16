@@ -49,7 +49,7 @@ func NewYamlIfExists(configPath string) (*YamlAgentConfig, error) {
 // NewReaderIfExists returns a new io.Reader if the given configPath is exists.
 func NewReaderIfExists(configPath string) (io.Reader, error) {
 	if !util.PathExists(configPath) {
-		return nil, fmt.Errorf("error path not found: %s", configPath)
+		return nil, nil
 	}
 
 	lines, err := util.ReadLines(configPath)

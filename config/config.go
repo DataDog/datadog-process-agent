@@ -252,21 +252,19 @@ func NewAgentConfig(agentIni, agentYaml, networkYaml io.Reader) (*AgentConfig, e
 
 	// Read process config
 	if agentYaml != nil {
-		ddconfig.Datadog.ReadConfig(agentYaml)
+		if err := ddconfig.Datadog.ReadConfig(agentYaml); err != nil {
+			return nil, fmt.Errorf("error reading the agent yaml config: %s", err)
+		}
 	}
 
-	// Read network config
+	// Merge network config
 	if networkYaml != nil {
-		ddconfig.Datadog.ReadConfig(networkYaml)
+		if err := ddconfig.Datadog.MergeConfig(networkYaml); err != nil {
+			return nil, fmt.Errorf("error reading the network yaml config: %s", err)
+		}
 	}
 
 	var err error
-	err = ddconfig.Load()
-
-	// TODO remove this
-	if err != nil {
-		// panic(err)
-	}
 
 	// Initialize default config
 	cfg := NewDefaultAgentConfig()
@@ -274,7 +272,7 @@ func NewAgentConfig(agentIni, agentYaml, networkYaml io.Reader) (*AgentConfig, e
 	// Pull from the ini Agent config by default.
 	if agentIni != nil {
 		if cfg, err = mergeIniConfig(agentIni, cfg); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error reading the ini config")
 		}
 	}
 
@@ -577,7 +575,7 @@ func mergeIniConfig(conf io.Reader, cfg *AgentConfig) (*AgentConfig, error) {
 	var section *ini.Section
 	// Not considered as an error
 	if agentIni != nil {
-		if section, _ = agentIni.GetSection("Main"); section != nil {
+		if section, _ = agentIni.GetSection("Main"); section == nil {
 			return cfg, nil
 		}
 	}
