@@ -19,9 +19,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func newDDConfig() ddconfig.Config {
+	return ddconfig.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+}
+
 func newAgentConfig(agentIni, agentYaml, networkYaml io.Reader) (*AgentConfig, error) {
-	conf := ddconfig.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	return NewAgentConfig(conf, agentIni, agentYaml, networkYaml)
+	return NewAgentConfig(newDDConfig(), agentIni, agentYaml, networkYaml)
 }
 
 func TestBlacklist(t *testing.T) {
@@ -281,8 +284,10 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 	}, "\n"))
 
 	processDDURL := "http://my-process-app.datadoghq.com"
-	// TODO do not use global ddconfig.Datadog here
-	ddconfig.Datadog.Set("process_config.process_dd_url", processDDURL)
+
+	ddc := newDDConfig()
+	ddc.Set("process_config.process_dd_url", processDDURL)
+
 	ddy := strings.NewReader(strings.Join([]string{
 		"api_key: apikey_20",
 		"process_config:",
@@ -291,7 +296,7 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 		"    args_refresh_interval: 40",
 	}, "\n"))
 
-	agentConfig, err := newAgentConfig(conf, ddy, nil)
+	agentConfig, err := NewAgentConfig(ddc, conf, ddy, nil)
 	assert.NoError(err)
 
 	ep := agentConfig.APIEndpoints[0]
@@ -308,7 +313,10 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert := assert.New(t)
 	processDDURL := "http://my-process-app.datadoghq.com"
-	ddconfig.Datadog.Set("process_config.process_dd_url", processDDURL)
+
+	ddc := newDDConfig()
+	ddc.Set("process_config.process_dd_url", processDDURL)
+
 	ddy := strings.NewReader(strings.Join([]string{
 		"api_key: apikey_20",
 		"process_agent_enabled: true",
@@ -324,7 +332,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"  scrub_args: false",
 	}, "\n"))
 
-	agentConfig, err := newAgentConfig(nil, ddy, nil)
+	agentConfig, err := NewAgentConfig(ddc, nil, ddy, nil)
 	assert.NoError(err)
 
 	ep := agentConfig.APIEndpoints[0]
@@ -341,7 +349,8 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
 
 	processDDURL = "http://my-process-app.datadoghq.com"
-	ddconfig.Datadog.Set("process_config.process_dd_url", processDDURL)
+	ddc = newDDConfig()
+	ddc.Set("process_config.process_dd_url", processDDURL)
 	ddy = strings.NewReader(strings.Join([]string{
 		"api_key: apikey_20",
 		"process_agent_enabled: true",
@@ -357,7 +366,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"  scrub_args: true",
 	}, "\n"))
 
-	agentConfig, err = newAgentConfig(nil, ddy, nil)
+	agentConfig, err = NewAgentConfig(ddc, nil, ddy, nil)
 	assert.NoError(err)
 	ep = agentConfig.APIEndpoints[0]
 	assert.Equal("apikey_20", ep.APIKey)
@@ -369,7 +378,8 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(true, agentConfig.Scrubber.Enabled)
 
 	processDDURL = "http://my-process-app.datadoghq.com"
-	ddconfig.Datadog.Set("process_config.process_dd_url", processDDURL)
+	ddc = newDDConfig()
+	ddc.Set("process_config.process_dd_url", processDDURL)
 	ddy = strings.NewReader(strings.Join([]string{
 		"api_key: apikey_20",
 		"process_agent_enabled: true",
@@ -381,7 +391,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"    process: 30",
 	}, "\n"))
 
-	agentConfig, err = newAgentConfig(nil, ddy, nil)
+	agentConfig, err = NewAgentConfig(ddc, nil, ddy, nil)
 	assert.NoError(err)
 	ep = agentConfig.APIEndpoints[0]
 	assert.Equal("apikey_20", ep.APIKey)
@@ -393,7 +403,8 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(true, agentConfig.Scrubber.Enabled)
 
 	processDDURL = "http://my-process-app.datadoghq.com"
-	ddconfig.Datadog.Set("process_config.process_dd_url", processDDURL)
+	ddc = newDDConfig()
+	ddc.Set("process_config.process_dd_url", processDDURL)
 	ddy = strings.NewReader(strings.Join([]string{
 		"api_key: apikey_20",
 		"process_agent_enabled: true",
@@ -409,7 +420,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"    process: 30",
 	}, "\n"))
 
-	agentConfig, err = newAgentConfig(nil, ddy, nil)
+	agentConfig, err = NewAgentConfig(ddc, nil, ddy, nil)
 	assert.NoError(err)
 	eps := agentConfig.APIEndpoints
 	assert.Len(agentConfig.APIEndpoints, 3)
@@ -427,8 +438,9 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 
 	site := "datadoghq.eu"
 	processDDURL = "http://test-process.datadoghq.com"
-	ddconfig.Datadog.Set("process_config.process_dd_url", processDDURL)
-	ddconfig.Datadog.Set("site", site)
+	ddc = newDDConfig()
+	ddc.Set("process_config.process_dd_url", processDDURL)
+	ddc.Set("site", site)
 	ddy = strings.NewReader(strings.Join([]string{
 		"api_key: apikey_20",
 		"process_agent_enabled: true",
@@ -437,7 +449,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"  enabled: 'true'",
 	}, "\n"))
 
-	agentConfig, err = newAgentConfig(nil, ddy, nil)
+	agentConfig, err = NewAgentConfig(ddc, nil, ddy, nil)
 	assert.NoError(err)
 	assert.Len(agentConfig.APIEndpoints, 1)
 	assert.Equal("apikey_20", agentConfig.APIEndpoints[0].APIKey)
@@ -445,8 +457,9 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(true, agentConfig.Enabled)
 
 	site = "datacathq.eu"
-	ddconfig.Datadog.Set("process_config.process_dd_url", "")
-	ddconfig.Datadog.Set("site", site)
+	ddc = newDDConfig()
+	ddc.Set("process_config.process_dd_url", "")
+	ddc.Set("site", site)
 	ddy = strings.NewReader(strings.Join([]string{
 		"api_key: apikey_20",
 		"process_agent_enabled: true",
@@ -455,22 +468,21 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 		"  enabled: 'true'",
 	}, "\n"))
 
-	agentConfig, err = newAgentConfig(nil, ddy, nil)
+	agentConfig, err = NewAgentConfig(ddc, nil, ddy, nil)
 	assert.NoError(err)
 	assert.Len(agentConfig.APIEndpoints, 1)
 	assert.Equal("apikey_20", agentConfig.APIEndpoints[0].APIKey)
 	assert.Equal("process.datacathq.eu", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 	assert.Equal(true, agentConfig.Enabled)
-
-	ddconfig.Datadog.Set("process_config.process_dd_url", "")
-	ddconfig.Datadog.Set("site", "")
 }
 
 func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert := assert.New(t)
 	processDDURL := "http://my-process-app.datadoghq.com"
-	ddconfig.Datadog.Set("process_config.process_dd_url", processDDURL)
-	ddy := strings.NewReader(strings.Join([]string{
+	ddc := newDDConfig()
+	ddc.Set("process_config.process_dd_url", processDDURL)
+
+	ddy := strings.Join([]string{
 		"api_key: apikey_20",
 		"process_agent_enabled: true",
 		"process_config:",
@@ -483,9 +495,9 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 		"    args_refresh_interval: 100",
 		"    add_new_args: false",
 		"  scrub_args: false",
-	}, "\n"))
+	}, "\n")
 
-	agentConfig, err := newAgentConfig(nil, ddy, nil)
+	agentConfig, err := NewAgentConfig(ddc, nil, strings.NewReader(ddy), nil)
 	assert.NoError(err)
 
 	ep := agentConfig.APIEndpoints[0]
@@ -501,14 +513,13 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(false, agentConfig.Windows.AddNewArgs)
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
 
-	nety := strings.NewReader(strings.Join([]string{
+	nety := strings.Join([]string{
 		"network_tracer_config:",
 		"  enabled: true",
 		"  nettracer_socket: /var/my-location/network-tracer.log",
-	}, "\n"))
+	}, "\n")
 
-	agentConfig, err = newAgentConfig(nil, ddy, nety)
-
+	agentConfig, err = newAgentConfig(nil, strings.NewReader(ddy), strings.NewReader(nety))
 	assert.Equal("apikey_20", ep.APIKey)
 	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
 	assert.Equal(10, agentConfig.QueueSize)
@@ -678,7 +689,8 @@ func TestGetProxySettings(t *testing.T) {
 }
 
 func TestEnvSiteConfig(t *testing.T) {
-	ddconfig.Datadog.Set("process_config.process_dd_url", "")
+	ddc := newDDConfig()
+	ddc.Set("process_config.process_dd_url", "")
 	assert := assert.New(t)
 	for _, tc := range []struct {
 		site     string
@@ -702,10 +714,10 @@ func TestEnvSiteConfig(t *testing.T) {
 		},
 	} {
 		// Fake the os.Setenv("DD_SITE", tc.site)
-		ddconfig.Datadog.Set("site", tc.site)
+		ddc.Set("site", tc.site)
 		os.Setenv("DD_PROCESS_AGENT_URL", tc.ddURL)
 
-		agentConfig, err := newAgentConfig(nil, nil, nil)
+		agentConfig, err := NewAgentConfig(ddc, nil, nil, nil)
 		assert.NoError(err)
 		assert.Equal(tc.expected, agentConfig.APIEndpoints[0].Endpoint.Hostname())
 	}
