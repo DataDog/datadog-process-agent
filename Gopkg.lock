@@ -25,7 +25,7 @@
   version = "4.8"
 
 [[projects]]
-  digest = "1:e0950f6dff4a41409ffc5eb5758c115b9483ca66a3e5ac2f5b879c0a28975e28"
+  digest = "1:5d0859d403c5e07922268071f63ce10cfa4fb402619dc184be9405377ca5bcf6"
   name = "github.com/DataDog/datadog-agent"
   packages = [
     "cmd/agent/api/response",
@@ -63,10 +63,12 @@
     "pkg/util/kubernetes/kubelet",
     "pkg/util/log",
     "pkg/util/retry",
+    "pkg/util/tmplvar",
+    "pkg/util/winutil",
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "020e0e819623b29ca1d36ec7e39ed4c2186ce635"
+  revision = "1965cb16233ab07065e6909ee2f414a55742ae1f"
 
 [[projects]]
   digest = "1:7a91a175c283b21c6e99edc1b2fb82fe11eb5b42e7a28a2a67b17d9c28ad1855"
@@ -612,7 +614,10 @@
 [[projects]]
   digest = "1:c587772fb8ad29ad4db67575dad25ba17a51f072ff18a22b4f0257a4d9c24f75"
   name = "github.com/stretchr/testify"
-  packages = ["assert"]
+  packages = [
+    "assert",
+    "require",
+  ]
   pruneopts = ""
   revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
   version = "v1.2.2"
@@ -1004,6 +1009,7 @@
     "github.com/mailru/easyjson",
     "github.com/shirou/w32",
     "github.com/stretchr/testify/assert",
+    "github.com/stretchr/testify/require",
     "golang.org/x/sys/windows/svc",
     "golang.org/x/sys/windows/svc/debug",
     "golang.org/x/sys/windows/svc/eventlog",
