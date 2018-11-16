@@ -330,6 +330,7 @@ message ContainerMetadata {
 	string id = 1;
 	uint32 key = 2;
 	bytes byteKey = 3;
+	repeated string tags = 4;
 }
 
 message Addr {
