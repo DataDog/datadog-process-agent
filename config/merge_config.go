@@ -186,8 +186,12 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 	if ok := dc.IsSet("log_level"); ok {
 		agentConf.LogLevel = dc.GetString("log_level")
 	}
-	agentConf.StatsdPort = dc.GetInt("dogstatsd_port")
-	agentConf.StatsdHost = dc.GetString("bind_host")
+	if dc.IsSet("dogstatsd_port") {
+		agentConf.StatsdPort = dc.GetInt("dogstatsd_port")
+	}
+	if dc.IsSet("bind_host") {
+		agentConf.StatsdHost = dc.GetString("bind_host")
+	}
 	agentConf.Transport = ddutil.CreateHTTPTransport()
 
 	// Network related config
@@ -244,8 +248,9 @@ func mergeEnvironmentVariables(dc ddconfig.Config, c *AgentConfig) {
 		}
 	}
 
-	// Docker config
-	c.CollectDockerNetwork, _ = isAffirmative(dc.GetString("COLLECT_DOCKER_NETWORK"))
+	if dc.IsSet("COLLECT_DOCKER_NETWORK") {
+		c.CollectDockerNetwork, _ = isAffirmative(dc.GetString("COLLECT_DOCKER_NETWORK"))
+	}
 
 	if v := dc.GetString("CONTAINER_BLACKLIST"); v != "" {
 		c.ContainerBlacklist = strings.Split(v, ",")
@@ -376,13 +381,14 @@ func mergeIniConfig(conf io.Reader, c *AgentConfig) error {
 		c.MaxPerMessage = maxMessageBatch
 	}
 
+	checks := []string{"process", "rtprocess", "container", "rtcontainer"}
 	// Checks intervals can be overridden by configuration.
-	for checkName, defaultInterval := range c.CheckIntervals {
-		key := fmt.Sprintf("%s_interval", checkName)
-		interval := agentIni.GetDurationDefault(ns, key, time.Second, defaultInterval)
-		if interval != defaultInterval {
-			log.Infof("Overriding check interval for %s to %s", checkName, interval)
-			c.CheckIntervals[checkName] = interval
+	for _, name := range checks {
+		key := fmt.Sprintf("%s_interval", name)
+		interval := agentIni.GetDurationDefault(ns, key, time.Second, -1)
+		if interval != -1 {
+			log.Infof("Overriding check interval for %s to %s", name, interval)
+			c.CheckIntervals[name] = interval
 		}
 	}
 

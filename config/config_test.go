@@ -761,3 +761,79 @@ func TestIsAffirmative(t *testing.T) {
 	assert.Nil(t, err)
 	assert.False(t, value)
 }
+
+func TestIniConfig(t *testing.T) {
+	assert := assert.New(t)
+
+	raw := `[Main]
+    api_key = apikey1,apikey2
+    log_level = "warning"
+    process_agent_enabled = "true"
+    bind_host = "1.2.3.4"
+    non_local_traffic = "false"
+    dogstatsd_port = "6578"
+
+[process.config]
+    endpoint = https://process.datadoghq.com,https://process2.datadoghq.com
+    queue_size = 10
+    max_proc_fds = 9
+    allow_real_time = true
+    log_file = "/tmp/process-agent.log"
+    dd_agent_py = "/tmp/dd-agent"
+    dd_agent_py_env = env1=value1,env2=value2
+    blacklist = aaa,bbb
+    scrub_args = false
+    strip_proc_arguments = true
+    proc_limit = 10
+
+    process_interval = "1"
+    rtprocess_interval = "5"
+    container_interval = "6"
+    rtcontainer_interval = "7"
+
+    collect_docker_network = true
+    container_blacklist = aaa,bbb
+    container_whitelist = ccc,ddd
+    container_cache_duration = "11"
+
+    windows_args_refresh_interval = 11
+    windows_add_new_args = true
+`
+
+	conf, err := newAgentConfig(strings.NewReader(raw), nil, nil)
+	assert.NoError(err)
+
+	ep := conf.APIEndpoints
+	assert.Equal("apikey1", ep[0].APIKey)
+	assert.Equal("apikey2", ep[1].APIKey)
+	assert.Equal("https://process.datadoghq.com", ep[0].Endpoint.String())
+	assert.Equal("https://process2.datadoghq.com", ep[1].Endpoint.String())
+
+	// Warning should be shortened
+	assert.Equal("warn", conf.LogLevel)
+	assert.Equal(true, conf.Enabled)
+	assert.Equal("1.2.3.4", conf.StatsdHost)
+	assert.Equal(6578, conf.StatsdPort)
+
+	assert.Equal(10, conf.QueueSize)
+	assert.Equal(9, conf.MaxProcFDs)
+	assert.Equal(true, conf.AllowRealTime)
+	assert.Equal("/tmp/process-agent.log", conf.LogFile)
+	assert.Equal("/tmp/dd-agent", conf.DDAgentPy)
+	assert.Equal([]string{"env1=value1", "env2=value2"}, conf.DDAgentPyEnv)
+	assert.Equal(true, IsBlacklisted([]string{"aaa"}, conf.Blacklist))
+	assert.Equal(true, IsBlacklisted([]string{"bbb"}, conf.Blacklist))
+	assert.Equal(false, conf.Scrubber.Enabled)
+	assert.Equal(true, conf.Scrubber.StripAllArguments)
+	assert.Equal(10, conf.MaxPerMessage)
+	assert.Equal(1*time.Second, conf.CheckInterval("process"))
+	assert.Equal(5*time.Second, conf.CheckInterval("rtprocess"))
+	assert.Equal(6*time.Second, conf.CheckInterval("container"))
+	assert.Equal(7*time.Second, conf.CheckInterval("rtcontainer"))
+	assert.Equal(true, conf.CollectDockerNetwork)
+	assert.Equal([]string{"aaa", "bbb"}, conf.ContainerBlacklist)
+	assert.Equal([]string{"ccc", "ddd"}, conf.ContainerWhitelist)
+	assert.Equal(11*time.Second, conf.ContainerCacheDuration)
+	assert.Equal(11, conf.Windows.ArgsRefreshInterval)
+	assert.Equal(true, conf.Windows.AddNewArgs)
+}
