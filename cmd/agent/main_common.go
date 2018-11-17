@@ -108,9 +108,6 @@ func runAgent(exit chan bool) {
 	if err != nil {
 		log.Criticalf("Error reading datadog.yaml: %s", err)
 		os.Exit(1)
-	} else if yamlConf != nil {
-		// TODO this should be done in the config package
-		config.SetupDDAgentConfig(opts.configPath)
 	}
 
 	// Tagger must be initialized after agent config has been setup (via config.SetupDDAgentConfig)

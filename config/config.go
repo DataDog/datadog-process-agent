@@ -355,23 +355,6 @@ func NewReaderIfExists(configPath string) (io.Reader, error) {
 	return strings.NewReader(strings.Join(lines, "\n")), nil
 }
 
-// SetupDDAgentConfig initializes the datadog-agent config with a YAML file.
-// This is required for configuration to be available for container listeners.
-func SetupDDAgentConfig(configPath string) error {
-	ddconfig.Datadog.AddConfigPath(configPath)
-	// If they set a config file directly, let's try to honor that
-	if strings.HasSuffix(configPath, ".yaml") {
-		ddconfig.Datadog.SetConfigFile(configPath)
-	}
-
-	// load the configuration
-	if err := ddconfig.Load(); err != nil {
-		return fmt.Errorf("unable to load Datadog config file: %s", err)
-	}
-
-	return nil
-}
-
 // IsBlacklisted returns a boolean indicating if the given command is blacklisted by our config.
 func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 	cmd := strings.Join(cmdline, " ")
