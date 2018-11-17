@@ -688,6 +688,7 @@ func TestGetProxySettings(t *testing.T) {
 func TestEnvSiteConfig(t *testing.T) {
 	ddc := newDDConfig()
 	ddc.Set("process_config.process_dd_url", "")
+	defer os.Unsetenv("DD_PROCESS_AGENT_URL")
 	assert := assert.New(t)
 	for _, tc := range []struct {
 		site     string
