@@ -202,6 +202,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 		StatsdHost: "127.0.0.1",
 		StatsdPort: 8125,
 
+		DDAgentBin: defaultDDAgentBin,
+
 		// Path and environment for the dd-agent embedded python
 		DDAgentPy:    defaultDDAgentPy,
 		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
