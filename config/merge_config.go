@@ -37,7 +37,7 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 		mergeAPIKeys(apiKey, agentConf)
 	}
 
-	en := dc.GetString(kEnabled)
+	en := dc.GetString(keyEnabled)
 	if enabled, err := isAffirmative(en); enabled {
 		agentConf.Enabled = true
 		agentConf.EnabledChecks = processChecks
@@ -81,28 +81,28 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 		agentConf.LogToConsole = enabled
 	}
 
-	if dc.IsSet(kLogFile) {
-		agentConf.LogFile = dc.GetString(kLogFile)
+	if dc.IsSet(keyLogFile) {
+		agentConf.LogFile = dc.GetString(keyLogFile)
 	}
 
-	if dc.IsSet(kIntervalsContainer) {
-		agentConf.CheckIntervals["container"] = time.Duration(dc.GetInt(kIntervalsContainer)) * time.Second
+	if dc.IsSet(keyIntervalsContainer) {
+		agentConf.CheckIntervals["container"] = time.Duration(dc.GetInt(keyIntervalsContainer)) * time.Second
 	}
-	if dc.IsSet(kIntervalsContainerRT) {
-		agentConf.CheckIntervals["rtcontainer"] = time.Duration(dc.GetInt(kIntervalsContainerRT)) * time.Second
+	if dc.IsSet(keyIntervalsContainerRT) {
+		agentConf.CheckIntervals["rtcontainer"] = time.Duration(dc.GetInt(keyIntervalsContainerRT)) * time.Second
 	}
-	if dc.IsSet(kIntervalsProcess) {
-		agentConf.CheckIntervals["process"] = time.Duration(dc.GetInt(kIntervalsProcess)) * time.Second
+	if dc.IsSet(keyIntervalsProcess) {
+		agentConf.CheckIntervals["process"] = time.Duration(dc.GetInt(keyIntervalsProcess)) * time.Second
 	}
-	if dc.IsSet(kIntervalsProcessRT) {
-		agentConf.CheckIntervals["rtprocess"] = time.Duration(dc.GetInt(kIntervalsProcessRT)) * time.Second
+	if dc.IsSet(keyIntervalsProcessRT) {
+		agentConf.CheckIntervals["rtprocess"] = time.Duration(dc.GetInt(keyIntervalsProcessRT)) * time.Second
 	}
-	if dc.IsSet(kIntervalsConnections) {
-		agentConf.CheckIntervals["connections"] = time.Duration(dc.GetInt(kIntervalsConnections)) * time.Second
+	if dc.IsSet(keyIntervalsConnections) {
+		agentConf.CheckIntervals["connections"] = time.Duration(dc.GetInt(keyIntervalsConnections)) * time.Second
 	}
 
-	if dc.IsSet(kBlacklistPatterns) {
-		blackPat := dc.GetStringSlice(kBlacklistPatterns)
+	if dc.IsSet(keyBlacklistPatterns) {
+		blackPat := dc.GetStringSlice(keyBlacklistPatterns)
 		blacklist := make([]*regexp.Regexp, 0, len(blackPat))
 		for _, b := range blackPat {
 			r, err := regexp.Compile(b)
@@ -114,60 +114,60 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 		agentConf.Blacklist = blacklist
 	}
 
-	if dc.IsSet(kScrubArgs) {
-		agentConf.Scrubber.Enabled = dc.GetBool(kScrubArgs)
+	if dc.IsSet(keyScrubArgs) {
+		agentConf.Scrubber.Enabled = dc.GetBool(keyScrubArgs)
 	}
 
-	if dc.IsSet(kCustomSensitiveWords) {
-		csw := dc.GetString(kCustomSensitiveWords)
+	if dc.IsSet(keyCustomSensitiveWords) {
+		csw := dc.GetString(keyCustomSensitiveWords)
 		agentConf.Scrubber.AddCustomSensitiveWords(strings.Split(csw, ","))
 	}
 
-	if dc.IsSet(kStripProcessArguments) {
-		agentConf.Scrubber.StripAllArguments = dc.GetBool(kStripProcessArguments)
+	if dc.IsSet(keyStripProcessArguments) {
+		agentConf.Scrubber.StripAllArguments = dc.GetBool(keyStripProcessArguments)
 	}
 
-	if dc.IsSet(kQueueSize) {
-		agentConf.QueueSize = dc.GetInt(kQueueSize)
+	if dc.IsSet(keyQueueSize) {
+		agentConf.QueueSize = dc.GetInt(keyQueueSize)
 	}
 
-	if dc.IsSet(kMaxProcFDs) {
-		agentConf.MaxProcFDs = dc.GetInt(kMaxProcFDs)
+	if dc.IsSet(keyMaxProcFDs) {
+		agentConf.MaxProcFDs = dc.GetInt(keyMaxProcFDs)
 	}
 
-	if dc.IsSet(kMaxPerMessage) {
-		if mpm := dc.GetInt(kMaxPerMessage); mpm <= maxMessageBatch {
+	if dc.IsSet(keyMaxPerMessage) {
+		if mpm := dc.GetInt(keyMaxPerMessage); mpm <= maxMessageBatch {
 			agentConf.MaxPerMessage = mpm
 		} else {
 			log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
 		}
 	}
 
-	if dc.IsSet(kDDAgentBin) {
-		agentConf.DDAgentBin = dc.GetString(kDDAgentBin)
+	if dc.IsSet(keyDDAgentBin) {
+		agentConf.DDAgentBin = dc.GetString(keyDDAgentBin)
 	}
 
-	if dc.IsSet(kDDAgentPy) {
-		agentConf.DDAgentPy = dc.GetString(kDDAgentPy)
+	if dc.IsSet(keyDDAgentPy) {
+		agentConf.DDAgentPy = dc.GetString(keyDDAgentPy)
 	}
 
-	if dc.IsSet(kDDAgentPyEnv) {
-		agentConf.DDAgentPyEnv = strings.Split(dc.GetString(kDDAgentPyEnv), ",")
+	if dc.IsSet(keyDDAgentPyEnv) {
+		agentConf.DDAgentPyEnv = strings.Split(dc.GetString(keyDDAgentPyEnv), ",")
 	}
 
-	if dc.IsSet(kWinArgsRefreshInterval) {
-		winAri := dc.GetInt(kWinArgsRefreshInterval)
+	if dc.IsSet(keyWinArgsRefreshInterval) {
+		winAri := dc.GetInt(keyWinArgsRefreshInterval)
 		if winAri != 0 {
 			agentConf.Windows.ArgsRefreshInterval = winAri
 		}
 	}
 
-	if dc.IsSet(kWinAddNewArgs) {
-		agentConf.Windows.AddNewArgs = dc.GetBool(kWinAddNewArgs)
+	if dc.IsSet(keyWinAddNewArgs) {
+		agentConf.Windows.AddNewArgs = dc.GetBool(keyWinAddNewArgs)
 	}
 
-	if dc.IsSet(kAdditionalEndpoints) {
-		additionalEndpoints := dc.GetStringMapStringSlice(kAdditionalEndpoints)
+	if dc.IsSet(keyAdditionalEndpoints) {
+		additionalEndpoints := dc.GetStringMapStringSlice(keyAdditionalEndpoints)
 		for endpointURL, apiKeys := range additionalEndpoints {
 			u, err := url.Parse(endpointURL)
 			if err != nil {
@@ -195,17 +195,17 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 	agentConf.Transport = ddutil.CreateHTTPTransport()
 
 	// Network related config
-	if ok, _ := isAffirmative(dc.GetString(kNetworkTracingEnabled)); ok {
+	if ok, _ := isAffirmative(dc.GetString(keyNetworkTracingEnabled)); ok {
 		agentConf.EnabledChecks = append(agentConf.EnabledChecks, "connections")
 		agentConf.EnableNetworkTracing = true
 	}
 
-	if dc.IsSet(kNetworkUnixSocketPath) {
-		agentConf.NetworkTracerSocketPath = dc.GetString(kNetworkUnixSocketPath)
+	if dc.IsSet(keyNetworkUnixSocketPath) {
+		agentConf.NetworkTracerSocketPath = dc.GetString(keyNetworkUnixSocketPath)
 	}
 
-	if dc.IsSet(kNetworkLogFile) {
-		agentConf.LogFile = dc.GetString(kNetworkLogFile)
+	if dc.IsSet(keyNetworkLogFile) {
+		agentConf.LogFile = dc.GetString(keyNetworkLogFile)
 	}
 
 	return nil

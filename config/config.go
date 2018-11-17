@@ -142,34 +142,34 @@ func NewDefaultTransport() *http.Transport {
 }
 
 func initConfig(dc ddconfig.Config) {
-	dc.BindEnv(kLogFile)
+	dc.BindEnv(keyLogFile)
 	// All the following durations are in seconds
-	dc.BindEnv(kQueueSize)
-	dc.BindEnv(kMaxProcFDs)
-	dc.BindEnv(kMaxPerMessage)
+	dc.BindEnv(keyQueueSize)
+	dc.BindEnv(keyMaxProcFDs)
+	dc.BindEnv(keyMaxPerMessage)
 
-	dc.BindEnv(kWinAddNewArgs)
+	dc.BindEnv(keyWinAddNewArgs)
 
 	// Variables that don't have the same name in the config and in the env
 
-	dc.BindEnv(kDDURL, envDDURL)
-	dc.BindEnv(kEnabled, envEnabled)
-	dc.BindEnv(kDDAgentBin, envDDAgentBin)
-	dc.BindEnv(kDDAgentEnv, envDDAgentEnv)
-	dc.BindEnv(kDDAgentPy, envDDAgentPy)
-	dc.BindEnv(kDDAgentPyEnv, envDDAgentPyEnv)
-	dc.BindEnv(kScrubArgs, envScrubArgs)
-	dc.BindEnv(kCustomSensitiveWords, envCustomSensitiveWords)
-	dc.BindEnv(kStripProcessArguments, envStripProcessArguments)
-	dc.BindEnv(kAPIKey)
+	dc.BindEnv(keyDDURL, envDDURL)
+	dc.BindEnv(keyEnabled, envEnabled)
+	dc.BindEnv(keyDDAgentBin, envDDAgentBin)
+	dc.BindEnv(keyDDAgentEnv, envDDAgentEnv)
+	dc.BindEnv(keyDDAgentPy, envDDAgentPy)
+	dc.BindEnv(keyDDAgentPyEnv, envDDAgentPyEnv)
+	dc.BindEnv(keyScrubArgs, envScrubArgs)
+	dc.BindEnv(keyCustomSensitiveWords, envCustomSensitiveWords)
+	dc.BindEnv(keyStripProcessArguments, envStripProcessArguments)
+	dc.BindEnv(keyAPIKey)
 
 	// Network tracer config
 
-	dc.BindEnv(kNetworkLogFile)
+	dc.BindEnv(keyNetworkLogFile)
 
 	// Variables that don't have the same name in the config and in the env
-	dc.BindEnv(kNetworkTracingEnabled, envNetworkTracingEnabled)
-	dc.BindEnv(kNetworkUnixSocketPath, envNetworkUnixSocketPath)
+	dc.BindEnv(keyNetworkTracingEnabled, envNetworkTracingEnabled)
+	dc.BindEnv(keyNetworkUnixSocketPath, envNetworkUnixSocketPath)
 }
 
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
