@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -347,12 +348,12 @@ func NewReaderIfExists(configPath string) (io.Reader, error) {
 		return nil, nil
 	}
 
-	lines, err := util.ReadLines(configPath)
+	raw, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("read error: %s", err)
 	}
 
-	return strings.NewReader(strings.Join(lines, "\n")), nil
+	return bytes.NewBuffer(raw), nil
 }
 
 // IsBlacklisted returns a boolean indicating if the given command is blacklisted by our config.

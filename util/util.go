@@ -1,7 +1,6 @@
 package util
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"os"
@@ -14,22 +13,6 @@ import (
 // OS doesn't support and API. Unfortunately it's in an internal package so
 // we can't import it so we'll copy it here.
 var ErrNotImplemented = errors.New("not implemented yet")
-
-// ReadLines reads contents from a file and splits them by new lines.
-func ReadLines(filename string) ([]string, error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return []string{""}, err
-	}
-	defer f.Close()
-
-	var ret []string
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		ret = append(ret, scanner.Text())
-	}
-	return ret, scanner.Err()
-}
 
 // GetEnv retrieves the environment variable key. If it does not exist it returns the default.
 func GetEnv(key string, dfault string, combineWith ...string) string {
