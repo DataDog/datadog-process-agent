@@ -205,7 +205,7 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 	}
 
 	if dc.IsSet(keyNetworkLogFile) {
-		agentConf.LogFile = dc.GetString(keyNetworkLogFile)
+		agentConf.NetworkTracerLogFile = dc.GetString(keyNetworkLogFile)
 	}
 
 	return nil
