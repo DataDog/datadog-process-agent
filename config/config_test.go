@@ -838,3 +838,99 @@ func TestIniConfig(t *testing.T) {
 	assert.Equal(11, conf.Windows.ArgsRefreshInterval)
 	assert.Equal(true, conf.Windows.AddNewArgs)
 }
+
+func TestYamlConfig(t *testing.T) {
+	assert := assert.New(t)
+
+	raw := `api_key: apikey1
+dd_url: https://process.datadoghq.com
+log_level: "warning"
+process_agent_enabled: "true"
+bind_host: "1.2.3.4"
+non_local_traffic: "false"
+dogstatsd_port: "6578"
+
+process_config:
+  enabled: "true"
+  log_file: "/tmp/process-agent.log"
+  intervals:
+    process: "1"
+    process_realtime: "5"
+    container: "6"
+    container_realtime: "7"
+
+  blacklist_patterns:
+    - aaa
+    - bbb
+  scrub_args: false
+  strip_proc_arguments: true
+  queue_size: 10
+  max_proc_fds: 9
+  max_per_message: 10
+  dd_agent_bin: /usr/bin/dd-agent
+  dd_agent_py: "/tmp/dd-agent"
+  dd_agent_py_env: "env1=value1,env2=value2"
+
+  additional_endpoints:
+    https://process2.datadoghq.com:
+      - apikeytest1
+      - apikeytest2
+
+  windows:
+    args_refresh_interval: 11
+    add_new_args: true
+`
+
+	conf, err := newAgentConfig(nil, strings.NewReader(raw), nil)
+	assert.NoError(err)
+
+	ep := conf.APIEndpoints
+	assert.Equal("apikey1", ep[0].APIKey)
+	assert.Equal("apikeytest1", ep[1].APIKey)
+	assert.Equal("apikeytest2", ep[2].APIKey)
+	assert.Equal("https://process.datadoghq.com", ep[0].Endpoint.String())
+	assert.Equal("https://process2.datadoghq.com", ep[1].Endpoint.String())
+	assert.Equal("https://process2.datadoghq.com", ep[2].Endpoint.String())
+
+	// Warning should be shortened
+	assert.Equal("warn", conf.LogLevel)
+	assert.Equal(true, conf.Enabled)
+	assert.Equal("1.2.3.4", conf.StatsdHost)
+	assert.Equal(6578, conf.StatsdPort)
+
+	assert.Equal(10, conf.QueueSize)
+	assert.Equal(9, conf.MaxProcFDs)
+	assert.Equal(true, conf.AllowRealTime)
+	assert.Equal("/tmp/process-agent.log", conf.LogFile)
+	assert.Equal("/usr/bin/dd-agent", conf.DDAgentBin)
+	assert.Equal("/tmp/dd-agent", conf.DDAgentPy)
+	assert.Equal([]string{"env1=value1", "env2=value2"}, conf.DDAgentPyEnv)
+	assert.Equal(true, IsBlacklisted([]string{"aaa"}, conf.Blacklist))
+	assert.Equal(true, IsBlacklisted([]string{"bbb"}, conf.Blacklist))
+	assert.Equal(true, IsBlacklisted([]string{"bbb"}, conf.Blacklist))
+	assert.Equal(false, conf.Scrubber.Enabled)
+	assert.Equal(true, conf.Scrubber.StripAllArguments)
+	assert.Equal(10, conf.MaxPerMessage)
+	assert.Equal(1*time.Second, conf.CheckInterval("process"))
+	assert.Equal(5*time.Second, conf.CheckInterval("rtprocess"))
+	assert.Equal(6*time.Second, conf.CheckInterval("container"))
+	assert.Equal(7*time.Second, conf.CheckInterval("rtcontainer"))
+	assert.Equal(11, conf.Windows.ArgsRefreshInterval)
+	assert.Equal(true, conf.Windows.AddNewArgs)
+}
+
+func TestNetYamlConfig(t *testing.T) {
+	assert := assert.New(t)
+
+	raw := `network_tracer_config:
+  enabled: true
+  nettracer_socket: /tmp/dummy.sock
+  log_file: /tmp/net.log
+`
+
+	conf, err := newAgentConfig(nil, nil, strings.NewReader(raw))
+	assert.NoError(err)
+	assert.Equal(true, conf.EnableNetworkTracing)
+	assert.Equal("/tmp/dummy.sock", conf.NetworkTracerSocketPath)
+	assert.Equal("/tmp/net.log", conf.NetworkTracerLogFile)
+}
