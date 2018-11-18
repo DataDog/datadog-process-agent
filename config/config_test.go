@@ -934,3 +934,48 @@ func TestNetYamlConfig(t *testing.T) {
 	assert.Equal("/tmp/dummy.sock", conf.NetworkTracerSocketPath)
 	assert.Equal("/tmp/net.log", conf.NetworkTracerLogFile)
 }
+
+func TestDefaultValuesConfig(t *testing.T) {
+	assert := assert.New(t)
+
+	conf, err := newAgentConfig(nil, strings.NewReader("api_key: foobar"), nil)
+	assert.NoError(err)
+
+	ep := conf.APIEndpoints
+	assert.Equal("foobar", ep[0].APIKey)
+	assert.Equal("https://process.datadoghq.com", ep[0].Endpoint.String())
+
+	assert.Equal("info", conf.LogLevel)
+	assert.Equal(false, conf.Enabled)
+	assert.Equal("127.0.0.1", conf.StatsdHost)
+	assert.Equal(8125, conf.StatsdPort)
+
+	assert.Equal(20, conf.QueueSize)
+	assert.Equal(200, conf.MaxProcFDs)
+	assert.Equal(true, conf.AllowRealTime)
+	assert.Equal(defaultLogFilePath, conf.LogFile)
+	assert.Equal(defaultDDAgentBin, conf.DDAgentBin)
+	assert.Equal(defaultDDAgentPy, conf.DDAgentPy)
+	assert.Equal([]string{defaultDDAgentPyEnv}, conf.DDAgentPyEnv)
+	assert.Equal(0, len(conf.Blacklist))
+	assert.Equal(true, conf.Scrubber.Enabled)
+	assert.Equal(false, conf.Scrubber.StripAllArguments)
+	assert.Equal(100, conf.MaxPerMessage)
+	assert.Equal(10*time.Second, conf.CheckInterval("process"))
+	assert.Equal(2*time.Second, conf.CheckInterval("rtprocess"))
+	assert.Equal(10*time.Second, conf.CheckInterval("container"))
+	assert.Equal(2*time.Second, conf.CheckInterval("rtcontainer"))
+	assert.Equal(15, conf.Windows.ArgsRefreshInterval)
+	assert.Equal(true, conf.Windows.AddNewArgs)
+}
+
+func TestNetworkDefaultValuesConfig(t *testing.T) {
+	assert := assert.New(t)
+
+	conf, err := newAgentConfig(nil, nil, strings.NewReader(""))
+	assert.NoError(err)
+
+	assert.Equal(false, conf.EnableNetworkTracing)
+	assert.Equal(defaultNetworkTracerSocketPath, conf.NetworkTracerSocketPath)
+	assert.Equal(defaultNetworkLogFilePath, conf.NetworkTracerLogFile)
+}
