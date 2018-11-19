@@ -25,7 +25,7 @@
   version = "4.8"
 
 [[projects]]
-  digest = "1:5d0859d403c5e07922268071f63ce10cfa4fb402619dc184be9405377ca5bcf6"
+  digest = "1:faba1644acc2d902bbf838b60753e9697a5161f08089b3903a444543a1d0840c"
   name = "github.com/DataDog/datadog-agent"
   packages = [
     "cmd/agent/api/response",
@@ -68,7 +68,7 @@
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "1965cb16233ab07065e6909ee2f414a55742ae1f"
+  revision = "daf74af72a86be259561ce25c277a3d7a8d72830"
 
 [[projects]]
   digest = "1:7a91a175c283b21c6e99edc1b2fb82fe11eb5b42e7a28a2a67b17d9c28ad1855"
