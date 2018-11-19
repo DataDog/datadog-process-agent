@@ -172,7 +172,7 @@ enum ContainerHealth {
 message ContainerNetworkAddress {
 	string ip = 1;
 	int32 port = 2;
-	string protocol = 3; // tcp/udp
+	ConnectionType protocol = 3;
 }
 
 message Container {

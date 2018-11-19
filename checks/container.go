@@ -152,10 +152,14 @@ func fmtContainers(ctrList []*containers.Container, lastRates map[string]util.Co
 func convertAddressList(ctr *containers.Container) []*model.ContainerNetworkAddress {
 	addrs := make([]*model.ContainerNetworkAddress, 0, len(ctr.AddressList))
 	for _, a := range ctr.AddressList {
+		protocol := model.ConnectionType_tcp
+		if a.Protocol == "UDP" {
+			protocol = model.ConnectionType_udp
+		}
 		addrs = append(addrs, &model.ContainerNetworkAddress{
 			Ip:       a.IP.String(),
 			Port:     int32(a.Port),
-			Protocol: a.Protocol,
+			Protocol: protocol,
 		})
 	}
 	return addrs
