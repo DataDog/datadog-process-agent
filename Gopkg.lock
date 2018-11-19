@@ -90,11 +90,11 @@
   revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
 
 [[projects]]
-  digest = "1:e812ef308bb3a98d6d4df315d16bdc6e90cab8dfbb6ebbc15e830d4a214d3005"
+  digest = "1:a21bde80219999ce6a26f8b41d0218d77e067628352f88d7173302cf6779d7eb"
   name = "github.com/DataDog/tcptracer-bpf"
   packages = ["pkg/tracer"]
   pruneopts = ""
-  revision = "e67093561a9e7e3cd7380d68d5022a1626ce32b2"
+  revision = "1281e95bac1df91e307a0cb6795e1c7c76f49067"
 
 [[projects]]
   digest = "1:f3662169bf21f0406cdad064a592c5a052e8ba32f64a360d755544cd5a98dba8"
@@ -612,7 +612,10 @@
 [[projects]]
   digest = "1:c587772fb8ad29ad4db67575dad25ba17a51f072ff18a22b4f0257a4d9c24f75"
   name = "github.com/stretchr/testify"
-  packages = ["assert"]
+  packages = [
+    "assert",
+    "require",
+  ]
   pruneopts = ""
   revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
   version = "v1.2.2"
@@ -1004,6 +1007,8 @@
     "github.com/mailru/easyjson",
     "github.com/shirou/w32",
     "github.com/stretchr/testify/assert",
+    "github.com/stretchr/testify/require",
+    "golang.org/x/sys/unix",
     "golang.org/x/sys/windows/svc",
     "golang.org/x/sys/windows/svc/debug",
     "golang.org/x/sys/windows/svc/eventlog",
