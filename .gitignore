@@ -4,6 +4,7 @@ vendor/
 .vscode
 *.exe
 *.syso
+*.swp
 cmd/agent/windows_resources/process-agent-msg.rc
 cmd/agent/windows_resources/*.bin
 # file generated at build time by message compiler
