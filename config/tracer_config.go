@@ -1,6 +1,10 @@
 package config
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+
 	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
 	log "github.com/cihub/seelog"
 )
@@ -9,10 +13,11 @@ import (
 func TracerConfigFromConfig(cfg *AgentConfig) *tracer.Config {
 	tracerConfig := tracer.NewDefaultConfig()
 
-	if !tracerConfig.TraceIPv6Connections {
+	if !isIPv6EnabledOnHost() {
+		tracerConfig.CollectIPv6Conns = false
 		log.Info("network tracer IPv6 tracing disabled by system")
 	} else if cfg.DisableIPv6Tracing {
-		tracerConfig.TraceIPv6Connections = false
+		tracerConfig.CollectIPv6Conns = false
 		log.Info("network tracer IPv6 tracing disabled by configuration")
 	}
 
@@ -27,4 +32,33 @@ func TracerConfigFromConfig(cfg *AgentConfig) *tracer.Config {
 	}
 
 	return tracerConfig
+}
+
+func isIPv6EnabledOnHost() bool {
+	_, err := ioutil.ReadFile(hostProc("net/if_inet6"))
+	return err == nil
+}
+
+// getEnv retrieves the environment variable key. If it does not exist it returns the default.
+func getEnv(key string, dfault string, combineWith ...string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		value = dfault
+	}
+
+	switch len(combineWith) {
+	case 0:
+		return value
+	case 1:
+		return filepath.Join(value, combineWith[0])
+	default:
+		all := make([]string, len(combineWith)+1)
+		all[0] = value
+		copy(all[1:], combineWith)
+		return filepath.Join(all...)
+	}
+}
+
+func hostProc(combineWith ...string) string {
+	return getEnv("HOST_PROC", "/proc", combineWith...)
 }

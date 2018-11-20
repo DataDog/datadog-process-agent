@@ -90,11 +90,11 @@
   revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
 
 [[projects]]
-  digest = "1:8ed3148707413b4fed2278efd6aa3a1a6da7fa64eb3a171eae0b1a5c5b7d4a25"
+  digest = "1:6d949a9cb13d4d91f8d92ae4c888ad4cbe7ed77f7e51abd5bb2453a0d900a08d"
   name = "github.com/DataDog/tcptracer-bpf"
   packages = ["pkg/tracer"]
   pruneopts = ""
-  revision = "f98ab001ca4cb27a853cbe702623d698cd738fd1"
+  revision = "fe34678324074952a5978a561e2b650e414d5ac9"
 
 [[projects]]
   digest = "1:f3662169bf21f0406cdad064a592c5a052e8ba32f64a360d755544cd5a98dba8"
