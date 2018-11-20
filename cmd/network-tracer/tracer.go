@@ -40,7 +40,8 @@ func CreateNetworkTracer(cfg *config.AgentConfig) (*NetworkTracer, error) {
 	}
 
 	log.Infof("Creating tracer for: %s", filepath.Base(os.Args[0]))
-	t, err := tracer.NewTracer(tracer.DefaultConfig)
+
+	t, err := tracer.NewTracer(config.TracerConfigFromConfig(cfg))
 	if err != nil {
 		return nil, err
 	}

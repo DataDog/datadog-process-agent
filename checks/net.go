@@ -48,7 +48,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 			return
 		}
 
-		t, err := tracer.NewTracer(tracer.DefaultConfig)
+		t, err := tracer.NewTracer(config.TracerConfigFromConfig(cfg))
 		if err != nil {
 			log.Errorf("failed to create network tracer: %s", err)
 			return
