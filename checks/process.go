@@ -76,27 +76,42 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		return nil, nil
 	}
 
-	chunkedProcs := fmtProcesses(cfg, procs, p.lastProcs,
-		ctrList, cpuTimes[0], p.lastCPUTime, p.lastRun)
+	procsByCtr := fmtProcesses(cfg, procs, p.lastProcs, ctrList, cpuTimes[0], p.lastCPUTime, p.lastRun)
 	// In case we skip every process..
-	if len(chunkedProcs) == 0 {
+	if len(procsByCtr) == 0 {
 		return nil, nil
 	}
-	groupSize := len(chunkedProcs)
-	chunkedContainers := fmtContainers(ctrList, p.lastCtrRates, p.lastRun, groupSize)
-	messages := make([]model.MessageBody, 0, groupSize)
-	totalProcs, totalContainers := float64(0), float64(0)
-	for i := 0; i < groupSize; i++ {
-		totalProcs += float64(len(chunkedProcs[i]))
-		totalContainers += float64(len(chunkedContainers[i]))
-		messages = append(messages, &model.CollectorProc{
-			HostName:   cfg.HostName,
-			Info:       p.sysInfo,
-			Processes:  chunkedProcs[i],
-			Containers: chunkedContainers[i],
-			GroupId:    groupID,
-			GroupSize:  int32(groupSize),
-		})
+	messages := make([]model.MessageBody, 0)
+	totalProcs, totalContainers := 0, 0
+
+	// we first split non-container processes in chunks then pack all containered processes with containers in a message
+	if procsByCtr[""] != nil {
+		totalProcs += len(procsByCtr[""])
+	}
+	messages = append(messages, p.chunkProcesses(cfg, procsByCtr[""], groupID)...)
+
+	// ctrProcs holds only the processes that are running in containers
+	ctrProcs := make([]*model.Process, 0)
+	for _, ctr := range ctrList {
+		// if all processes are skipped for this container, don't send the container
+		if _, ok := procsByCtr[ctr.ID]; !ok {
+			continue
+		}
+		totalProcs += len(procsByCtr[ctr.ID])
+		totalContainers++
+		ctrProcs = append(ctrProcs, procsByCtr[ctr.ID]...)
+
+	}
+	messages = append(messages, &model.CollectorProc{
+		HostName:   cfg.HostName,
+		Info:       p.sysInfo,
+		Processes:  ctrProcs,
+		Containers: ctrList,
+		GroupId:    groupID,
+	})
+	// fill in GroupSize for each message
+	for _, m := range messages {
+		m.GroupSize = len(messages)
 	}
 
 	// Store the last state for comparison on the next run.
@@ -106,19 +121,43 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	p.lastCPUTime = cpuTimes[0]
 	p.lastRun = time.Now()
 
-	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
-	statsd.Client.Gauge("datadog.process.processes.host_count", totalProcs, []string{}, 1)
+	statsd.Client.Gauge("datadog.process.containers.host_count", float64(totalContainers), []string{}, 1)
+	statsd.Client.Gauge("datadog.process.processes.host_count", float64(totalProcs), []string{}, 1)
 	log.Debugf("collected processes in %s", time.Now().Sub(start))
 	return messages, nil
 }
 
+// chunkProcesses split non-container processes into chunks and creates messages for each chunk
+func (p *ProcessCheck) chunkProcesses(cfg *config.AgentConfig, procs []*model.Process, groupID int32) []model.MessageBody {
+	size := cfg.MaxPerMessage
+	chunks := (len(procs) + size - 1) / size
+	msgs := make([]model.MessageBody, 0, chunks)
+
+	for i := 0; i < len(procs); i += size {
+		end := i + size
+		if end > len(procs) {
+			end = len(procs)
+		}
+		msgs = append(msgs, &model.CollectorProc{
+			HostName:  cfg.HostName,
+			Info:      p.sysInfo,
+			Processes: procs[i:end],
+			GroupId:   groupID,
+		})
+	}
+
+	return msgs
+}
+
+// fmtProcesses goes through each process, converts them to process object and group them by containers
+// non-container processes would be in a single group with key as empty string ""
 func fmtProcesses(
 	cfg *config.AgentConfig,
 	procs, lastProcs map[int32]*process.FilledProcess,
 	ctrList []*containers.Container,
 	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
-) [][]*model.Process {
+) map[string][]*model.Process {
 	cidByPid := make(map[int32]string, len(ctrList))
 	for _, c := range ctrList {
 		for _, p := range c.Pids {
@@ -126,8 +165,8 @@ func fmtProcesses(
 		}
 	}
 
-	chunked := make([][]*model.Process, 0)
-	chunk := make([]*model.Process, 0, cfg.MaxPerMessage)
+	procsByCtr := make(map[string][]*model.Process)
+
 	for _, fp := range procs {
 		if skipProcess(cfg, fp, lastProcs) {
 			continue
@@ -136,7 +175,7 @@ func fmtProcesses(
 		// Hide blacklisted args if the Scrubber is enabled
 		fp.Cmdline = cfg.Scrubber.ScrubProcessCommand(fp)
 
-		chunk = append(chunk, &model.Process{
+		proc := &model.Process{
 			Pid:                    fp.Pid,
 			Command:                formatCommand(fp),
 			User:                   formatUser(fp),
@@ -149,17 +188,17 @@ func fmtProcesses(
 			VoluntaryCtxSwitches:   uint64(fp.CtxSwitches.Voluntary),
 			InvoluntaryCtxSwitches: uint64(fp.CtxSwitches.Involuntary),
 			ContainerId:            cidByPid[fp.Pid],
-		})
-		if len(chunk) == cfg.MaxPerMessage {
-			chunked = append(chunked, chunk)
-			chunk = make([]*model.Process, 0, cfg.MaxPerMessage)
 		}
+		_, ok := procsByCtr[proc.ContainerId]
+		if !ok {
+			procsByCtr[proc.ContainerId] = make([]*model.Process, 0)
+		}
+		procsByCtr[proc.ContainerId] = append(procsByCtr[proc.ContainerId], proc)
 	}
-	if len(chunk) > 0 {
-		chunked = append(chunked, chunk)
-	}
+
 	cfg.Scrubber.IncrementCacheAge()
-	return chunked
+
+	return procsByCtr
 }
 
 func formatCommand(fp *process.FilledProcess) *model.Command {
