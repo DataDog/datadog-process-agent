@@ -48,7 +48,7 @@ task :install do
   else
     bin = "process-agent"
   end
-  go_build("github.com/DataDog/datadog-process-agent/agent", :cmd=> "go build -i -o $GOPATH/bin/#{bin}")
+  go_build("github.com/DataDog/datadog-process-agent/cmd/agent", :cmd=> "go build -i -o $GOPATH/bin/#{bin}")
 end
 
 desc "Test Datadog Process agent"
