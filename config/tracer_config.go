@@ -5,6 +5,7 @@ import (
 	log "github.com/cihub/seelog"
 )
 
+// TracerConfigFromConfig returns a valid tcptracer-bpf config sourced from our agent config
 func TracerConfigFromConfig(cfg *AgentConfig) *tracer.Config {
 	tracerConfig := tracer.NewDefaultConfig()
 
