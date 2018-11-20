@@ -84,6 +84,9 @@ type AgentConfig struct {
 	// Network collection configuration
 	EnableNetworkTracing     bool
 	EnableLocalNetworkTracer bool // To have the network tracer embedded in the process-agent
+	DisableTCPTracing        bool
+	DisableUDPTracing        bool
+	DisableIPv6Tracing       bool
 	NetworkTracerSocketPath  string
 	NetworkTracerLogFile     string
 
@@ -176,6 +179,9 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Network collection configuration
 		EnableNetworkTracing:     false,
 		EnableLocalNetworkTracer: false,
+		DisableTCPTracing:        false,
+		DisableUDPTracing:        false,
+		DisableIPv6Tracing:       false,
 		NetworkTracerSocketPath:  defaultNetworkTracerSocketPath,
 		NetworkTracerLogFile:     defaultNetworkLogFilePath,
 
@@ -566,6 +572,15 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	}
 	if ok, _ := isAffirmative(os.Getenv("DD_USE_LOCAL_NETWORK_TRACER")); ok {
 		c.EnableLocalNetworkTracer = ok
+	}
+	if ok, _ := isAffirmative(os.Getenv("DD_DISABLE_TCP_TRACING")); ok {
+		c.DisableTCPTracing = ok
+	}
+	if ok, _ := isAffirmative(os.Getenv("DD_DISABLE_UDP_TRACING")); ok {
+		c.DisableUDPTracing = ok
+	}
+	if ok, _ := isAffirmative(os.Getenv("DD_DISABLE_IPV6_TRACING")); ok {
+		c.DisableIPv6Tracing = ok
 	}
 
 	return c

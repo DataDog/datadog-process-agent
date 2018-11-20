@@ -82,6 +82,12 @@ type YamlAgentConfig struct {
 		UnixSocketPath string `yaml:"nettracer_socket"`
 		// The full path to the file where network-tracer logs will be written.
 		LogFile string `yaml:"log_file"`
+		// Whether agent should disable collection for TCP connection type
+		DisableTCP bool `yaml:"disable_tcp"`
+		// Whether agent should disable collection for UDP connection type
+		DisableUDP bool `yaml:"disable_udp"`
+		// Whether agent should disable collection for IPv6 connection type
+		DisableIPv6 bool `yaml:"disable_ipv6"`
 	} `yaml:"network_tracer_config"`
 }
 
@@ -217,6 +223,10 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 }
 
 func mergeNetworkYamlConfig(agentConf *AgentConfig, networkConf *YamlAgentConfig) (*AgentConfig, error) {
+	agentConf.DisableTCPTracing = networkConf.Network.DisableTCP
+	agentConf.DisableUDPTracing = networkConf.Network.DisableUDP
+	agentConf.DisableIPv6Tracing = networkConf.Network.DisableIPv6
+
 	if networkConf.Network.NetworkTracingEnabled {
 		agentConf.EnabledChecks = append(agentConf.EnabledChecks, "connections")
 		agentConf.EnableNetworkTracing = true

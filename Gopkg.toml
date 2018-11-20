@@ -8,7 +8,7 @@
 
 [[constraint]]
   name = "github.com/DataDog/tcptracer-bpf"
-  revision = "1281e95bac1df91e307a0cb6795e1c7c76f49067"
+  revision = "dcbaab0aacf699bb5613badb063ae4f6dcf1cf66"
 
 [[constraint]]
   name = "github.com/gogo/protobuf"

@@ -90,11 +90,11 @@
   revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
 
 [[projects]]
-  digest = "1:a21bde80219999ce6a26f8b41d0218d77e067628352f88d7173302cf6779d7eb"
+  digest = "1:1b855559c94fbc581f1e3908e57af98954cb1d1735755cfb5e109266c6b1d6df"
   name = "github.com/DataDog/tcptracer-bpf"
   packages = ["pkg/tracer"]
   pruneopts = ""
-  revision = "1281e95bac1df91e307a0cb6795e1c7c76f49067"
+  revision = "dcbaab0aacf699bb5613badb063ae4f6dcf1cf66"
 
 [[projects]]
   digest = "1:f3662169bf21f0406cdad064a592c5a052e8ba32f64a360d755544cd5a98dba8"
@@ -1008,7 +1008,6 @@
     "github.com/shirou/w32",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
-    "golang.org/x/sys/unix",
     "golang.org/x/sys/windows/svc",
     "golang.org/x/sys/windows/svc/debug",
     "golang.org/x/sys/windows/svc/eventlog",
