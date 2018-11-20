@@ -10,7 +10,7 @@ func TracerConfigFromConfig(cfg *AgentConfig) *tracer.Config {
 	tracerConfig := tracer.NewDefaultConfig()
 
 	if !tracerConfig.TraceIPv6Connections {
-		log.Info("network tracer IPv6 tracing disabled by network-tracer")
+		log.Info("network tracer IPv6 tracing disabled by system")
 	} else if cfg.DisableIPv6Tracing {
 		tracerConfig.TraceIPv6Connections = false
 		log.Info("network tracer IPv6 tracing disabled by configuration")
