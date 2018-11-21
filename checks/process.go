@@ -158,7 +158,7 @@ func chunkProcesses(procs []*model.Process, size int) [][]*model.Process {
 	return chunks
 }
 
-// fmtProcesses goes through each process, converts them to process object and group them by containers
+// fmtProcesses goes through each process, converts them to Process objects and group them by containers
 // non-container processes would be in a single group with key as empty string ""
 func fmtProcesses(
 	cfg *config.AgentConfig,

@@ -33,7 +33,6 @@ func TestProcessChunking(t *testing.T) {
 		makeProcess(3, "datadog-process-agent -ddconfig datadog.conf"),
 		makeProcess(4, "foo -bar -bim"),
 	}
-	containers := []*containers.Container{}
 	lastRun := time.Now().Add(-5 * time.Second)
 	syst1, syst2 := cpu.TimesStat{}, cpu.TimesStat{}
 	cfg := config.NewDefaultAgentConfig()
@@ -44,6 +43,7 @@ func TestProcessChunking(t *testing.T) {
 		blacklist      []string
 		expectedTotal  int
 		expectedChunks int
+		containers     []*containers.Container
 	}{
 		{
 			cur:            []*process.FilledProcess{p[0], p[1], p[2]},
@@ -52,6 +52,7 @@ func TestProcessChunking(t *testing.T) {
 			blacklist:      []string{},
 			expectedTotal:  3,
 			expectedChunks: 3,
+			containers:     []*containers.Container{},
 		},
 		{
 			cur:            []*process.FilledProcess{p[0], p[1], p[2]},
@@ -60,6 +61,7 @@ func TestProcessChunking(t *testing.T) {
 			blacklist:      []string{},
 			expectedTotal:  2,
 			expectedChunks: 2,
+			containers:     []*containers.Container{},
 		},
 		{
 			cur:            []*process.FilledProcess{p[0], p[1], p[2], p[3]},
@@ -68,6 +70,7 @@ func TestProcessChunking(t *testing.T) {
 			blacklist:      []string{"git", "datadog"},
 			expectedTotal:  2,
 			expectedChunks: 1,
+			containers:     []*containers.Container{},
 		},
 		{
 			cur:            []*process.FilledProcess{p[0], p[1], p[2], p[3]},
@@ -76,6 +79,7 @@ func TestProcessChunking(t *testing.T) {
 			blacklist:      []string{"git", "datadog", "foo", "mine"},
 			expectedTotal:  0,
 			expectedChunks: 0,
+			containers:     []*containers.Container{},
 		},
 	} {
 		bl := make([]*regexp.Regexp, 0, len(tc.blacklist))
@@ -94,7 +98,7 @@ func TestProcessChunking(t *testing.T) {
 			last[c.Pid] = c
 		}
 
-		procs := fmtProcesses(cfg, cur, last, containers, syst2, syst1, lastRun)
+		procs := fmtProcesses(cfg, cur, last, tc.containers, syst2, syst1, lastRun)
 		// only deal with non-container processes
 		chunked := chunkProcesses(procs[""], cfg.MaxPerMessage)
 		assert.Len(t, chunked, tc.expectedChunks, "len %d", i)
@@ -104,7 +108,7 @@ func TestProcessChunking(t *testing.T) {
 		}
 		assert.Equal(t, tc.expectedTotal, total, "total test %d", i)
 
-		chunkedStat := fmtProcessStats(cfg, cur, last, containers, syst2, syst1, lastRun)
+		chunkedStat := fmtProcessStats(cfg, cur, last, tc.containers, syst2, syst1, lastRun)
 		assert.Len(t, chunkedStat, tc.expectedChunks, "len stat %d", i)
 		total = 0
 		for _, c := range chunkedStat {
