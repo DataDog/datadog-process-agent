@@ -1,12 +1,13 @@
 package checks
 
 import (
-	"github.com/stretchr/testify/require"
 	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/gopsutil/cpu"
@@ -93,7 +94,9 @@ func TestProcessChunking(t *testing.T) {
 			last[c.Pid] = c
 		}
 
-		chunked := fmtProcesses(cfg, cur, last, containers, syst2, syst1, lastRun)
+		procs := fmtProcesses(cfg, cur, last, containers, syst2, syst1, lastRun)
+		// only deal with non-container processes
+		chunked := chunkProcesses(procs[""], cfg.MaxPerMessage)
 		assert.Len(t, chunked, tc.expectedChunks, "len %d", i)
 		total := 0
 		for _, c := range chunked {
