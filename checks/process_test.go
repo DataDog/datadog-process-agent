@@ -113,7 +113,7 @@ func TestProcessMessages(t *testing.T) {
 			totalProcs:      3,
 			totalContainers: 2,
 		},
-		// this tests the case that all processes in a container is skipped, container shouldn't be stored
+		// this tests the case that all processes in a container are skipped, container shouldn't be stored
 		{
 			cur:             map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
 			last:            map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
@@ -212,7 +212,7 @@ func TestProcessChunking(t *testing.T) {
 
 		procs := fmtProcesses(cfg, cur, last, containers, syst2, syst1, lastRun)
 		// only deal with non-container processes
-		chunked := chunkProcesses(procs[""], cfg.MaxPerMessage)
+		chunked := chunkProcesses(procs[emptyCtrID], cfg.MaxPerMessage)
 		assert.Len(t, chunked, tc.expectedChunks, "len %d", i)
 		total := 0
 		for _, c := range chunked {

@@ -17,6 +17,7 @@ import (
 
 // Process is a singleton ProcessCheck.
 var Process = &ProcessCheck{}
+var emptyCtrID = ""
 
 // ProcessCheck collects full state, including cmdline args and related metadata,
 // for live and running processes. The instance will store some state between
@@ -109,10 +110,10 @@ func createProcCtrMessages(
 	msgs := make([]*model.CollectorProc, 0)
 
 	// we first split non-container processes in chunks
-	if procsByCtr[""] != nil {
-		totalProcs += len(procsByCtr[""])
+	if procsByCtr[emptyCtrID] != nil {
+		totalProcs += len(procsByCtr[emptyCtrID])
 	}
-	chunks := chunkProcesses(procsByCtr[""], cfg.MaxPerMessage)
+	chunks := chunkProcesses(procsByCtr[emptyCtrID], cfg.MaxPerMessage)
 	for _, c := range chunks {
 		msgs = append(msgs, &model.CollectorProc{
 			HostName:  cfg.HostName,
