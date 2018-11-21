@@ -12,7 +12,7 @@ func makeConnection(pid int32) *model.Connection {
 	return &model.Connection{Pid: pid}
 }
 
-func TestNetworkConnectionBatching(t *testing.T) {
+func TestNetworkConnectionMax(t *testing.T) {
 	p := []*model.Connection{
 		makeConnection(1),
 		makeConnection(2),
@@ -31,14 +31,14 @@ func TestNetworkConnectionBatching(t *testing.T) {
 		{
 			cur:            []*model.Connection{p[0], p[1], p[2]},
 			maxSize:        1,
-			expectedTotal:  3,
-			expectedChunks: 3,
+			expectedTotal:  1,
+			expectedChunks: 1,
 		},
 		{
 			cur:            []*model.Connection{p[0], p[1], p[2]},
 			maxSize:        2,
-			expectedTotal:  3,
-			expectedChunks: 2,
+			expectedTotal:  2,
+			expectedChunks: 1,
 		},
 		{
 			cur:            []*model.Connection{p[0], p[1], p[2], p[3]},
@@ -49,14 +49,14 @@ func TestNetworkConnectionBatching(t *testing.T) {
 		{
 			cur:            []*model.Connection{p[0], p[1], p[2], p[3]},
 			maxSize:        3,
-			expectedTotal:  4,
-			expectedChunks: 2,
+			expectedTotal:  3,
+			expectedChunks: 1,
 		},
 		{
 			cur:            []*model.Connection{p[0], p[1], p[2], p[3], p[2], p[3]},
 			maxSize:        2,
-			expectedTotal:  6,
-			expectedChunks: 3,
+			expectedTotal:  2,
+			expectedChunks: 1,
 		},
 	} {
 		cfg.MaxPerMessage = tc.maxSize

@@ -157,7 +157,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		LogToConsole:  false,
 		QueueSize:     20,
 		MaxProcFDs:    200,
-		MaxPerMessage: 100,
+		MaxPerMessage: 2000,
 		AllowRealTime: true,
 		HostName:      "",
 		Transport:     NewDefaultTransport(),
