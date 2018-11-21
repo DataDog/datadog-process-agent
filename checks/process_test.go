@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-process-agent/config"
+	"github.com/DataDog/datadog-process-agent/model"
+	"github.com/DataDog/datadog-process-agent/util"
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
 	"github.com/stretchr/testify/assert"
@@ -23,6 +25,120 @@ func makeProcess(pid int32, cmdline string) *process.FilledProcess {
 		Cmdline:     strings.Split(cmdline, " "),
 		MemInfo:     &process.MemoryInfoStat{},
 		CtxSwitches: &process.NumCtxSwitchesStat{},
+	}
+}
+
+func TestProcessMessages(t *testing.T) {
+	p := []*process.FilledProcess{
+		makeProcess(1, "git clone google.com"),
+		makeProcess(2, "mine-bitcoins -all -x"),
+		makeProcess(3, "foo --version"),
+		makeProcess(4, "foo -bar -bim"),
+		makeProcess(5, "datadog-process-agent -ddconfig datadog.conf"),
+	}
+	c := []*containers.Container{
+		makeContainer("foo"),
+		makeContainer("bar"),
+	}
+	// first container runs pid1 and pid2
+	c[0].Pids = []int32{1, 2}
+	c[1].Pids = []int32{3}
+	lastRun := time.Now().Add(-5 * time.Second)
+	syst1, syst2 := cpu.TimesStat{}, cpu.TimesStat{}
+	cfg := config.NewDefaultAgentConfig()
+	sysInfo := &model.SystemInfo{}
+	lastCtrRates := util.ExtractContainerRateMetric(c)
+
+	for i, tc := range []struct {
+		cur, last       map[int32]*process.FilledProcess
+		containers      []*containers.Container
+		maxSize         int
+		blacklist       []string
+		expectedChunks  int
+		totalProcs      int
+		totalContainers int
+	}{
+		// this tests no container case
+		{
+			cur:             map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
+			last:            map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
+			maxSize:         2,
+			containers:      []*containers.Container{},
+			blacklist:       []string{},
+			expectedChunks:  2,
+			totalProcs:      3,
+			totalContainers: 0,
+		},
+		// this tests if containered processes are grouped with container in message
+		{
+			cur:             map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
+			last:            map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
+			maxSize:         1,
+			containers:      []*containers.Container{c[0]},
+			blacklist:       []string{},
+			expectedChunks:  2,
+			totalProcs:      3,
+			totalContainers: 1,
+		},
+		// this tests if non-container processes are chunked by maxSize
+		{
+			cur:             map[int32]*process.FilledProcess{p[2].Pid: p[2], p[3].Pid: p[3], p[4].Pid: p[4]},
+			last:            map[int32]*process.FilledProcess{p[2].Pid: p[2], p[3].Pid: p[3], p[4].Pid: p[4]},
+			maxSize:         1,
+			containers:      []*containers.Container{c[1]},
+			blacklist:       []string{},
+			expectedChunks:  3,
+			totalProcs:      3,
+			totalContainers: 1,
+		},
+		// this tests if non-container processes are not chunked if maxSize is greater than the count
+		{
+			cur:             map[int32]*process.FilledProcess{p[2].Pid: p[2], p[3].Pid: p[3], p[4].Pid: p[4]},
+			last:            map[int32]*process.FilledProcess{p[2].Pid: p[2], p[3].Pid: p[3], p[4].Pid: p[4]},
+			maxSize:         3,
+			containers:      []*containers.Container{c[1]},
+			blacklist:       []string{},
+			expectedChunks:  2,
+			totalProcs:      3,
+			totalContainers: 1,
+		},
+		// this tests the case that non-container processes don't exist
+		{
+			cur:             map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
+			last:            map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
+			maxSize:         1,
+			containers:      []*containers.Container{c[0], c[1]},
+			blacklist:       []string{},
+			expectedChunks:  1,
+			totalProcs:      3,
+			totalContainers: 2,
+		},
+		// this tests the case that all processes in a container is skipped, container shouldn't be stored
+		{
+			cur:             map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
+			last:            map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
+			maxSize:         2,
+			containers:      []*containers.Container{c[1]},
+			blacklist:       []string{"foo"},
+			expectedChunks:  1,
+			totalProcs:      2,
+			totalContainers: 0,
+		},
+	} {
+		bl := make([]*regexp.Regexp, 0, len(tc.blacklist))
+		for _, s := range tc.blacklist {
+			bl = append(bl, regexp.MustCompile(s))
+		}
+		cfg.Blacklist = bl
+		cfg.MaxPerMessage = tc.maxSize
+
+		procs := fmtProcesses(cfg, tc.cur, tc.last, tc.containers, syst2, syst1, lastRun)
+		containers := fmtContainers(tc.containers, lastCtrRates, lastRun)
+		messages, totalProcs, totalContainers := createProcCtrMessages(procs, containers, cfg, sysInfo, int32(i))
+
+		assert.Equal(t, tc.expectedChunks, len(messages))
+		assert.Equal(t, tc.totalProcs, totalProcs)
+		assert.Equal(t, tc.totalContainers, totalContainers)
 	}
 }
 
@@ -111,7 +227,6 @@ func TestProcessChunking(t *testing.T) {
 			total += len(c)
 		}
 		assert.Equal(t, tc.expectedTotal, total, "total stat test %d", i)
-
 	}
 }
 
