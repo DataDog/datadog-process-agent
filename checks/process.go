@@ -79,52 +79,11 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	procsByCtr := fmtProcesses(cfg, procs, p.lastProcs, ctrList, cpuTimes[0], p.lastCPUTime, p.lastRun)
 	// In case we skip every process..
 	if len(procsByCtr) == 0 {
-		return nil, nil
+		return []model.MessageBody{}, nil
 	}
-	procMsgs := make([]*model.CollectorProc, 0)
-	totalProcs, totalContainers := 0, 0
-
-	// we first split non-container processes in chunks
-	if procsByCtr[""] != nil {
-		totalProcs += len(procsByCtr[""])
-	}
-	chunks := chunkProcesses(procsByCtr[""], cfg.MaxPerMessage)
-	for _, c := range chunks {
-		procMsgs = append(procMsgs, &model.CollectorProc{
-			HostName:  cfg.HostName,
-			Info:      p.sysInfo,
-			Processes: c,
-			GroupId:   groupID,
-		})
-	}
-
-	// pack all containered processes with containers in a message
 	containers := fmtContainers(ctrList, p.lastCtrRates, p.lastRun)
-	ctrProcs := make([]*model.Process, 0)
-	for _, ctr := range containers {
-		// if all processes are skipped for this container, don't send the container
-		if _, ok := procsByCtr[ctr.Id]; !ok {
-			continue
-		}
-		totalProcs += len(procsByCtr[ctr.Id])
-		totalContainers++
-		ctrProcs = append(ctrProcs, procsByCtr[ctr.Id]...)
 
-	}
-	procMsgs = append(procMsgs, &model.CollectorProc{
-		HostName:   cfg.HostName,
-		Info:       p.sysInfo,
-		Processes:  ctrProcs,
-		Containers: containers,
-		GroupId:    groupID,
-	})
-
-	// fill in GroupSize for each message and convert them to final messages
-	messages := make([]model.MessageBody, 0, len(procMsgs))
-	for _, m := range procMsgs {
-		m.GroupSize = int32(len(procMsgs))
-		messages = append(messages, m)
-	}
+	messages, totalProcs, totalContainers := p.createProcCtrMessages(procsByCtr, containers, cfg, groupID)
 
 	// Store the last state for comparison on the next run.
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
@@ -137,6 +96,59 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	statsd.Client.Gauge("datadog.process.processes.host_count", float64(totalProcs), []string{}, 1)
 	log.Debugf("collected processes in %s", time.Now().Sub(start))
 	return messages, nil
+}
+
+func (p *ProcessCheck) createProcCtrMessages(
+	procsByCtr map[string][]*model.Process,
+	containers []*model.Container,
+	cfg *config.AgentConfig,
+	groupID int32,
+) ([]model.MessageBody, int, int) {
+	totalProcs, totalContainers := 0, 0
+	msgs := make([]*model.CollectorProc, 0)
+
+	// we first split non-container processes in chunks
+	if procsByCtr[""] != nil {
+		totalProcs += len(procsByCtr[""])
+	}
+	chunks := chunkProcesses(procsByCtr[""], cfg.MaxPerMessage)
+	for _, c := range chunks {
+		msgs = append(msgs, &model.CollectorProc{
+			HostName:  cfg.HostName,
+			Info:      p.sysInfo,
+			Processes: c,
+			GroupId:   groupID,
+		})
+	}
+
+	// pack all containered processes with containers in a message
+	ctrProcs := make([]*model.Process, 0)
+	for _, ctr := range containers {
+		// if all processes are skipped for this container, don't send the container
+		if _, ok := procsByCtr[ctr.Id]; !ok {
+			continue
+		}
+		totalProcs += len(procsByCtr[ctr.Id])
+		totalContainers++
+		ctrProcs = append(ctrProcs, procsByCtr[ctr.Id]...)
+
+	}
+	msgs = append(msgs, &model.CollectorProc{
+		HostName:   cfg.HostName,
+		Info:       p.sysInfo,
+		Processes:  ctrProcs,
+		Containers: containers,
+		GroupId:    groupID,
+	})
+
+	// fill in GroupSize for each CollectorProc and convert them to final messages
+	messages := make([]model.MessageBody, 0, len(msgs))
+	for _, m := range msgs {
+		m.GroupSize = int32(len(msgs))
+		messages = append(messages, m)
+	}
+
+	return messages, totalProcs, totalContainers
 }
 
 // chunkProcesses split non-container processes into chunks and return a list of chunks
