@@ -81,37 +81,49 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	if len(procsByCtr) == 0 {
 		return nil, nil
 	}
-	messages := make([]model.MessageBody, 0)
+	procMsgs := make([]*model.CollectorProc, 0)
 	totalProcs, totalContainers := 0, 0
 
-	// we first split non-container processes in chunks then pack all containered processes with containers in a message
+	// we first split non-container processes in chunks
 	if procsByCtr[""] != nil {
 		totalProcs += len(procsByCtr[""])
 	}
-	messages = append(messages, p.chunkProcesses(cfg, procsByCtr[""], groupID)...)
+	chunks := chunkProcesses(procsByCtr[""], cfg.MaxPerMessage)
+	for _, c := range chunks {
+		procMsgs = append(procMsgs, &model.CollectorProc{
+			HostName:  cfg.HostName,
+			Info:      p.sysInfo,
+			Processes: c,
+			GroupId:   groupID,
+		})
+	}
 
-	// ctrProcs holds only the processes that are running in containers
+	// pack all containered processes with containers in a message
+	containers := fmtContainers(ctrList, p.lastCtrRates, p.lastRun)
 	ctrProcs := make([]*model.Process, 0)
-	for _, ctr := range ctrList {
+	for _, ctr := range containers {
 		// if all processes are skipped for this container, don't send the container
-		if _, ok := procsByCtr[ctr.ID]; !ok {
+		if _, ok := procsByCtr[ctr.Id]; !ok {
 			continue
 		}
-		totalProcs += len(procsByCtr[ctr.ID])
+		totalProcs += len(procsByCtr[ctr.Id])
 		totalContainers++
-		ctrProcs = append(ctrProcs, procsByCtr[ctr.ID]...)
+		ctrProcs = append(ctrProcs, procsByCtr[ctr.Id]...)
 
 	}
-	messages = append(messages, &model.CollectorProc{
+	procMsgs = append(procMsgs, &model.CollectorProc{
 		HostName:   cfg.HostName,
 		Info:       p.sysInfo,
 		Processes:  ctrProcs,
-		Containers: ctrList,
+		Containers: containers,
 		GroupId:    groupID,
 	})
-	// fill in GroupSize for each message
-	for _, m := range messages {
-		m.GroupSize = len(messages)
+
+	// fill in GroupSize for each message and convert them to final messages
+	messages := make([]model.MessageBody, 0, len(procMsgs))
+	for _, m := range procMsgs {
+		m.GroupSize = int32(len(procMsgs))
+		messages = append(messages, m)
 	}
 
 	// Store the last state for comparison on the next run.
@@ -127,26 +139,23 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	return messages, nil
 }
 
-// chunkProcesses split non-container processes into chunks and creates messages for each chunk
-func (p *ProcessCheck) chunkProcesses(cfg *config.AgentConfig, procs []*model.Process, groupID int32) []model.MessageBody {
-	size := cfg.MaxPerMessage
-	chunks := (len(procs) + size - 1) / size
-	msgs := make([]model.MessageBody, 0, chunks)
+// chunkProcesses split non-container processes into chunks and return a list of chunks
+func chunkProcesses(procs []*model.Process, size int) [][]*model.Process {
+	chunkCount := len(procs) / size
+	if chunkCount*size < len(procs) {
+		chunkCount++
+	}
+	chunks := make([][]*model.Process, 0, chunkCount)
 
 	for i := 0; i < len(procs); i += size {
 		end := i + size
 		if end > len(procs) {
 			end = len(procs)
 		}
-		msgs = append(msgs, &model.CollectorProc{
-			HostName:  cfg.HostName,
-			Info:      p.sysInfo,
-			Processes: procs[i:end],
-			GroupId:   groupID,
-		})
+		chunks = append(chunks, procs[i:end])
 	}
 
-	return msgs
+	return chunks
 }
 
 // fmtProcesses goes through each process, converts them to process object and group them by containers
