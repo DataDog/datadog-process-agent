@@ -1,5 +1,5 @@
 hash: 665936af25bb1c259458b72b68e338a40879a7736542cd18c240ba829a719d6e
-updated: 2018-11-12T14:16:40.915255818+01:00
+updated: 2018-11-21T10:11:12.440916795+01:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -289,7 +289,7 @@ imports:
 - name: github.com/StackExchange/wmi
   version: b12b22c5341f0c26d88c4d66176330500e84db68
 - name: github.com/StackVista/tcptracer-bpf
-  version: 3bd9f9e000c00ea19e0e28bbbb805d0444f122ac
+  version: 1fba650acaa806c730818c630c94eb595bcd4f94
   vcs: git
   subpackages:
   - pkg/tracer
