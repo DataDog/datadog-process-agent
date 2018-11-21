@@ -83,7 +83,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	}
 	containers := fmtContainers(ctrList, p.lastCtrRates, p.lastRun)
 
-	messages, totalProcs, totalContainers := p.createProcCtrMessages(procsByCtr, containers, cfg, groupID)
+	messages, totalProcs, totalContainers := createProcCtrMessages(procsByCtr, containers, cfg, p.sysInfo, groupID)
 
 	// Store the last state for comparison on the next run.
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
@@ -98,10 +98,11 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	return messages, nil
 }
 
-func (p *ProcessCheck) createProcCtrMessages(
+func createProcCtrMessages(
 	procsByCtr map[string][]*model.Process,
 	containers []*model.Container,
 	cfg *config.AgentConfig,
+	sysInfo *model.SystemInfo,
 	groupID int32,
 ) ([]model.MessageBody, int, int) {
 	totalProcs, totalContainers := 0, 0
@@ -115,13 +116,14 @@ func (p *ProcessCheck) createProcCtrMessages(
 	for _, c := range chunks {
 		msgs = append(msgs, &model.CollectorProc{
 			HostName:  cfg.HostName,
-			Info:      p.sysInfo,
+			Info:      sysInfo,
 			Processes: c,
 			GroupId:   groupID,
 		})
 	}
 
 	// pack all containered processes with containers in a message
+	validIndex := 0
 	ctrProcs := make([]*model.Process, 0)
 	for _, ctr := range containers {
 		// if all processes are skipped for this container, don't send the container
@@ -132,14 +134,21 @@ func (p *ProcessCheck) createProcCtrMessages(
 		totalContainers++
 		ctrProcs = append(ctrProcs, procsByCtr[ctr.Id]...)
 
+		// modify in-place and increase index, keep track of valid containers
+		containers[validIndex] = ctr
+		validIndex++
+
 	}
-	msgs = append(msgs, &model.CollectorProc{
-		HostName:   cfg.HostName,
-		Info:       p.sysInfo,
-		Processes:  ctrProcs,
-		Containers: containers,
-		GroupId:    groupID,
-	})
+
+	if len(containers[:validIndex]) > 0 {
+		msgs = append(msgs, &model.CollectorProc{
+			HostName:   cfg.HostName,
+			Info:       sysInfo,
+			Processes:  ctrProcs,
+			Containers: containers[:validIndex],
+			GroupId:    groupID,
+		})
+	}
 
 	// fill in GroupSize for each CollectorProc and convert them to final messages
 	messages := make([]model.MessageBody, 0, len(msgs))
