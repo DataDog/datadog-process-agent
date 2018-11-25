@@ -29,14 +29,14 @@ const (
 	UDPRecvMsgReturn KProbeName = "kretprobe/udp_recvmsg"
 )
 
-// BPFMapName stores the name of the BPF maps storing statistics and other info
-type BPFMapName string
+// bpfMapName stores the name of the BPF maps storing statistics and other info
+type bpfMapName string
 
 const (
-	v4UDPMap           BPFMapName = "udp_stats_ipv4"
-	v6UDPMap           BPFMapName = "udp_stats_ipv6"
-	v4TCPMap           BPFMapName = "tcp_stats_ipv4"
-	v6TCPMap           BPFMapName = "tcp_stats_ipv6"
-	latestTimestampMap BPFMapName = "latest_ts"
-	tracerStatusMap    BPFMapName = "tracer_status"
+	v4UDPMap           bpfMapName = "udp_stats_ipv4"
+	v6UDPMap           bpfMapName = "udp_stats_ipv6"
+	v4TCPMap           bpfMapName = "tcp_stats_ipv4"
+	v6TCPMap           bpfMapName = "tcp_stats_ipv6"
+	latestTimestampMap bpfMapName = "latest_ts"
+	tracerStatusMap    bpfMapName = "tracer_status"
 )

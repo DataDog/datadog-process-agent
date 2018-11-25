@@ -301,7 +301,7 @@ func (t *Tracer) getLatestTimestamp() (int64, bool, error) {
 	return latestTime, true, nil
 }
 
-func (t *Tracer) getMap(name BPFMapName) (*bpflib.Map, error) {
+func (t *Tracer) getMap(name bpfMapName) (*bpflib.Map, error) {
 	mp := t.m.Map(string(name))
 	if mp == nil {
 		return nil, fmt.Errorf("no map with name %s", name)
