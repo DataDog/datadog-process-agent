@@ -42,3 +42,9 @@ rake protobuf
 
 In order for your contributions you will be required to sign a CLA. When a PR is opened a bot will prompt you to sign the CLA. Once signed you will be set for all contributions going forward.
 
+## Development
+The easiest way to build and test is inside a Vagrant VM. You can provision the VM by running `./tools/dev_setup.sh` and SSHing into the VM with `vagrant ssh` (vagrant must be installed.)
+
+The VM will mount your local $GOPATH, so you can edit source code with your editor of choice.
+
+For development on the network-tracer, `make nettop` will run a small testing program which periodically prints statistics about TCP/UDP traffic inside the VM.
