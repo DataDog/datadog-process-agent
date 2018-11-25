@@ -9,7 +9,7 @@ import (
 )
 
 func TestEbpfBytesCorrect(t *testing.T) {
-	bs, err := ioutil.ReadFile("/c/tracer-ebpf.o")
+	bs, err := ioutil.ReadFile("c/tracer-ebpf.o")
 	require.NoError(t, err)
 
 	actual, err := tracerEbpfOBytes()
