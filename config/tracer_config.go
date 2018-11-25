@@ -5,13 +5,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
+	"github.com/DataDog/datadog-process-agent/ebpf"
 	log "github.com/cihub/seelog"
 )
 
-// TracerConfigFromConfig returns a valid tcptracer-bpf config sourced from our agent config
-func TracerConfigFromConfig(cfg *AgentConfig) *tracer.Config {
-	tracerConfig := tracer.NewDefaultConfig()
+// TracerConfigFromConfig returns a valid tracer-bpf config sourced from our agent config
+func TracerConfigFromConfig(cfg *AgentConfig) *ebpf.Config {
+	tracerConfig := ebpf.NewDefaultConfig()
 
 	if !isIPv6EnabledOnHost() {
 		tracerConfig.CollectIPv6Conns = false

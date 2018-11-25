@@ -13,7 +13,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/retry"
-	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
+	"github.com/DataDog/datadog-process-agent/ebpf"
 )
 
 const (
@@ -73,7 +73,7 @@ func GetRemoteNetworkTracerUtil() (*RemoteNetTracerUtil, error) {
 }
 
 // GetConnections returns a set of active network connections, retrieved from the network tracer service
-func (r *RemoteNetTracerUtil) GetConnections() ([]tracer.ConnectionStats, error) {
+func (r *RemoteNetTracerUtil) GetConnections() ([]ebpf.ConnectionStats, error) {
 	// Otherwise, get it remotely (via unix socket), and parse from JSON
 	resp, err := r.httpClient.Get(connectionsURL)
 	if err != nil {
@@ -87,7 +87,7 @@ func (r *RemoteNetTracerUtil) GetConnections() ([]tracer.ConnectionStats, error)
 		return nil, err
 	}
 
-	conn := &tracer.Connections{}
+	conn := &ebpf.Connections{}
 	if err := conn.UnmarshalJSON(body); err != nil {
 		return nil, err
 	}

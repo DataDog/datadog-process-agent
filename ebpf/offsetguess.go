@@ -234,7 +234,7 @@ func checkAndUpdateCurrentOffset(module *elf.Module, mp *elf.Map, status *tracer
 	// get the updated map value so we can check if the current offset is
 	// the right one
 	if err := module.LookupElement(mp, unsafe.Pointer(&zero), unsafe.Pointer(status)); err != nil {
-		return fmt.Errorf("error reading tcptracer_status: %v", err)
+		return fmt.Errorf("error reading tracer_status: %v", err)
 	}
 
 	if status.state != stateChecked {
@@ -316,7 +316,7 @@ func checkAndUpdateCurrentOffset(module *elf.Module, mp *elf.Map, status *tracer
 
 	// update the map with the new offset/field to check
 	if err := module.UpdateElement(mp, unsafe.Pointer(&zero), unsafe.Pointer(status), 0); err != nil {
-		return fmt.Errorf("error updating tcptracer_status: %v", err)
+		return fmt.Errorf("error updating tracer_status: %v", err)
 	}
 
 	return nil
@@ -325,14 +325,14 @@ func checkAndUpdateCurrentOffset(module *elf.Module, mp *elf.Map, status *tracer
 func setReadyState(m *elf.Module, mp *elf.Map, status *tracerStatus) error {
 	status.state = stateReady
 	if err := m.UpdateElement(mp, unsafe.Pointer(&zero), unsafe.Pointer(status), 0); err != nil {
-		return fmt.Errorf("error updating tcptracer_status: %v", err)
+		return fmt.Errorf("error updating tracer_status: %v", err)
 	}
 	return nil
 }
 
-// guess expects elf.Module to hold a tcptracer-bpf object and initializes the
+// guess expects elf.Module to hold a tracer-bpf object and initializes the
 // tracer by guessing the right struct sock kernel struct offsets. Results are
-// stored in the `tcptracer_status` map as used by the module.
+// stored in the `tracer_status` map as used by the module.
 //
 // To guess the offsets, we create connections from localhost (127.0.0.1) to
 // 127.0.0.2:$PORT, where we have a server listening. We store the current
@@ -390,7 +390,7 @@ func guess(m *elf.Module, cfg *Config) error {
 
 	// initialize map
 	if err := m.UpdateElement(mp, unsafe.Pointer(&zero), unsafe.Pointer(status), 0); err != nil {
-		return fmt.Errorf("error initializing tcptracer_status map: %v", err)
+		return fmt.Errorf("error initializing tracer_status map: %v", err)
 	}
 
 	expected := &fieldValues{
