@@ -11,7 +11,7 @@ DOCKER_IMAGE?=datadog/tracer-bpf-builder
 SUDO=$(shell docker info >/dev/null 2>&1 || echo "sudo -E")
 
 # Generate and install eBPF program via gobindata
-ebpf: build-docker-image build-ebpf-object
+ebpf: build-docker-image build-ebpf-object run-go-fmt
 
 build-docker-image:
 	$(SUDO) docker build -t $(DOCKER_IMAGE) -f $(DOCKER_FILE) .
@@ -25,6 +25,9 @@ build-ebpf-object: build-docker-image
 		$(DOCKER_IMAGE) \
 		make -f ebpf/c/tracer-ebpf.mk build
 	sudo chown -R $(UID):$(UID) ebpf
+
+run-go-fmt:
+	$(SUDO) gofmt -w ebpf/tracer-ebpf.go
 
 # Build & run dockerized `nettop` command for testing
 # $ make nettop
