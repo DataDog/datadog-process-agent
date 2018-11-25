@@ -132,7 +132,7 @@ func (t *Tracer) GetActiveConnections() (*Connections, error) {
 }
 
 func (t *Tracer) getUDPv4Connections() ([]ConnectionStats, error) {
-	mp, err := t.getMap(UDPv4Map)
+	mp, err := t.getMap(v4UDPMap)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (t *Tracer) getUDPv4Connections() ([]ConnectionStats, error) {
 }
 
 func (t *Tracer) getUDPv6Connections() ([]ConnectionStats, error) {
-	mp, err := t.getMap(UDPv6Map)
+	mp, err := t.getMap(v6UDPMap)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +204,7 @@ func (t *Tracer) getUDPv6Connections() ([]ConnectionStats, error) {
 }
 
 func (t *Tracer) getTCPv4Connections() ([]ConnectionStats, error) {
-	mp, err := t.getMap(TCPv4Map)
+	mp, err := t.getMap(v4TCPMap)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +243,7 @@ func (t *Tracer) getTCPv4Connections() ([]ConnectionStats, error) {
 }
 
 func (t *Tracer) getTCPv6Connections() ([]ConnectionStats, error) {
-	mp, err := t.getMap(TCPv6Map)
+	mp, err := t.getMap(v6TCPMap)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (t *Tracer) getTCPv6Connections() ([]ConnectionStats, error) {
 // case if the eBPF module has just started), the second return value will be
 // false.
 func (t *Tracer) getLatestTimestamp() (int64, bool, error) {
-	tsMp, err := t.getMap(LatestTimestampMap)
+	tsMp, err := t.getMap(latestTimestampMap)
 	if err != nil {
 		return 0, false, err
 	}

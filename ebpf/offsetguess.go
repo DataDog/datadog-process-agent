@@ -350,7 +350,7 @@ func guess(m *elf.Module, cfg *Config) error {
 		return fmt.Errorf("error getting current netns: %v", err)
 	}
 
-	mp := m.Map(string(TCPTracerStatusMap))
+	mp := m.Map(string(tracerStatusMap))
 
 	// pid & tid must not change during the guessing work: the communication
 	// between ebpf and userspace relies on it
