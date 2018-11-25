@@ -7,23 +7,29 @@ PWD=$(shell pwd)
 DOCKER_FILE?=packaging/Dockerfile-ebpf
 DOCKER_IMAGE?=datadog/tracer-bpf-builder
 
+EBPF_OBJECT_BUILD_CMD="build install"
+ifeq ($(TEST), true)
+	# Don't override object file if we're running tests
+	EBPF_OBJECT_BUILD_CMD="build"
+endif
+
 # If you can use docker without being root, you can do "make SUDO="
 SUDO=$(shell docker info >/dev/null 2>&1 || echo "sudo -E")
 
 # Generate and install eBPF program via gobindata
-ebpf: build-docker-image build-ebpf-object run-go-fmt
+ebpf: build-docker-image build-ebpf-object
 
 build-docker-image:
 	$(SUDO) docker build -t $(DOCKER_IMAGE) -f $(DOCKER_FILE) .
 
-build-ebpf-object: build-docker-image
+build-ebpf-object: build-docker-image run-go-fmt
 	$(SUDO) docker run --rm -e DEBUG=$(DEBUG) \
 		-e CIRCLE_BUILD_URL=$(CIRCLE_BUILD_URL) \
 		-v $(PWD):/src:ro \
 		-v $(PWD)/ebpf:/ebpf/ \
 		--workdir=/src \
 		$(DOCKER_IMAGE) \
-		make -f ebpf/c/tracer-ebpf.mk build
+		make -f ebpf/c/tracer-ebpf.mk $(EBPF_OBJECT_BUILD_CMD)
 	sudo chown -R $(UID):$(UID) ebpf
 
 run-go-fmt:

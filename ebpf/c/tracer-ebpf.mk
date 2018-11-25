@@ -15,4 +15,6 @@ build:
 		-O2 -emit-llvm -c ebpf/c/tracer-ebpf.c \
 		$(foreach path,$(LINUX_HEADERS), -I $(path)/arch/x86/include -I $(path)/arch/x86/include/generated -I $(path)/include -I $(path)/include/generated/uapi -I $(path)/arch/x86/include/uapi -I $(path)/include/uapi) \
 		-o - | llc -march=bpf -filetype=obj -o "${DEST_DIR}/c/tracer-ebpf.o"
+
+install:
 	go-bindata -pkg ebpf -prefix "${DEST_DIR}/c" -modtime 1 -o "${DEST_DIR}/tracer-ebpf.go" "${DEST_DIR}/c/tracer-ebpf.o"

@@ -1,6 +1,7 @@
 dd-process-agent
 vendor/
 
+tracer-ebpf.o
 .DS_Store
 .idea
 .vscode
