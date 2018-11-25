@@ -4,7 +4,6 @@ package ebpf
 
 import (
 	json "encoding/json"
-
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
@@ -18,7 +17,7 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjson5f1d7f40DecodeGithubComDataDogTcptracerBpfPkgTracer(in *jlexer.Lexer, out *Connections) {
+func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf(in *jlexer.Lexer, out *Connections) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -70,7 +69,7 @@ func easyjson5f1d7f40DecodeGithubComDataDogTcptracerBpfPkgTracer(in *jlexer.Lexe
 		in.Consumed()
 	}
 }
-func easyjson5f1d7f40EncodeGithubComDataDogTcptracerBpfPkgTracer(out *jwriter.Writer, in Connections) {
+func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf(out *jwriter.Writer, in Connections) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -101,27 +100,27 @@ func easyjson5f1d7f40EncodeGithubComDataDogTcptracerBpfPkgTracer(out *jwriter.Wr
 // MarshalJSON supports json.Marshaler interface
 func (v Connections) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson5f1d7f40EncodeGithubComDataDogTcptracerBpfPkgTracer(&w, v)
+	easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v Connections) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson5f1d7f40EncodeGithubComDataDogTcptracerBpfPkgTracer(w, v)
+	easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *Connections) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson5f1d7f40DecodeGithubComDataDogTcptracerBpfPkgTracer(&r, v)
+	easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *Connections) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson5f1d7f40DecodeGithubComDataDogTcptracerBpfPkgTracer(l, v)
+	easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf(l, v)
 }
-func easyjson5f1d7f40DecodeGithubComDataDogTcptracerBpfPkgTracer1(in *jlexer.Lexer, out *ConnectionStats) {
+func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.Lexer, out *ConnectionStats) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -168,7 +167,7 @@ func easyjson5f1d7f40DecodeGithubComDataDogTcptracerBpfPkgTracer1(in *jlexer.Lex
 		in.Consumed()
 	}
 }
-func easyjson5f1d7f40EncodeGithubComDataDogTcptracerBpfPkgTracer1(out *jwriter.Writer, in ConnectionStats) {
+func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter.Writer, in ConnectionStats) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -268,23 +267,23 @@ func easyjson5f1d7f40EncodeGithubComDataDogTcptracerBpfPkgTracer1(out *jwriter.W
 // MarshalJSON supports json.Marshaler interface
 func (v ConnectionStats) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson5f1d7f40EncodeGithubComDataDogTcptracerBpfPkgTracer1(&w, v)
+	easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v ConnectionStats) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson5f1d7f40EncodeGithubComDataDogTcptracerBpfPkgTracer1(w, v)
+	easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *ConnectionStats) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson5f1d7f40DecodeGithubComDataDogTcptracerBpfPkgTracer1(&r, v)
+	easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *ConnectionStats) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson5f1d7f40DecodeGithubComDataDogTcptracerBpfPkgTracer1(l, v)
+	easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(l, v)
 }

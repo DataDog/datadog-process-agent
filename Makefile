@@ -1,4 +1,5 @@
-# TODO: Move this to a Rakefile, for consistenc
+# This is currently used to for eBPF-based tracer development.
+# TODO: Move this to a Rakefile, for consistency
 
 DEBUG=1
 UID=$(shell id -u)
