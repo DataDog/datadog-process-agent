@@ -23,11 +23,14 @@ var (
 	}
 )
 
+var sink string
+
 func BenchmarkUniqueConnKeyString(b *testing.B) {
 	c := testConn
 	for n := 0; n < b.N; n++ {
-		fmt.Sprintf("%d-%d-%d-%s-%d-%s-%d", c.Pid, c.Type, c.Family, c.Source, c.SPort, c.Dest, c.DPort)
+		sink = fmt.Sprintf("%d-%d-%d-%s-%d-%s-%d", c.Pid, c.Type, c.Family, c.Source, c.SPort, c.Dest, c.DPort)
 	}
+	sink += ""
 }
 
 func BenchmarkUniqueConnKeyByteBuffer(b *testing.B) {
