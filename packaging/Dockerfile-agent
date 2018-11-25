@@ -1,8 +1,5 @@
 #
-# dd-process-agent
-# Jenkins Dockerfile
-#
-# Used by Jenkins to build process-agent package
+# Used by Jenkins to build process-agent/network-tracer packages
 #
 
 FROM quay.io/datadog/jenkins-slave:xenial

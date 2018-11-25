@@ -1,6 +1,8 @@
 dd-process-agent
 vendor/
 
+.DS_Store
+.idea
 .vscode
 *.exe
 *.syso
