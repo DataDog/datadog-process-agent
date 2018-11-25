@@ -6,10 +6,14 @@ import (
 	"fmt"
 )
 
+// ConnectionType will be either TCP or UDP
 type ConnectionType uint8
 
 const (
+	// TCP connection type
 	TCP ConnectionType = 0
+
+	// UDP connection type
 	UDP ConnectionType = 1
 )
 
@@ -20,18 +24,24 @@ func (c ConnectionType) String() string {
 	return "UDP"
 }
 
-const (
-	AF_INET  ConnectionFamily = 0
-	AF_INET6 ConnectionFamily = 1
-)
-
+// ConnectionFamily will be either v4 or v6
 type ConnectionFamily uint8
 
+const (
+	// AFINET represents v4 connections
+	AFINET ConnectionFamily = 0
+
+	// AFINET6 represents v6 connections
+	AFINET6 ConnectionFamily = 1
+)
+
+// Connections wraps a collection of ConnectionStats
 //easyjson:json
 type Connections struct {
 	Conns []ConnectionStats `json:"connections"`
 }
 
+// ConnectionStats stores statistics for a single connection
 //easyjson:json
 type ConnectionStats struct {
 	Pid    uint32           `json:"pid"`
@@ -53,6 +63,7 @@ func (c ConnectionStats) String() string {
 		c.Type, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.SendBytes, c.RecvBytes)
 }
 
+// ByteKey returns a unique key for this connection represented as a byte array
 func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 	buffer.Reset()
 	// Byte-packing to improve creation speed

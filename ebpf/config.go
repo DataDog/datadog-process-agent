@@ -2,6 +2,7 @@ package ebpf
 
 import "time"
 
+// Config stores all flags used by the eBPF tracer
 type Config struct {
 	// CollectTCPConns specifies whether the tracer should collect traffic statistics for TCP connections
 	CollectTCPConns bool

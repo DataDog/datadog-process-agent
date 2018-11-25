@@ -79,7 +79,7 @@ func connStatsFromTCPv4(t *ConnTupleV4, s *ConnStatsWithTimestamp) ConnectionSta
 	return ConnectionStats{
 		Pid:       uint32(t.pid),
 		Type:      TCP,
-		Family:    AF_INET,
+		Family:    AFINET,
 		Source:    v4IPString(uint32(t.saddr)),
 		Dest:      v4IPString(uint32(t.daddr)),
 		SPort:     uint16(t.sport),
@@ -93,7 +93,7 @@ func connStatsFromTCPv6(t *ConnTupleV6, s *ConnStatsWithTimestamp) ConnectionSta
 	return ConnectionStats{
 		Pid:       uint32(t.pid),
 		Type:      TCP,
-		Family:    AF_INET6,
+		Family:    AFINET6,
 		Source:    v6IPString(uint64(t.saddr_h), uint64(t.saddr_l)),
 		Dest:      v6IPString(uint64(t.daddr_h), uint64(t.daddr_l)),
 		SPort:     uint16(t.sport),
@@ -107,7 +107,7 @@ func connStatsFromUDPv4(t *ConnTupleV4, s *ConnStatsWithTimestamp) ConnectionSta
 	return ConnectionStats{
 		Pid:       uint32(t.pid),
 		Type:      UDP,
-		Family:    AF_INET,
+		Family:    AFINET,
 		Source:    v4IPString(uint32(t.saddr)),
 		Dest:      v4IPString(uint32(t.daddr)),
 		SPort:     uint16(t.sport),
@@ -121,7 +121,7 @@ func connStatsFromUDPv6(t *ConnTupleV6, s *ConnStatsWithTimestamp) ConnectionSta
 	return ConnectionStats{
 		Pid:       uint32(t.pid),
 		Type:      UDP,
-		Family:    AF_INET6,
+		Family:    AFINET6,
 		Source:    v6IPString(uint64(t.saddr_h), uint64(t.saddr_l)),
 		Dest:      v6IPString(uint64(t.daddr_h), uint64(t.daddr_l)),
 		SPort:     uint16(t.sport),
