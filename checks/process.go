@@ -80,7 +80,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	procsByCtr := fmtProcesses(cfg, procs, p.lastProcs, ctrList, cpuTimes[0], p.lastCPUTime, p.lastRun)
 	// In case we skip every process..
 	if len(procsByCtr) == 0 {
-		return []model.MessageBody{}, nil
+		return nil, nil
 	}
 	containers := fmtContainers(ctrList, p.lastCtrRates, p.lastRun)
 
