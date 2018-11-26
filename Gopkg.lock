@@ -90,13 +90,6 @@
   revision = "c8f74f1344dd41bc49ec4d3c2377c526aaedfd20"
 
 [[projects]]
-  digest = "1:6d949a9cb13d4d91f8d92ae4c888ad4cbe7ed77f7e51abd5bb2453a0d900a08d"
-  name = "github.com/DataDog/tcptracer-bpf"
-  packages = ["pkg/tracer"]
-  pruneopts = ""
-  revision = "fe34678324074952a5978a561e2b650e414d5ac9"
-
-[[projects]]
   digest = "1:f3662169bf21f0406cdad064a592c5a052e8ba32f64a360d755544cd5a98dba8"
   name = "github.com/DataDog/zstd"
   packages = ["."]
@@ -427,7 +420,6 @@
   version = "v1.8.0"
 
 [[projects]]
-  branch = "master"
   digest = "1:212bebc561f4f654a653225868b2a97353cd5e160dc0b0bbc7232b06608474ec"
   name = "github.com/mailru/easyjson"
   packages = [
@@ -997,14 +989,16 @@
     "github.com/DataDog/gopsutil/host",
     "github.com/DataDog/gopsutil/mem",
     "github.com/DataDog/gopsutil/process",
-    "github.com/DataDog/tcptracer-bpf/pkg/tracer",
     "github.com/DataDog/zstd",
     "github.com/StackExchange/wmi",
     "github.com/cihub/seelog",
     "github.com/go-ini/ini",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
+    "github.com/iovisor/gobpf/elf",
     "github.com/mailru/easyjson",
+    "github.com/mailru/easyjson/jlexer",
+    "github.com/mailru/easyjson/jwriter",
     "github.com/shirou/w32",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
