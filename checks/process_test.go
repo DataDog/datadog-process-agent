@@ -50,6 +50,7 @@ func TestProcessMessages(t *testing.T) {
 	lastCtrRates := util.ExtractContainerRateMetric(c)
 
 	for i, tc := range []struct {
+		testName        string
 		cur, last       map[int32]*process.FilledProcess
 		containers      []*containers.Container
 		maxSize         int
@@ -58,8 +59,8 @@ func TestProcessMessages(t *testing.T) {
 		totalProcs      int
 		totalContainers int
 	}{
-		// this tests no container case
 		{
+			testName:        "no containers",
 			cur:             map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
 			last:            map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
 			maxSize:         2,
@@ -69,8 +70,8 @@ func TestProcessMessages(t *testing.T) {
 			totalProcs:      3,
 			totalContainers: 0,
 		},
-		// this tests if containered processes are grouped with container in message
 		{
+			testName:        "containered processes",
 			cur:             map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
 			last:            map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
 			maxSize:         1,
@@ -80,8 +81,8 @@ func TestProcessMessages(t *testing.T) {
 			totalProcs:      3,
 			totalContainers: 1,
 		},
-		// this tests if non-container processes are chunked by maxSize
 		{
+			testName:        "non-container processes chunked",
 			cur:             map[int32]*process.FilledProcess{p[2].Pid: p[2], p[3].Pid: p[3], p[4].Pid: p[4]},
 			last:            map[int32]*process.FilledProcess{p[2].Pid: p[2], p[3].Pid: p[3], p[4].Pid: p[4]},
 			maxSize:         1,
@@ -91,8 +92,8 @@ func TestProcessMessages(t *testing.T) {
 			totalProcs:      3,
 			totalContainers: 1,
 		},
-		// this tests if non-container processes are not chunked if maxSize is greater than the count
 		{
+			testName:        "non-container processes not chunked",
 			cur:             map[int32]*process.FilledProcess{p[2].Pid: p[2], p[3].Pid: p[3], p[4].Pid: p[4]},
 			last:            map[int32]*process.FilledProcess{p[2].Pid: p[2], p[3].Pid: p[3], p[4].Pid: p[4]},
 			maxSize:         3,
@@ -102,8 +103,8 @@ func TestProcessMessages(t *testing.T) {
 			totalProcs:      3,
 			totalContainers: 1,
 		},
-		// this tests the case that non-container processes don't exist
 		{
+			testName:        "no non-container processes",
 			cur:             map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
 			last:            map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
 			maxSize:         1,
@@ -113,8 +114,8 @@ func TestProcessMessages(t *testing.T) {
 			totalProcs:      3,
 			totalContainers: 2,
 		},
-		// this tests the case that all processes in a container are skipped, container shouldn't be stored
 		{
+			testName:        "all containered processes skipped",
 			cur:             map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
 			last:            map[int32]*process.FilledProcess{p[0].Pid: p[0], p[1].Pid: p[1], p[2].Pid: p[2]},
 			maxSize:         2,
@@ -125,20 +126,22 @@ func TestProcessMessages(t *testing.T) {
 			totalContainers: 0,
 		},
 	} {
-		bl := make([]*regexp.Regexp, 0, len(tc.blacklist))
-		for _, s := range tc.blacklist {
-			bl = append(bl, regexp.MustCompile(s))
-		}
-		cfg.Blacklist = bl
-		cfg.MaxPerMessage = tc.maxSize
+		t.Run(tc.testName, func(t *testing.T) {
+			bl := make([]*regexp.Regexp, 0, len(tc.blacklist))
+			for _, s := range tc.blacklist {
+				bl = append(bl, regexp.MustCompile(s))
+			}
+			cfg.Blacklist = bl
+			cfg.MaxPerMessage = tc.maxSize
 
-		procs := fmtProcesses(cfg, tc.cur, tc.last, tc.containers, syst2, syst1, lastRun)
-		containers := fmtContainers(tc.containers, lastCtrRates, lastRun)
-		messages, totalProcs, totalContainers := createProcCtrMessages(procs, containers, cfg, sysInfo, int32(i))
+			procs := fmtProcesses(cfg, tc.cur, tc.last, tc.containers, syst2, syst1, lastRun)
+			containers := fmtContainers(tc.containers, lastCtrRates, lastRun)
+			messages, totalProcs, totalContainers := createProcCtrMessages(procs, containers, cfg, sysInfo, int32(i))
 
-		assert.Equal(t, tc.expectedChunks, len(messages))
-		assert.Equal(t, tc.totalProcs, totalProcs)
-		assert.Equal(t, tc.totalContainers, totalContainers)
+			assert.Equal(t, tc.expectedChunks, len(messages))
+			assert.Equal(t, tc.totalProcs, totalProcs)
+			assert.Equal(t, tc.totalContainers, totalContainers)
+		})
 	}
 }
 
