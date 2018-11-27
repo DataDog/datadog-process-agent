@@ -152,10 +152,9 @@ func fmtProcesses(
 		})
 		// STS: for now we disable chunking until we support chunked receiving. Otherwise ppid
 		// get separated
-		// if len(chunk) == cfg.MaxPerMessage {
-		//  	chunked = append(chunked, chunk)
-		//  	chunk = make([]*model.Process, 0, cfg.MaxPerMessage)
-		// }
+		if len(chunk) == cfg.MaxPerMessage {
+			break
+		}
 	}
 	if len(chunk) > 0 {
 		chunked = append(chunked, chunk)

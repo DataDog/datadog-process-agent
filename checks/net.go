@@ -173,6 +173,7 @@ func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, las
 		})
 	}
 	c.prevCheckConns = conns
+	c.prevCheckTime = time.Now()
 	return cxs
 }
 
@@ -210,19 +211,17 @@ func calculateDirection(d tracer.Direction) model.ConnectionDirection {
 }
 
 func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
-	groupSize := groupSize(len(cxs), cfg.MaxPerMessage)
-	batches := make([]model.MessageBody, 0, groupSize)
+	batches := make([]model.MessageBody, 0, 1)
 
-	for len(cxs) > 0 {
-		batchSize := min(cfg.MaxPerMessage, len(cxs))
-		batches = append(batches, &model.CollectorConnections{
-			HostName:    cfg.HostName,
-			Connections: cxs[:batchSize],
-			GroupId:     groupID,
-			GroupSize:   groupSize,
-		})
-		cxs = cxs[batchSize:]
-	}
+	// STS: Disable batching for now
+	batchSize := min(cfg.MaxPerMessage, len(cxs))
+	batches = append(batches, &model.CollectorConnections{
+		HostName:    cfg.HostName,
+		Connections: cxs[:batchSize],
+		GroupId:     groupID,
+		GroupSize:   1,
+	})
+
 	return batches
 }
 
