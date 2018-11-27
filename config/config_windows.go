@@ -21,12 +21,10 @@ var (
 )
 
 func init() {
-	pd, err := winutil.GetProgramDataDir()
-	if err == nil {
+	if pd, err := winutil.GetProgramDataDir(); err == nil {
 		defaultLogFilePath = filepath.Join(pd, "Datadog", "logs", "process-agent.log")
 	}
-	_here, err := executable.Folder()
-	if err == nil {
+	if _here, err := executable.Folder(); err == nil {
 		defaultDDAgentBin = filepath.Join(_here, "..", "..", "embedded", "agent.exe")
 	}
 
