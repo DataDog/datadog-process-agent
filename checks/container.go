@@ -61,7 +61,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	if len(ctrList) != cfg.MaxPerMessage*groupSize {
 		groupSize++
 	}
-	chunked := chunkContainers(ctrList, c.lastRates, c.lastRun, groupSize)
+	chunked := chunkContainers(ctrList, c.lastRates, c.lastRun, groupSize, cfg.MaxPerMessage)
 	messages := make([]model.MessageBody, 0, groupSize)
 	totalContainers := float64(0)
 	for i := 0; i < groupSize; i++ {
@@ -135,25 +135,21 @@ func fmtContainers(ctrList []*containers.Container, lastRates map[string]util.Co
 }
 
 // chunkContainers formats and chunks the ctrList into a slice of chunks using a specific number of chunks.
-// len(result) MUST EQUAL chunks.
-func chunkContainers(ctrList []*containers.Container, lastRates map[string]util.ContainerRateMetrics, lastRun time.Time, chunks int) [][]*model.Container {
-	perChunk := (len(ctrList) / chunks) + 1
-	chunked := make([][]*model.Container, chunks)
+func chunkContainers(ctrList []*containers.Container, lastRates map[string]util.ContainerRateMetrics, lastRun time.Time, chunks, perChunk int) [][]*model.Container {
+	chunked := make([][]*model.Container, 0, chunks)
 	chunk := make([]*model.Container, 0, perChunk)
 
 	containers := fmtContainers(ctrList, lastRates, lastRun)
 
-	i := 0
 	for _, ctr := range containers {
 		chunk = append(chunk, ctr)
 		if len(chunk) == perChunk {
-			chunked[i] = chunk
+			chunked = append(chunked, chunk)
 			chunk = make([]*model.Container, 0, perChunk)
-			i++
 		}
 	}
 	if len(chunk) > 0 {
-		chunked[i] = chunk
+		chunked = append(chunked, chunk)
 	}
 	return chunked
 }

@@ -33,27 +33,31 @@ func TestContainerChunking(t *testing.T) {
 		last     map[string]util.ContainerRateMetrics
 		chunks   int
 		expected int
+		maxSize  int
 	}{
 		{
 			cur:      []*containers.Container{ctrs[0], ctrs[1], ctrs[2]},
 			last:     util.ExtractContainerRateMetric([]*containers.Container{ctrs[0], ctrs[1], ctrs[2]}),
 			chunks:   2,
 			expected: 3,
+			maxSize:  2,
 		},
 		{
 			cur:      []*containers.Container{ctrs[0], ctrs[1], ctrs[2]},
 			last:     util.ExtractContainerRateMetric([]*containers.Container{ctrs[0], ctrs[2]}),
 			chunks:   2,
 			expected: 3,
+			maxSize:  2,
 		},
 		{
 			cur:      []*containers.Container{ctrs[0], ctrs[2]},
 			last:     util.ExtractContainerRateMetric([]*containers.Container{ctrs[0], ctrs[1], ctrs[2]}),
-			chunks:   20,
+			chunks:   2,
 			expected: 2,
+			maxSize:  1,
 		},
 	} {
-		chunked := chunkContainers(tc.cur, tc.last, lastRun, tc.chunks)
+		chunked := chunkContainers(tc.cur, tc.last, lastRun, tc.chunks, tc.maxSize)
 		assert.Len(t, chunked, tc.chunks, "len test %d", i)
 		total := 0
 		for _, c := range chunked {
@@ -76,7 +80,7 @@ func TestContainerNils(t *testing.T) {
 	// Make sure formatting doesn't crash with nils
 	cur := []*containers.Container{&containers.Container{}}
 	last := map[string]util.ContainerRateMetrics{}
-	chunkContainers(cur, last, time.Now(), 10)
+	chunkContainers(cur, last, time.Now(), 10, 10)
 	fmtContainerStats(cur, last, time.Now(), 10)
 	// Make sure we get values when we have nils in last.
 	cur = []*containers.Container{
@@ -90,7 +94,7 @@ func TestContainerNils(t *testing.T) {
 			CPU: &metrics.CgroupTimesStat{},
 		},
 	}
-	chunkContainers(cur, last, time.Now(), 10)
+	chunkContainers(cur, last, time.Now(), 10, 10)
 	fmtContainerStats(cur, last, time.Now(), 10)
 }
 
