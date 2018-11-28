@@ -123,9 +123,8 @@ func createProcCtrMessages(
 		})
 	}
 
-	// pack all containered processes with containers in a message
-	validIndex := 0
 	ctrProcs := make([]*model.Process, 0)
+	ctrs := make([]*model.Container, 0, len(containers))
 	for _, ctr := range containers {
 		// if all processes are skipped for this container, don't send the container
 		if _, ok := procsByCtr[ctr.Id]; !ok {
@@ -134,19 +133,15 @@ func createProcCtrMessages(
 		totalProcs += len(procsByCtr[ctr.Id])
 		totalContainers++
 		ctrProcs = append(ctrProcs, procsByCtr[ctr.Id]...)
-
-		// modify in-place and increase index, keep track of valid containers
-		containers[validIndex] = ctr
-		validIndex++
-
+		ctrs = append(ctrs, ctr)
 	}
 
-	if len(containers[:validIndex]) > 0 {
+	if len(ctrs) > 0 {
 		msgs = append(msgs, &model.CollectorProc{
 			HostName:   cfg.HostName,
 			Info:       sysInfo,
 			Processes:  ctrProcs,
-			Containers: containers[:validIndex],
+			Containers: ctrs,
 			GroupId:    groupID,
 		})
 	}
