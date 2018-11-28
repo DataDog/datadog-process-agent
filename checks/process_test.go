@@ -1,23 +1,60 @@
 package checks
 
 import (
+	"errors"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/util"
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/DataDog/datadog-agent/pkg/util/containers"
 )
+
+func procCtrGenerator(pCount int, cCount int, containeredProcs int) ([]*process.FilledProcess, []*containers.Container, error) {
+	if (pCount < cCount) || (containeredProcs > pCount) {
+		return nil, nil, errors.New("The process and container count specified is not valid")
+	}
+	procs := make([]*process.FilledProcess, 0, pCount)
+	for i := 0; i < pCount; i++ {
+		procs = append(procs, makeProcess(int32(i), strconv.Itoa(i)))
+	}
+
+	ctrs := make([]*containers.Container, 0, cCount)
+	for i := 0; i < cCount; i++ {
+		ctrs = append(ctrs, makeContainer(strconv.Itoa(i)))
+	}
+
+	// build container process relationship
+	ctrIdx := 0
+	for i := 0; i < containeredProcs; i++ {
+		// reset to 0 if hit the last one
+		if ctrIdx == cCount {
+			ctrIdx = 0
+		}
+		ctrs[ctrIdx].Pids = append(ctrs[ctrIdx].Pids, procs[i].Pid)
+		ctrIdx++
+	}
+
+	return procs, ctrs, nil
+}
+
+func procsToHash(procs []*process.FilledProcess) (procsByPid map[int32]*process.FilledProcess) {
+	procsByPid = make(map[int32]*process.FilledProcess)
+	for _, p := range procs {
+		procsByPid[p.Pid] = p
+	}
+	return
+}
 
 func makeProcess(pid int32, cmdline string) *process.FilledProcess {
 	return &process.FilledProcess{
@@ -28,7 +65,106 @@ func makeProcess(pid int32, cmdline string) *process.FilledProcess {
 	}
 }
 
-func TestProcessMessages(t *testing.T) {
+// procMsgsVerification takes raw containers and processes and make sure the chunked messages have all data, and each chunk has the correct grouping
+func procMsgsVerification(t *testing.T, msgs []model.MessageBody, rawContainers []*containers.Container, rawProcesses []*process.FilledProcess, maxSize int) {
+	actualProcs := 0
+	for _, msg := range msgs {
+		payload := msg.(*model.CollectorProc)
+
+		if len(payload.Containers) > 0 {
+			// assume no blacklist involved
+			assert.Equal(t, len(rawContainers), len(payload.Containers))
+
+			procsByPid := make(map[int32]struct{}, len(payload.Processes))
+			for _, p := range payload.Processes {
+				procsByPid[p.Pid] = struct{}{}
+			}
+
+			// make sure all containerized processes are in the payload
+			containeredProcs := 0
+			for _, ctr := range rawContainers {
+				for _, pid := range ctr.Pids {
+					assert.Contains(t, procsByPid, pid)
+					containeredProcs++
+				}
+			}
+			assert.Equal(t, len(payload.Processes), containeredProcs)
+
+			actualProcs += containeredProcs
+		} else {
+			assert.True(t, len(payload.Processes) <= maxSize)
+			actualProcs += len(payload.Processes)
+		}
+	}
+	assert.Equal(t, len(rawProcesses), actualProcs)
+}
+
+// TestRandomizeMessage generates some processes and containers, then do a deep dive on return messages and make sure the chunk logic holds
+func TestRandomizeMessages(t *testing.T) {
+	for i, tc := range []struct {
+		testName                                string
+		pCount, cCount, cProcs, maxSize, chunks int
+	}{
+		{
+			testName: "no-containers",
+			pCount:   100,
+			cCount:   0,
+			cProcs:   0,
+			maxSize:  30,
+			chunks:   4,
+		},
+		{
+			testName: "container-process-mixed-1",
+			pCount:   100,
+			cCount:   30,
+			cProcs:   60,
+			maxSize:  30,
+			chunks:   3,
+		},
+		{
+			testName: "container-process-mixed-2",
+			pCount:   100,
+			cCount:   10,
+			cProcs:   60,
+			maxSize:  10,
+			chunks:   5,
+		},
+		{
+			testName: "container-process-mixed-3",
+			pCount:   100,
+			cCount:   100,
+			cProcs:   100,
+			maxSize:  10,
+			chunks:   1,
+		},
+	} {
+
+		t.Run(tc.testName, func(t *testing.T) {
+			procs, ctrs, err := procCtrGenerator(tc.pCount, tc.cCount, tc.cProcs)
+			procsByPid := procsToHash(procs)
+			assert.NoError(t, err)
+
+			lastRun := time.Now().Add(-5 * time.Second)
+			syst1, syst2 := cpu.TimesStat{}, cpu.TimesStat{}
+			cfg := config.NewDefaultAgentConfig()
+			sysInfo := &model.SystemInfo{}
+			lastCtrRates := util.ExtractContainerRateMetric(ctrs)
+
+			cfg.MaxPerMessage = tc.maxSize
+			processes := fmtProcesses(cfg, procsByPid, procsByPid, ctrs, syst2, syst1, lastRun)
+			containers := fmtContainers(ctrs, lastCtrRates, lastRun)
+			messages, totalProcs, totalContainers := createProcCtrMessages(processes, containers, cfg, sysInfo, int32(i))
+
+			assert.Equal(t, totalProcs, tc.pCount)
+			assert.Equal(t, totalContainers, tc.cCount)
+			procMsgsVerification(t, messages, ctrs, procs, tc.maxSize)
+		})
+
+	}
+}
+
+// TestBasicProcessMessages tests basic cases for creating payloads by hard-coded scenarios
+func TestBasicProcessMessages(t *testing.T) {
 	p := []*process.FilledProcess{
 		makeProcess(1, "git clone google.com"),
 		makeProcess(2, "mine-bitcoins -all -x"),
