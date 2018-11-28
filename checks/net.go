@@ -167,9 +167,9 @@ func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, las
 				Ip:   conn.Dest,
 				Port: int32(conn.DPort),
 			},
-			BytesSent:     calculateRate(conn.SendBytes, lastConns[key].SendBytes, lastCheckTime),
-			BytesRecieved: calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
-			Direction:     calculateDirection(conn.Direction),
+			BytesSentPerSecond:     calculateRate(conn.SendBytes, lastConns[key].SendBytes, lastCheckTime),
+			BytesReceivedPerSecond: calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
+			Direction:              calculateDirection(conn.Direction),
 		})
 	}
 	c.prevCheckConns = conns

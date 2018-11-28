@@ -34,7 +34,18 @@ You can now run the Agent on the command-line:
 sudo ./process-agent -config $PATH_TO_PROCESS_CONFIG_FILE
 ```
 
-If you modify any of the `.proto` files you _must_ rebuild the *.pb.go files with
+## Regenerating proto files
+
+If you modify any of the `.proto` files you _must_ rebuild the `*.pb.go` files.
+
+First make sure you install the gogo-proto binaries from the `./vendor`:
+
+```
+cd vendor/github.com/gogo/protobuf
+make install
+```
+
+and then:
 
 ```
 rake protobuf
