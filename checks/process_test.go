@@ -159,7 +159,6 @@ func TestRandomizeMessages(t *testing.T) {
 			assert.Equal(t, totalContainers, tc.cCount)
 			procMsgsVerification(t, messages, ctrs, procs, tc.maxSize)
 		})
-
 	}
 }
 
