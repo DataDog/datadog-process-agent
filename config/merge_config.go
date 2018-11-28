@@ -226,7 +226,6 @@ func mergeEnvironmentVariables(dc ddconfig.Config, c *AgentConfig) {
 		c.LogLevel = v
 	}
 
-	// TODO
 	if c.proxy, err = proxyFromEnv(c.proxy); err != nil {
 		log.Errorf("error parsing proxy settings, not using a proxy: %s", err)
 		c.proxy = nil
