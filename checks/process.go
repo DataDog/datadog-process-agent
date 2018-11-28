@@ -15,9 +15,10 @@ import (
 	"github.com/DataDog/datadog-process-agent/util"
 )
 
+const emptyCtrID = ""
+
 // Process is a singleton ProcessCheck.
 var Process = &ProcessCheck{}
-var emptyCtrID = ""
 
 // ProcessCheck collects full state, including cmdline args and related metadata,
 // for live and running processes. The instance will store some state between
@@ -110,9 +111,6 @@ func createProcCtrMessages(
 	msgs := make([]*model.CollectorProc, 0)
 
 	// we first split non-container processes in chunks
-	if procsByCtr[emptyCtrID] != nil {
-		totalProcs += len(procsByCtr[emptyCtrID])
-	}
 	chunks := chunkProcesses(procsByCtr[emptyCtrID], cfg.MaxPerMessage)
 	for _, c := range chunks {
 		msgs = append(msgs, &model.CollectorProc{
@@ -130,8 +128,6 @@ func createProcCtrMessages(
 		if _, ok := procsByCtr[ctr.Id]; !ok {
 			continue
 		}
-		totalProcs += len(procsByCtr[ctr.Id])
-		totalContainers++
 		ctrProcs = append(ctrProcs, procsByCtr[ctr.Id]...)
 		ctrs = append(ctrs, ctr)
 	}
@@ -147,10 +143,13 @@ func createProcCtrMessages(
 	}
 
 	// fill in GroupSize for each CollectorProc and convert them to final messages
+	// also count containers and processes
 	messages := make([]model.MessageBody, 0, len(msgs))
 	for _, m := range msgs {
 		m.GroupSize = int32(len(msgs))
 		messages = append(messages, m)
+		totalProcs += len(m.Processes)
+		totalContainers += len(m.Containers)
 	}
 
 	return messages, totalProcs, totalContainers
