@@ -2,9 +2,7 @@
 
 package net
 
-import (
-	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
-)
+import "github.com/DataDog/datadog-process-agent/ebpf"
 
 // RemoteNetTracerUtil is only implemented on linux
 type RemoteNetTracerUtil struct{}
@@ -20,8 +18,8 @@ func GetRemoteNetworkTracerUtil() (*RemoteNetTracerUtil, error) {
 }
 
 // GetConnections is only implemented on linux
-func (r *RemoteNetTracerUtil) GetConnections() ([]tracer.ConnectionStats, error) {
-	return nil, tracer.ErrNotImplemented
+func (r *RemoteNetTracerUtil) GetConnections() ([]ebpf.ConnectionStats, error) {
+	return nil, ebpf.ErrNotImplemented
 }
 
 // ShouldLogTracerUtilError is only implemented on linux

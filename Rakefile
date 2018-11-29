@@ -16,6 +16,7 @@ def os
 desc "Setup dependencies"
 task :deps do
   system("go get -u github.com/golang/dep/cmd/dep")
+  system("go get -u github.com/mailru/easyjson")
   system("go get -u golang.org/x/lint/golint")
   system("dep ensure -v -vendor-only")
 end
@@ -48,7 +49,7 @@ task :install do
   else
     bin = "process-agent"
   end
-  go_build("github.com/DataDog/datadog-process-agent/agent", :cmd=> "go build -i -o $GOPATH/bin/#{bin}")
+  go_build("github.com/DataDog/datadog-process-agent/cmd/agent", :cmd=> "go build -i -o $GOPATH/bin/#{bin}")
 end
 
 desc "Test Datadog Process agent"
@@ -115,6 +116,12 @@ task :protobuf do
   end
   sh "protoc proto/agent.proto -I $GOPATH/src -I vendor -I proto --gogofaster_out $GOPATH/src"
 end
+
+task :easyjson do
+  sh "easyjson ebpf/event_common.go"
+end
+
+task :codegen => [:protobuf, :easyjson]
 
 desc "Datadog Process Agent CI script (fmt, vet, etc)"
 task :ci => [:deps, :fmt, :vet, :test, :lint, :build]

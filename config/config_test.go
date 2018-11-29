@@ -521,6 +521,37 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
 	assert.Equal("/var/my-location/network-tracer.log", agentConfig.NetworkTracerSocketPath)
 	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
+	assert.False(agentConfig.DisableTCPTracing)
+	assert.False(agentConfig.DisableUDPTracing)
+	assert.False(agentConfig.DisableIPv6Tracing)
+
+	err = yaml.Unmarshal([]byte(strings.Join([]string{
+		"network_tracer_config:",
+		"  enabled: true",
+		"  nettracer_socket: /var/my-location/network-tracer.log",
+		"  disable_tcp: true",
+		"  disable_udp: true",
+		"  disable_ipv6: true",
+	}, "\n")), &netYamlConf)
+	assert.NoError(err)
+
+	agentConfig, err = NewAgentConfig(nil, &ddy, &netYamlConf)
+
+	assert.Equal("apikey_20", ep.APIKey)
+	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
+	assert.Equal(10, agentConfig.QueueSize)
+	assert.Equal(true, agentConfig.AllowRealTime)
+	assert.Equal(true, agentConfig.Enabled)
+	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
+	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
+	assert.Equal(100, agentConfig.Windows.ArgsRefreshInterval)
+	assert.Equal(false, agentConfig.Windows.AddNewArgs)
+	assert.Equal(false, agentConfig.Scrubber.Enabled)
+	assert.Equal("/var/my-location/network-tracer.log", agentConfig.NetworkTracerSocketPath)
+	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
+	assert.True(agentConfig.DisableTCPTracing)
+	assert.True(agentConfig.DisableUDPTracing)
+	assert.True(agentConfig.DisableIPv6Tracing)
 }
 
 func TestProxyEnv(t *testing.T) {
