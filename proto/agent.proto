@@ -351,7 +351,7 @@ message Connection {
 
 message Addr {
 	// post-resolution field; deprecated in favor of hostId
-	Host host = 1  [deprecated = 1];
+	Host host = 1  [deprecated = true];
 	string ip = 2;
 	int32 port = 3;
   	string hostId = 4; // post-resolution field
