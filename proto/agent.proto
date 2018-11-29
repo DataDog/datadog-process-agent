@@ -283,6 +283,14 @@ message ContainerStat {
 	bytes byteKey = 19;
 }
 
+// ContainerMetadata only holds enough information to identify a container in connection data
+message ContainerMetadata {
+	string id = 1;
+	uint32 key = 2;
+	bytes byteKey = 3;
+	repeated string tags = 4;
+}
+
 message SystemInfo {
 	string uuid = 1;
 	OSInfo os = 2;
@@ -333,19 +341,13 @@ message Connection {
 	uint64 totalBytesReceived = 14;
 }
 
-// ContainerMetadata only holds enough information to identify a container in connection data
-message ContainerMetadata {
-	string id = 1;
-	uint32 key = 2;
-	bytes byteKey = 3;
-	repeated string tags = 4;
-}
-
 message Addr {
-	Host host = 1;  // post-resolution field
+	// post-resolution field; deprecated in favor of hostId
+	Host host = 1  [deprecated = 1];
 	string ip = 2;
 	int32 port = 3;
-	ContainerMetadata container = 4; // post-resolution field
+  	string hostId = 4; // post-resolution field
+  	string containerId = 5; // post-resolution field
 }
 
 message MemoryStat {
