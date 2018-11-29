@@ -50,7 +50,7 @@ message CollectorConnections {
 
 	// post-resolution field; all the hosts referenced in `connections` keyed by
 	// hostId
-	map<string, Host> connectedHosts = 7;
+	map<int32, Host> connectedHosts = 7;
 
 	// post-resolution field: all of the containers referenced in `connections` keyed by
 	// containerId
