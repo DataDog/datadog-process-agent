@@ -79,7 +79,7 @@ func TestContainerAddressList(t *testing.T) {
 	ctr.AddressList = []containers.NetworkAddress{containers.NetworkAddress{IP: net.ParseIP("192.168.128.141"), Port: 443, Protocol: "TCP"}}
 	results := fmtContainers([]*containers.Container{ctr}, map[string]util.ContainerRateMetrics{}, time.Now(), 1)
 	assert.Equal(t, 1, len(results[0]))
-	addrs := []*model.ContainerNetworkAddress{
+	addrs := []*model.ContainerAddr{
 		&model.ContainerNetworkAddress{Ip: "192.168.128.141", Port: int32(443), Protocol: model.ConnectionType_tcp},
 	}
 	assert.Equal(t, results[0][0].AddressList, addrs)
