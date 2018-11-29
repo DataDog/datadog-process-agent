@@ -49,12 +49,13 @@ message CollectorConnections {
 	int32 groupSize = 6;
 
 	// post-resolution field; all the hosts referenced in `connections` keyed by
-	// hostId
-	map<int32, Host> connectedHosts = 7;
+	// hostId. This should also include an entry for the host on which these connections
+	// were gathered.
+	map<int32, Host> resolvedHosts = 7;
 
 	// post-resolution field: all of the containers referenced in `connections` keyed by
 	// containerId
-	map<string, ContainerMetadata> connectedContainers = 8;
+	map<string, ContainerMetadata> resolvedContainers = 8;
 }
 
 message CollectorRealTime {
