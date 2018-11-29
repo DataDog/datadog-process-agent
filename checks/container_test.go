@@ -80,7 +80,7 @@ func TestContainerAddressList(t *testing.T) {
 	results := fmtContainers([]*containers.Container{ctr}, map[string]util.ContainerRateMetrics{}, time.Now(), 1)
 	assert.Equal(t, 1, len(results[0]))
 	addrs := []*model.ContainerAddr{
-		&model.ContainerNetworkAddress{Ip: "192.168.128.141", Port: int32(443), Protocol: model.ConnectionType_tcp},
+		&model.ContainerAddr{Ip: "192.168.128.141", Port: int32(443), Protocol: model.ConnectionType_tcp},
 	}
 	assert.Equal(t, results[0][0].AddressList, addrs)
 }
