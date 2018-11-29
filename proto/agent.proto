@@ -47,6 +47,14 @@ message CollectorConnections {
 	// Message batching metadata
 	int32 groupId = 5;
 	int32 groupSize = 6;
+
+	// post-resolution field; all the hosts referenced in `connections` keyed by
+	// hostId
+	map<string, Host> connectedHosts = 7;
+
+	// post-resolution field: all of the containers referenced in `connections` keyed by
+	// containerId
+	map<string, ContainerMetadata> connectedContainers = 8;
 }
 
 message CollectorRealTime {
