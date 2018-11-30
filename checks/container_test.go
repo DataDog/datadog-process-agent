@@ -78,15 +78,15 @@ func TestContainerChunking(t *testing.T) {
 	}
 }
 
-func TestContainerAddressList(t *testing.T) {
+func TestContainerAddresses(t *testing.T) {
 	ctr := makeContainer("haha")
 	ctr.AddressList = []containers.NetworkAddress{containers.NetworkAddress{IP: net.ParseIP("192.168.128.141"), Port: 443, Protocol: "TCP"}}
-	results := fmtContainers([]*containers.Container{ctr}, map[string]util.ContainerRateMetrics{}, time.Now(), 1)
-	assert.Equal(t, 1, len(results[0]))
+	results := fmtContainers([]*containers.Container{ctr}, map[string]util.ContainerRateMetrics{}, time.Now())
+	assert.Equal(t, 1, len(results))
 	addrs := []*model.ContainerAddr{
 		&model.ContainerAddr{Ip: "192.168.128.141", Port: int32(443), Protocol: model.ConnectionType_tcp},
 	}
-	assert.Equal(t, results[0][0].Addresses, addrs)
+	assert.Equal(t, results[0].Addresses, addrs)
 }
 
 func TestContainerNils(t *testing.T) {
