@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/util/winutil"
+
 	log "github.com/cihub/seelog"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
@@ -25,6 +27,7 @@ const ServiceName = "datadog-process-agent"
 var defaultConfigPath = "c:\\programdata\\datadog\\datadog.yaml"
 var defaultOldConfigPath = "c:\\programdata\\datadog\\datadog.conf"
 var defaultConfdPath = "c:\\programdata\\datadog\\conf.d"
+var defaultLogFilePath = "c:\\programdata\\datadog\\logs\\process-agent.log"
 
 var winopts struct {
 	installService   bool
@@ -35,6 +38,13 @@ var winopts struct {
 
 func init() {
 	fmt.Printf("main_windows.init()")
+	pd, err := winutil.GetProgramDataDir()
+	if err == nil {
+		defaultConfigPath = filepath.Join(pd, "Datadog", "datadog.yaml")
+		defaultOldConfigPath = filepath.Join(pd, "Datadog", "datadog.conf")
+		defaultConfdPath = filepath.Join(pd, "Datadog", "conf.d")
+		defaultLogFilePath = filepath.Join(pd, "Datadog", "logs", "process.log")
+	}
 }
 
 type myservice struct{}
@@ -102,12 +112,7 @@ func runService(isDebug bool) {
 }
 
 func EnableLoggingToFile() {
-	seeConfig := `
-	<seelog minlevel="debug">
-	<outputs>
-		<rollingfile type="size" filename="c:\\ProgramData\\DataDog\\Logs\\process.log" maxsize="1000000" maxrolls="2" />
-	</outputs>
-</seelog>`
+	seeConfig := fmt.Sprintf("<seelog minlevel=\"debug\"> <outputs>	<rollingfile type=\"size\" filename=\"%s\" maxsize=\"1000000\" maxrolls=\"2\" />	</outputs></seelog>", defaultLogFilePath)
 	logger, _ := log.LoggerFromConfigAsBytes([]byte(seeConfig))
 	log.ReplaceLogger(logger)
 }

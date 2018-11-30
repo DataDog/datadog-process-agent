@@ -10,13 +10,6 @@
   revision = "75cd24fc2f2c2a2088577d12123ddee5f54e0675"
 
 [[projects]]
-  digest = "1:457212d305ca8e8f68765cc6adb4e259a3aecc6513d79066736fbccbefc32485"
-  name = "github.com/CharlyF/custom-metrics-apiserver"
-  packages = ["pkg/provider"]
-  pruneopts = ""
-  revision = "56ec6921a4cfec971e5a8c89d5f4629c17cbb21a"
-
-[[projects]]
   digest = "1:e614c1c911617d660f569202b4680239069793b7ca473a8c3e644240551b12b0"
   name = "github.com/DataDog/agent-payload"
   packages = ["gogen"]
@@ -25,7 +18,7 @@
   version = "4.8"
 
 [[projects]]
-  digest = "1:e0950f6dff4a41409ffc5eb5758c115b9483ca66a3e5ac2f5b879c0a28975e28"
+  digest = "1:b04daae0e01a9e5f3fb4c605ce9ed3bb1679fadd2bf8e84a7b9b6e0357a6f7ed"
   name = "github.com/DataDog/datadog-agent"
   packages = [
     "cmd/agent/api/response",
@@ -53,6 +46,7 @@
     "pkg/util/docker",
     "pkg/util/ec2",
     "pkg/util/ecs",
+    "pkg/util/executable",
     "pkg/util/gce",
     "pkg/util/hostname",
     "pkg/util/kubernetes",
@@ -63,10 +57,12 @@
     "pkg/util/kubernetes/kubelet",
     "pkg/util/log",
     "pkg/util/retry",
+    "pkg/util/tmplvar",
+    "pkg/util/winutil",
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "020e0e819623b29ca1d36ec7e39ed4c2186ce635"
+  revision = "a5dbafed6d1550f1e43b79cc0c8b28718693f325"
 
 [[projects]]
   digest = "1:7a91a175c283b21c6e99edc1b2fb82fe11eb5b42e7a28a2a67b17d9c28ad1855"
@@ -410,6 +406,21 @@
   packages = ["."]
   pruneopts = ""
   revision = "f2b4162afba35581b6d4a50d3b8f34e33c144682"
+
+[[projects]]
+  digest = "1:2c5ad58492804c40bdaf5d92039b0cde8b5becd2b7feeb37d7d1cc36a8aa8dbe"
+  name = "github.com/kardianos/osext"
+  packages = ["."]
+  pruneopts = ""
+  revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
+
+[[projects]]
+  branch = "master"
+  digest = "1:2f59afe0ce55f7e26027bb459f3e026f17319651a1c9e9a24031bb2d9348f968"
+  name = "github.com/kubernetes-incubator/custom-metrics-apiserver"
+  packages = ["pkg/provider"]
+  pruneopts = ""
+  revision = "bb8bae16c5550f2aeef3151259a1b36078a0e544"
 
 [[projects]]
   digest = "1:961dc3b1d11f969370533390fdf203813162980c858e1dabe827b60940c909a5"
@@ -982,8 +993,10 @@
     "github.com/DataDog/datadog-agent/pkg/util/containers/metrics",
     "github.com/DataDog/datadog-agent/pkg/util/docker",
     "github.com/DataDog/datadog-agent/pkg/util/ecs",
+    "github.com/DataDog/datadog-agent/pkg/util/executable",
     "github.com/DataDog/datadog-agent/pkg/util/log",
     "github.com/DataDog/datadog-agent/pkg/util/retry",
+    "github.com/DataDog/datadog-agent/pkg/util/winutil",
     "github.com/DataDog/datadog-go/statsd",
     "github.com/DataDog/gopsutil/cpu",
     "github.com/DataDog/gopsutil/host",
