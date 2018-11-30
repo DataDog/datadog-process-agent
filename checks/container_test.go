@@ -82,7 +82,7 @@ func TestContainerAddressList(t *testing.T) {
 	addrs := []*model.ContainerAddr{
 		&model.ContainerAddr{Ip: "192.168.128.141", Port: int32(443), Protocol: model.ConnectionType_tcp},
 	}
-	assert.Equal(t, results[0][0].AddressList, addrs)
+	assert.Equal(t, results[0][0].Addresses, addrs)
 }
 
 func TestContainerNils(t *testing.T) {
