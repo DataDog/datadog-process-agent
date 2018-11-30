@@ -81,16 +81,16 @@ func TestBlacklist(t *testing.T) {
 func TestOnlyEnvConfig(t *testing.T) {
 	// setting an API Key should be enough to generate valid config
 	os.Setenv("DD_API_KEY", "apikey_from_env")
+	defer os.Unsetenv("DD_API_KEY")
 
 	agentConfig, err := newAgentConfig(nil, nil, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "apikey_from_env", agentConfig.APIEndpoints[0].APIKey)
-
-	os.Setenv("DD_API_KEY", "")
 }
 
 func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
 	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "*password*,consul_token,*api_key")
+	defer os.Unsetenv("DD_CUSTOM_SENSITIVE_WORDS")
 
 	agentConfig, err := newAgentConfig(nil, nil, nil)
 	assert.Nil(t, err)
@@ -111,12 +111,13 @@ func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 
-	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "")
 }
 
 func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
 	os.Setenv("DD_SCRUB_ARGS", "false")
+	defer os.Unsetenv("DD_SCRUB_ARGS")
 	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "*password*,consul_token,*api_key")
+	defer os.Unsetenv("DD_CUSTOM_SENSITIVE_WORDS")
 
 	agentConfig, _ := newAgentConfig(nil, nil, nil)
 	assert.Equal(t, false, agentConfig.Scrubber.Enabled)
@@ -137,8 +138,6 @@ func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
 
-	os.Setenv("DD_SCRUB_ARGS", "")
-	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "")
 }
 
 func TestConfigNewFromReaderIfExists(t *testing.T) {
@@ -235,10 +234,12 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(true, agentConfig.Scrubber.Enabled)
 
 	os.Setenv("DOCKER_DD_AGENT", "yes")
+	defer os.Unsetenv("DOCKER_DD_AGENT")
 	agentConfig = NewDefaultAgentConfig()
 	assert.Equal(os.Getenv("HOST_PROC"), "")
 	assert.Equal(os.Getenv("HOST_SYS"), "")
 	os.Setenv("DOCKER_DD_AGENT", "no")
+	defer os.Unsetenv("DOCKER_DD_AGENT")
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 }
 
@@ -607,6 +608,10 @@ func TestProxyEnv(t *testing.T) {
 		assert.NoError(err)
 		assert.Equal(tc.expected, u.String())
 	}
+	os.Unsetenv("PROXY_HOST")
+	os.Unsetenv("PROXY_PORT")
+	os.Unsetenv("PROXY_USER")
+	os.Unsetenv("PROXY_PASSWORD")
 }
 
 func getURL(f *ini.File) (*url.URL, error) {
