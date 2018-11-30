@@ -10,13 +10,6 @@
   revision = "75cd24fc2f2c2a2088577d12123ddee5f54e0675"
 
 [[projects]]
-  digest = "1:457212d305ca8e8f68765cc6adb4e259a3aecc6513d79066736fbccbefc32485"
-  name = "github.com/CharlyF/custom-metrics-apiserver"
-  packages = ["pkg/provider"]
-  pruneopts = ""
-  revision = "56ec6921a4cfec971e5a8c89d5f4629c17cbb21a"
-
-[[projects]]
   digest = "1:e614c1c911617d660f569202b4680239069793b7ca473a8c3e644240551b12b0"
   name = "github.com/DataDog/agent-payload"
   packages = ["gogen"]
@@ -25,7 +18,7 @@
   version = "4.8"
 
 [[projects]]
-  digest = "1:8555b3756f21d4030b329489c87f126814b6031fa72efc4be4af661d54646b08"
+  digest = "1:b04daae0e01a9e5f3fb4c605ce9ed3bb1679fadd2bf8e84a7b9b6e0357a6f7ed"
   name = "github.com/DataDog/datadog-agent"
   packages = [
     "cmd/agent/api/response",
@@ -69,7 +62,7 @@
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "7f45ecfbab1d4f98fc84842df6e3fd4e32486ff8"
+  revision = "a5dbafed6d1550f1e43b79cc0c8b28718693f325"
 
 [[projects]]
   digest = "1:7a91a175c283b21c6e99edc1b2fb82fe11eb5b42e7a28a2a67b17d9c28ad1855"
@@ -200,7 +193,7 @@
   version = "v2.6.2"
 
 [[projects]]
-  digest = "1:577f411de1bb123e61cdebd59cb51124bb68b9e22b28a869829a30e8e8ce7ec6"
+  digest = "1:a60acfb78bd12ce7b2101f0cc0bca8cd83db6aa60bf1e6ddfd33e83013083ddf"
   name = "github.com/docker/docker"
   packages = [
     "api/types",
@@ -429,6 +422,14 @@
   revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
 
 [[projects]]
+  branch = "master"
+  digest = "1:2f59afe0ce55f7e26027bb459f3e026f17319651a1c9e9a24031bb2d9348f968"
+  name = "github.com/kubernetes-incubator/custom-metrics-apiserver"
+  packages = ["pkg/provider"]
+  pruneopts = ""
+  revision = "bb8bae16c5550f2aeef3151259a1b36078a0e544"
+
+[[projects]]
   digest = "1:961dc3b1d11f969370533390fdf203813162980c858e1dabe827b60940c909a5"
   name = "github.com/magiconair/properties"
   packages = ["."]
@@ -544,7 +545,7 @@
   revision = "13ba4ddd0caa9c28ca7b7bffe1dfa9ed8d5ef207"
 
 [[projects]]
-  digest = "1:05594cbd452a4dcc781e4464de6b2a6c70cbb7822b3c284665ff6fc79ad432cb"
+  digest = "1:519e27be74befe28370fbade86b17c2f385c8043c7ae74394b63644c0838bc52"
   name = "github.com/prometheus/procfs"
   packages = [
     ".",
