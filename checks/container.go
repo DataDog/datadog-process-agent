@@ -127,6 +127,7 @@ func fmtContainers(ctrList []*containers.Container, lastRates map[string]util.Co
 			NetSentPs:   calculateRate(ifStats.PacketsSent, lastCtr.NetworkSum.PacketsSent, lastRun),
 			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun),
 			NetSentBps:  calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun),
+			Addresses:   convertAddressList(ctr),
 			Started:     ctr.StartedAt,
 			Tags:        tags,
 		})
@@ -152,6 +153,23 @@ func chunkContainers(ctrList []*containers.Container, lastRates map[string]util.
 		chunked = append(chunked, chunk)
 	}
 	return chunked
+}
+
+// convertAddressList converts AddressList into process-agent ContainerNetworkAddress objects
+func convertAddressList(ctr *containers.Container) []*model.ContainerAddr {
+	addrs := make([]*model.ContainerAddr, 0, len(ctr.AddressList))
+	for _, a := range ctr.AddressList {
+		protocol := model.ConnectionType_tcp
+		if a.Protocol == "UDP" {
+			protocol = model.ConnectionType_udp
+		}
+		addrs = append(addrs, &model.ContainerAddr{
+			Ip:       a.IP.String(),
+			Port:     int32(a.Port),
+			Protocol: protocol,
+		})
+	}
+	return addrs
 }
 
 func calculateCtrPct(cur, prev, sys2, sys1 uint64, numCPU int, before time.Time) float32 {

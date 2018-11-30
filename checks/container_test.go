@@ -1,13 +1,15 @@
 package checks
 
 import (
+	"net"
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/util/containers"
-	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/DataDog/datadog-agent/pkg/util/containers"
+	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
+	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/util"
 )
 
@@ -74,6 +76,17 @@ func TestContainerChunking(t *testing.T) {
 		assert.Equal(t, tc.expected, total, "total test %d", i)
 
 	}
+}
+
+func TestContainerAddressList(t *testing.T) {
+	ctr := makeContainer("haha")
+	ctr.AddressList = []containers.NetworkAddress{containers.NetworkAddress{IP: net.ParseIP("192.168.128.141"), Port: 443, Protocol: "TCP"}}
+	results := fmtContainers([]*containers.Container{ctr}, map[string]util.ContainerRateMetrics{}, time.Now(), 1)
+	assert.Equal(t, 1, len(results[0]))
+	addrs := []*model.ContainerAddr{
+		&model.ContainerAddr{Ip: "192.168.128.141", Port: int32(443), Protocol: model.ConnectionType_tcp},
+	}
+	assert.Equal(t, results[0][0].Addresses, addrs)
 }
 
 func TestContainerNils(t *testing.T) {

@@ -47,6 +47,15 @@ message CollectorConnections {
 	// Message batching metadata
 	int32 groupId = 5;
 	int32 groupSize = 6;
+
+	// post-resolution field; all the hosts referenced in `connections` keyed by
+	// hostId. This should also include an entry for the host on which these connections
+	// were gathered.
+	map<int32, Host> resolvedHosts = 7;
+
+	// post-resolution field: all of the containers referenced in `connections` keyed by
+	// containerId
+	map<string, ContainerMetadata> resolvedContainers = 8;
 }
 
 message CollectorRealTime {
@@ -168,6 +177,13 @@ enum ContainerHealth {
 	unhealthy = 3;
 }
 
+// ContainerAddr records the IPs, Ports and Protocols for each container
+message ContainerAddr {
+	string ip = 1;
+	int32 port = 2;
+	ConnectionType protocol = 3;
+}
+
 message Container {
 	string type = 1;
 	string id = 2;
@@ -195,6 +211,7 @@ message Container {
 	int64 started = 24;
 	bytes byteKey = 25;
 	repeated string tags = 26;
+	repeated ContainerAddr addresses = 27;
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
@@ -275,6 +292,14 @@ message ContainerStat {
 	bytes byteKey = 19;
 }
 
+// ContainerMetadata only holds enough information to identify a container in connection data
+message ContainerMetadata {
+	string id = 1;
+	uint32 key = 2;
+	bytes byteKey = 3;
+	repeated string tags = 4;
+}
+
 message SystemInfo {
 	string uuid = 1;
 	OSInfo os = 2;
@@ -326,9 +351,12 @@ message Connection {
 }
 
 message Addr {
-	Host host = 1;
+	// post-resolution field; deprecated in favor of hostId
+	Host host = 1  [deprecated = true];
 	string ip = 2;
 	int32 port = 3;
+	string hostId = 4; // post-resolution field
+	string containerId = 5; // post-resolution field
 }
 
 message MemoryStat {
