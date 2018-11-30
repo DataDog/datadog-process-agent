@@ -46,6 +46,7 @@
     "pkg/util/docker",
     "pkg/util/ec2",
     "pkg/util/ecs",
+    "pkg/util/executable",
     "pkg/util/gce",
     "pkg/util/hostname",
     "pkg/util/kubernetes",
@@ -71,7 +72,7 @@
   revision = "a9c7a9896c1847c9cc2b068a2ae68e9d74540a5d"
 
 [[projects]]
-  digest = "1:cbb07a3235d2b001d93c8439b8fc9325f5ece677533cd06c03642184eff6508f"
+  digest = "1:3f222f2ba821b07db58ec2274787b5c271f2000ba820381fc3df7cf7a17717d8"
   name = "github.com/DataDog/gopsutil"
   packages = [
     "cpu",
@@ -82,14 +83,7 @@
     "process",
   ]
   pruneopts = ""
-  revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
-
-[[projects]]
-  digest = "1:e812ef308bb3a98d6d4df315d16bdc6e90cab8dfbb6ebbc15e830d4a214d3005"
-  name = "github.com/DataDog/tcptracer-bpf"
-  packages = ["pkg/tracer"]
-  pruneopts = ""
-  revision = "e67093561a9e7e3cd7380d68d5022a1626ce32b2"
+  revision = "c8f74f1344dd41bc49ec4d3c2377c526aaedfd20"
 
 [[projects]]
   digest = "1:f3662169bf21f0406cdad064a592c5a052e8ba32f64a360d755544cd5a98dba8"
@@ -414,6 +408,13 @@
   revision = "f2b4162afba35581b6d4a50d3b8f34e33c144682"
 
 [[projects]]
+  digest = "1:2c5ad58492804c40bdaf5d92039b0cde8b5becd2b7feeb37d7d1cc36a8aa8dbe"
+  name = "github.com/kardianos/osext"
+  packages = ["."]
+  pruneopts = ""
+  revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
+
+[[projects]]
   branch = "master"
   digest = "1:2f59afe0ce55f7e26027bb459f3e026f17319651a1c9e9a24031bb2d9348f968"
   name = "github.com/kubernetes-incubator/custom-metrics-apiserver"
@@ -430,7 +431,6 @@
   version = "v1.8.0"
 
 [[projects]]
-  branch = "master"
   digest = "1:212bebc561f4f654a653225868b2a97353cd5e160dc0b0bbc7232b06608474ec"
   name = "github.com/mailru/easyjson"
   packages = [
@@ -993,21 +993,25 @@
     "github.com/DataDog/datadog-agent/pkg/util/containers/metrics",
     "github.com/DataDog/datadog-agent/pkg/util/docker",
     "github.com/DataDog/datadog-agent/pkg/util/ecs",
+    "github.com/DataDog/datadog-agent/pkg/util/executable",
     "github.com/DataDog/datadog-agent/pkg/util/log",
     "github.com/DataDog/datadog-agent/pkg/util/retry",
+    "github.com/DataDog/datadog-agent/pkg/util/winutil",
     "github.com/DataDog/datadog-go/statsd",
     "github.com/DataDog/gopsutil/cpu",
     "github.com/DataDog/gopsutil/host",
     "github.com/DataDog/gopsutil/mem",
     "github.com/DataDog/gopsutil/process",
-    "github.com/DataDog/tcptracer-bpf/pkg/tracer",
     "github.com/DataDog/zstd",
     "github.com/StackExchange/wmi",
     "github.com/cihub/seelog",
     "github.com/go-ini/ini",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
+    "github.com/iovisor/gobpf/elf",
     "github.com/mailru/easyjson",
+    "github.com/mailru/easyjson/jlexer",
+    "github.com/mailru/easyjson/jwriter",
     "github.com/shirou/w32",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
@@ -1015,6 +1019,7 @@
     "golang.org/x/sys/windows/svc/debug",
     "golang.org/x/sys/windows/svc/eventlog",
     "golang.org/x/sys/windows/svc/mgr",
+    "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

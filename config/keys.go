@@ -92,4 +92,16 @@ const (
 
 	// The full path to the file where network-tracer logs will be written.
 	keyNetworkLogFile = networkPrefix + "log_file"
+
+	// Whether agent should disable collection for TCP connection type
+	keyNetworkDisableTCPTracing = networkPrefix + "disable_tcp"
+	envNetworkDisableTCPTracing = "DD_DISABLE_TCP_TRACING"
+
+	// Whether agent should disable collection for UDP connection type
+	keyNetworkDisableUDPTracing = networkPrefix + "disable_udp"
+	envNetworkDisableUDPTracing = "DD_DISABLE_UDP_TRACING"
+
+	// Whether agent should disable collection for IPV6 connection type
+	keyNetworkDisableIPV6Tracing = networkPrefix + "disable_ipv6"
+	envNetworkDisableIPV6Tracing = "DD_DISABLE_IPV6_TRACING"
 )

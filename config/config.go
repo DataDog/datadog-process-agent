@@ -84,6 +84,9 @@ type AgentConfig struct {
 	// Network collection configuration
 	EnableNetworkTracing     bool
 	EnableLocalNetworkTracer bool // To have the network tracer embedded in the process-agent
+	DisableTCPTracing        bool
+	DisableUDPTracing        bool
+	DisableIPv6Tracing       bool
 	NetworkTracerSocketPath  string
 	NetworkTracerLogFile     string
 
@@ -168,6 +171,9 @@ func initConfig(dc ddconfig.Config) {
 	// Variables that don't have the same name in the config and in the env
 	dc.BindEnv(keyNetworkTracingEnabled, envNetworkTracingEnabled)
 	dc.BindEnv(keyNetworkUnixSocketPath, envNetworkUnixSocketPath)
+	dc.BindEnv(keyNetworkDisableTCPTracing, envNetworkDisableTCPTracing)
+	dc.BindEnv(keyNetworkDisableUDPTracing, envNetworkDisableUDPTracing)
+	dc.BindEnv(keyNetworkDisableIPV6Tracing, envNetworkDisableIPV6Tracing)
 }
 
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
@@ -209,6 +215,9 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Network collection configuration
 		EnableNetworkTracing:     false,
 		EnableLocalNetworkTracer: false,
+		DisableTCPTracing:        false,
+		DisableUDPTracing:        false,
+		DisableIPv6Tracing:       false,
 		NetworkTracerSocketPath:  defaultNetworkTracerSocketPath,
 		NetworkTracerLogFile:     defaultNetworkLogFilePath,
 
@@ -352,7 +361,6 @@ func NewReaderIfExists(configPath string) (io.Reader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read error: %s", err)
 	}
-
 	return bytes.NewBuffer(raw), nil
 }
 

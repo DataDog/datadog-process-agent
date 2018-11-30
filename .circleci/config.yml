@@ -1,8 +1,8 @@
 version: 2
 jobs:
   build:
-    docker:
-      - image: circleci/buildpack-deps:xenial
+    machine:
+      docker_layer_caching: true
     environment:
       - GODIST: "go1.10.1.linux-amd64.tar.gz"
       - GOPATH: /home/circleci/project/.go_workspace
@@ -18,7 +18,7 @@ jobs:
       - run: sudo tar -C /usr/local -xzf download/$GODIST --mode='a+rwX'
       - run: rsync -azC --delete ./ $IMPORT_PATH
       - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-      - run: cd $IMPORT_PATH && rake ci
+      - run: cd $IMPORT_PATH && TEST=true make build-ebpf-object && rake ci
 
 workflows:
   version: 2

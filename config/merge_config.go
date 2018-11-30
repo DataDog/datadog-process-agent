@@ -192,6 +192,10 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 		agentConf.NetworkTracerLogFile = dc.GetString(keyNetworkLogFile)
 	}
 
+	agentConf.DisableTCPTracing, _ = isAffirmative(dc.GetString(keyNetworkDisableTCPTracing))
+	agentConf.DisableUDPTracing, _ = isAffirmative(dc.GetString(keyNetworkDisableUDPTracing))
+	agentConf.DisableIPv6Tracing, _ = isAffirmative(dc.GetString(keyNetworkDisableIPV6Tracing))
+
 	return nil
 }
 
@@ -232,27 +236,27 @@ func mergeEnvironmentVariables(dc ddconfig.Config, c *AgentConfig) {
 	}
 
 	if dc.IsSet("COLLECT_DOCKER_NETWORK") {
-		c.CollectDockerNetwork, _ = isAffirmative(dc.GetString("COLLECT_DOCKER_NETWORK"))
+		c.CollectDockerNetwork, _ = isAffirmative(os.Getenv("DD_COLLECT_DOCKER_NETWORK"))
 	}
 
-	if v := dc.GetString("CONTAINER_BLACKLIST"); v != "" {
+	if v := os.Getenv("DD_CONTAINER_BLACKLIST"); v != "" {
 		c.ContainerBlacklist = strings.Split(v, ",")
 	}
-	if v := dc.GetString("CONTAINER_WHITELIST"); v != "" {
+	if v := os.Getenv("DD_CONTAINER_WHITELIST"); v != "" {
 		c.ContainerWhitelist = strings.Split(v, ",")
 	}
-	if v := dc.GetString("CONTAINER_CACHE_DURATION"); v != "" {
+	if v := os.Getenv("DD_CONTAINER_CACHE_DURATION"); v != "" {
 		durationS, _ := strconv.Atoi(v)
 		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
 	}
 
 	// Used to override container source auto-detection.
 	// "docker", "ecs_fargate", "kubelet", etc
-	if v := dc.GetString("PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
+	if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
 		util.SetContainerSource(v)
 	}
 
-	if ok, _ := isAffirmative(dc.GetString("USE_LOCAL_NETWORK_TRACER")); ok {
+	if ok, _ := isAffirmative(os.Getenv("DD_USE_LOCAL_NETWORK_TRACER")); ok {
 		c.EnableLocalNetworkTracer = ok
 	}
 }

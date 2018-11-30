@@ -529,6 +529,37 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
 	assert.Equal("/var/my-location/network-tracer.log", agentConfig.NetworkTracerSocketPath)
 	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
+	assert.False(agentConfig.DisableTCPTracing)
+	assert.False(agentConfig.DisableUDPTracing)
+	assert.False(agentConfig.DisableIPv6Tracing)
+
+	nety = strings.Join([]string{
+		"network_tracer_config:",
+		"  enabled: true",
+		"  nettracer_socket: /var/my-location/network-tracer.log",
+		"  disable_tcp: true",
+		"  disable_udp: true",
+		"  disable_ipv6: true",
+	}, "\n")
+	assert.NoError(err)
+
+	agentConfig, err = newAgentConfig(nil, strings.NewReader(ddy), strings.NewReader(nety))
+
+	assert.Equal("apikey_20", ep.APIKey)
+	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
+	assert.Equal(10, agentConfig.QueueSize)
+	assert.Equal(true, agentConfig.AllowRealTime)
+	assert.Equal(true, agentConfig.Enabled)
+	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
+	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
+	assert.Equal(100, agentConfig.Windows.ArgsRefreshInterval)
+	assert.Equal(false, agentConfig.Windows.AddNewArgs)
+	assert.Equal(false, agentConfig.Scrubber.Enabled)
+	assert.Equal("/var/my-location/network-tracer.log", agentConfig.NetworkTracerSocketPath)
+	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
+	assert.True(agentConfig.DisableTCPTracing)
+	assert.True(agentConfig.DisableUDPTracing)
+	assert.True(agentConfig.DisableIPv6Tracing)
 }
 
 func TestProxyEnv(t *testing.T) {
@@ -978,4 +1009,36 @@ func TestNetworkDefaultValuesConfig(t *testing.T) {
 	assert.Equal(false, conf.EnableNetworkTracing)
 	assert.Equal(defaultNetworkTracerSocketPath, conf.NetworkTracerSocketPath)
 	assert.Equal(defaultNetworkLogFilePath, conf.NetworkTracerLogFile)
+	assert.Equal(defaultNetworkLogFilePath, conf.NetworkTracerLogFile)
+	assert.Equal(false, conf.DisableTCPTracing)
+	assert.Equal(false, conf.DisableUDPTracing)
+	assert.Equal(false, conf.DisableIPv6Tracing)
+}
+
+func TestDisableNetworkConnType(t *testing.T) {
+	assert := assert.New(t)
+
+	os.Setenv("DD_DISABLE_TCP_TRACING", "true")
+	conf, err := newAgentConfig(nil, nil, strings.NewReader(""))
+	assert.NoError(err)
+	assert.Equal(true, conf.DisableTCPTracing)
+	assert.Equal(false, conf.DisableUDPTracing)
+	assert.Equal(false, conf.DisableIPv6Tracing)
+	os.Unsetenv("DD_DISABLE_TCP_TRACING")
+
+	os.Setenv("DD_DISABLE_UDP_TRACING", "true")
+	conf, err = newAgentConfig(nil, nil, strings.NewReader(""))
+	assert.NoError(err)
+	assert.Equal(false, conf.DisableTCPTracing)
+	assert.Equal(true, conf.DisableUDPTracing)
+	assert.Equal(false, conf.DisableIPv6Tracing)
+	os.Unsetenv("DD_DISABLE_UDP_TRACING")
+
+	os.Setenv("DD_DISABLE_IPV6_TRACING", "true")
+	conf, err = newAgentConfig(nil, nil, strings.NewReader(""))
+	assert.NoError(err)
+	assert.Equal(false, conf.DisableTCPTracing)
+	assert.Equal(false, conf.DisableUDPTracing)
+	assert.Equal(true, conf.DisableIPv6Tracing)
+	os.Unsetenv("DD_DISABLE_IPV6_TRACING")
 }

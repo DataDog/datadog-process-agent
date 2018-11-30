@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-process-agent/config"
+	"github.com/DataDog/datadog-process-agent/ebpf"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/net"
-	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
 	log "github.com/cihub/seelog"
 )
 
@@ -25,9 +25,9 @@ var (
 type ConnectionsCheck struct {
 	// Local network tracer
 	useLocalTracer bool
-	localTracer    *tracer.Tracer
+	localTracer    *ebpf.Tracer
 
-	prevCheckConns []tracer.ConnectionStats
+	prevCheckConns []ebpf.ConnectionStats
 	prevCheckTime  time.Time
 
 	buf *bytes.Buffer // Internal buffer
@@ -42,13 +42,13 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		c.useLocalTracer = true
 
 		// Checking whether the current kernel version is supported by the tracer
-		if _, err = tracer.IsTracerSupportedByOS(); err != nil {
+		if _, err = ebpf.IsTracerSupportedByOS(); err != nil {
 			// err is always returned when false, so the above catches the !ok case as well
 			log.Warnf("network tracer unsupported by OS: %s", err)
 			return
 		}
 
-		t, err := tracer.NewTracer(tracer.DefaultConfig)
+		t, err := ebpf.NewTracer(config.TracerConfigFromConfig(cfg))
 		if err != nil {
 			log.Errorf("failed to create network tracer: %s", err)
 			return
@@ -90,7 +90,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 	conns, err := c.getConnections()
 	if err != nil {
 		// If the tracer is not initialized, or still not initialized, then we want to exit without error'ing
-		if err == tracer.ErrNotImplemented || err == ErrTracerStillNotInitialized {
+		if err == ebpf.ErrNotImplemented || err == ErrTracerStillNotInitialized {
 			return nil, nil
 		}
 		return nil, err
@@ -103,7 +103,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 	}
 
 	// Temporary map to help find matching connections from previous check
-	lastConnByKey := make(map[string]tracer.ConnectionStats)
+	lastConnByKey := make(map[string]ebpf.ConnectionStats)
 	for _, conn := range c.prevCheckConns {
 		if b, err := conn.ByteKey(c.buf); err == nil {
 			lastConnByKey[string(b)] = conn
@@ -116,7 +116,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 	return batchConnections(cfg, groupID, c.formatConnections(conns, lastConnByKey, c.prevCheckTime)), nil
 }
 
-func (c *ConnectionsCheck) getConnections() ([]tracer.ConnectionStats, error) {
+func (c *ConnectionsCheck) getConnections() ([]ebpf.ConnectionStats, error) {
 	if c.useLocalTracer { // If local tracer is set up, use that
 		if c.localTracer == nil {
 			return nil, fmt.Errorf("using local network tracer, but no tracer was initialized")
@@ -138,7 +138,7 @@ func (c *ConnectionsCheck) getConnections() ([]tracer.ConnectionStats, error) {
 
 // Connections are split up into a chunks of at most 100 connections per message to
 // limit the message size on intake.
-func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, lastConns map[string]tracer.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
+func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastConns map[string]ebpf.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
 	// Process create-times required to construct unique process hash keys on the backend
 	createTimeForPID := Process.createTimesforPIDs(connectionPIDs(conns))
 
@@ -178,22 +178,22 @@ func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, las
 	return cxs
 }
 
-func formatFamily(f tracer.ConnectionFamily) model.ConnectionFamily {
+func formatFamily(f ebpf.ConnectionFamily) model.ConnectionFamily {
 	switch f {
-	case tracer.AF_INET:
+	case ebpf.AFINET:
 		return model.ConnectionFamily_v4
-	case tracer.AF_INET6:
+	case ebpf.AFINET6:
 		return model.ConnectionFamily_v6
 	default:
 		return -1
 	}
 }
 
-func formatType(f tracer.ConnectionType) model.ConnectionType {
+func formatType(f ebpf.ConnectionType) model.ConnectionType {
 	switch f {
-	case tracer.TCP:
+	case ebpf.TCP:
 		return model.ConnectionType_tcp
-	case tracer.UDP:
+	case ebpf.UDP:
 		return model.ConnectionType_udp
 	default:
 		return -1
@@ -232,7 +232,7 @@ func groupSize(total, maxBatchSize int) int32 {
 	return int32(groupSize)
 }
 
-func connectionPIDs(conns []tracer.ConnectionStats) []uint32 {
+func connectionPIDs(conns []ebpf.ConnectionStats) []uint32 {
 	ps := make(map[uint32]struct{}) // Map used to represent a set
 	for _, c := range conns {
 		ps[c.Pid] = struct{}{}

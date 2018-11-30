@@ -11,8 +11,8 @@ import (
 	"github.com/mailru/easyjson"
 
 	"github.com/DataDog/datadog-process-agent/config"
+	"github.com/DataDog/datadog-process-agent/ebpf"
 	"github.com/DataDog/datadog-process-agent/net"
-	"github.com/DataDog/tcptracer-bpf/pkg/tracer"
 )
 
 // ErrTracerUnsupported is the unsupported error prefix, for error-class matching from callers
@@ -24,7 +24,7 @@ type NetworkTracer struct {
 	cfg *config.AgentConfig
 
 	supported bool
-	tracer    *tracer.Tracer
+	tracer    *ebpf.Tracer
 	conn      net.Conn
 }
 
@@ -35,12 +35,13 @@ func CreateNetworkTracer(cfg *config.AgentConfig) (*NetworkTracer, error) {
 	nt := &NetworkTracer{}
 
 	// Checking whether the current OS + kernel version is supported by the tracer
-	if nt.supported, err = tracer.IsTracerSupportedByOS(); err != nil {
+	if nt.supported, err = ebpf.IsTracerSupportedByOS(); err != nil {
 		return nil, fmt.Errorf("%s: %s", ErrTracerUnsupported, err)
 	}
 
 	log.Infof("Creating tracer for: %s", filepath.Base(os.Args[0]))
-	t, err := tracer.NewTracer(tracer.DefaultConfig)
+
+	t, err := ebpf.NewTracer(config.TracerConfigFromConfig(cfg))
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +58,7 @@ func CreateNetworkTracer(cfg *config.AgentConfig) (*NetworkTracer, error) {
 	return nt, nil
 }
 
-// Run starts the network tracer annd makes available the HTTP endpoint for network collection
+// Run starts the network tracer and makes available the HTTP endpoint for network collection
 func (nt *NetworkTracer) Run() {
 	nt.tracer.Start()
 
