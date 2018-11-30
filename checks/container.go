@@ -85,12 +85,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 
 // fmtContainers formats and chunks the ctrList into a slice of chunks using a specific
 // number of chunks. len(result) MUST EQUAL chunks.
-func fmtContainers(
-	ctrList []*containers.Container,
-	lastRates map[string]util.ContainerRateMetrics,
-	lastRun time.Time,
-	chunks int,
-) [][]*model.Container {
+func fmtContainers(ctrList []*containers.Container, lastRates map[string]util.ContainerRateMetrics, lastRun time.Time, chunks int) [][]*model.Container {
 	perChunk := (len(ctrList) / chunks) + 1
 	chunked := make([][]*model.Container, chunks)
 	chunk := make([]*model.Container, 0, perChunk)
@@ -136,6 +131,7 @@ func fmtContainers(
 			NetSentPs:   calculateRate(ifStats.PacketsSent, lastCtr.NetworkSum.PacketsSent, lastRun),
 			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun),
 			NetSentBps:  calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun),
+			Addresses:   convertAddressList(ctr),
 			Started:     ctr.StartedAt,
 			Tags:        tags,
 		})
@@ -150,6 +146,23 @@ func fmtContainers(
 		chunked[i] = chunk
 	}
 	return chunked
+}
+
+// convertAddressList converts AddressList into process-agent ContainerNetworkAddress objects
+func convertAddressList(ctr *containers.Container) []*model.ContainerAddr {
+	addrs := make([]*model.ContainerAddr, 0, len(ctr.AddressList))
+	for _, a := range ctr.AddressList {
+		protocol := model.ConnectionType_tcp
+		if a.Protocol == "UDP" {
+			protocol = model.ConnectionType_udp
+		}
+		addrs = append(addrs, &model.ContainerAddr{
+			Ip:       a.IP.String(),
+			Port:     int32(a.Port),
+			Protocol: protocol,
+		})
+	}
+	return addrs
 }
 
 func calculateCtrPct(cur, prev, sys2, sys1 uint64, numCPU int, before time.Time) float32 {
