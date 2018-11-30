@@ -137,6 +137,14 @@ func TestRandomizeMessages(t *testing.T) {
 			maxSize:  10,
 			chunks:   1,
 		},
+		{
+			testName: "container-process-mixed-4",
+			pCount:   100,
+			cCount:   17,
+			cProcs:   78,
+			maxSize:  10,
+			chunks:   4,
+		},
 	} {
 
 		t.Run(tc.testName, func(t *testing.T) {
