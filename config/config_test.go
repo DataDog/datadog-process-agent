@@ -14,6 +14,7 @@ import (
 	"time"
 
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-process-agent/util"
 	"github.com/DataDog/gopsutil/process"
 	"github.com/go-ini/ini"
 	"github.com/stretchr/testify/assert"
@@ -982,7 +983,9 @@ func TestDefaultValuesConfig(t *testing.T) {
 	assert.Equal("https://process.datadoghq.com", ep[0].Endpoint.String())
 
 	assert.Equal("info", conf.LogLevel)
-	assert.Equal(false, conf.Enabled)
+	// We disable only if the string is "disabled"
+	_, err = util.GetContainers()
+	assert.Equal(err == nil, conf.Enabled)
 	assert.Equal("127.0.0.1", conf.StatsdHost)
 	assert.Equal(8125, conf.StatsdPort)
 
