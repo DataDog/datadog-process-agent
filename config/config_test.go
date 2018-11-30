@@ -1042,3 +1042,35 @@ func TestDisableNetworkConnType(t *testing.T) {
 	assert.Equal(true, conf.DisableIPv6Tracing)
 	os.Unsetenv("DD_DISABLE_IPV6_TRACING")
 }
+
+func TestContainerEnvVariables(t *testing.T) {
+	assert := assert.New(t)
+
+	name := "DD_COLLECT_DOCKER_NETWORK"
+	os.Setenv(name, "true")
+	conf, err := newAgentConfig(nil, nil, strings.NewReader(""))
+	assert.NoError(err)
+	assert.Equal(true, conf.CollectDockerNetwork)
+	os.Unsetenv(name)
+
+	name = "DD_CONTAINER_BLACKLIST"
+	os.Setenv(name, "blacklist1,blacklist2,blacklist3")
+	conf, err = newAgentConfig(nil, nil, strings.NewReader(""))
+	assert.NoError(err)
+	assert.Equal([]string{"blacklist1", "blacklist2", "blacklist3"}, conf.ContainerBlacklist)
+	os.Unsetenv(name)
+
+	name = "DD_CONTAINER_WHITELIST"
+	os.Setenv(name, "whitelist1,whitelist5")
+	conf, err = newAgentConfig(nil, nil, strings.NewReader(""))
+	assert.NoError(err)
+	assert.Equal([]string{"whitelist1", "whitelist5"}, conf.ContainerWhitelist)
+	os.Unsetenv(name)
+
+	name = "DD_CONTAINER_CACHE_DURATION"
+	os.Setenv(name, "123")
+	conf, err = newAgentConfig(nil, nil, strings.NewReader(""))
+	assert.NoError(err)
+	assert.Equal(123*time.Second, conf.ContainerCacheDuration)
+	os.Unsetenv(name)
+}
