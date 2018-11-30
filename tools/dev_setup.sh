@@ -29,8 +29,8 @@ EOD
 # golang setup
 cat <<EOD | vagrant ssh
 mkdir -p /opt
-wget -q https://dl.google.com/go/go1.11.2.linux-amd64.tar.gz
-sudo tar -xzf go1.11.2.linux-amd64.tar.gz -C /opt
+wget -q https://dl.google.com/go/go1.10.1.linux-amd64.tar.gz
+sudo tar -xzf go1.10.1.linux-amd64.tar.gz -C /opt
 echo 'export GOPATH=/home/vagrant/go' > ~/.bashrc
 echo 'export PATH=/opt/go/bin:/home/vagrant/go/bin:\$PATH' >> ~/.bashrc
 
