@@ -1,7 +1,6 @@
 package checks
 
 import (
-	"errors"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -20,10 +19,7 @@ import (
 	"github.com/DataDog/gopsutil/process"
 )
 
-func procCtrGenerator(pCount int, cCount int, containeredProcs int) ([]*process.FilledProcess, []*containers.Container, error) {
-	if (pCount < cCount) || (containeredProcs > pCount) {
-		return nil, nil, errors.New("The process and container count specified is not valid")
-	}
+func procCtrGenerator(pCount int, cCount int, containeredProcs int) ([]*process.FilledProcess, []*containers.Container) {
 	procs := make([]*process.FilledProcess, 0, pCount)
 	for i := 0; i < pCount; i++ {
 		procs = append(procs, makeProcess(int32(i), strconv.Itoa(i)))
@@ -45,7 +41,7 @@ func procCtrGenerator(pCount int, cCount int, containeredProcs int) ([]*process.
 		ctrIdx++
 	}
 
-	return procs, ctrs, nil
+	return procs, ctrs
 }
 
 func procsToHash(procs []*process.FilledProcess) (procsByPid map[int32]*process.FilledProcess) {
@@ -114,6 +110,14 @@ func TestRandomizeMessages(t *testing.T) {
 			chunks:   4,
 		},
 		{
+			testName: "no-processes",
+			pCount:   0,
+			cCount:   30,
+			cProcs:   0,
+			maxSize:  10,
+			chunks:   1,
+		},
+		{
 			testName: "container-process-mixed-1",
 			pCount:   100,
 			cCount:   30,
@@ -148,9 +152,8 @@ func TestRandomizeMessages(t *testing.T) {
 	} {
 
 		t.Run(tc.testName, func(t *testing.T) {
-			procs, ctrs, err := procCtrGenerator(tc.pCount, tc.cCount, tc.cProcs)
+			procs, ctrs := procCtrGenerator(tc.pCount, tc.cCount, tc.cProcs)
 			procsByPid := procsToHash(procs)
-			assert.NoError(t, err)
 
 			lastRun := time.Now().Add(-5 * time.Second)
 			syst1, syst2 := cpu.TimesStat{}, cpu.TimesStat{}
@@ -264,9 +267,9 @@ func TestBasicProcessMessages(t *testing.T) {
 			maxSize:         2,
 			containers:      []*containers.Container{c[1]},
 			blacklist:       []string{"foo"},
-			expectedChunks:  1,
+			expectedChunks:  2,
 			totalProcs:      2,
-			totalContainers: 0,
+			totalContainers: 1,
 		},
 	} {
 		t.Run(tc.testName, func(t *testing.T) {

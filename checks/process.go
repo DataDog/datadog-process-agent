@@ -124,11 +124,9 @@ func createProcCtrMessages(
 	ctrProcs := make([]*model.Process, 0)
 	ctrs := make([]*model.Container, 0, len(containers))
 	for _, ctr := range containers {
-		// if all processes are skipped for this container, don't send the container
-		if _, ok := procsByCtr[ctr.Id]; !ok {
-			continue
+		if procs, ok := procsByCtr[ctr.Id]; ok {
+			ctrProcs = append(ctrProcs, procs...)
 		}
-		ctrProcs = append(ctrProcs, procsByCtr[ctr.Id]...)
 		ctrs = append(ctrs, ctr)
 	}
 
