@@ -79,10 +79,6 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	}
 
 	procsByCtr := fmtProcesses(cfg, procs, p.lastProcs, ctrList, cpuTimes[0], p.lastCPUTime, p.lastRun)
-	// In case we skip every process..
-	if len(procsByCtr) == 0 {
-		return nil, nil
-	}
 	containers := fmtContainers(ctrList, p.lastCtrRates, p.lastRun)
 
 	messages, totalProcs, totalContainers := createProcCtrMessages(procsByCtr, containers, cfg, p.sysInfo, groupID)
