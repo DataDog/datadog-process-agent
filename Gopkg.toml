@@ -1,6 +1,6 @@
 [[constraint]]
   name = "github.com/DataDog/datadog-agent"
-  revision = "daf74af72a86be259561ce25c277a3d7a8d72830"
+  revision = "a5dbafed6d1550f1e43b79cc0c8b28718693f325"
 
 [[constraint]]
   name = "github.com/DataDog/gopsutil"
@@ -23,3 +23,7 @@
 
 [[constraint]]
   name = "golang.org/x/sys"
+
+[[override]]
+  name = "github.com/kardianos/osext"
+  revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"

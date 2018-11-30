@@ -19,10 +19,37 @@ EOD
 
 vagrant up
 
+# fix permissions
+cat <<EOD | vagrant ssh
+sudo chown vagrant /home/vagrant/go
+sudo chown vagrant /home/vagrant/go/src/
+sudo chown vagrant /home/vagrant/go/src/github.com
+EOD
+
+# golang setup
+cat <<EOD | vagrant ssh
+mkdir -p /opt
+wget -q https://dl.google.com/go/go1.11.2.linux-amd64.tar.gz
+sudo tar -xzf go1.11.2.linux-amd64.tar.gz -C /opt
+echo 'export GOPATH=/home/vagrant/go' > ~/.bashrc
+echo 'export PATH=/opt/go/bin:/home/vagrant/go/bin:\$PATH' >> ~/.bashrc
+
+sudo wget https://github.com/golang/dep/releases/download/v0.5.0/dep-linux-386 -O /usr/local/bin/dep -q
+sudo chmod +x /usr/local/bin/dep
+EOD
+
+# protoc setup
+cat <<EOD | vagrant ssh
+wget https://github.com/protocolbuffers/protobuf/releases/download/v3.3.0/protoc-3.3.0-linux-x86_64.zip -q
+sudo unzip protoc-3.3.0-linux-x86_64.zip -d /opt/protobuf
+echo 'export PATH=\$PATH:/opt/protobuf/bin' >> ~/.bashrc
+go get github.com/gogo/protobuf/protoc-gen-gogofaster
+EOD
+
 # docker setup
 cat <<EOD | vagrant ssh
 sudo apt-get update
-sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common ruby mercurial
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 sudo sh -c 'echo "deb https://download.docker.com/linux/ubuntu xenial stable" >> /etc/apt/sources.list'
 sudo apt-get update
@@ -30,12 +57,6 @@ sudo apt-get install -y docker-ce
 sudo groupadd docker
 sudo usermod -aG docker vagrant
 sudo service docker start
-EOD
-
-# golang setup
-cat <<EOD | vagrant ssh
-sudo apt-get install -y golang
-echo 'export GOPATH=/home/vagrant/go' > ~/.bashrc
 EOD
 
 # necessary to get group membership to be respected
