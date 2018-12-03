@@ -120,15 +120,18 @@ task :protobuf do
   sh "protoc proto/agent.proto -I $GOPATH/src -I vendor -I proto --gogofaster_out $GOPATH/src"
 end
 
+desc "Generate easyjson code"
 task :easyjson do
   sh "easyjson ebpf/event_common.go"
 end
 
+desc "Regenerate protobuf definitions and easyjson definitions"
 task :codegen => [:protobuf, :easyjson]
 
 desc "Datadog Process Agent CI script (fmt, vet, etc)"
 task :ci => [:deps, :fmt, :vet, :test, :lint, :build, 'ebpf:build', 'ebpf:test']
 
+desc "Run errcheck"
 task :err do
   system("go get github.com/kisielk/errcheck")
   sh "errcheck github.com/DataDog/datadog-process-agent"
