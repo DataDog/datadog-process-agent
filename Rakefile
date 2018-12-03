@@ -174,7 +174,7 @@ namespace "ebpf" do
         --workdir=/src \
         #{DOCKER_IMAGE} \
         make -f ebpf/c/tracer-ebpf.mk #{cmd}"
-    sh "#{sudo} chown -R $(id -u):$(id -u) ebpf"
+    sh "sudo chown -R $(id -u):$(id -u) ebpf"
   end
 
     desc "Build and run dockerized `nettop` command for testing"
