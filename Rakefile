@@ -127,7 +127,7 @@ end
 task :codegen => [:protobuf, :easyjson]
 
 desc "Datadog Process Agent CI script (fmt, vet, etc)"
-task :ci => [:deps, :fmt, :vet, :test, :lint, 'ebpf:object', :build, 'ebpf:test']
+task :ci => [:deps, :fmt, :vet, :test, :lint, :build, 'ebpf:build', 'ebpf:test']
 
 task :err do
   system("go get github.com/kisielk/errcheck")
