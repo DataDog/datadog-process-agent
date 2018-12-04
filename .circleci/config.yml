@@ -18,7 +18,7 @@ jobs:
       - run: sudo tar -C /usr/local -xzf download/$GODIST --mode='a+rwX'
       - run: rsync -azC --delete ./ $IMPORT_PATH
       - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-      - run: cd $IMPORT_PATH && TEST=true rake ebpf:build && rake ci
+      - run: cd $IMPORT_PATH && SKIP_BPF_TESTS=true TEST=true rake ci
 
 workflows:
   version: 2

@@ -129,7 +129,7 @@ desc "Regenerate protobuf definitions and easyjson definitions"
 task :codegen => [:protobuf, :easyjson]
 
 desc "Datadog Process Agent CI script (fmt, vet, etc)"
-task :ci => [:deps, :fmt, :vet, :test, :lint, :build, 'ebpf:build', 'ebpf:test']
+task :ci => [:deps, :fmt, :vet, 'ebpf:build', :test, 'ebpf:test', :lint, :build]
 
 desc "Run errcheck"
 task :err do
@@ -151,7 +151,13 @@ namespace "ebpf" do
 
   desc "Run tests for eBPF code"
   task :test do
-    sh "go list ./... | grep -v vendor | sudo -E PATH=#{ENV['PATH']} GOCACHE=off xargs go test -tags 'linux_bpf'"
+    tags = ''
+    if ENV["SKIP_BPF_TESTS"] != "true" then
+      tags = 'linux_bpf'
+    else
+      puts "Skipping BPF tests"
+    end
+      sh "go list ./... | grep -v vendor | sudo -E PATH=#{ENV['PATH']} GOCACHE=off xargs go test -tags #{tags}"
   end
 
   desc "Format ebpf code"
@@ -181,7 +187,7 @@ namespace "ebpf" do
   end
 
     desc "Build and run dockerized `nettop` command for testing"
-    task :nettop => :build do
+    task :nettop => 'ebpf:build' do
       sh 'sudo docker build -t "ebpf-nettop" . -f packaging/Dockerfile-nettop'
       sh "sudo docker run \
         --net=host \
