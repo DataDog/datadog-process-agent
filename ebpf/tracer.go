@@ -90,16 +90,17 @@ func (t *Tracer) Stop() {
 }
 
 func (t *Tracer) GetActiveConnections() (*Connections, error) {
-	var tV4, tV6, uV4, uV6 []Connections
+	var tV4, tV6, uV4, uV6 []ConnectionStats
+	var err error
 
 	if t.config.CollectTCPConns {
-		tV4, err := t.getTCPv4Connections()
+		tV4, err = t.getTCPv4Connections()
 		if err != nil {
 			return nil, err
 		}
 
 		if t.config.CollectIPv6Conns {
-			tV6, err := t.getTCPv6Connections()
+			tV6, err = t.getTCPv6Connections()
 			if err != nil {
 				return nil, err
 			}
@@ -107,38 +108,38 @@ func (t *Tracer) GetActiveConnections() (*Connections, error) {
 	}
 
 	if t.config.CollectUDPConns {
-		uV4, err := t.getUDPv4Connections()
+		uV4, err = t.getUDPv4Connections()
 		if err != nil {
 			return nil, err
 		}
 
 		if t.config.CollectIPv6Conns {
-			uV6, err := t.getUDPv6Connections()
+			uV6, err = t.getUDPv6Connections()
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	conns = append(tV4, append(tV6, append(uV4, uV6...)...)...)
+	conns := append(tV4, append(tV6, append(uV4, uV6...)...)...)
 
 	return &Connections{Conns: conns}, nil
 }
 
 func (t *Tracer) getUDPv4Connections() ([]ConnectionStats, error) {
-	return getV4Connections(UDP, v4UDPMap, t.config.UDPConnTimeout)
+	return t.getV4Connections(UDP, v4UDPMap, t.config.UDPConnTimeout)
 }
 
 func (t *Tracer) getUDPv6Connections() ([]ConnectionStats, error) {
-	return getV4Connections(UDP, v6UDPMap, t.config.UDPConnTimeout)
+	return t.getV4Connections(UDP, v6UDPMap, t.config.UDPConnTimeout)
 }
 
 func (t *Tracer) getTCPv4Connections() ([]ConnectionStats, error) {
-	return getV4Connections(TCP, v4TCPMap, t.config.TCPConnTimeout)
+	return t.getV4Connections(TCP, v4TCPMap, t.config.TCPConnTimeout)
 }
 
 func (t *Tracer) getTCPv6Connections() ([]ConnectionStats, error) {
-	return getV6Connections(TCP, v6TCPMap, t.config.TCPConnTimeout)
+	return t.getV6Connections(TCP, v6TCPMap, t.config.TCPConnTimeout)
 }
 
 func (t *Tracer) getV4Connections(typ ConnectionType, name bpfMapName, timeout time.Duration) ([]ConnectionStats, error) {
@@ -164,7 +165,7 @@ func (t *Tracer) getV4Connections(typ ConnectionType, name bpfMapName, timeout t
 		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(key), unsafe.Pointer(nextKey), unsafe.Pointer(stats))
 		if !hasNext {
 			break
-		} else if stats.isExpired(latestTime, timeout.Nanosecond()) {
+		} else if stats.isExpired(latestTime, timeout.Nanoseconds()) {
 			expired = append(expired, nextKey.copy())
 		} else {
 			active = append(active, connStatsFromV4(nextKey, typ, stats))
