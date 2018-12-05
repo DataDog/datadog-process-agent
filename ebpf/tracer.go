@@ -94,41 +94,38 @@ func (t *Tracer) Stop() {
 }
 
 func (t *Tracer) GetActiveConnections() (*Connections, error) {
-	conns := make([]ConnectionStats, 0)
+	var tV4, tV6, uV4, uV6 []Connections
 
 	if t.config.CollectTCPConns {
-		v4, err := t.getTCPv4Connections()
+		tV4, err := t.getTCPv4Connections()
 		if err != nil {
 			return nil, err
 		}
 
 		if t.config.CollectIPv6Conns {
-			v6, err := t.getTCPv6Connections()
+			tV6, err := t.getTCPv6Connections()
 			if err != nil {
 				return nil, err
 			}
-			conns = append(conns, append(v4, v6...)...)
-		} else {
-			conns = append(conns, v4...)
 		}
 	}
 
 	if t.config.CollectUDPConns {
-		v4, err := t.getUDPv4Connections()
+		uV4, err := t.getUDPv4Connections()
 		if err != nil {
 			return nil, err
 		}
 
 		if t.config.CollectIPv6Conns {
-			v6, err := t.getUDPv6Connections()
+			uV6, err := t.getUDPv6Connections()
 			if err != nil {
 				return nil, err
 			}
-			conns = append(conns, append(v4, v6...)...)
-		} else {
-			conns = append(conns, v4...)
 		}
 	}
+
+	conns = append(tV4, append(tV6, append(uV4, uV6...)...)...)
+
 	return &Connections{Conns: conns}, nil
 }
 
