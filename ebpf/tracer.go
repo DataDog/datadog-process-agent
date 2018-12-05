@@ -191,7 +191,7 @@ func (t *Tracer) getV6Connections(typ ConnectionType, name bpfMapName, timeout t
 		return nil, err
 	}
 
-	if !ok { // if no timestamps have been captured, there can be no TCP packets
+	if !ok { // if no timestamps have been captured, there can be no packets
 		return nil, nil
 	}
 
