@@ -19,17 +19,19 @@ __u16 sport;
 __u16 dport;
 __u32 netns;
 __u32 pid;
+__u8 is_tcp;
 */
 type ConnTupleV4 C.struct_ipv4_tuple_t
 
 func (t *ConnTupleV4) copy() *ConnTupleV4 {
 	return &ConnTupleV4{
-		saddr: t.saddr,
-		daddr: t.daddr,
-		sport: t.sport,
-		dport: t.dport,
-		netns: t.netns,
-		pid:   t.pid,
+		saddr:  t.saddr,
+		daddr:  t.daddr,
+		sport:  t.sport,
+		dport:  t.dport,
+		netns:  t.netns,
+		pid:    t.pid,
+		is_tcp: t.is_tcp,
 	}
 }
 
@@ -42,6 +44,7 @@ __u16 sport;
 __u16 dport;
 __u32 netns;
 __u32 pid;
+__u8 is_tcp;
 */
 type ConnTupleV6 C.struct_ipv6_tuple_t
 
@@ -55,6 +58,7 @@ func (t *ConnTupleV6) copy() *ConnTupleV6 {
 		dport:   t.dport,
 		netns:   t.netns,
 		pid:     t.pid,
+		is_tcp:  t.is_tcp,
 	}
 }
 
@@ -75,7 +79,12 @@ func (cs *ConnStatsWithTimestamp) isExpired(latestTime int64, timeout int64) boo
 	return latestTime-int64(cs.timestamp) > timeout
 }
 
-func connStatsFromV4(t *ConnTupleV4, typ ConnectionType, s *ConnStatsWithTimestamp) ConnectionStats {
+func connStatsFromV4(t *ConnTupleV4, s *ConnStatsWithTimestamp) ConnectionStats {
+	typ := TCP
+	if t.is_tcp == 0 {
+		typ = UDP
+	}
+
 	return ConnectionStats{
 		Pid:       uint32(t.pid),
 		Type:      typ,
@@ -89,7 +98,12 @@ func connStatsFromV4(t *ConnTupleV4, typ ConnectionType, s *ConnStatsWithTimesta
 	}
 }
 
-func connStatsFromV6(t *ConnTupleV6, typ ConnectionType, s *ConnStatsWithTimestamp) ConnectionStats {
+func connStatsFromV6(t *ConnTupleV6, s *ConnStatsWithTimestamp) ConnectionStats {
+	typ := TCP
+	if t.is_tcp == 0 {
+		typ = UDP
+	}
+
 	return ConnectionStats{
 		Pid:       uint32(t.pid),
 		Type:      typ,

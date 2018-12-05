@@ -127,22 +127,22 @@ func (t *Tracer) GetActiveConnections() (*Connections, error) {
 }
 
 func (t *Tracer) getUDPv4Connections() ([]ConnectionStats, error) {
-	return t.getV4Connections(UDP, v4UDPMap, t.config.UDPConnTimeout)
+	return t.getV4Connections(v4UDPMap, t.config.UDPConnTimeout)
 }
 
 func (t *Tracer) getUDPv6Connections() ([]ConnectionStats, error) {
-	return t.getV4Connections(UDP, v6UDPMap, t.config.UDPConnTimeout)
+	return t.getV4Connections(v6UDPMap, t.config.UDPConnTimeout)
 }
 
 func (t *Tracer) getTCPv4Connections() ([]ConnectionStats, error) {
-	return t.getV4Connections(TCP, v4TCPMap, t.config.TCPConnTimeout)
+	return t.getV4Connections(v4TCPMap, t.config.TCPConnTimeout)
 }
 
 func (t *Tracer) getTCPv6Connections() ([]ConnectionStats, error) {
-	return t.getV6Connections(TCP, v6TCPMap, t.config.TCPConnTimeout)
+	return t.getV6Connections(v6TCPMap, t.config.TCPConnTimeout)
 }
 
-func (t *Tracer) getV4Connections(typ ConnectionType, name bpfMapName, timeout time.Duration) ([]ConnectionStats, error) {
+func (t *Tracer) getV4Connections(name bpfMapName, timeout time.Duration) ([]ConnectionStats, error) {
 	mp, err := t.getMap(name)
 	if err != nil {
 		return nil, err
@@ -168,7 +168,7 @@ func (t *Tracer) getV4Connections(typ ConnectionType, name bpfMapName, timeout t
 		} else if stats.isExpired(latestTime, timeout.Nanoseconds()) {
 			expired = append(expired, nextKey.copy())
 		} else {
-			active = append(active, connStatsFromV4(nextKey, typ, stats))
+			active = append(active, connStatsFromV4(nextKey, stats))
 		}
 		key = nextKey
 	}
@@ -181,7 +181,7 @@ func (t *Tracer) getV4Connections(typ ConnectionType, name bpfMapName, timeout t
 	return active, nil
 }
 
-func (t *Tracer) getV6Connections(typ ConnectionType, name bpfMapName, timeout time.Duration) ([]ConnectionStats, error) {
+func (t *Tracer) getV6Connections(name bpfMapName, timeout time.Duration) ([]ConnectionStats, error) {
 	mp, err := t.getMap(name)
 	if err != nil {
 		return nil, err
@@ -207,7 +207,7 @@ func (t *Tracer) getV6Connections(typ ConnectionType, name bpfMapName, timeout t
 		} else if stats.isExpired(latestTime, timeout.Nanoseconds()) {
 			expired = append(expired, nextKey.copy())
 		} else {
-			active = append(active, connStatsFromV6(nextKey, typ, stats))
+			active = append(active, connStatsFromV6(nextKey, stats))
 		}
 		key = nextKey
 	}

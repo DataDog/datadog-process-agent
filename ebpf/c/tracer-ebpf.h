@@ -35,6 +35,7 @@ struct ipv4_tuple_t {
 	__u16 dport;
 	__u32 netns;
 	__u32 pid;
+    __u8 is_tcp;
 };
 
 struct ipv6_tuple_t {
@@ -47,6 +48,7 @@ struct ipv6_tuple_t {
 	__u16 dport;
 	__u32 netns;
 	__u32 pid;
+    __u8 is_tcp;
 };
 
 #define TRACER_STATE_UNINITIALIZED 0
