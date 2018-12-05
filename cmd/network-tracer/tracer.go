@@ -58,10 +58,8 @@ func CreateNetworkTracer(cfg *config.AgentConfig) (*NetworkTracer, error) {
 	return nt, nil
 }
 
-// Run starts the network tracer and makes available the HTTP endpoint for network collection
+// Run makes available the HTTP endpoint for network collection
 func (nt *NetworkTracer) Run() {
-	nt.tracer.Start()
-
 	http.HandleFunc("/status", func(w http.ResponseWriter, req *http.Request) {})
 
 	http.HandleFunc("/connections", func(w http.ResponseWriter, req *http.Request) {

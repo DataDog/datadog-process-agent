@@ -34,8 +34,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	t.Start()
-
 	fmt.Printf("Initialization complete. Starting nettop\n")
 
 	sig := make(chan os.Signal, 1)

@@ -85,10 +85,6 @@ func NewTracer(config *Config) (*Tracer, error) {
 	return &Tracer{m: m, config: config}, nil
 }
 
-func (t *Tracer) Start() error {
-	return nil
-}
-
 func (t *Tracer) Stop() {
 	t.m.Close()
 }
