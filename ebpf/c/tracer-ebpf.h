@@ -35,7 +35,9 @@ struct ipv4_tuple_t {
 	__u16 dport;
 	__u32 netns;
 	__u32 pid;
-    __u8 is_tcp;
+    // Metadata description:
+    // First bit indicates if the connection is TCP (1) or UDP (0)
+    __u32 metadata; // This is that big because it seems that we atleast need a 32-bit aligned struct
 };
 
 struct ipv6_tuple_t {
@@ -48,7 +50,9 @@ struct ipv6_tuple_t {
 	__u16 dport;
 	__u32 netns;
 	__u32 pid;
-    __u8 is_tcp;
+    // Metadata description:
+    // First bit indicates if the connection is TCP (1) or UDP (0)
+    __u32 metadata; // This is that big because it seems that we atleast need a 32-bit aligned struct
 };
 
 #define TRACER_STATE_UNINITIALIZED 0

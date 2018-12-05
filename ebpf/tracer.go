@@ -5,7 +5,6 @@ package ebpf
 import (
 	"bytes"
 	"fmt"
-	"time"
 	"unsafe"
 
 	bpflib "github.com/iovisor/gobpf/elf"
@@ -90,60 +89,28 @@ func (t *Tracer) Stop() {
 }
 
 func (t *Tracer) GetActiveConnections() (*Connections, error) {
-	var tV4, tV6, uV4, uV6 []ConnectionStats
+	var v4, v6 []ConnectionStats
 	var err error
 
-	if t.config.CollectTCPConns {
-		tV4, err = t.getTCPv4Connections()
+	v4, err = t.getV4Connections()
+	if err != nil {
+		return nil, err
+	}
+
+	if t.config.CollectIPv6Conns {
+		v6, err = t.getV6Connections()
 		if err != nil {
 			return nil, err
 		}
-
-		if t.config.CollectIPv6Conns {
-			tV6, err = t.getTCPv6Connections()
-			if err != nil {
-				return nil, err
-			}
-		}
 	}
 
-	if t.config.CollectUDPConns {
-		uV4, err = t.getUDPv4Connections()
-		if err != nil {
-			return nil, err
-		}
-
-		if t.config.CollectIPv6Conns {
-			uV6, err = t.getUDPv6Connections()
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	conns := append(tV4, append(tV6, append(uV4, uV6...)...)...)
+	conns := append(v4, v6...)
 
 	return &Connections{Conns: conns}, nil
 }
 
-func (t *Tracer) getUDPv4Connections() ([]ConnectionStats, error) {
-	return t.getV4Connections(v4UDPMap, t.config.UDPConnTimeout)
-}
-
-func (t *Tracer) getUDPv6Connections() ([]ConnectionStats, error) {
-	return t.getV4Connections(v6UDPMap, t.config.UDPConnTimeout)
-}
-
-func (t *Tracer) getTCPv4Connections() ([]ConnectionStats, error) {
-	return t.getV4Connections(v4TCPMap, t.config.TCPConnTimeout)
-}
-
-func (t *Tracer) getTCPv6Connections() ([]ConnectionStats, error) {
-	return t.getV6Connections(v6TCPMap, t.config.TCPConnTimeout)
-}
-
-func (t *Tracer) getV4Connections(name bpfMapName, timeout time.Duration) ([]ConnectionStats, error) {
-	mp, err := t.getMap(name)
+func (t *Tracer) getV4Connections() ([]ConnectionStats, error) {
+	mp, err := t.getMap(v4Map)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +132,7 @@ func (t *Tracer) getV4Connections(name bpfMapName, timeout time.Duration) ([]Con
 		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(key), unsafe.Pointer(nextKey), unsafe.Pointer(stats))
 		if !hasNext {
 			break
-		} else if stats.isExpired(latestTime, timeout.Nanoseconds()) {
+		} else if stats.isExpired(latestTime, t.timeoutForConnV4(nextKey)) {
 			expired = append(expired, nextKey.copy())
 		} else {
 			active = append(active, connStatsFromV4(nextKey, stats))
@@ -181,8 +148,8 @@ func (t *Tracer) getV4Connections(name bpfMapName, timeout time.Duration) ([]Con
 	return active, nil
 }
 
-func (t *Tracer) getV6Connections(name bpfMapName, timeout time.Duration) ([]ConnectionStats, error) {
-	mp, err := t.getMap(name)
+func (t *Tracer) getV6Connections() ([]ConnectionStats, error) {
+	mp, err := t.getMap(v6Map)
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +171,7 @@ func (t *Tracer) getV6Connections(name bpfMapName, timeout time.Duration) ([]Con
 		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(key), unsafe.Pointer(nextKey), unsafe.Pointer(stats))
 		if !hasNext {
 			break
-		} else if stats.isExpired(latestTime, timeout.Nanoseconds()) {
+		} else if stats.isExpired(latestTime, t.timeoutForConnV6(nextKey)) {
 			expired = append(expired, nextKey.copy())
 		} else {
 			active = append(active, connStatsFromV6(nextKey, stats))
@@ -257,4 +224,18 @@ func loadBPFModule() (*bpflib.Module, error) {
 		return nil, fmt.Errorf("BPF not supported")
 	}
 	return m, nil
+}
+
+func (t *Tracer) timeoutForConnV4(c *ConnTupleV4) int64 {
+	if c.metadata == 1 {
+		return t.config.TCPConnTimeout.Nanoseconds()
+	}
+	return t.config.UDPConnTimeout.Nanoseconds()
+}
+
+func (t *Tracer) timeoutForConnV6(c *ConnTupleV6) int64 {
+	if c.metadata == 1 {
+		return t.config.TCPConnTimeout.Nanoseconds()
+	}
+	return t.config.UDPConnTimeout.Nanoseconds()
 }
