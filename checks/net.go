@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
@@ -12,6 +11,8 @@ import (
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	log "github.com/cihub/seelog"
+	"os"
+	"time"
 )
 
 var (
@@ -48,7 +49,16 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 			return
 		}
 
-		t, err := tracer.NewTracer(tracer.DefaultConfig)
+		conf := tracer.DefaultConfig
+		// This is what the process check uses to get /proc aswell, "github.com/DataDog/gopsutil/internal/common/common.go"
+		// Unfortunately that is internal so i cannot use that here and we did not yet put stackstate-agent as a dependency
+		if proc := os.Getenv("HOST_PROC"); proc != "" {
+			conf.ProcRoot = proc
+		}
+		conf.MaxConnections = cfg.MaxPerMessage
+		conf.BackfillFromProc = cfg.NetworkInitialConnectionsFromProc
+
+		t, err := tracer.NewTracer(conf)
 		if err != nil {
 			log.Errorf("failed to create network tracer: %s", err)
 			return
