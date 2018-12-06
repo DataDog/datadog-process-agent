@@ -437,7 +437,6 @@ static int increment_tcp_stats(struct sock *sk, struct tracer_status_t *status, 
 			return 0;
 		}
 
-		t.pid = pid >> 32;
 		t.sport = ntohs(t.sport); // Making ports human-readable
 		t.dport = ntohs(t.dport);
 
@@ -446,11 +445,14 @@ static int increment_tcp_stats(struct sock *sk, struct tracer_status_t *status, 
 			(*val).send_bytes += send_bytes;
 			(*val).recv_bytes += recv_bytes;
 			(*val).timestamp  = ts;
+			(*val).pid = pid >> 32; // Update the pid
 		} else { // Otherwise add the key, value to the map
 			struct conn_stats_ts_t s = {
 				.send_bytes = send_bytes,
 				.recv_bytes = recv_bytes,
 				.timestamp = ts,
+				.pid = pid >> 32,
+				.retr_count = 0,
 			};
 			bpf_map_update_elem(&conn_stats_ipv4, &t, &s, BPF_ANY);
 		}
@@ -474,7 +476,6 @@ static int increment_tcp_stats(struct sock *sk, struct tracer_status_t *status, 
 				t2.sport = ntohs(t.sport),
 				t2.dport = ntohs(t.dport),
 				t2.netns = t.netns,
-				t2.pid = pid >> 32,
 				t2.metadata = CONN_TYPE_TCP,
 			};
 
@@ -483,16 +484,18 @@ static int increment_tcp_stats(struct sock *sk, struct tracer_status_t *status, 
 				(*val).send_bytes += send_bytes;
 				(*val).recv_bytes += recv_bytes;
 				(*val).timestamp = ts;
+				(*val).pid = pid >> 32; // Update the pid
 			} else { // Otherwise add the key, value to the map
 				struct conn_stats_ts_t s = {
 					.send_bytes = send_bytes,
 					.recv_bytes = recv_bytes,
 					.timestamp = ts,
+					.pid = pid >> 32,
+					.retr_count = 0,
 				};
 				bpf_map_update_elem(&conn_stats_ipv4, &t2, &s, BPF_ANY);
 			}
 		} else {
-			t.pid = pid >> 32;
 			t.sport = ntohs(t.sport); // Making ports human-readable
 			t.dport = ntohs(t.dport);
 
@@ -502,11 +505,14 @@ static int increment_tcp_stats(struct sock *sk, struct tracer_status_t *status, 
 				(*val).send_bytes += send_bytes;
 				(*val).recv_bytes += recv_bytes;
 				(*val).timestamp = ts;
+				(*val).pid = pid >> 32; // Update the pid
 			} else { // Otherwise add the key, value to the map
 				struct conn_stats_ts_t s = {
 					.send_bytes = send_bytes,
 					.recv_bytes = recv_bytes,
 					.timestamp = ts,
+					.pid = pid >> 32,
+					.retr_count = 0,
 				};
 				bpf_map_update_elem(&conn_stats_ipv6, &t, &s, BPF_ANY);
 			}
@@ -543,7 +549,6 @@ static int increment_udp_stats(struct sock *sk,
 			return 0;
 		}
 
-		t.pid = pid_tgid >> 32;
 		// Making ports human-readable
 		t.sport = ntohs(t.sport);
 		t.dport = ntohs(t.dport);
@@ -554,11 +559,14 @@ static int increment_udp_stats(struct sock *sk,
 			(*val).send_bytes += send_bytes;
 			(*val).recv_bytes += recv_bytes;
 			(*val).timestamp = ts;
+			(*val).pid = pid_tgid >> 32; // Update the pid
 		} else { // Otherwise add the (key, value) to the map
 			struct conn_stats_ts_t s = {
 				.send_bytes = send_bytes,
 				.recv_bytes = recv_bytes,
 				.timestamp = ts,
+				.pid = pid_tgid >> 32,
+				.retr_count = 0,
 			};
 			bpf_map_update_elem(&conn_stats_ipv4, &t, &s, BPF_ANY);
 		}
@@ -582,7 +590,6 @@ static int increment_udp_stats(struct sock *sk,
 				t2.sport = ntohs(t.sport),
 				t2.dport = ntohs(t.dport),
 				t2.netns = t.netns,
-				t2.pid = pid_tgid >> 32,
 				t2.metadata = CONN_TYPE_UDP,
 			};
 
@@ -590,16 +597,18 @@ static int increment_udp_stats(struct sock *sk,
 			if (val != NULL) { // If already in our map, increment size in-place
 				(*val).send_bytes += send_bytes;
 				(*val).recv_bytes += recv_bytes;
+				(*val).pid = pid_tgid >> 32; // Update the pid
 			} else { // Otherwise add the key, value to the map
 				struct conn_stats_ts_t s = {
 					.send_bytes = send_bytes,
 					.recv_bytes = recv_bytes,
 					.timestamp = ts,
+					.pid = pid_tgid >> 32,
+					.retr_count = 0,
 				};
 				bpf_map_update_elem(&conn_stats_ipv4, &t2, &s, BPF_ANY);
 			}
 		} else { // It's IPv6
-			t.pid = pid_tgid >> 32;
 			t.sport = ntohs(t.sport); // Making ports human-readable
 			t.dport = ntohs(t.dport);
 
@@ -609,11 +618,14 @@ static int increment_udp_stats(struct sock *sk,
 				(*val).send_bytes += send_bytes;
 				(*val).recv_bytes += recv_bytes;
 				(*val).timestamp = ts;
+				(*val).pid = pid_tgid >> 32; // Update the pid
 			} else { // Otherwise add the key, value to the map
 				struct conn_stats_ts_t s = {
 					.send_bytes = send_bytes,
 					.recv_bytes = recv_bytes,
 					.timestamp = ts,
+					.pid = pid_tgid >> 32,
+					.retr_count = 0,
 				};
 				bpf_map_update_elem(&conn_stats_ipv6, &t, &s, BPF_ANY);
 			}
@@ -623,6 +635,111 @@ static int increment_udp_stats(struct sock *sk,
 	// Update latest timestamp that we've seen - for connection expiration tracking
 	bpf_map_update_elem(&latest_ts, &zero, &ts, BPF_ANY);
 
+	return 0;
+}
+
+__attribute__((always_inline))
+static int increment_retransmit_stats(struct sock *sk, struct tracer_status_t *status) {
+	struct conn_stats_ts_t *val;
+
+	u64 pid = bpf_get_current_pid_tgid();
+	u64 ts = bpf_ktime_get_ns();
+
+	if (check_family(sk, status, AF_INET)) {
+		if (!are_offsets_ready_v4(status, sk, pid)) {
+			return 0;
+		}
+
+		struct ipv4_tuple_t t = {};
+		t.metadata = CONN_TYPE_TCP;
+
+		if (!read_ipv4_tuple(&t, status, sk)) {
+			return 0;
+		}
+
+		t.sport = ntohs(t.sport); // Making ports human-readable
+		t.dport = ntohs(t.dport);
+
+		val = bpf_map_lookup_elem(&conn_stats_ipv4, &t);
+		if (val != NULL)  
+			(*val).retr_count++;
+
+		else if (pid != 0){ 
+			// Otherwise add the key, value to the map if we resolved the PID
+			struct conn_stats_ts_t s = {
+				.send_bytes = 0,
+				.recv_bytes = 0,
+				.timestamp = ts,
+				.retr_count = 1,
+				.pid = pid >> 32,
+			};
+			bpf_map_update_elem(&conn_stats_ipv4, &t, &s, BPF_ANY);
+		}
+	} else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) {
+		if (!are_offsets_ready_v6(status, sk, pid)) {
+			return 0;
+		}
+
+		struct ipv6_tuple_t t = {};
+		t.metadata = CONN_TYPE_TCP;
+
+		if (!read_ipv6_tuple(&t, status, sk)) {
+			return 0;
+		}
+
+		// IPv4 can be mapped as IPv6
+		if (is_ipv4_mapped_ipv6(t.saddr_h, t.saddr_l, t.daddr_h, t.daddr_l)) {
+			struct ipv4_tuple_t t2 = {
+				t2.saddr = (u32)(t.saddr_l >> 32),
+				t2.daddr = (u32)(t.daddr_l >> 32),
+				t2.sport = ntohs(t.sport),
+				t2.dport = ntohs(t.dport),
+				t2.netns = t.netns,
+				t2.metadata = CONN_TYPE_TCP,
+			};
+
+			val = bpf_map_lookup_elem(&conn_stats_ipv4, &t2);
+			if (val != NULL)
+				(*val).retr_count++;
+
+			else if (pid != 0) {
+				// Otherwise add the key, value to the map if we resolved the PID
+				struct conn_stats_ts_t s = {
+					.send_bytes = 0,
+					.recv_bytes = 0,
+					.timestamp = ts,
+					.retr_count = 1,
+					.pid = pid >> 32,
+				};
+				bpf_map_update_elem(&conn_stats_ipv4, &t2, &s, BPF_ANY);
+			}
+		}
+		else {
+			t.sport = ntohs(t.sport); // Making ports human-readable
+			t.dport = ntohs(t.dport);
+
+			val = bpf_map_lookup_elem(&conn_stats_ipv6, &t);
+			// If already in our map, increment size in-place
+			if (val != NULL)
+				(*val).retr_count++;
+			else if (pid != 0) {
+				// Otherwise add the key, value to the map if we resolved the PID
+				struct conn_stats_ts_t s = {
+					.send_bytes = 0,
+					.recv_bytes = 0,
+					.timestamp = ts,
+					.retr_count = 1,
+					.pid = pid >> 32,
+				};
+				bpf_map_update_elem(&conn_stats_ipv6, &t, &s, BPF_ANY);
+			}
+		}
+	}
+
+
+	// Update latest timestamp that we've seen - for connection expiration tracking
+	u64 zero = 0;
+	bpf_map_update_elem(&latest_ts, &zero, &ts, BPF_ANY);
 	return 0;
 }
 
@@ -753,7 +870,6 @@ int kprobe__tcp_close(struct pt_regs *ctx) {
 	struct sock *sk;
 	struct tracer_status_t *status;
 	u64 zero = 0;
-	u64 pid = bpf_get_current_pid_tgid();
 	sk = (struct sock *) PT_REGS_PARM1(ctx);
 
 	status = bpf_map_lookup_elem(&tracer_status, &zero);
@@ -783,7 +899,6 @@ int kprobe__tcp_close(struct pt_regs *ctx) {
 			return 0;
 		}
 
-		t.pid = pid >> 32;
 		t.sport = ntohs(t.sport); // Making ports human-readable
 		t.dport = ntohs(t.dport);
 
@@ -805,7 +920,6 @@ int kprobe__tcp_close(struct pt_regs *ctx) {
 				t2.sport = ntohs(t.sport),
 				t2.dport = ntohs(t.dport),
 				t2.netns = t.netns,
-				t2.pid = pid >> 32,
 				t2.metadata = CONN_TYPE_TCP,
 			};
 
@@ -813,7 +927,6 @@ int kprobe__tcp_close(struct pt_regs *ctx) {
 			bpf_map_delete_elem(&conn_stats_ipv4, &t2);
 			return 0;
 		} else { // Otherwise it's IPv6
-			t.pid = pid >> 32;
 			t.sport = ntohs(t.sport); // Making ports human-readable
 			t.dport = ntohs(t.dport);
 
@@ -884,8 +997,19 @@ int kretprobe__udp_recvmsg(struct pt_regs *ctx) {
 	}
 
 	increment_udp_stats(sk, status, pid_tgid, 0, copied);
-
 	return 0;
+}
+
+SEC("kprobe/tcp_retransmit_skb")
+int kprobe__tcp_retransmit_skb(struct pt_regs *ctx) {
+	struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
+	u64 zero = 0;
+	struct tracer_status_t *status = bpf_map_lookup_elem(&tracer_status, &zero);
+	if (status == NULL || status->state == TRACER_STATE_UNINITIALIZED) {
+		return 0;
+	}
+
+	return increment_retransmit_stats(sk, status);
 }
 
 // This number will be interpreted by gobpf-elf-loader to set the current running kernel version

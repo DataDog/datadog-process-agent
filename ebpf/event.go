@@ -18,7 +18,6 @@ __u32 daddr;
 __u16 sport;
 __u16 dport;
 __u32 netns;
-__u32 pid;
 __u32 metadata;
 */
 type ConnTupleV4 C.struct_ipv4_tuple_t
@@ -30,7 +29,6 @@ func (t *ConnTupleV4) copy() *ConnTupleV4 {
 		sport:    t.sport,
 		dport:    t.dport,
 		netns:    t.netns,
-		pid:      t.pid,
 		metadata: t.metadata,
 	}
 }
@@ -43,7 +41,6 @@ __u64 daddr_l;
 __u16 sport;
 __u16 dport;
 __u32 netns;
-__u32 pid;
 __u32 metadata;
 */
 type ConnTupleV6 C.struct_ipv6_tuple_t
@@ -57,21 +54,16 @@ func (t *ConnTupleV6) copy() *ConnTupleV6 {
 		sport:    t.sport,
 		dport:    t.dport,
 		netns:    t.netns,
-		pid:      t.pid,
 		metadata: t.metadata,
 	}
 }
-
-/* struct conn_stats_t
-__u64 send_bytes;
-__u64 recv_bytes;
-*/
-type ConnStats C.struct_conn_stats_t
 
 /* struct conn_stats_ts_t
 __u64 send_bytes;
 __u64 recv_bytes;
 __u64 timestamp;
+__u32 pid;
+__u32 retr_count;
 */
 type ConnStatsWithTimestamp C.struct_conn_stats_ts_t
 
@@ -81,29 +73,31 @@ func (cs *ConnStatsWithTimestamp) isExpired(latestTime int64, timeout int64) boo
 
 func connStatsFromV4(t *ConnTupleV4, s *ConnStatsWithTimestamp) ConnectionStats {
 	return ConnectionStats{
-		Pid:       uint32(t.pid),
-		Type:      connType(t.metadata),
-		Family:    AFINET,
-		Source:    v4IPString(uint32(t.saddr)),
-		Dest:      v4IPString(uint32(t.daddr)),
-		SPort:     uint16(t.sport),
-		DPort:     uint16(t.dport),
-		SendBytes: uint64(s.send_bytes),
-		RecvBytes: uint64(s.recv_bytes),
+		Pid:             uint32(s.pid),
+		Type:            connType(t.metadata),
+		Family:          AFINET,
+		Source:          v4IPString(uint32(t.saddr)),
+		Dest:            v4IPString(uint32(t.daddr)),
+		SPort:           uint16(t.sport),
+		DPort:           uint16(t.dport),
+		SendBytes:       uint64(s.send_bytes),
+		RecvBytes:       uint64(s.recv_bytes),
+		Retransmissions: uint32(s.retr_count),
 	}
 }
 
 func connStatsFromV6(t *ConnTupleV6, s *ConnStatsWithTimestamp) ConnectionStats {
 	return ConnectionStats{
-		Pid:       uint32(t.pid),
-		Type:      connType(t.metadata),
-		Family:    AFINET6,
-		Source:    v6IPString(uint64(t.saddr_h), uint64(t.saddr_l)),
-		Dest:      v6IPString(uint64(t.daddr_h), uint64(t.daddr_l)),
-		SPort:     uint16(t.sport),
-		DPort:     uint16(t.dport),
-		SendBytes: uint64(s.send_bytes),
-		RecvBytes: uint64(s.recv_bytes),
+		Pid:             uint32(s.pid),
+		Type:            connType(t.metadata),
+		Family:          AFINET6,
+		Source:          v6IPString(uint64(t.saddr_h), uint64(t.saddr_l)),
+		Dest:            v6IPString(uint64(t.daddr_h), uint64(t.daddr_l)),
+		SPort:           uint16(t.sport),
+		DPort:           uint16(t.dport),
+		SendBytes:       uint64(s.send_bytes),
+		RecvBytes:       uint64(s.recv_bytes),
+		Retransmissions: uint32(s.retr_count),
 	}
 }
 

@@ -49,6 +49,7 @@ func (c *Config) EnabledKProbes() map[KProbeName]struct{} {
 		enabled[TCPSendMsg] = struct{}{}
 		enabled[TCPCleanupRBuf] = struct{}{}
 		enabled[TCPClose] = struct{}{}
+		enabled[TCPRetransmit] = struct{}{}
 	}
 
 	if c.CollectUDPConns {

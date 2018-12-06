@@ -23,6 +23,8 @@ struct conn_stats_ts_t {
 	__u64 send_bytes;
 	__u64 recv_bytes;
 	__u64 timestamp;
+	__u32 pid;
+	__u32 retr_count; // Retransmissions count, used for TCP only
 };
 
 
@@ -39,7 +41,6 @@ struct ipv4_tuple_t {
 	__u16 sport;
 	__u16 dport;
 	__u32 netns;
-	__u32 pid;
 	// Metadata description:
 	// First bit indicates if the connection is TCP (1) or UDP (0)
 	__u32 metadata; // This is that big because it seems that we atleast need a 32-bit aligned struct
@@ -54,7 +55,6 @@ struct ipv6_tuple_t {
 	__u16 sport;
 	__u16 dport;
 	__u32 netns;
-	__u32 pid;
 	// Metadata description:
 	// First bit indicates if the connection is TCP (1) or UDP (0)
 	__u32 metadata; // This is that big because it seems that we atleast need a 32-bit aligned struct
