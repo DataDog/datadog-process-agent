@@ -289,7 +289,7 @@ imports:
 - name: github.com/StackExchange/wmi
   version: b12b22c5341f0c26d88c4d66176330500e84db68
 - name: github.com/StackVista/tcptracer-bpf
-  version: f4c2073906c08663279b2ef1adc18acebbaee474
+  version: ad328f148811f40b530e13466299f4c8343aa7fd
   vcs: git
   subpackages:
   - pkg/tracer
