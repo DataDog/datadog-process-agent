@@ -3,13 +3,13 @@
 
 #include <linux/types.h>
 
-#define GUESS_SADDR      0
-#define GUESS_DADDR      1
-#define GUESS_FAMILY     2
-#define GUESS_SPORT      3
-#define GUESS_DPORT      4
-#define GUESS_NETNS      5
-#define GUESS_DADDR_IPV6 6
+static const __u8 GUESS_SADDR      = 0;
+static const __u8 GUESS_DADDR      = 1;
+static const __u8 GUESS_FAMILY     = 2;
+static const __u8 GUESS_SPORT      = 3;
+static const __u8 GUESS_DPORT      = 4;
+static const __u8 GUESS_NETNS      = 5;
+static const __u8 GUESS_DADDR_IPV6 = 6;
 
 #ifndef TASK_COMM_LEN
 #define TASK_COMM_LEN 16
@@ -25,6 +25,11 @@ struct conn_stats_ts_t {
 	__u64 timestamp;
 };
 
+
+// Metadata bit masks
+static const __u8 CONN_TYPE_UDP = 0;
+static const __u8 CONN_TYPE_TCP = 1;
+
 // tcp_set_state doesn't run in the context of the process that initiated the
 // connection so we need to store a map TUPLE -> PID to send the right PID on
 // the event
@@ -35,6 +40,9 @@ struct ipv4_tuple_t {
 	__u16 dport;
 	__u32 netns;
 	__u32 pid;
+	// Metadata description:
+	// First bit indicates if the connection is TCP (1) or UDP (0)
+	__u32 metadata; // This is that big because it seems that we atleast need a 32-bit aligned struct
 };
 
 struct ipv6_tuple_t {
@@ -47,15 +55,18 @@ struct ipv6_tuple_t {
 	__u16 dport;
 	__u32 netns;
 	__u32 pid;
+	// Metadata description:
+	// First bit indicates if the connection is TCP (1) or UDP (0)
+	__u32 metadata; // This is that big because it seems that we atleast need a 32-bit aligned struct
 };
 
-#define TRACER_STATE_UNINITIALIZED 0
-#define TRACER_STATE_CHECKING      1
-#define TRACER_STATE_CHECKED       2
-#define TRACER_STATE_READY         3
+static const __u8 TRACER_STATE_UNINITIALIZED = 0;
+static const __u8 TRACER_STATE_CHECKING      = 1;
+static const __u8 TRACER_STATE_CHECKED       = 2;
+static const __u8 TRACER_STATE_READY         = 3;
 
-#define TRACER_IPV6_DISABLED 0
-#define TRACER_IPV6_ENABLED  1
+static const __u8 TRACER_IPV6_DISABLED = 0;
+static const __u8 TRACER_IPV6_ENABLED  = 1;
 
 struct tracer_status_t {
 	__u64 state;

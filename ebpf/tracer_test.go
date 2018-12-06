@@ -32,7 +32,6 @@ func TestTCPSendAndReceive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr.Start()
 	defer tr.Stop()
 
 	// Create TCP Server which sends back serverMessageSize bytes
@@ -79,7 +78,6 @@ func TestTCPClosedConnectionsAreCleanedUp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr.Start()
 	defer tr.Stop()
 
 	// Create TCP Server which sends back serverMessageSize bytes
@@ -129,7 +127,6 @@ func TestTCPCollectionDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr.Start()
 	defer tr.Stop()
 
 	// Create TCP Server which sends back serverMessageSize bytes
@@ -173,7 +170,6 @@ func TestUDPSendAndReceive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr.Start()
 	defer tr.Stop()
 
 	// Create UDP Server which sends back serverMessageSize bytes
@@ -221,7 +217,6 @@ func TestUDPDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr.Start()
 	defer tr.Stop()
 
 	// Create UDP Server which sends back serverMessageSize bytes
@@ -284,7 +279,6 @@ func BenchmarkUDPEcho(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	t.Start()
 	defer t.Stop()
 
 	runBenchtests(b, payloadSizesUDP, "eBPF", benchEchoUDP)
@@ -334,7 +328,6 @@ func BenchmarkTCPEcho(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	t.Start()
 	defer t.Stop()
 
 	runBenchtests(b, payloadSizesTCP, "eBPF", benchEchoTCP)
@@ -348,7 +341,6 @@ func BenchmarkTCPSend(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	t.Start()
 	defer t.Stop()
 
 	runBenchtests(b, payloadSizesTCP, "eBPF", benchSendTCP)
