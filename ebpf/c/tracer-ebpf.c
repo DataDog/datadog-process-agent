@@ -431,7 +431,7 @@ static int increment_tcp_stats(struct sock *sk, struct tracer_status_t *status, 
 		}
 
 		struct ipv4_tuple_t t = {};
-		t.metadata = 1;
+		t.metadata = CONN_TYPE_TCP;
 
 		if (!read_ipv4_tuple(&t, status, sk)) {
 			return 0;
@@ -460,7 +460,7 @@ static int increment_tcp_stats(struct sock *sk, struct tracer_status_t *status, 
 		}
 
 		struct ipv6_tuple_t t = {};
-		t.metadata = 1;
+		t.metadata = CONN_TYPE_TCP;
 
 		if (!read_ipv6_tuple(&t, status, sk)) {
 			return 0;
@@ -475,7 +475,7 @@ static int increment_tcp_stats(struct sock *sk, struct tracer_status_t *status, 
 				t2.dport = ntohs(t.dport),
 				t2.netns = t.netns,
 				t2.pid = pid >> 32,
-				t2.metadata = 1,
+				t2.metadata = CONN_TYPE_TCP,
 			};
 
 			val = bpf_map_lookup_elem(&conn_stats_ipv4, &t2);
@@ -537,7 +537,7 @@ static int increment_udp_stats(struct sock *sk,
 		}
 
 		struct ipv4_tuple_t t = {};
-		t.metadata = 0;
+		t.metadata = CONN_TYPE_UDP;
 
 		if (!read_ipv4_tuple(&t, status, sk)) {
 			return 0;
@@ -568,7 +568,7 @@ static int increment_udp_stats(struct sock *sk,
 		}
 
 		struct ipv6_tuple_t t = {};
-		t.metadata = 0;
+		t.metadata = CONN_TYPE_UDP;
 
 		if (!read_ipv6_tuple(&t, status, sk)) {
 			return 0;
@@ -583,7 +583,7 @@ static int increment_udp_stats(struct sock *sk,
 				t2.dport = ntohs(t.dport),
 				t2.netns = t.netns,
 				t2.pid = pid_tgid >> 32,
-				t2.metadata = 0,
+				t2.metadata = CONN_TYPE_UDP,
 			};
 
 			val = bpf_map_lookup_elem(&conn_stats_ipv4, &t2);
@@ -776,7 +776,7 @@ int kprobe__tcp_close(struct pt_regs *ctx) {
 
 	if (check_family(sk, status, AF_INET)) {
 		struct ipv4_tuple_t t = {};
-		t.metadata = 1;
+		t.metadata = CONN_TYPE_TCP;
 
 
 		if (!read_ipv4_tuple(&t, status, sk)) {
@@ -791,7 +791,7 @@ int kprobe__tcp_close(struct pt_regs *ctx) {
 		bpf_map_delete_elem(&conn_stats_ipv4, &t);
 	} else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) {
 		struct ipv6_tuple_t t = {};
-		t.metadata = 1;
+		t.metadata = CONN_TYPE_TCP;
 
 		if (!read_ipv6_tuple(&t, status, sk)) {
 			return 0;
@@ -806,7 +806,7 @@ int kprobe__tcp_close(struct pt_regs *ctx) {
 				t2.dport = ntohs(t.dport),
 				t2.netns = t.netns,
 				t2.pid = pid >> 32,
-				t2.metadata = 1,
+				t2.metadata = CONN_TYPE_TCP,
 			};
 
 			// Delete this connection from our stats map, and return

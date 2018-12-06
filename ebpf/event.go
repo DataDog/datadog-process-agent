@@ -80,15 +80,9 @@ func (cs *ConnStatsWithTimestamp) isExpired(latestTime int64, timeout int64) boo
 }
 
 func connStatsFromV4(t *ConnTupleV4, s *ConnStatsWithTimestamp) ConnectionStats {
-	typ := TCP
-	// First bit of metadata indicates if the connection is TCP or UDP
-	if t.metadata&1 == 0 {
-		typ = UDP
-	}
-
 	return ConnectionStats{
 		Pid:       uint32(t.pid),
-		Type:      typ,
+		Type:      connType(t.metadata),
 		Family:    AFINET,
 		Source:    v4IPString(uint32(t.saddr)),
 		Dest:      v4IPString(uint32(t.daddr)),
@@ -100,15 +94,9 @@ func connStatsFromV4(t *ConnTupleV4, s *ConnStatsWithTimestamp) ConnectionStats 
 }
 
 func connStatsFromV6(t *ConnTupleV6, s *ConnStatsWithTimestamp) ConnectionStats {
-	typ := TCP
-	// First bit of metadata indicates if the connection is TCP or UDP
-	if t.metadata&1 == 0 {
-		typ = UDP
-	}
-
 	return ConnectionStats{
 		Pid:       uint32(t.pid),
-		Type:      typ,
+		Type:      connType(t.metadata),
 		Family:    AFINET6,
 		Source:    v6IPString(uint64(t.saddr_h), uint64(t.saddr_l)),
 		Dest:      v6IPString(uint64(t.daddr_h), uint64(t.daddr_l)),
@@ -130,4 +118,12 @@ func v6IPString(addr_h, addr_l uint64) string {
 	binary.LittleEndian.PutUint64(buf, uint64(addr_h))
 	binary.LittleEndian.PutUint64(buf[8:], uint64(addr_l))
 	return net.IP(buf).String()
+}
+
+func connType(m _Ctype_uint) ConnectionType {
+	// First bit of metadata indicates if the connection is TCP or UDP
+	if m&1 == 0 {
+		return UDP
+	}
+	return TCP
 }
