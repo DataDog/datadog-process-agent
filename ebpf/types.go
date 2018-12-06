@@ -28,7 +28,7 @@ const (
 	// UDPRecvMsgReturn traces the return value for the udp_recvmsg() system call
 	UDPRecvMsgReturn KProbeName = "kretprobe/udp_recvmsg"
 
-	// TCPRetransmit traces tje return value for the tcp_retransmit_skb() system call
+	// TCPRetransmit traces the return value for the tcp_retransmit_skb() system call
 	TCPRetransmit KProbeName = "kprobe/tcp_retransmit_skb"
 )
 
