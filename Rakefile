@@ -79,17 +79,20 @@ task 'build-network-tracer' do
   })
 end
 
+desc "Run go vet on code"
 task :vet do
   sh "go list ./... | grep -v vendor | xargs go vet"
 end
 
-task :fmt do
+desc "Run go fmt"
+task :fmt => ['ebpf:fmt'] do
   packages = `go list ./... | grep -v vendor`.split("\n")
   packages.each do |pkg|
     go_fmt(pkg)
   end
 end
 
+desc "Run go lint"
 task :lint do
   error = false
   packages = `go list ./... | grep -v vendor`.split("\n")
@@ -117,16 +120,80 @@ task :protobuf do
   sh "protoc proto/agent.proto -I $GOPATH/src -I vendor -I proto --gogofaster_out $GOPATH/src"
 end
 
+desc "Generate easyjson code"
 task :easyjson do
   sh "easyjson ebpf/event_common.go"
 end
 
+desc "Regenerate protobuf definitions and easyjson definitions"
 task :codegen => [:protobuf, :easyjson]
 
 desc "Datadog Process Agent CI script (fmt, vet, etc)"
-task :ci => [:deps, :fmt, :vet, :test, :lint, :build]
+task :ci => [:deps, :fmt, :vet, 'ebpf:build', :test, 'ebpf:test', :lint, :build]
 
+desc "Run errcheck"
 task :err do
   system("go get github.com/kisielk/errcheck")
   sh "errcheck github.com/DataDog/datadog-process-agent"
+end
+
+namespace "ebpf" do
+  sudo=""
+  sh 'docker info >/dev/null 2>&1' do |ok, res|
+    if !ok
+      sudo = "sudo -E"
+    end
+  end
+
+  DEBUG=1
+  DOCKER_FILE='packaging/Dockerfile-ebpf'
+  DOCKER_IMAGE='datadog/tracer-bpf-builder'
+
+  desc "Run tests for eBPF code"
+  task :test do
+    tags = ''
+    if ENV["SKIP_BPF_TESTS"] != "true" then
+      tags = 'linux_bpf'
+    else
+      puts "Skipping BPF tests"
+    end
+      sh "go list ./... | grep -v vendor | sudo -E PATH=#{ENV['PATH']} GOCACHE=off xargs go test -tags #{tags}"
+  end
+
+  desc "Format ebpf code"
+  task :fmt do
+    sh "#{sudo} go fmt ebpf/tracer-ebpf.go"
+  end
+
+  desc "Build eBPF docker-image"
+  task :image do
+    sh "#{sudo} docker build -t #{DOCKER_IMAGE} -f #{DOCKER_FILE} ."
+  end
+
+  desc "Generate and instal eBPF program via gobindata"
+  task :build => ['ebpf:fmt', 'ebpf:image'] do
+    cmd = "build"
+    if ENV['TEST'] != "true"
+      cmd += " install"
+    end
+    sh "#{sudo} docker run --rm -e DEBUG=#{DEBUG} \
+        -e CIRCLE_BUILD_URL=#{ENV['CIRCLE_BUILD_URL']} \
+        -v $(pwd):/src:ro \
+    -v $(pwd)/ebpf:/ebpf/ \
+        --workdir=/src \
+        #{DOCKER_IMAGE} \
+        make -f ebpf/c/tracer-ebpf.mk #{cmd}"
+    sh "sudo chown -R $(id -u):$(id -u) ebpf"
+  end
+
+    desc "Build and run dockerized `nettop` command for testing"
+    task :nettop => 'ebpf:build' do
+      sh 'sudo docker build -t "ebpf-nettop" . -f packaging/Dockerfile-nettop'
+      sh "sudo docker run \
+        --net=host \
+        --cap-add=SYS_ADMIN \
+        --privileged \
+        -v /sys/kernel/debug:/sys/kernel/debug \
+        ebpf-nettop"
+    end
 end

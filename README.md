@@ -47,4 +47,4 @@ The easiest way to build and test is inside a Vagrant VM. You can provision the 
 
 The VM will mount your local $GOPATH, so you can edit source code with your editor of choice.
 
-For development on the network-tracer, `make nettop` will run a small testing program which periodically prints statistics about TCP/UDP traffic inside the VM.
+For development on the network-tracer, `rake nettop` will run a small testing program which periodically prints statistics about TCP/UDP traffic inside the VM.
