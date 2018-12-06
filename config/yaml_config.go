@@ -67,6 +67,8 @@ type YamlAgentConfig struct {
 		AdditionalEndpoints map[string][]string `yaml:"additional_endpoints"`
 		// A string indicating the enabled state of the network tracer.
 		NetworkTracingEnabled string `yaml:"network_tracing_enabled"`
+		// A string indicating whether we use /proc to get the initial connections
+		NetworkInitialConnectionFromProc *bool `yaml:"initial_connections_from_proc"`
 		// The full path to the location of the unix socket where network traces will be accessed
 		UnixSocketPath string `yaml:"nettracer_socket"`
 		// Windows-specific configuration goes in this section.
@@ -210,6 +212,9 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	}
 	if socketPath := yc.Process.UnixSocketPath; socketPath != "" {
 		agentConf.NetworkTracerSocketPath = socketPath
+	}
+	if yc.Process.NetworkInitialConnectionFromProc != nil {
+		agentConf.NetworkInitialConnectionsFromProc = *yc.Process.NetworkInitialConnectionFromProc
 	}
 
 	// Pull additional parameters from the global config file.

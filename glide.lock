@@ -1,5 +1,5 @@
-hash: 665936af25bb1c259458b72b68e338a40879a7736542cd18c240ba829a719d6e
-updated: 2018-11-21T10:11:12.440916795+01:00
+hash: 5fed68ca19241b55c0a5279d829af380356bac8d56537caffd6dc533772f9f16
+updated: 2018-12-05T10:06:02.364064599+01:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -87,7 +87,7 @@ imports:
   subpackages:
   - statsd
 - name: github.com/DataDog/gopsutil
-  version: 771928d86fa878b9d62f073a7a6f91ee0a358105
+  version: c8f74f1344dd41bc49ec4d3c2377c526aaedfd20
   vcs: git
   subpackages:
   - cpu
@@ -289,10 +289,12 @@ imports:
 - name: github.com/StackExchange/wmi
   version: b12b22c5341f0c26d88c4d66176330500e84db68
 - name: github.com/StackVista/tcptracer-bpf
-  version: 1fba650acaa806c730818c630c94eb595bcd4f94
+  version: ad328f148811f40b530e13466299f4c8343aa7fd
   vcs: git
   subpackages:
   - pkg/tracer
+  - pkg/tracer/common
+  - pkg/tracer/procspy
 - name: golang.org/x/crypto
   version: c10c31b5e94b6f7a0283272dc2bb27163dcea24b
   subpackages:

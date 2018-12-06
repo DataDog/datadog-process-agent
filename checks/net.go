@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
 	"github.com/StackVista/stackstate-process-agent/net"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
+	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	log "github.com/cihub/seelog"
+	"os"
+	"time"
 )
 
 var (
@@ -47,7 +49,16 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 			return
 		}
 
-		t, err := tracer.NewTracer(tracer.DefaultConfig)
+		conf := tracer.DefaultConfig
+		// This is what the process check uses to get /proc aswell, "github.com/DataDog/gopsutil/internal/common/common.go"
+		// Unfortunately that is internal so i cannot use that here and we did not yet put stackstate-agent as a dependency
+		if proc := os.Getenv("HOST_PROC"); proc != "" {
+			conf.ProcRoot = proc
+		}
+		conf.MaxConnections = cfg.MaxPerMessage
+		conf.BackfillFromProc = cfg.NetworkInitialConnectionsFromProc
+
+		t, err := tracer.NewTracer(conf)
 		if err != nil {
 			log.Errorf("failed to create network tracer: %s", err)
 			return
@@ -89,7 +100,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 	conns, err := c.getConnections()
 	if err != nil {
 		// If the tracer is not initialized, or still not initialized, then we want to exit without error'ing
-		if err == tracer.ErrNotImplemented || err == ErrTracerStillNotInitialized {
+		if err == common.ErrNotImplemented || err == ErrTracerStillNotInitialized {
 			return nil, nil
 		}
 		return nil, err
@@ -120,7 +131,7 @@ func (c *ConnectionsCheck) getConnections() ([]tracer.ConnectionStats, error) {
 		if c.localTracer == nil {
 			return nil, fmt.Errorf("using local network tracer, but no tracer was initialized")
 		}
-		cs, err := c.localTracer.GetActiveConnections()
+		cs, err := c.localTracer.GetConnections()
 		return cs.Conns, err
 	}
 
@@ -160,12 +171,12 @@ func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, las
 			Family:        formatFamily(conn.Family),
 			Type:          formatType(conn.Type),
 			Laddr: &model.Addr{
-				Ip:   conn.Source,
-				Port: int32(conn.SPort),
+				Ip:   conn.Local,
+				Port: int32(conn.LocalPort),
 			},
 			Raddr: &model.Addr{
-				Ip:   conn.Dest,
-				Port: int32(conn.DPort),
+				Ip:   conn.Remote,
+				Port: int32(conn.RemotePort),
 			},
 			BytesSentPerSecond:     calculateRate(conn.SendBytes, lastConns[key].SendBytes, lastCheckTime),
 			BytesReceivedPerSecond: calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),

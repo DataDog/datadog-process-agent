@@ -81,8 +81,9 @@ type AgentConfig struct {
 	StatsdPort    int
 
 	// Network collection configuration
-	EnableLocalNetworkTracer bool
-	NetworkTracerSocketPath  string
+	EnableLocalNetworkTracer          bool
+	NetworkInitialConnectionsFromProc bool
+	NetworkTracerSocketPath           string
 
 	// Check config
 	EnabledChecks  []string
@@ -171,8 +172,9 @@ func NewDefaultAgentConfig() *AgentConfig {
 		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
 
 		// Network collection configuration
-		EnableLocalNetworkTracer: true,
-		NetworkTracerSocketPath:  defaultNetworkTracerSocketPath,
+		EnableLocalNetworkTracer:          true,
+		NetworkInitialConnectionsFromProc: true,
+		NetworkTracerSocketPath:           defaultNetworkTracerSocketPath,
 
 		// Check config
 		EnabledChecks: containerChecks,
