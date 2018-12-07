@@ -421,9 +421,109 @@ static int read_ipv6_tuple(ipv6_tuple_t *tuple, tracer_status_t *status, struct 
 }
 
 __attribute__((always_inline))
-static int increment_tcp_stats(struct sock *sk, tracer_status_t *status, size_t send_bytes, size_t recv_bytes) {
+static void increment_ipv4_stats(
+		struct sock *sk,
+		tracer_status_t *status,
+		u64 pid,
+		__u8 type,
+		size_t send_bytes,
+		size_t recv_bytes,
+		u64 ts
+) {
+	ipv4_tuple_t t = {};
 	conn_stats_ts_t *val;
 
+	if (!read_ipv4_tuple(&t, status, sk, type)) {
+		return;
+	}
+
+	t.pid = pid >> 32;
+	// Making ports human-readable
+	t.sport = ntohs(t.sport);
+	t.dport = ntohs(t.dport);
+
+	val = bpf_map_lookup_elem(&conn_stats_ipv4, &t);
+	// If already in our map, increment stats in-place
+	if (val != NULL) {
+		(*val).send_bytes += send_bytes;
+		(*val).recv_bytes += recv_bytes;
+		(*val).timestamp = ts;
+	} else { // Otherwise add the (key, value) to the map
+		conn_stats_ts_t s = {
+			.send_bytes = send_bytes,
+			.recv_bytes = recv_bytes,
+			.timestamp = ts,
+		};
+	bpf_map_update_elem(&conn_stats_ipv4, &t, &s, BPF_ANY);
+	}
+}
+
+__attribute__((always_inline))
+static void increment_ipv6_stats(
+		struct sock *sk,
+		tracer_status_t *status,
+		u64 pid,
+		__u8 type,
+		size_t send_bytes,
+		size_t recv_bytes,
+		u64 ts
+) {
+	ipv6_tuple_t t = {};
+	conn_stats_ts_t *val;
+
+	if (!read_ipv6_tuple(&t, status, sk, type)) {
+		return;
+	}
+
+	// IPv4 can be mapped as IPv6
+	if (is_ipv4_mapped_ipv6(t.saddr_h, t.saddr_l, t.daddr_h, t.daddr_l)) {
+		ipv4_tuple_t t2 = {
+			t2.saddr = (u32)(t.saddr_l >> 32),
+			t2.daddr = (u32)(t.daddr_l >> 32),
+			t2.sport = ntohs(t.sport),
+			t2.dport = ntohs(t.dport),
+			t2.netns = t.netns,
+			t2.pid = pid >> 32,
+			t2.metadata = CONN_TYPE_UDP,
+		};
+
+		val = bpf_map_lookup_elem(&conn_stats_ipv4, &t2);
+		if (val != NULL) { // If already in our map, increment size in-place
+			(*val).send_bytes += send_bytes;
+			(*val).recv_bytes += recv_bytes;
+			(*val).timestamp = ts;
+		} else { // Otherwise add the key, value to the map
+			conn_stats_ts_t s = {
+				.send_bytes = send_bytes,
+				.recv_bytes = recv_bytes,
+				.timestamp = ts,
+			};
+			bpf_map_update_elem(&conn_stats_ipv4, &t2, &s, BPF_ANY);
+		}
+	} else { // It's IPv6
+		t.pid = pid >> 32;
+		t.sport = ntohs(t.sport); // Making ports human-readable
+		t.dport = ntohs(t.dport);
+
+		val = bpf_map_lookup_elem(&conn_stats_ipv6, &t);
+		// If already in our map, increment size in-place
+		if (val != NULL) {
+			(*val).send_bytes += send_bytes;
+			(*val).recv_bytes += recv_bytes;
+			(*val).timestamp = ts;
+		} else { // Otherwise add the key, value to the map
+			conn_stats_ts_t s = {
+				.send_bytes = send_bytes,
+				.recv_bytes = recv_bytes,
+				.timestamp = ts,
+			};
+			bpf_map_update_elem(&conn_stats_ipv6, &t, &s, BPF_ANY);
+		}
+	}
+}
+
+__attribute__((always_inline))
+static int increment_tcp_stats(struct sock *sk, tracer_status_t *status, size_t send_bytes, size_t recv_bytes) {
 	u64 pid = bpf_get_current_pid_tgid();
 	u64 ts = bpf_ktime_get_ns();
 
@@ -432,85 +532,14 @@ static int increment_tcp_stats(struct sock *sk, tracer_status_t *status, size_t 
 			return 0;
 		}
 
-		ipv4_tuple_t t = {};
+		increment_ipv4_stats(sk, status, pid, CONN_TYPE_TCP, send_bytes, recv_bytes, ts);
 
-		if (!read_ipv4_tuple(&t, status, sk, CONN_TYPE_TCP)) {
-			return 0;
-		}
-
-		t.pid = pid >> 32;
-		t.sport = ntohs(t.sport); // Making ports human-readable
-		t.dport = ntohs(t.dport);
-
-		val = bpf_map_lookup_elem(&conn_stats_ipv4, &t);
-		if (val != NULL) { // If already in our map, increment size in-place
-			(*val).send_bytes += send_bytes;
-			(*val).recv_bytes += recv_bytes;
-			(*val).timestamp  = ts;
-		} else { // Otherwise add the key, value to the map
-			conn_stats_ts_t s = {
-				.send_bytes = send_bytes,
-				.recv_bytes = recv_bytes,
-				.timestamp = ts,
-			};
-			bpf_map_update_elem(&conn_stats_ipv4, &t, &s, BPF_ANY);
-		}
 	} else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) {
 		if (!are_offsets_ready_v6(status, sk, pid)) {
 			return 0;
 		}
 
-		ipv6_tuple_t t = {};
-
-		if (!read_ipv6_tuple(&t, status, sk, CONN_TYPE_TCP)) {
-			return 0;
-		}
-
-		// IPv4 can be mapped as IPv6
-		if (is_ipv4_mapped_ipv6(t.saddr_h, t.saddr_l, t.daddr_h, t.daddr_l)) {
-			ipv4_tuple_t t2 = {
-				t2.saddr = (u32)(t.saddr_l >> 32),
-				t2.daddr = (u32)(t.daddr_l >> 32),
-				t2.sport = ntohs(t.sport),
-				t2.dport = ntohs(t.dport),
-				t2.netns = t.netns,
-				t2.pid = pid >> 32,
-				t2.metadata = CONN_TYPE_TCP,
-			};
-
-			val = bpf_map_lookup_elem(&conn_stats_ipv4, &t2);
-			if (val != NULL) { // If already in our map, increment size in-place
-				(*val).send_bytes += send_bytes;
-				(*val).recv_bytes += recv_bytes;
-				(*val).timestamp = ts;
-			} else { // Otherwise add the key, value to the map
-				conn_stats_ts_t s = {
-					.send_bytes = send_bytes,
-					.recv_bytes = recv_bytes,
-					.timestamp = ts,
-				};
-				bpf_map_update_elem(&conn_stats_ipv4, &t2, &s, BPF_ANY);
-			}
-		} else {
-			t.pid = pid >> 32;
-			t.sport = ntohs(t.sport); // Making ports human-readable
-			t.dport = ntohs(t.dport);
-
-			val = bpf_map_lookup_elem(&conn_stats_ipv6, &t);
-			// If already in our map, increment size in-place
-			if (val != NULL) {
-				(*val).send_bytes += send_bytes;
-				(*val).recv_bytes += recv_bytes;
-				(*val).timestamp = ts;
-			} else { // Otherwise add the key, value to the map
-				conn_stats_ts_t s = {
-					.send_bytes = send_bytes,
-					.recv_bytes = recv_bytes,
-					.timestamp = ts,
-				};
-				bpf_map_update_elem(&conn_stats_ipv6, &t, &s, BPF_ANY);
-			}
-		}
+		increment_ipv6_stats(sk, status, pid, CONN_TYPE_UDP, send_bytes, recv_bytes, ts);
 	}
 
 	// Update latest timestamp that we've seen - for connection expiration tracking
@@ -526,7 +555,6 @@ static int increment_udp_stats(struct sock *sk,
                                u64 pid_tgid,
                                size_t send_bytes,
                                size_t recv_bytes) {
-	conn_stats_ts_t *val;
 
 	u64 zero = 0;
 	u64 ts = bpf_ktime_get_ns();
@@ -536,86 +564,13 @@ static int increment_udp_stats(struct sock *sk,
 			return 0;
 		}
 
-		ipv4_tuple_t t = {};
-
-		if (!read_ipv4_tuple(&t, status, sk, CONN_TYPE_UDP)) {
-			return 0;
-		}
-
-		t.pid = pid_tgid >> 32;
-		// Making ports human-readable
-		t.sport = ntohs(t.sport);
-		t.dport = ntohs(t.dport);
-
-		val = bpf_map_lookup_elem(&conn_stats_ipv4, &t);
-		// If already in our map, increment stats in-place
-		if (val != NULL) {
-			(*val).send_bytes += send_bytes;
-			(*val).recv_bytes += recv_bytes;
-			(*val).timestamp = ts;
-		} else { // Otherwise add the (key, value) to the map
-			conn_stats_ts_t s = {
-				.send_bytes = send_bytes,
-				.recv_bytes = recv_bytes,
-				.timestamp = ts,
-			};
-			bpf_map_update_elem(&conn_stats_ipv4, &t, &s, BPF_ANY);
-		}
+		increment_ipv4_stats(sk, status, pid_tgid, CONN_TYPE_UDP, send_bytes, recv_bytes, ts);
 	} else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) {
 		if (!are_offsets_ready_v6(status, sk, pid_tgid)) {
 			return 0;
 		}
 
-		ipv6_tuple_t t = {};
-
-		if (!read_ipv6_tuple(&t, status, sk, CONN_TYPE_UDP)) {
-			return 0;
-		}
-
-		// IPv4 can be mapped as IPv6
-		if (is_ipv4_mapped_ipv6(t.saddr_h, t.saddr_l, t.daddr_h, t.daddr_l)) {
-			ipv4_tuple_t t2 = {
-				t2.saddr = (u32)(t.saddr_l >> 32),
-				t2.daddr = (u32)(t.daddr_l >> 32),
-				t2.sport = ntohs(t.sport),
-				t2.dport = ntohs(t.dport),
-				t2.netns = t.netns,
-				t2.pid = pid_tgid >> 32,
-				t2.metadata = CONN_TYPE_UDP,
-			};
-
-			val = bpf_map_lookup_elem(&conn_stats_ipv4, &t2);
-			if (val != NULL) { // If already in our map, increment size in-place
-				(*val).send_bytes += send_bytes;
-				(*val).recv_bytes += recv_bytes;
-			} else { // Otherwise add the key, value to the map
-				conn_stats_ts_t s = {
-					.send_bytes = send_bytes,
-					.recv_bytes = recv_bytes,
-					.timestamp = ts,
-				};
-				bpf_map_update_elem(&conn_stats_ipv4, &t2, &s, BPF_ANY);
-			}
-		} else { // It's IPv6
-			t.pid = pid_tgid >> 32;
-			t.sport = ntohs(t.sport); // Making ports human-readable
-			t.dport = ntohs(t.dport);
-
-			val = bpf_map_lookup_elem(&conn_stats_ipv6, &t);
-			// If already in our map, increment size in-place
-			if (val != NULL) {
-				(*val).send_bytes += send_bytes;
-				(*val).recv_bytes += recv_bytes;
-				(*val).timestamp = ts;
-			} else { // Otherwise add the key, value to the map
-				conn_stats_ts_t s = {
-					.send_bytes = send_bytes,
-					.recv_bytes = recv_bytes,
-					.timestamp = ts,
-				};
-				bpf_map_update_elem(&conn_stats_ipv6, &t, &s, BPF_ANY);
-			}
-		}
+		increment_ipv6_stats(sk, status, pid_tgid, CONN_TYPE_UDP, send_bytes, recv_bytes, ts);
 	}
 
 	// Update latest timestamp that we've seen - for connection expiration tracking
