@@ -92,6 +92,15 @@ task :fmt => ['ebpf:fmt'] do
   end
 end
 
+desc "Ensures no changes are to be commited"
+task "no-change"  do
+  sh "rake fmt && exit $( git diff --name-status | wc -l)" do |ok,res|
+    if !ok then
+      fail "Some files have been changed:\n#{`git diff --name-status`}"
+    end
+  end
+end
+
 desc "Run go lint"
 task :lint do
   error = false
@@ -129,7 +138,7 @@ desc "Regenerate protobuf definitions and easyjson definitions"
 task :codegen => [:protobuf, :easyjson]
 
 desc "Datadog Process Agent CI script (fmt, vet, etc)"
-task :ci => [:deps, :fmt, :vet, 'ebpf:build', :test, 'ebpf:test', :lint, :build]
+task :ci => [:deps, :fmt, 'no-change', :vet, 'ebpf:build', :test, 'ebpf:test', :lint, :build]
 
 desc "Run errcheck"
 task :err do
@@ -161,13 +170,24 @@ namespace "ebpf" do
   end
 
   desc "Format ebpf code"
-  task :fmt do
+  task :fmt => ['ebpf:cfmt'] do
     sh "#{sudo} go fmt ebpf/tracer-ebpf.go"
   end
 
   desc "Build eBPF docker-image"
   task :image do
     sh "#{sudo} docker build -t #{DOCKER_IMAGE} -f #{DOCKER_FILE} ."
+  end
+
+  desc "Format C code using clang-format"
+  task :cfmt do
+    files = `find ebpf/c -name "*.c" -o -name "*.h"`.split("\n")
+    files.each do |file|
+      sh "clang-format -i -style='{BasedOnStyle: WebKit, BreakBeforeBraces: Attach}' #{file}"
+      # This only works with gnu sed
+      sh "sed -i 's/__attribute__((always_inline)) /__attribute__((always_inline))\\
+/g' #{file}"
+    end
   end
 
   desc "Generate and instal eBPF program via gobindata"
