@@ -15,15 +15,15 @@ static const __u8 GUESS_DADDR_IPV6 = 6;
 #define TASK_COMM_LEN 16
 #endif
 
-struct proc_t {
+typedef struct {
     char comm[TASK_COMM_LEN];
-};
+} proc_t ;
 
-struct conn_stats_ts_t {
+typedef struct {
 	__u64 send_bytes;
 	__u64 recv_bytes;
 	__u64 timestamp;
-};
+} conn_stats_ts_t;
 
 
 // Metadata bit masks
@@ -33,7 +33,7 @@ static const __u8 CONN_TYPE_TCP = 1;
 // tcp_set_state doesn't run in the context of the process that initiated the
 // connection so we need to store a map TUPLE -> PID to send the right PID on
 // the event
-struct ipv4_tuple_t {
+typedef struct {
 	__u32 saddr;
 	__u32 daddr;
 	__u16 sport;
@@ -43,9 +43,9 @@ struct ipv4_tuple_t {
 	// Metadata description:
 	// First bit indicates if the connection is TCP (1) or UDP (0)
 	__u32 metadata; // This is that big because it seems that we atleast need a 32-bit aligned struct
-};
+} ipv4_tuple_t;
 
-struct ipv6_tuple_t {
+typedef struct {
 	/* Using the type unsigned __int128 generates an error in the ebpf verifier */
 	__u64 saddr_h;
 	__u64 saddr_l;
@@ -58,7 +58,7 @@ struct ipv6_tuple_t {
 	// Metadata description:
 	// First bit indicates if the connection is TCP (1) or UDP (0)
 	__u32 metadata; // This is that big because it seems that we atleast need a 32-bit aligned struct
-};
+} ipv6_tuple_t;
 
 static const __u8 TRACER_STATE_UNINITIALIZED = 0;
 static const __u8 TRACER_STATE_CHECKING      = 1;
@@ -68,11 +68,11 @@ static const __u8 TRACER_STATE_READY         = 3;
 static const __u8 TRACER_IPV6_DISABLED = 0;
 static const __u8 TRACER_IPV6_ENABLED  = 1;
 
-struct tracer_status_t {
+typedef struct {
 	__u64 state;
 
 	/* checking */
-	struct proc_t proc;
+	proc_t proc;
 	__u64 what;
 	__u64 offset_saddr;
 	__u64 offset_daddr;
@@ -95,6 +95,6 @@ struct tracer_status_t {
 
 	__u8 ipv6_enabled;
 	__u8 padding;
-};
+} tracer_status_t;
 
 #endif
