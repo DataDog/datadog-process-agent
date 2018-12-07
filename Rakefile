@@ -161,13 +161,21 @@ namespace "ebpf" do
   end
 
   desc "Format ebpf code"
-  task :fmt do
+  task :fmt => ['ebpf:cfmt'] do
     sh "#{sudo} go fmt ebpf/tracer-ebpf.go"
   end
 
   desc "Build eBPF docker-image"
   task :image do
     sh "#{sudo} docker build -t #{DOCKER_IMAGE} -f #{DOCKER_FILE} ."
+  end
+
+  desc "Format C code using clang-format"
+  task :cfmt do
+    files = `find ebpf/c -name "*.c" -o -name "*.h"`.split("\n")
+    files.each do |file|
+      sh "clang-format -i -style=webkit #{file}"
+    end
   end
 
   desc "Generate and instal eBPF program via gobindata"
