@@ -539,7 +539,7 @@ static int increment_tcp_stats(struct sock *sk, tracer_status_t *status, size_t 
 			return 0;
 		}
 
-		increment_ipv6_stats(sk, status, pid, CONN_TYPE_UDP, send_bytes, recv_bytes, ts);
+		increment_ipv6_stats(sk, status, pid, CONN_TYPE_TCP, send_bytes, recv_bytes, ts);
 	}
 
 	// Update latest timestamp that we've seen - for connection expiration tracking
