@@ -2,7 +2,7 @@
 
 # https://regex-golang.appspot.com/assets/html/index.html
 
-export REPLACE_SCOPE="../config ../agent ../checks"
+export REPLACE_SCOPE="../config ../cmd ../checks"
 export REPLACE_MODE=-w # "-d"
 
 gofmt -l $REPLACE_MODE -r '"DD_HOSTNAME" -> "STS_HOSTNAME"'  $REPLACE_SCOPE
@@ -28,8 +28,13 @@ gofmt -l $REPLACE_MODE -r '"DD_CONTAINER_CACHE_DURATION" -> "STS_CONTAINER_CACHE
 gofmt -l $REPLACE_MODE -r '"DD_PROCESS_AGENT_CONTAINER_SOURCE" -> "STS_PROCESS_AGENT_CONTAINER_SOURCE"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"DD_NETWORK_TRACING_ENABLED" -> "STS_NETWORK_TRACING_ENABLED"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"DD_NETWORK_TRACING_ENABLED" -> "STS_NETWORK_TRACING_ENABLED"' $REPLACE_SCOPE
+gofmt -l $REPLACE_MODE -r '"DD_SITE" -> "STS_SITE"' $REPLACE_SCOPE
+gofmt -l $REPLACE_MODE -r '"DD_USE_LOCAL_NETWORK_TRACER" -> "STS_USE_LOCAL_NETWORK_TRACER"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"DD_NETTRACER_SOCKET" -> "STS_NETTRACER_SOCKET"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"DD_PROCESS_AGENT_URL is invalid: %s" -> "STS_PROCESS_AGENT_URL is invalid: %s"' $REPLACE_SCOPE
+# known
+sed -i 's/DD_SITE/STS_SITE/g' ../config/config_test.go
+
 
 # config_nix.go
 gofmt -l $REPLACE_MODE -r '"/var/log/datadog/process-agent.log" -> "/var/log/stackstate-agent/process-agent.log"' $REPLACE_SCOPE
@@ -61,7 +66,7 @@ gofmt -l $REPLACE_MODE -r '"/etc/dd-agent/datadog.conf" -> "/etc/stackstate-agen
 echo "Checking replacements..."
 
 which rgrep
-rgrep --include=*.go "\"DD_"  $PWD/../agent $PWD/../config $PWD/../checks
+rgrep --include=*.go "\"DD_"  $PWD/../cmd $PWD/../config $PWD/../checks
 
 RESULT=$?
 if [ $RESULT -eq 0 ]; then
