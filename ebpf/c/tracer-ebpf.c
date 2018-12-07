@@ -7,7 +7,6 @@
 #pragma clang diagnostic pop
 #include "bpf_helpers.h"
 #include "tracer-ebpf.h"
-#include <linux/bpf.h>
 #include <linux/version.h>
 
 #pragma clang diagnostic push
@@ -89,8 +88,8 @@ struct bpf_map_def SEC("maps/udp_recv_sock") udp_recv_sock = {
 };
 
 /* http://stackoverflow.com/questions/1001307/detecting-endianness-programmatically-in-a-c-program */
-__attribute__((always_inline)) static bool is_big_endian(void)
-{
+__attribute__((always_inline))
+static bool is_big_endian(void) {
     union {
         uint32_t i;
         char c[4];
@@ -105,8 +104,8 @@ __attribute__((always_inline)) static bool is_big_endian(void)
  * in the most significant 32 bits of part saddr_l and daddr_l.
  * Meanwhile the end of the mask is stored in the least significant 32 bits.
  */
-__attribute__((always_inline)) static bool is_ipv4_mapped_ipv6(u64 saddr_h, u64 saddr_l, u64 daddr_h, u64 daddr_l)
-{
+__attribute__((always_inline))
+static bool is_ipv4_mapped_ipv6(u64 saddr_h, u64 saddr_l, u64 daddr_h, u64 daddr_l) {
     if (is_big_endian()) {
         return ((saddr_h == 0 && ((u32)(saddr_l >> 32) == 0x0000FFFF)) || (daddr_h == 0 && ((u32)(daddr_l >> 32) == 0x0000FFFF)));
     } else {
@@ -133,8 +132,8 @@ struct bpf_map_def SEC("maps/latest_ts") latest_ts = {
     .namespace = "",
 };
 
-__attribute__((always_inline)) static bool proc_t_comm_equals(proc_t a, proc_t b)
-{
+__attribute__((always_inline))
+static bool proc_t_comm_equals(proc_t a, proc_t b) {
     int i;
     for (i = 0; i < TASK_COMM_LEN; i++) {
         if (a.comm[i] != b.comm[i]) {
@@ -144,8 +143,8 @@ __attribute__((always_inline)) static bool proc_t_comm_equals(proc_t a, proc_t b
     return true;
 }
 
-__attribute__((always_inline)) static int are_offsets_ready_v4(tracer_status_t* status, struct sock* skp, u64 pid)
-{
+__attribute__((always_inline))
+static int are_offsets_ready_v4(tracer_status_t* status, struct sock* skp, u64 pid) {
     u64 zero = 0;
 
     switch (status->state) {
@@ -256,8 +255,8 @@ __attribute__((always_inline)) static int are_offsets_ready_v4(tracer_status_t* 
     return 0;
 }
 
-__attribute__((always_inline)) static int are_offsets_ready_v6(tracer_status_t* status, struct sock* skp, u64 pid)
-{
+__attribute__((always_inline))
+static int are_offsets_ready_v6(tracer_status_t* status, struct sock* skp, u64 pid) {
     u64 zero = 0;
 
     switch (status->state) {
@@ -329,20 +328,20 @@ __attribute__((always_inline)) static int are_offsets_ready_v6(tracer_status_t* 
     return 0;
 }
 
-__attribute__((always_inline)) static bool check_family(struct sock* sk, tracer_status_t* status, u16 expected_family)
-{
+__attribute__((always_inline))
+static bool check_family(struct sock* sk, tracer_status_t* status, u16 expected_family) {
     u16 family = 0;
     bpf_probe_read(&family, sizeof(u16), ((char*)sk) + status->offset_family);
     return family == expected_family;
 }
 
-__attribute__((always_inline)) static bool is_ipv6_enabled(tracer_status_t* status)
-{
+__attribute__((always_inline))
+static bool is_ipv6_enabled(tracer_status_t* status) {
     return status->ipv6_enabled == TRACER_IPV6_ENABLED;
 }
 
-__attribute__((always_inline)) static int read_ipv4_tuple(ipv4_tuple_t* tuple, tracer_status_t* status, struct sock* skp, __u8 type)
-{
+__attribute__((always_inline))
+static int read_ipv4_tuple(ipv4_tuple_t* tuple, tracer_status_t* status, struct sock* skp, __u8 type) {
     u32 saddr, daddr, net_ns_inum;
     u16 sport, dport;
     possible_net_t* skc_net;
@@ -377,8 +376,8 @@ __attribute__((always_inline)) static int read_ipv4_tuple(ipv4_tuple_t* tuple, t
     return 1;
 }
 
-__attribute__((always_inline)) static int read_ipv6_tuple(ipv6_tuple_t* tuple, tracer_status_t* status, struct sock* skp, __u8 type)
-{
+__attribute__((always_inline))
+static int read_ipv6_tuple(ipv6_tuple_t* tuple, tracer_status_t* status, struct sock* skp, __u8 type) {
     u32 net_ns_inum;
     u16 sport, dport;
     u64 saddr_h, saddr_l, daddr_h, daddr_l;
@@ -420,15 +419,15 @@ __attribute__((always_inline)) static int read_ipv6_tuple(ipv6_tuple_t* tuple, t
     return 1;
 }
 
-__attribute__((always_inline)) static void increment_ipv4_stats(
+__attribute__((always_inline))
+static void increment_ipv4_stats(
     struct sock* sk,
     tracer_status_t* status,
     u64 pid,
     __u8 type,
     size_t send_bytes,
     size_t recv_bytes,
-    u64 ts)
-{
+    u64 ts) {
     ipv4_tuple_t t = {};
     conn_stats_ts_t* val;
 
@@ -457,15 +456,15 @@ __attribute__((always_inline)) static void increment_ipv4_stats(
     }
 }
 
-__attribute__((always_inline)) static void increment_ipv6_stats(
+__attribute__((always_inline))
+static void increment_ipv6_stats(
     struct sock* sk,
     tracer_status_t* status,
     u64 pid,
     __u8 type,
     size_t send_bytes,
     size_t recv_bytes,
-    u64 ts)
-{
+    u64 ts) {
     ipv6_tuple_t t = {};
     conn_stats_ts_t* val;
 
@@ -520,8 +519,8 @@ __attribute__((always_inline)) static void increment_ipv6_stats(
     }
 }
 
-__attribute__((always_inline)) static int increment_tcp_stats(struct sock* sk, tracer_status_t* status, size_t send_bytes, size_t recv_bytes)
-{
+__attribute__((always_inline))
+static int increment_tcp_stats(struct sock* sk, tracer_status_t* status, size_t send_bytes, size_t recv_bytes) {
     u64 pid = bpf_get_current_pid_tgid();
     u64 ts = bpf_ktime_get_ns();
 
@@ -547,12 +546,12 @@ __attribute__((always_inline)) static int increment_tcp_stats(struct sock* sk, t
     return 0;
 }
 
-__attribute__((always_inline)) static int increment_udp_stats(struct sock* sk,
+__attribute__((always_inline))
+static int increment_udp_stats(struct sock* sk,
     tracer_status_t* status,
     u64 pid_tgid,
     size_t send_bytes,
-    size_t recv_bytes)
-{
+    size_t recv_bytes) {
 
     u64 zero = 0;
     u64 ts = bpf_ktime_get_ns();
@@ -579,8 +578,7 @@ __attribute__((always_inline)) static int increment_udp_stats(struct sock* sk,
 
 // Used for offset guessing (see: pkg/offsetguess.go)
 SEC("kprobe/tcp_v4_connect")
-int kprobe__tcp_v4_connect(struct pt_regs* ctx)
-{
+int kprobe__tcp_v4_connect(struct pt_regs* ctx) {
     struct sock* sk;
     u64 pid = bpf_get_current_pid_tgid();
 
@@ -593,8 +591,7 @@ int kprobe__tcp_v4_connect(struct pt_regs* ctx)
 
 // Used for offset guessing (see: pkg/offsetguess.go)
 SEC("kretprobe/tcp_v4_connect")
-int kretprobe__tcp_v4_connect(struct pt_regs* ctx)
-{
+int kretprobe__tcp_v4_connect(struct pt_regs* ctx) {
     int ret = PT_REGS_RC(ctx);
     u64 pid = bpf_get_current_pid_tgid();
     struct sock** skpp;
@@ -629,8 +626,7 @@ int kretprobe__tcp_v4_connect(struct pt_regs* ctx)
 
 // Used for offset guessing (see: pkg/offsetguess.go)
 SEC("kprobe/tcp_v6_connect")
-int kprobe__tcp_v6_connect(struct pt_regs* ctx)
-{
+int kprobe__tcp_v6_connect(struct pt_regs* ctx) {
     struct sock* sk;
     u64 pid = bpf_get_current_pid_tgid();
 
@@ -643,8 +639,7 @@ int kprobe__tcp_v6_connect(struct pt_regs* ctx)
 
 // Used for offset guessing (see: pkg/offsetguess.go)
 SEC("kretprobe/tcp_v6_connect")
-int kretprobe__tcp_v6_connect(struct pt_regs* ctx)
-{
+int kretprobe__tcp_v6_connect(struct pt_regs* ctx) {
     u64 pid = bpf_get_current_pid_tgid();
     u64 zero = 0;
     struct sock** skpp;
@@ -670,8 +665,7 @@ int kretprobe__tcp_v6_connect(struct pt_regs* ctx)
 }
 
 SEC("kprobe/tcp_sendmsg")
-int kprobe__tcp_sendmsg(struct pt_regs* ctx)
-{
+int kprobe__tcp_sendmsg(struct pt_regs* ctx) {
     struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
     size_t size = (size_t)PT_REGS_PARM3(ctx);
     u64 zero = 0;
@@ -688,8 +682,7 @@ int kprobe__tcp_sendmsg(struct pt_regs* ctx)
 }
 
 SEC("kprobe/tcp_cleanup_rbuf")
-int kprobe__tcp_cleanup_rbuf(struct pt_regs* ctx)
-{
+int kprobe__tcp_cleanup_rbuf(struct pt_regs* ctx) {
     struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
     int copied = (int)PT_REGS_PARM2(ctx);
     if (copied < 0) {
@@ -706,8 +699,7 @@ int kprobe__tcp_cleanup_rbuf(struct pt_regs* ctx)
 }
 
 SEC("kprobe/tcp_close")
-int kprobe__tcp_close(struct pt_regs* ctx)
-{
+int kprobe__tcp_close(struct pt_regs* ctx) {
     struct sock* sk;
     tracer_status_t* status;
     u64 zero = 0;
@@ -779,8 +771,7 @@ int kprobe__tcp_close(struct pt_regs* ctx)
 }
 
 SEC("kprobe/udp_sendmsg")
-int kprobe__udp_sendmsg(struct pt_regs* ctx)
-{
+int kprobe__udp_sendmsg(struct pt_regs* ctx) {
     struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
     size_t size = (size_t)PT_REGS_PARM3(ctx);
     u64 pid_tgid = bpf_get_current_pid_tgid();
@@ -804,8 +795,7 @@ int kprobe__udp_sendmsg(struct pt_regs* ctx)
 // On UDP side, no similar function exists in all kernel versions, though we may be able to use something like
 // skb_consume_udp (v4.10+, https://elixir.bootlin.com/linux/v4.10/source/net/ipv4/udp.c#L1500)
 SEC("kprobe/udp_recvmsg")
-int kprobe__udp_recvmsg(struct pt_regs* ctx)
-{
+int kprobe__udp_recvmsg(struct pt_regs* ctx) {
     struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
     u64 pid_tgid = bpf_get_current_pid_tgid();
 
@@ -816,8 +806,7 @@ int kprobe__udp_recvmsg(struct pt_regs* ctx)
 }
 
 SEC("kretprobe/udp_recvmsg")
-int kretprobe__udp_recvmsg(struct pt_regs* ctx)
-{
+int kretprobe__udp_recvmsg(struct pt_regs* ctx) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     u64 zero = 0;
 
