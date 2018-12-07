@@ -21,7 +21,7 @@ git clone git@github.com:StackVista/stackstate-process-agent
 cd stackstate-process-agent
 ```
 
-Pull down the latest dependencies via `glide` and build the process-agent:
+Pull down the latest dependencies via `dep` and build the process-agent:
 
 ```
 rake deps

@@ -42,7 +42,7 @@ jobs:
           paths:
             - .
       - run: rsync -azC --delete ./ $IMPORT_PATH
-      - run: curl https://glide.sh/get | sh
+      - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run: go get golang.org/x/lint/golint
       - run: printenv
       - run: go version

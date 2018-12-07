@@ -25,7 +25,7 @@ def go_build(program, opts={})
   agentversion = ENV["AGENT_VERSION"] || ENV["PROCESS_AGENT_VERSION"] || "0.99.0"
 
   # NOTE: This value is currently hardcoded and needs to be manually incremented during release
-  winversion = "6.5.2".split(".")
+  winversion = "6.6.0".split(".")
 
   vars = {}
   vars["#{dd}.Version"] = agentversion
@@ -42,33 +42,37 @@ def go_build(program, opts={})
   cmd += ' -race' if opts[:race]
   if os != "windows"
     tag_set = 'docker kubelet kubeapiserver' # Default tags for non-windows OSes (e.g. linux)
-    tag_set += ' linux_bpf' if opts[:bpf]   # Add BPF if ebpf exists
+    tag_set += ' linux_bpf' if opts[:bpf]    # Add BPF if ebpf exists
+    tag_set += ' netgo' if opts[:bpf] && opts[:static]
     cmd += " -tags \'#{tag_set}\'"
   end
   print "cmd"
 
   # NOTE: We currently have issues running eBPF components in statically linked binaries, so in the meantime,
   #       if eBPF is enabled, the binary will be dynamically linked, and will not work in environments without glibc.
-  # TODO: Further debug this issue and to get eBPF working in statically linked binaries.
-  if opts[:static] && !opts[:bpf]
-    # Statically linked builds use musl-gcc for full support
-    # of alpine and other machines with different gcc versions.
-    ENV['CC'] = '/usr/local/musl/bin/musl-gcc'
+  if opts[:static]
     ldflags << '-linkmode external'
     ldflags << '-extldflags \'-static\''
-
-    # Since we're using musl, we need to explicitly include the linux headers when compiling for eBPF
-    ENV['CGO_CFLAGS'] = '-I/kernel-headers/include/' if opts[:bpf]
+    if opts[:bpf]
+      # eBPF will require kernel headers
+      # TODO: Further debug this and get eBPF working with musl-based statically linked binaries.
+      ENV['CGO_CFLAGS'] = '-I/kernel-headers/include/'
+    else
+      # Statically linked builds use musl-gcc for full support
+      # of alpine and other machines with different gcc versions.
+      ENV['CC'] = '/usr/local/musl/bin/musl-gcc'
+    end
   end
 
   if ENV['windres'] then
+    resdir = "cmd/agent/windows_resources"
     # first compile the message table, as it's an input to the resource file
-    msgcmd = "windmc --target pe-x86-64 -r agent/windows_resources agent/windows_resources/process-agent-msg.mc"
+    msgcmd = "windmc --target pe-x86-64 -r #{resdir} #{resdir}/process-agent-msg.mc"
     puts msgcmd
     sh msgcmd
 
     rescmd = "windres --define MAJ_VER=#{winversion[0]} --define MIN_VER=#{winversion[1]} --define PATCH_VER=#{winversion[2]} "
-    rescmd += "-i agent/windows_resources/process-agent.rc --target=pe-x86-64 -O coff -o agent/rsrc.syso"
+    rescmd += "-i #{resdir}/process-agent.rc --target=pe-x86-64 -O coff -o cmd/agent/rsrc.syso"
     sh rescmd
   end
 

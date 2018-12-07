@@ -20,9 +20,11 @@ import (
 // available in Agent versions >= 6
 type YamlAgentConfig struct {
 	APIKey string `yaml:"api_key"`
+	Site   string `yaml:"site"`
 	// Whether or not the process-agent should output logs to console
 	LogToConsole bool `yaml:"log_to_console"`
-	Process      struct {
+	// Process-specific configuration
+	Process struct {
 		// A string indicate the enabled state of the Agent.
 		// If "false" (the default) we will only collect containers.
 		// If "true" we will collect containers and processes.
@@ -61,16 +63,8 @@ type YamlAgentConfig struct {
 		DDAgentBin string `yaml:"dd_agent_bin"`
 		// Overrides of the environment we pass to fetch the hostname. The default is usually fine.
 		DDAgentEnv []string `yaml:"dd_agent_env"`
-		// Overrides the submission endpoint URL from the default.
-		ProcessDDURL string `yaml:"process_dd_url"`
 		// Optional additional pairs of endpoint_url => []apiKeys to submit to other locations.
 		AdditionalEndpoints map[string][]string `yaml:"additional_endpoints"`
-		// A string indicating the enabled state of the network tracer.
-		NetworkTracingEnabled string `yaml:"network_tracing_enabled"`
-		// A string indicating whether we use /proc to get the initial connections
-		NetworkInitialConnectionFromProc *bool `yaml:"initial_connections_from_proc"`
-		// The full path to the location of the unix socket where network traces will be accessed
-		UnixSocketPath string `yaml:"nettracer_socket"`
 		// Windows-specific configuration goes in this section.
 		Windows struct {
 			// Sets windows process table refresh rate (in number of check runs)
@@ -80,6 +74,17 @@ type YamlAgentConfig struct {
 			AddNewArgs *bool `yaml:"add_new_args,omitempty"`
 		} `yaml:"windows"`
 	} `yaml:"process_config"`
+	// Network-tracing specific configuration
+	Network struct {
+		// A string indicating the enabled state of the network tracer.
+		NetworkTracingEnabled string `yaml:"network_tracing_enabled"`
+		// A string indicating whether we use /proc to get the initial connections
+		NetworkInitialConnectionFromProc string `yaml:"initial_connections_from_proc"`
+		// The full path to the location of the unix socket where network traces will be accessed
+		UnixSocketPath string `yaml:"nettracer_socket"`
+		// The full path to the file where network-tracer logs will be written.
+		LogFile string `yaml:"log_file"`
+	} `yaml:"network_tracer_config"`
 }
 
 // NewYamlIfExists returns a new YamlAgentConfig if the given configPath is exists.
@@ -117,13 +122,11 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		agentConf.Enabled = true
 		agentConf.EnabledChecks = containerChecks
 	}
-	if yc.Process.ProcessDDURL != "" {
-		u, err := url.Parse(yc.Process.ProcessDDURL)
-		if err != nil {
-			return nil, fmt.Errorf("invalid process_dd_url: %s", err)
-		}
-		agentConf.APIEndpoints[0].Endpoint = u
+	url, err := url.Parse(ddconfig.GetMainEndpoint("https://process.", "process_config.process_dd_url"))
+	if err != nil {
+		return nil, fmt.Errorf("error parsing process_dd_url: %s", err)
 	}
+	agentConf.APIEndpoints[0].Endpoint = url
 	if yc.LogToConsole {
 		agentConf.LogToConsole = true
 	}
@@ -207,20 +210,28 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		}
 	}
 
-	if enabled, _ := isAffirmative(yc.Process.NetworkTracingEnabled); enabled {
-		agentConf.EnabledChecks = append(agentConf.EnabledChecks, "connections")
-	}
-	if socketPath := yc.Process.UnixSocketPath; socketPath != "" {
-		agentConf.NetworkTracerSocketPath = socketPath
-	}
-	if yc.Process.NetworkInitialConnectionFromProc != nil {
-		agentConf.NetworkInitialConnectionsFromProc = *yc.Process.NetworkInitialConnectionFromProc
-	}
-
 	// Pull additional parameters from the global config file.
 	agentConf.LogLevel = ddconfig.Datadog.GetString("log_level")
 	agentConf.StatsdPort = ddconfig.Datadog.GetInt("dogstatsd_port")
 	agentConf.Transport = ddutil.CreateHTTPTransport()
+
+	return agentConf, nil
+}
+
+func mergeNetworkYamlConfig(agentConf *AgentConfig, networkConf *YamlAgentConfig) (*AgentConfig, error) {
+	if enabled, _ := isAffirmative(networkConf.Network.NetworkTracingEnabled); enabled {
+		agentConf.EnabledChecks = append(agentConf.EnabledChecks, "connections")
+		agentConf.EnableNetworkTracing = enabled
+	}
+	if procEnabled, _ := isAffirmative(networkConf.Network.NetworkInitialConnectionFromProc); procEnabled {
+		agentConf.NetworkInitialConnectionsFromProc = procEnabled
+	}
+	if socketPath := networkConf.Network.UnixSocketPath; socketPath != "" {
+		agentConf.NetworkTracerSocketPath = socketPath
+	}
+	if networkConf.Network.LogFile != "" {
+		agentConf.LogFile = networkConf.Network.LogFile
+	}
 
 	return agentConf, nil
 }

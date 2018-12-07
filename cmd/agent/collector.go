@@ -31,14 +31,14 @@ type Collector struct {
 	cfg           *config.AgentConfig
 	httpClient    http.Client
 	groupID       int32
-	runCounter    int64
+	runCounter    int32
 	enabledChecks []checks.Check
 
 	// Controls the real-time interval, can change live.
 	realTimeInterval time.Duration
 	// Set to 1 if enabled 0 is not. We're using an integer
 	// so we can use the sync/atomic for thread-safe access.
-	realTimeEnabled int64
+	realTimeEnabled int32
 }
 
 // NewCollector creates a new Collector
@@ -71,7 +71,7 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 }
 
 func (l *Collector) runCheck(c checks.Check) {
-	runCounter := atomic.AddInt64(&l.runCounter, 1)
+	runCounter := atomic.AddInt32(&l.runCounter, 1)
 	s := time.Now()
 	// update the last collected timestamp for info
 	updateLastCollectTime(time.Now())
@@ -139,7 +139,7 @@ func (l *Collector) run(exit chan bool) {
 			for {
 				select {
 				case <-ticker.C:
-					realTimeEnabled := atomic.LoadInt64(&l.realTimeEnabled) == 1
+					realTimeEnabled := atomic.LoadInt32(&l.realTimeEnabled) == 1
 					if !c.RealTime() || realTimeEnabled {
 						l.runCheck(c)
 					}
@@ -200,7 +200,7 @@ func (l *Collector) postMessage(checkPath string, m model.MessageBody) {
 }
 
 func (l *Collector) updateStatus(statuses []*model.CollectorStatus) {
-	curEnabled := atomic.LoadInt64(&l.realTimeEnabled) == 1
+	curEnabled := atomic.LoadInt32(&l.realTimeEnabled) == 1
 
 	// If any of the endpoints wants real-time we'll do that.
 	// We will pick the maximum interval given since generally this is
@@ -217,10 +217,10 @@ func (l *Collector) updateStatus(statuses []*model.CollectorStatus) {
 
 	if curEnabled && !shouldEnableRT {
 		log.Info("Detected 0 clients, disabling real-time mode")
-		atomic.StoreInt64(&l.realTimeEnabled, 0)
+		atomic.StoreInt32(&l.realTimeEnabled, 0)
 	} else if !curEnabled && shouldEnableRT {
 		log.Info("Detected active clients, enabling real-time mode")
-		atomic.StoreInt64(&l.realTimeEnabled, 1)
+		atomic.StoreInt32(&l.realTimeEnabled, 1)
 	}
 
 	if maxInterval != l.realTimeInterval {

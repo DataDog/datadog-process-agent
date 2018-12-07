@@ -1,0 +1,25 @@
+[[constraint]]
+  name = "github.com/DataDog/datadog-agent"
+  revision = "020e0e819623b29ca1d36ec7e39ed4c2186ce635"
+
+[[constraint]]
+  name = "github.com/DataDog/gopsutil"
+  revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
+
+[[constraint]]
+  name = "github.com/StackVista/tcptracer-bpf"
+  revision = "ad328f148811f40b530e13466299f4c8343aa7fd"
+
+[[constraint]]
+  name = "github.com/DataDog/zstd"
+  revision = "2bf71ec4836011b92dc78df3b9ace6b40e65f7df"
+
+[[constraint]]
+  name = "github.com/gogo/protobuf"
+  revision = "d76fbc1373015ced59b43ac267f28d546b955683"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+
+[[constraint]]
+  name = "golang.org/x/sys"

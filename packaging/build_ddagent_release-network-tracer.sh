@@ -14,14 +14,14 @@ if [ -z ${AGENT_VERSION+x} ]; then
 	# Pick the latest tag by default for our version.
 	AGENT_VERSION=$(git tag | sort | head -1)
 	# But we will be building from the master branch in this case.
-	FILENAME="process-agent-amd64-master"
+	FILENAME="network-tracer-amd64-master"
 else
 	git checkout $AGENT_VERSION
 	# If we have a version then we'll use it and put it in the name.
-	FILENAME="process-agent-amd64-$AGENT_VERSION"
+	FILENAME="network-tracer-amd64-$AGENT_VERSION"
 fi
 
-echo "Building process agent v$AGENT_VERSION to $FILENAME"
+echo "Building network-tracer agent v$AGENT_VERSION to $FILENAME"
 
 # Expects gimme to be installed
 eval "$(gimme 1.10.1)"
@@ -29,15 +29,12 @@ eval "$(gimme 1.10.1)"
 export GOPATH=$WORKSPACE/go
 export PATH=$PATH:$GOPATH/bin
 
-agent_path="$WORKSPACE/go/src/github.com/StackVista/stackstate-process-agent"
-
 echo "Getting dependencies..."
-
-cd $agent_path
 rake deps
 
 echo "Building binaries..."
-PROCESS_AGENT_STATIC=true rake build EBPF=$LINUX_EBPF
+NETWORK_AGENT_STATIC=true rake build-network-tracer
 
-cp process-agent $FILENAME 
+# Upload to s3
+cp network-tracer $FILENAME
 s3cmd sync -v ./$FILENAME s3://$AGENT_S3_BUCKET/

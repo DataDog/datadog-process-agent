@@ -15,9 +15,9 @@ def os
 
 desc "Setup dependencies"
 task :deps do
-  system("go get github.com/Masterminds/glide")
-  system("go get -u github.com/golang/lint/golint")
-  system("glide install")
+  system("go get -u github.com/golang/dep/cmd/dep")
+  system("go get -u golang.org/x/lint/golint")
+  system("dep ensure -v -vendor-only")
 end
 
 task :default => [:ci]
@@ -30,8 +30,8 @@ task :build do
   else
     bin = "process-agent"
   end
-  go_build("github.com/StackVista/stackstate-process-agent/agent", {
-    :cmd => "go build -a -o #{bin}",
+  go_build("github.com/StackVista/stackstate-process-agent/cmd/agent", {
+    :cmd => "go build -o #{bin}",
     :race => ENV['GO_RACE'] == 'true',
     :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
     :static => ENV['PROCESS_AGENT_STATIC'] == 'true',
@@ -41,15 +41,15 @@ task :build do
 end
 
 # Deprecated, should go away once we are fully merged into dd-agent
-desc "DEPRECATED: Build Datadog Process agent for dd-process-agent pkg release"
-task :build_ddpkg do
-  go_build("github.com/StackVista/stackstate-process-agent/agent", {
-    :cmd => "go build -a -o stackstate-process-agent",
-    :race => ENV['GO_RACE'] == 'true',
-    :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
-    :static => ENV['PROCESS_AGENT_STATIC'] == 'true'
-  })
-end
+#desc "DEPRECATED: Build Datadog Process agent for dd-process-agent pkg release"
+#task :build_ddpkg do
+#  go_build("github.com/StackVista/stackstate-process-agent/agent", {
+#    :cmd => "go build -a -o stackstate-process-agent",
+#    :race => ENV['GO_RACE'] == 'true',
+#    :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
+#    :static => ENV['PROCESS_AGENT_STATIC'] == 'true'
+#  })
+#end
 
 desc "Install Datadog Process agent"
 task :install do
@@ -77,10 +77,16 @@ task :cmdtest do
   sh cmd
 end
 
-desc "Run Datadog Process agent"
-task :run do
-  ENV['STS_PROCESS_AGENT_ENABLED'] = 'true'
-  sh "./process-agent -config ./agent/process-agent.ini"
+desc "Build Stackstate network-tracer agent"
+task 'build-network-tracer' do
+  bin = "network-tracer"
+  go_build("github.com/StackVista/stackstate-process-agent/cmd/network-tracer", {
+    :cmd => "go build -o #{bin}",
+    :add_build_vars => true,
+    :static => ENV['NETWORK_AGENT_STATIC'] == 'true',
+    :os => os,
+    :bpf => true
+  })
 end
 
 task :vet do

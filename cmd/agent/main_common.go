@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
-	"github.com/DataDog/datadog-agent/pkg/tagger"
 	log "github.com/cihub/seelog"
 
+	"github.com/StackVista/stackstate-agent/pkg/tagger"
 	"github.com/StackVista/stackstate-process-agent/checks"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/statsd"
@@ -20,13 +20,14 @@ import (
 )
 
 var opts struct {
-	configPath   string
-	ddConfigPath string
-	pidfilePath  string
-	debug        bool
-	version      bool
-	check        string
-	info         bool
+	configPath    string
+	ddConfigPath  string
+	netConfigPath string
+	pidfilePath   string
+	debug         bool
+	version       bool
+	check         string
+	info          bool
 }
 
 // version info sourced from build flags
@@ -106,18 +107,24 @@ func runAgent(exit chan bool) {
 	if err != nil {
 		log.Criticalf("Error reading stackstate.yaml: %s", err)
 		os.Exit(1)
-	}
-	if yamlConf != nil {
+	} else if yamlConf != nil {
 		config.SetupDDAgentConfig(opts.configPath)
 	}
 
+	// Tagger must be initialized after agent config has been setup (via config.SetupDDAgentConfig)
 	if err := tagger.Init(); err == nil {
 		defer tagger.Stop()
 	} else {
 		log.Errorf("unable to initialize StackState entity tagger: %s", err)
 	}
 
-	cfg, err := config.NewAgentConfig(agentConf, yamlConf)
+	networkConf, err := config.NewYamlIfExists(opts.netConfigPath)
+	if err != nil {
+		log.Criticalf("Error reading network-tracer.yaml: %s", err)
+		os.Exit(1)
+	}
+
+	cfg, err := config.NewAgentConfig(agentConf, yamlConf, networkConf)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)
