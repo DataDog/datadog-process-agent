@@ -557,10 +557,6 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	if v := os.Getenv("DD_NETTRACER_SOCKET"); v != "" {
 		c.NetworkTracerSocketPath = v
 	}
-	// StackState Note: we enable the local network tracer by default
-	//if ok, _ := isAffirmative(os.Getenv("DD_USE_LOCAL_NETWORK_TRACER")); ok {
-	//	c.EnableLocalNetworkTracer = ok
-	//}
 
 	return c
 }
