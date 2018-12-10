@@ -1,19 +1,16 @@
-log_level: info
+log_level: debug
 
 api_key: API_KEY
 process_agent_enabled: true
 process_config:
   enabled: 'true'
-
-# Use this when running process agent locally
-#  process_dd_url: http://localhost:7077/stsAgent
-
-# Use this when running process agent in the vagrant vms
+  # Change this according to what is the address of the StackState receiver
   process_dd_url: http://localhost:7077/stsAgent
-
   queue_size: 10
-  network_tracing_enabled: 'true'
   intervals:
     container: 8
     process: 5
     connections: 5
+network_tracer_config:
+  network_tracing_enabled: 'true'
+  initial_connections_from_proc: 'true'

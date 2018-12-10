@@ -528,6 +528,41 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
 }
 
+func TestStackStateNetworkConfigFromMainAgentConfig(t *testing.T) {
+	assert := assert.New(t)
+	var ddy YamlAgentConfig
+	processDDURL := "http://my-process-app.datadoghq.com"
+	ddconfig.Datadog.Set("process_config.process_dd_url", processDDURL)
+	err := yaml.Unmarshal([]byte(strings.Join([]string{
+		"api_key: apikey_20",
+		"process_agent_enabled: true",
+		"process_config:",
+		"  enabled: 'true'",
+		"  queue_size: 10",
+		"  intervals:",
+		"    container: 8",
+		"    process: 30",
+		"network_tracer_config:",
+		"  network_tracing_enabled: 'true'",
+		"  initial_connections_from_proc: 'true'",
+	}, "\n")), &ddy)
+	assert.NoError(err)
+
+	agentConfig, err := NewAgentConfig(nil, &ddy, nil)
+	assert.NoError(err)
+
+	ep := agentConfig.APIEndpoints[0]
+	assert.Equal("apikey_20", ep.APIKey)
+	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
+	assert.Equal(10, agentConfig.QueueSize)
+	assert.Equal(true, agentConfig.AllowRealTime)
+	assert.Equal(true, agentConfig.Enabled)
+	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
+	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
+	assert.Equal(true, agentConfig.NetworkInitialConnectionsFromProc)
+	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
+}
+
 func TestProxyEnv(t *testing.T) {
 	assert := assert.New(t)
 	for i, tc := range []struct {

@@ -354,6 +354,9 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 		if cfg, err = mergeYamlConfig(cfg, agentYaml); err != nil {
 			return nil, err
 		}
+		if cfg, err = mergeNetworkYamlConfig(cfg, agentYaml); err != nil {
+			return nil, err
+		}
 	}
 
 	if networkYaml != nil {
