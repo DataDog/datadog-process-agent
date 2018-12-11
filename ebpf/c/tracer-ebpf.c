@@ -373,7 +373,7 @@ static int read_conn_tuple(conn_tuple_t* tuple, tracer_status_t* status, struct 
     tuple->metadata = type;
 
     // Check if we can map IPv6 top IPv4
-    if (is_ipv4_mapped_ipv6(saddr_h, saddr_l, daddr_h, daddr_l) && family == CONN_V6) {
+    if (family == CONN_V6 && is_ipv4_mapped_ipv6(saddr_h, saddr_l, daddr_h, daddr_l)) {
         tuple->metadata |= CONN_V4;
     } else {
         tuple->metadata |= family;
@@ -428,7 +428,7 @@ __attribute__((always_inline))
 static int increment_conn_stats(struct sock* sk,
     tracer_status_t* status,
     u64 pid_tgid,
-	__u8 type,
+    __u8 type,
     size_t send_bytes,
     size_t recv_bytes) {
 
