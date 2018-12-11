@@ -26,23 +26,15 @@ typedef struct {
 } conn_stats_ts_t;
 
 // Metadata bit masks
-static const __u8 CONN_TYPE_UDP = 0;
-static const __u8 CONN_TYPE_TCP = 1;
+typedef enum {
+    // Connection type
+    CONN_TYPE_UDP = 0x0,
+    CONN_TYPE_TCP = 0x1,
 
-// tcp_set_state doesn't run in the context of the process that initiated the
-// connection so we need to store a map TUPLE -> PID to send the right PID on
-// the event
-typedef struct {
-    __u32 saddr;
-    __u32 daddr;
-    __u16 sport;
-    __u16 dport;
-    __u32 netns;
-    __u32 pid;
-    // Metadata description:
-    // First bit indicates if the connection is TCP (1) or UDP (0)
-    __u32 metadata; // This is that big because it seems that we atleast need a 32-bit aligned struct
-} ipv4_tuple_t;
+    // Connection family
+    CONN_V4 = 0x00,
+    CONN_V6 = 0x10,
+} metadata_mask_t;
 
 typedef struct {
     /* Using the type unsigned __int128 generates an error in the ebpf verifier */
@@ -56,8 +48,9 @@ typedef struct {
     __u32 pid;
     // Metadata description:
     // First bit indicates if the connection is TCP (1) or UDP (0)
+    // Second bit indicates if the connection is V6 (1) or V4 (0)
     __u32 metadata; // This is that big because it seems that we atleast need a 32-bit aligned struct
-} ipv6_tuple_t;
+} conn_tuple_t;
 
 static const __u8 TRACER_STATE_UNINITIALIZED = 0;
 static const __u8 TRACER_STATE_CHECKING = 1;

@@ -33,8 +33,7 @@ const (
 type bpfMapName string
 
 const (
-	v4Map              bpfMapName = "conn_stats_ipv4"
-	v6Map              bpfMapName = "conn_stats_ipv6"
+	connMap            bpfMapName = "conn_stats"
 	latestTimestampMap bpfMapName = "latest_ts"
 	tracerStatusMap    bpfMapName = "tracer_status"
 )
