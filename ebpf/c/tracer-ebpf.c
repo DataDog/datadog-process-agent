@@ -497,7 +497,7 @@ static int handle_message(struct sock* sk,
 }
 
 __attribute__((always_inline))
-static int increment_retransmits_stats(struct sock* sk, tracer_status_t* status) {
+static int handle_retransmit(struct sock* sk, tracer_status_t* status) {
     u64 ts = bpf_ktime_get_ns();
 
     if (check_family(sk, status, AF_INET)) {
@@ -774,7 +774,7 @@ int kprobe__tcp_retransmit_skb(struct pt_regs* ctx) {
         return 0;
     }
 
-    return increment_retransmits_stats(sk, status);
+    return handle_retransmit(sk, status);
 }
 
 // This number will be interpreted by gobpf-elf-loader to set the current running kernel version
