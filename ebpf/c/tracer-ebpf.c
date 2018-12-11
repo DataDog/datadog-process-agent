@@ -24,6 +24,26 @@
         bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
     })
 
+/* Macro to execute the given expression replacing family by the correct family
+ * Needs sk and status to exist before calling
+ */
+#define handle_family(expr)                                                         \
+    ({                                                                              \
+        if (check_family(sk, status, AF_INET)) {                                    \
+            if (!are_offsets_ready_v4(status, sk)) {                                \
+                return 0;                                                           \
+            }                                                                       \
+            metadata_mask_t family = CONN_V4;                                       \
+            expr;                                                                   \
+        } else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) { \
+            if (!are_offsets_ready_v6(status, sk)) {                                \
+                return 0;                                                           \
+            }                                                                       \
+            metadata_mask_t family = CONN_V6;                                       \
+            expr;                                                                   \
+        }                                                                           \
+    })
+
 /* This is a key/value store with the keys being a conn_tuple_t for send & recv calls
  * and the values being conn_stats_ts_t *.
  */
@@ -501,23 +521,10 @@ static int handle_message(struct sock* sk,
     u64 zero = 0;
     u64 ts = bpf_ktime_get_ns();
 
-    if (check_family(sk, status, AF_INET)) {
-        if (!are_offsets_ready_v4(status, sk)) {
-            return 0;
-        }
-
-        update_conn_stats(sk, status, pid_tgid, type, CONN_V4, send_bytes, recv_bytes, ts);
-    } else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) {
-        if (!are_offsets_ready_v6(status, sk)) {
-            return 0;
-        }
-
-        update_conn_stats(sk, status, pid_tgid, type, CONN_V6, send_bytes, recv_bytes, ts);
-    }
+    handle_family(update_conn_stats(sk, status, pid_tgid, type, family, send_bytes, recv_bytes, ts));
 
     // Update latest timestamp that we've seen - for connection expiration tracking
     bpf_map_update_elem(&latest_ts, &zero, &ts, BPF_ANY);
-
     return 0;
 }
 
@@ -525,20 +532,7 @@ __attribute__((always_inline))
 static int handle_retransmit(struct sock* sk, tracer_status_t* status) {
     u64 ts = bpf_ktime_get_ns();
 
-    if (check_family(sk, status, AF_INET)) {
-        if (!are_offsets_ready_v4(status, sk)) {
-            return 0;
-        }
-
-        update_tcp_stats(sk, status, CONN_V4, 1, ts);
-
-    } else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) {
-        if (!are_offsets_ready_v6(status, sk)) {
-            return 0;
-        }
-
-        update_tcp_stats(sk, status, CONN_V6, 1, ts);
-    }
+    handle_family(update_tcp_stats(sk, status, family, 1, ts));
 
     // Update latest timestamp that we've seen - for connection expiration tracking
     u64 zero = 0;
@@ -696,11 +690,7 @@ int kprobe__tcp_close(struct pt_regs* ctx) {
     bpf_probe_read(&skc_net, sizeof(possible_net_t*), ((char*)sk) + status->offset_netns);
     bpf_probe_read(&net_ns_inum, sizeof(net_ns_inum), ((char*)skc_net) + status->offset_ino);
 
-    if (check_family(sk, status, AF_INET)) {
-        cleanup_tcp_conn(sk, status, pid, CONN_V4);
-    } else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) {
-        cleanup_tcp_conn(sk, status, pid, CONN_V6);
-    }
+    handle_family(cleanup_tcp_conn(sk, status, pid, family));
     return 0;
 }
 
