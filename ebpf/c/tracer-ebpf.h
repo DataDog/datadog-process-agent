@@ -26,12 +26,15 @@ typedef struct {
 } conn_stats_ts_t;
 
 // Metadata bit masks
-// Connection type
-static const __u8 CONN_TYPE_UDP = 0x0;
-static const __u8 CONN_TYPE_TCP = 0x1;
-// v4/v6
-static const __u8 CONN_V4 = 0x00;
-static const __u8 CONN_V6 = 0x10;
+typedef enum {
+    // Connection type
+    CONN_TYPE_UDP = 0x0,
+    CONN_TYPE_TCP = 0x1,
+
+    // Connection family
+    CONN_V4 = 0x00,
+    CONN_V6 = 0x10,
+} metadata_mask_t;
 
 typedef struct {
     /* Using the type unsigned __int128 generates an error in the ebpf verifier */

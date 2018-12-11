@@ -329,7 +329,7 @@ static bool is_ipv6_enabled(tracer_status_t* status) {
 }
 
 __attribute__((always_inline))
-static int read_conn_tuple(conn_tuple_t* tuple, tracer_status_t* status, struct sock* skp, __u8 type, __u8 family) {
+static int read_conn_tuple(conn_tuple_t* tuple, tracer_status_t* status, struct sock* skp, metadata_mask_t type, metadata_mask_t family) {
     u32 net_ns_inum;
     u16 sport, dport;
     u64 saddr_h, saddr_l, daddr_h, daddr_l;
@@ -392,8 +392,8 @@ static void update_conn_stats(
     struct sock* sk,
     tracer_status_t* status,
     u64 pid,
-    __u8 type,
-    __u8 family,
+    metadata_mask_t type,
+    metadata_mask_t family,
     size_t send_bytes,
     size_t recv_bytes,
     u64 ts) {
@@ -428,7 +428,7 @@ __attribute__((always_inline))
 static int increment_conn_stats(struct sock* sk,
     tracer_status_t* status,
     u64 pid_tgid,
-    __u8 type,
+    metadata_mask_t type,
     size_t send_bytes,
     size_t recv_bytes) {
 

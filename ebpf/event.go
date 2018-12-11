@@ -80,7 +80,7 @@ func ipString(addr_h, addr_l uint64, family ConnectionFamily) string {
 
 func connType(m _Ctype_uint) ConnectionType {
 	// First bit of metadata indicates if the connection is TCP or UDP
-	if m&1 == 0 {
+	if m&C.CONN_TYPE_TCP == 0 {
 		return UDP
 	}
 	return TCP
@@ -88,7 +88,7 @@ func connType(m _Ctype_uint) ConnectionType {
 
 func connFamily(m _Ctype_uint) ConnectionFamily {
 	// Second bit of metadata indicates if the connection is IPv6 or IPv4
-	if m&0x10 == 0 {
+	if m&C.CONN_V6 == 0 {
 		return AFINET
 	}
 
