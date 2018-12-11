@@ -192,6 +192,69 @@ func TestTCPClosedConnectionsAreCleanedUp(t *testing.T) {
 	doneChan <- struct{}{}
 }
 
+func TestTCPOverIPv6(t *testing.T) {
+	config := NewDefaultConfig()
+	config.CollectIPv6Conns = true
+
+	tr, err := NewTracer(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tr.Stop()
+
+	ln, err := net.Listen("tcp6", net.IPv6loopback.String())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	doneChan := make(chan struct{})
+	go func(done chan struct{}) {
+		<-done
+		ln.Close()
+	}(doneChan)
+
+	// Create TCP Server which sends back serverMessageSize bytes
+	go func() {
+		for {
+			if c, err := ln.Accept(); err != nil {
+				return
+			} else {
+				r := bufio.NewReader(c)
+				r.ReadBytes(byte('\n'))
+				c.Write(genPayload(serverMessageSize))
+				c.Close()
+			}
+		}
+	}()
+
+	// Connect to server
+	c, err := net.DialTimeout("tcp6", net.IPv6loopback.String(), 50*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Write clientMessageSize to server, and read response
+	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
+		t.Fatal(err)
+	}
+	r := bufio.NewReader(c)
+	r.ReadBytes(byte('\n'))
+
+	connections, err := tr.GetActiveConnections()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	assert.True(t, ok)
+	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
+	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
+
+	doneChan <- struct{}{}
+
+}
+
 func TestTCPCollectionDisabled(t *testing.T) {
 	// Enable BPF-based network tracer with TCP disabled
 	config := NewDefaultConfig()
