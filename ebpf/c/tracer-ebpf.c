@@ -466,6 +466,31 @@ static void update_tcp_stats(
 }
 
 __attribute__((always_inline))
+static void cleanup_tcp_conn(
+    struct sock* sk,
+    tracer_status_t* status,
+    u64 pid,
+    metadata_mask_t family) {
+
+    conn_tuple_t t = {
+        .pid = 0,
+    };
+
+    if (!read_conn_tuple(&t, status, sk, CONN_TYPE_TCP, family)) {
+        return;
+    }
+
+    t.sport = ntohs(t.sport); // Making ports human-readable
+    t.dport = ntohs(t.dport);
+    // Delete the connection from the tcp_stats map before setting the PID
+    bpf_map_delete_elem(&tcp_stats, &t);
+
+    t.pid = pid >> 32;
+    // Delete this connection from our stats map
+    bpf_map_delete_elem(&conn_stats, &t);
+}
+
+__attribute__((always_inline))
 static int handle_message(struct sock* sk,
     tracer_status_t* status,
     u64 pid_tgid,
@@ -672,30 +697,9 @@ int kprobe__tcp_close(struct pt_regs* ctx) {
     bpf_probe_read(&net_ns_inum, sizeof(net_ns_inum), ((char*)skc_net) + status->offset_ino);
 
     if (check_family(sk, status, AF_INET)) {
-        conn_tuple_t t = {};
-
-        if (!read_conn_tuple(&t, status, sk, CONN_TYPE_TCP, CONN_V4)) {
-            return 0;
-        }
-
-        t.pid = pid >> 32;
-        t.sport = ntohs(t.sport); // Making ports human-readable
-        t.dport = ntohs(t.dport);
-
-        // Delete this connection from our stats map
-        bpf_map_delete_elem(&conn_stats, &t);
+        cleanup_tcp_conn(sk, status, pid, CONN_V4);
     } else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) {
-        conn_tuple_t t = {};
-
-        if (!read_conn_tuple(&t, status, sk, CONN_TYPE_TCP, CONN_V6)) {
-            return 0;
-        }
-
-        t.pid = pid >> 32;
-        t.sport = ntohs(t.sport); // Making ports human-readable
-        t.dport = ntohs(t.dport);
-
-        bpf_map_delete_elem(&conn_stats, &t);
+        cleanup_tcp_conn(sk, status, pid, CONN_V6);
     }
     return 0;
 }

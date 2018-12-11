@@ -134,11 +134,21 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 	}
 
 	// Remove expired entries
-	for i := range expired {
-		t.m.DeleteElement(mp, unsafe.Pointer(expired[i]))
-	}
+	t.removeEntries(mp, tcpMp, expired)
 
 	return active, nil
+}
+
+func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
+	var ent *ConnTuple
+
+	for i := range entries {
+		t.m.DeleteElement(mp, unsafe.Pointer(entries[i]))
+
+		// We have to remove the PID to remove the element correctly
+		ent = entries[i].copy()
+		ent.pid = 0
+	}
 }
 
 // getTCPStats reads tcp related stats for the given ConnTuple
