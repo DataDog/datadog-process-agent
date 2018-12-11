@@ -372,7 +372,7 @@ static int read_conn_tuple(conn_tuple_t* tuple, tracer_status_t* status, struct 
     tuple->netns = net_ns_inum;
     tuple->metadata = type;
 
-    // Check if we can map IPv6 top IPv4
+    // Check if we can map IPv6 to IPv4
     if (family == CONN_V6 && is_ipv4_mapped_ipv6(saddr_h, saddr_l, daddr_h, daddr_l)) {
         tuple->metadata |= CONN_V4;
     } else {
@@ -425,7 +425,7 @@ static void update_conn_stats(
 }
 
 __attribute__((always_inline))
-static int increment_conn_stats(struct sock* sk,
+static int handle_message(struct sock* sk,
     tracer_status_t* status,
     u64 pid_tgid,
     metadata_mask_t type,
@@ -558,7 +558,7 @@ int kprobe__tcp_sendmsg(struct pt_regs* ctx) {
         return 0;
     }
 
-    return increment_conn_stats(sk, status, pid_tgid, CONN_TYPE_TCP, size, 0);
+    return handle_message(sk, status, pid_tgid, CONN_TYPE_TCP, size, 0);
 }
 
 SEC("kprobe/tcp_cleanup_rbuf")
@@ -576,7 +576,7 @@ int kprobe__tcp_cleanup_rbuf(struct pt_regs* ctx) {
         return 0;
     }
 
-    return increment_conn_stats(sk, status, pid_tgid, CONN_TYPE_TCP, 0, copied);
+    return handle_message(sk, status, pid_tgid, CONN_TYPE_TCP, 0, copied);
 }
 
 SEC("kprobe/tcp_close")
@@ -646,7 +646,7 @@ int kprobe__udp_sendmsg(struct pt_regs* ctx) {
         return 0;
     }
 
-    increment_conn_stats(sk, status, pid_tgid, CONN_TYPE_UDP, size, 0);
+    handle_message(sk, status, pid_tgid, CONN_TYPE_UDP, size, 0);
 
     return 0;
 }
@@ -694,7 +694,7 @@ int kretprobe__udp_recvmsg(struct pt_regs* ctx) {
         return 0;
     }
 
-    increment_conn_stats(sk, status, pid_tgid, CONN_TYPE_UDP, 0, copied);
+    handle_message(sk, status, pid_tgid, CONN_TYPE_UDP, 0, copied);
 
     return 0;
 }
