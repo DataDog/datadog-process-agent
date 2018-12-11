@@ -20,12 +20,14 @@ __u64 daddr_l;
 __u16 sport;
 __u16 dport;
 __u32 netns;
+__u32 pid;
 __u32 metadata;
 */
 type ConnTuple C.conn_tuple_t
 
 func (t *ConnTuple) copy() *ConnTuple {
 	return &ConnTuple{
+		pid:      t.pid,
 		saddr_h:  t.saddr_h,
 		saddr_l:  t.saddr_l,
 		daddr_h:  t.daddr_h,

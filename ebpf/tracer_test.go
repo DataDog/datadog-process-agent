@@ -69,7 +69,8 @@ func TestTCPSendAndReceive(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
-	assert.Equal(t, 0, conn.Retransmits)
+	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
 
 	doneChan <- struct{}{}
 }
@@ -142,7 +143,8 @@ func TestTCPRetransmit(t *testing.T) {
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
 	assert.Equal(t, 100*clientMessageSize, int(conn.SendBytes))
-	assert.True(t, conn.Retransmits > 0)
+	assert.True(t, int(conn.Retransmits) > 0)
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
 
 	doneChan <- struct{}{}
 }
@@ -251,7 +253,8 @@ func TestTCPOverIPv6(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
-	assert.Equal(t, 0, conn.Retransmits)
+	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
 
 	doneChan <- struct{}{}
 
@@ -343,6 +346,7 @@ func TestUDPSendAndReceive(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
 
 	doneChan <- struct{}{}
 }
