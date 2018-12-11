@@ -53,7 +53,7 @@ typedef struct {
 } conn_tuple_t;
 
 typedef struct {
-	__u32 retransmits;
+    __u32 retransmits;
 } tcp_stats_t;
 
 static const __u8 TRACER_STATE_UNINITIALIZED = 0;

@@ -441,7 +441,7 @@ static void update_tcp_stats(
     struct sock* sk,
     tracer_status_t* status,
     metadata_mask_t family,
-	u32 retransmits,
+    u32 retransmits,
     u64 ts) {
     conn_tuple_t t = {};
     tcp_stats_t* val;
@@ -497,29 +497,28 @@ static int handle_message(struct sock* sk,
 }
 
 __attribute__((always_inline))
-static int increment_retransmits_stats(struct sock *sk, tracer_status_t *status) {
-	u64 ts = bpf_ktime_get_ns();
+static int increment_retransmits_stats(struct sock* sk, tracer_status_t* status) {
+    u64 ts = bpf_ktime_get_ns();
 
-	if (check_family(sk, status, AF_INET)) {
-		if (!are_offsets_ready_v4(status, sk)) {
-			return 0;
-		}
+    if (check_family(sk, status, AF_INET)) {
+        if (!are_offsets_ready_v4(status, sk)) {
+            return 0;
+        }
 
-		update_tcp_stats(sk, status, CONN_V4, 1, ts);
+        update_tcp_stats(sk, status, CONN_V4, 1, ts);
 
-	} else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) {
-		if (!are_offsets_ready_v6(status, sk)) {
-			return 0;
-		}
+    } else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) {
+        if (!are_offsets_ready_v6(status, sk)) {
+            return 0;
+        }
 
-		update_tcp_stats(sk, status, CONN_V6, 1, ts);
-	}
+        update_tcp_stats(sk, status, CONN_V6, 1, ts);
+    }
 
-
-	// Update latest timestamp that we've seen - for connection expiration tracking
-	u64 zero = 0;
-	bpf_map_update_elem(&latest_ts, &zero, &ts, BPF_ANY);
-	return 0;
+    // Update latest timestamp that we've seen - for connection expiration tracking
+    u64 zero = 0;
+    bpf_map_update_elem(&latest_ts, &zero, &ts, BPF_ANY);
+    return 0;
 }
 
 // Used for offset guessing (see: pkg/offsetguess.go)
@@ -767,15 +766,15 @@ int kretprobe__udp_recvmsg(struct pt_regs* ctx) {
 }
 
 SEC("kprobe/tcp_retransmit_skb")
-int kprobe__tcp_retransmit_skb(struct pt_regs *ctx) {
-	struct sock *sk = (struct sock *) PT_REGS_PARM1(ctx);
-	u64 zero = 0;
-	tracer_status_t *status = bpf_map_lookup_elem(&tracer_status, &zero);
-	if (status == NULL || status->state == TRACER_STATE_UNINITIALIZED) {
-		return 0;
-	}
+int kprobe__tcp_retransmit_skb(struct pt_regs* ctx) {
+    struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
+    u64 zero = 0;
+    tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
+    if (status == NULL || status->state == TRACER_STATE_UNINITIALIZED) {
+        return 0;
+    }
 
-	return increment_retransmits_stats(sk, status);
+    return increment_retransmits_stats(sk, status);
 }
 
 // This number will be interpreted by gobpf-elf-loader to set the current running kernel version

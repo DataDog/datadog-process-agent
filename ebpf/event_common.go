@@ -57,12 +57,12 @@ type ConnectionStats struct {
 	SendBytes uint64 `json:"send_bytes"`
 	RecvBytes uint64 `json:"recv_bytes"`
 
-	Retransmissions uint32 `json:"retransmissions"`
+	Retransmits uint32 `json:"retransmits"`
 }
 
 func (c ConnectionStats) String() string {
-	return fmt.Sprintf("[%s] [PID: %d] [%v:%d ⇄ %v:%d] %d bytes sent, %d bytes received, %d retransmissions",
-		c.Type, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.SendBytes, c.RecvBytes, c.Retransmissions)
+	return fmt.Sprintf("[%s] [PID: %d] [%v:%d ⇄ %v:%d] %d bytes sent, %d bytes received, %d retransmits",
+		c.Type, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.SendBytes, c.RecvBytes, c.Retransmits)
 }
 
 // ByteKey returns a unique key for this connection represented as a byte array

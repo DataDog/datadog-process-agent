@@ -123,7 +123,7 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 		} else if stats.isExpired(latestTime, t.timeoutForConn(nextKey)) {
 			expired = append(expired, nextKey.copy())
 		} else {
-			active = append(active, connStats(nextKey, stats))
+			active = append(active, connStats(nextKey, stats, t.getTCPStats(mp, nextKey)))
 		}
 		key = nextKey
 	}
@@ -134,6 +134,17 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 	}
 
 	return active, nil
+}
+
+// getTCPStats reads tcp related stats for the given ConnTuple
+func (t *Tracer) getTCPStats(mp *bpflib.Map, tuple *ConnTuple) *TCPStats {
+
+	stats := &TCPStats{retransmits: 0}
+	if err := t.m.LookupElement(mp, unsafe.Pointer(tuple), unsafe.Pointer(stats)); err != nil {
+		return stats
+	}
+
+	return stats
 }
 
 // getLatestTimestamp reads the most recent timestamp captured by the eBPF
