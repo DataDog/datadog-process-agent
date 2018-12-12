@@ -25,9 +25,8 @@
     })
 
 /* Macro to execute the given expression replacing family by the correct family
- * Needs sk and status to exist before calling
  */
-#define handle_family(expr)                                                         \
+#define handle_family(sk, status, expr)                                             \
     ({                                                                              \
         if (check_family(sk, status, AF_INET)) {                                    \
             if (!are_offsets_ready_v4(status, sk)) {                                \
@@ -521,7 +520,7 @@ static int handle_message(struct sock* sk,
     u64 zero = 0;
     u64 ts = bpf_ktime_get_ns();
 
-    handle_family(update_conn_stats(sk, status, pid_tgid, type, family, send_bytes, recv_bytes, ts));
+    handle_family(sk, status, update_conn_stats(sk, status, pid_tgid, type, family, send_bytes, recv_bytes, ts));
 
     // Update latest timestamp that we've seen - for connection expiration tracking
     bpf_map_update_elem(&latest_ts, &zero, &ts, BPF_ANY);
@@ -532,7 +531,7 @@ __attribute__((always_inline))
 static int handle_retransmit(struct sock* sk, tracer_status_t* status) {
     u64 ts = bpf_ktime_get_ns();
 
-    handle_family(update_tcp_stats(sk, status, family, 1, ts));
+    handle_family(sk, status, update_tcp_stats(sk, status, family, 1, ts));
 
     // Update latest timestamp that we've seen - for connection expiration tracking
     u64 zero = 0;
@@ -690,7 +689,7 @@ int kprobe__tcp_close(struct pt_regs* ctx) {
     bpf_probe_read(&skc_net, sizeof(possible_net_t*), ((char*)sk) + status->offset_netns);
     bpf_probe_read(&net_ns_inum, sizeof(net_ns_inum), ((char*)skc_net) + status->offset_ino);
 
-    handle_family(cleanup_tcp_conn(sk, status, pid, family));
+    handle_family(sk, status, cleanup_tcp_conn(sk, status, pid, family));
     return 0;
 }
 
