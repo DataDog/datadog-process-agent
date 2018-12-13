@@ -43,8 +43,6 @@ func (t *ConnTuple) copy() *ConnTuple {
 __u64 send_bytes;
 __u64 recv_bytes;
 __u64 timestamp;
-__u32 pid;
-__u32 retr_count;
 */
 type ConnStatsWithTimestamp C.conn_stats_ts_t
 
