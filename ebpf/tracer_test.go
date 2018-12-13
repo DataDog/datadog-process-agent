@@ -9,6 +9,7 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -68,6 +69,82 @@ func TestTCPSendAndReceive(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
+	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
+
+	doneChan <- struct{}{}
+}
+
+func TestTCPRetransmit(t *testing.T) {
+	// Enable BPF-based network tracer
+	tr, err := NewTracer(NewDefaultConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tr.Stop()
+
+	// Create TCP Server which sends back serverMessageSize bytes
+	server := NewTCPServer(func(c net.Conn) {
+		r := bufio.NewReader(c)
+		r.ReadBytes(byte('\n'))
+		c.Write(genPayload(serverMessageSize))
+		c.Close()
+	})
+	doneChan := make(chan struct{})
+	server.Run(doneChan)
+
+	// Connect to server
+	c, err := net.DialTimeout("tcp", server.address, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	// Write clientMessageSize to server, and read response
+	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
+		t.Fatal(err)
+	}
+	r := bufio.NewReader(c)
+	r.ReadBytes(byte('\n'))
+
+	iptables, err := exec.LookPath("iptables")
+	assert.Nil(t, err)
+
+	// Init iptables rule to simulate packet loss
+	rule := "INPUT --source 127.0.0.1 -j DROP"
+	create := strings.Fields(fmt.Sprintf("-A %s", rule))
+	remove := strings.Fields(fmt.Sprintf("-D %s", rule))
+
+	createCmd := exec.Command(iptables, create...)
+	err = createCmd.Start()
+	assert.Nil(t, err)
+	err = createCmd.Wait()
+	assert.Nil(t, err)
+
+	for i := 0; i < 99; i++ {
+		// Send a bunch of messages
+		c.Write(genPayload(clientMessageSize))
+	}
+
+	time.Sleep(time.Second)
+	// Remove the iptable rule
+	removeCmd := exec.Command(iptables, remove...)
+	err = removeCmd.Start()
+	assert.Nil(t, err)
+	err = removeCmd.Wait()
+	assert.Nil(t, err)
+
+	// Iterate through active connections until we find connection created above, and confirm send + recv counts and there was at least 1 retransmission
+	connections, err := tr.GetActiveConnections()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	assert.True(t, ok)
+	assert.Equal(t, 100*clientMessageSize, int(conn.SendBytes))
+	assert.True(t, int(conn.Retransmits) > 0)
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
 
 	doneChan <- struct{}{}
 }
@@ -176,6 +253,8 @@ func TestTCPOverIPv6(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
+	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
 
 	doneChan <- struct{}{}
 
@@ -267,6 +346,7 @@ func TestUDPSendAndReceive(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
 
 	doneChan <- struct{}{}
 }

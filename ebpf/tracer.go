@@ -103,6 +103,11 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 		return nil, err
 	}
 
+	tcpMp, err := t.getMap(tcpStatsMap)
+	if err != nil {
+		return nil, err
+	}
+
 	latestTime, ok, err := t.getLatestTimestamp()
 	if err != nil {
 		return nil, err
@@ -123,17 +128,41 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 		} else if stats.isExpired(latestTime, t.timeoutForConn(nextKey)) {
 			expired = append(expired, nextKey.copy())
 		} else {
-			active = append(active, connStats(nextKey, stats))
+			active = append(active, connStats(nextKey, stats, t.getTCPStats(tcpMp, nextKey)))
 		}
 		key = nextKey
 	}
 
 	// Remove expired entries
-	for i := range expired {
-		t.m.DeleteElement(mp, unsafe.Pointer(expired[i]))
-	}
+	t.removeEntries(mp, tcpMp, expired)
 
 	return active, nil
+}
+
+func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
+	var ent *ConnTuple
+
+	for i := range entries {
+		t.m.DeleteElement(mp, unsafe.Pointer(entries[i]))
+
+		// We have to remove the PID to remove the element correctly
+		ent = entries[i].copy()
+		ent.pid = 0
+	}
+}
+
+// getTCPStats reads tcp related stats for the given ConnTuple
+func (t *Tracer) getTCPStats(mp *bpflib.Map, tuple *ConnTuple) *TCPStats {
+	// Remove the PID since we don't use it in the TCP Stats map
+	tup := tuple.copy()
+	tup.pid = 0
+
+	stats := &TCPStats{retransmits: 0}
+	if err := t.m.LookupElement(mp, unsafe.Pointer(tup), unsafe.Pointer(stats)); err != nil {
+		return stats
+	}
+
+	return stats
 }
 
 // getLatestTimestamp reads the most recent timestamp captured by the eBPF

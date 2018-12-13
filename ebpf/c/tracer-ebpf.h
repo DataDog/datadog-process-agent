@@ -52,6 +52,10 @@ typedef struct {
     __u32 metadata; // This is that big because it seems that we atleast need a 32-bit aligned struct
 } conn_tuple_t;
 
+typedef struct {
+    __u32 retransmits;
+} tcp_stats_t;
+
 static const __u8 TRACER_STATE_UNINITIALIZED = 0;
 static const __u8 TRACER_STATE_CHECKING = 1;
 static const __u8 TRACER_STATE_CHECKED = 2;

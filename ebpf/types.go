@@ -27,6 +27,9 @@ const (
 	UDPRecvMsg KProbeName = "kprobe/udp_recvmsg"
 	// UDPRecvMsgReturn traces the return value for the udp_recvmsg() system call
 	UDPRecvMsgReturn KProbeName = "kretprobe/udp_recvmsg"
+
+	// TCPRetransmit traces the return value for the tcp_retransmit_skb() system call
+	TCPRetransmit KProbeName = "kprobe/tcp_retransmit_skb"
 )
 
 // bpfMapName stores the name of the BPF maps storing statistics and other info
@@ -34,6 +37,7 @@ type bpfMapName string
 
 const (
 	connMap            bpfMapName = "conn_stats"
+	tcpStatsMap        bpfMapName = "tcp_stats"
 	latestTimestampMap bpfMapName = "latest_ts"
 	tracerStatusMap    bpfMapName = "tracer_status"
 )

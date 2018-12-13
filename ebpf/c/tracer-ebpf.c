@@ -24,13 +24,44 @@
         bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
     })
 
-/* This is a key/value store with the keys being an conn_tuple_t for send & recv calls
- * and the values being the struct conn_stats_ts_t *.
+/* Macro to execute the given expression replacing family by the correct family
+ */
+#define handle_family(sk, status, expr)                                             \
+    ({                                                                              \
+        if (check_family(sk, status, AF_INET)) {                                    \
+            if (!are_offsets_ready_v4(status, sk)) {                                \
+                return 0;                                                           \
+            }                                                                       \
+            metadata_mask_t family = CONN_V4;                                       \
+            expr;                                                                   \
+        } else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) { \
+            if (!are_offsets_ready_v6(status, sk)) {                                \
+                return 0;                                                           \
+            }                                                                       \
+            metadata_mask_t family = CONN_V6;                                       \
+            expr;                                                                   \
+        }                                                                           \
+    })
+
+/* This is a key/value store with the keys being a conn_tuple_t for send & recv calls
+ * and the values being conn_stats_ts_t *.
  */
 struct bpf_map_def SEC("maps/conn_stats") conn_stats = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(conn_tuple_t),
     .value_size = sizeof(conn_stats_ts_t),
+    .max_entries = 65536,
+    .pinning = 0,
+    .namespace = "",
+};
+
+/* This is a key/value store with the keys being a conn_tuple_t (but without the PID being used)
+ * and the values being a tcp_stats_t *.
+ */
+struct bpf_map_def SEC("maps/tcp_stats") tcp_stats = {
+    .type = BPF_MAP_TYPE_HASH,
+    .key_size = sizeof(conn_tuple_t),
+    .value_size = sizeof(tcp_stats_t),
     .max_entries = 65536,
     .pinning = 0,
     .namespace = "",
@@ -132,7 +163,7 @@ static bool proc_t_comm_equals(proc_t a, proc_t b) {
 }
 
 __attribute__((always_inline))
-static int are_offsets_ready_v4(tracer_status_t* status, struct sock* skp, u64 pid) {
+static int are_offsets_ready_v4(tracer_status_t* status, struct sock* skp) {
     u64 zero = 0;
 
     switch (status->state) {
@@ -244,7 +275,7 @@ static int are_offsets_ready_v4(tracer_status_t* status, struct sock* skp, u64 p
 }
 
 __attribute__((always_inline))
-static int are_offsets_ready_v6(tracer_status_t* status, struct sock* skp, u64 pid) {
+static int are_offsets_ready_v6(tracer_status_t* status, struct sock* skp) {
     u64 zero = 0;
 
     switch (status->state) {
@@ -425,6 +456,60 @@ static void update_conn_stats(
 }
 
 __attribute__((always_inline))
+static void update_tcp_stats(
+    struct sock* sk,
+    tracer_status_t* status,
+    metadata_mask_t family,
+    u32 retransmits,
+    u64 ts) {
+    conn_tuple_t t = {};
+    tcp_stats_t* val;
+
+    if (!read_conn_tuple(&t, status, sk, CONN_TYPE_TCP, family)) {
+        return;
+    }
+
+    t.sport = ntohs(t.sport); // Making ports human-readable
+    t.dport = ntohs(t.dport);
+
+    val = bpf_map_lookup_elem(&tcp_stats, &t);
+    // If already in our map, increment size in-place
+    if (val != NULL) {
+        (*val).retransmits += retransmits;
+    } else { // Otherwise add the key, value to the map
+        tcp_stats_t s = {
+            .retransmits = retransmits,
+        };
+        bpf_map_update_elem(&tcp_stats, &t, &s, BPF_ANY);
+    }
+}
+
+__attribute__((always_inline))
+static void cleanup_tcp_conn(
+    struct sock* sk,
+    tracer_status_t* status,
+    u64 pid,
+    metadata_mask_t family) {
+
+    conn_tuple_t t = {
+        .pid = 0,
+    };
+
+    if (!read_conn_tuple(&t, status, sk, CONN_TYPE_TCP, family)) {
+        return;
+    }
+
+    t.sport = ntohs(t.sport); // Making ports human-readable
+    t.dport = ntohs(t.dport);
+    // Delete the connection from the tcp_stats map before setting the PID
+    bpf_map_delete_elem(&tcp_stats, &t);
+
+    t.pid = pid >> 32;
+    // Delete this connection from our stats map
+    bpf_map_delete_elem(&conn_stats, &t);
+}
+
+__attribute__((always_inline))
 static int handle_message(struct sock* sk,
     tracer_status_t* status,
     u64 pid_tgid,
@@ -435,23 +520,22 @@ static int handle_message(struct sock* sk,
     u64 zero = 0;
     u64 ts = bpf_ktime_get_ns();
 
-    if (check_family(sk, status, AF_INET)) {
-        if (!are_offsets_ready_v4(status, sk, pid_tgid)) {
-            return 0;
-        }
-
-        update_conn_stats(sk, status, pid_tgid, type, CONN_V4, send_bytes, recv_bytes, ts);
-    } else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) {
-        if (!are_offsets_ready_v6(status, sk, pid_tgid)) {
-            return 0;
-        }
-
-        update_conn_stats(sk, status, pid_tgid, type, CONN_V6, send_bytes, recv_bytes, ts);
-    }
+    handle_family(sk, status, update_conn_stats(sk, status, pid_tgid, type, family, send_bytes, recv_bytes, ts));
 
     // Update latest timestamp that we've seen - for connection expiration tracking
     bpf_map_update_elem(&latest_ts, &zero, &ts, BPF_ANY);
+    return 0;
+}
 
+__attribute__((always_inline))
+static int handle_retransmit(struct sock* sk, tracer_status_t* status) {
+    u64 ts = bpf_ktime_get_ns();
+
+    handle_family(sk, status, update_tcp_stats(sk, status, family, 1, ts));
+
+    // Update latest timestamp that we've seen - for connection expiration tracking
+    u64 zero = 0;
+    bpf_map_update_elem(&latest_ts, &zero, &ts, BPF_ANY);
     return 0;
 }
 
@@ -498,7 +582,7 @@ int kretprobe__tcp_v4_connect(struct pt_regs* ctx) {
     }
 
     // We should figure out offsets if they're not already figured out
-    are_offsets_ready_v4(status, skp, pid);
+    are_offsets_ready_v4(status, skp);
 
     return 0;
 }
@@ -538,7 +622,7 @@ int kretprobe__tcp_v6_connect(struct pt_regs* ctx) {
     }
 
     // We should figure out offsets if they're not already figured out
-    are_offsets_ready_v6(status, skp, pid);
+    are_offsets_ready_v6(status, skp);
 
     return 0;
 }
@@ -605,32 +689,7 @@ int kprobe__tcp_close(struct pt_regs* ctx) {
     bpf_probe_read(&skc_net, sizeof(possible_net_t*), ((char*)sk) + status->offset_netns);
     bpf_probe_read(&net_ns_inum, sizeof(net_ns_inum), ((char*)skc_net) + status->offset_ino);
 
-    if (check_family(sk, status, AF_INET)) {
-        conn_tuple_t t = {};
-
-        if (!read_conn_tuple(&t, status, sk, CONN_TYPE_TCP, CONN_V4)) {
-            return 0;
-        }
-
-        t.pid = pid >> 32;
-        t.sport = ntohs(t.sport); // Making ports human-readable
-        t.dport = ntohs(t.dport);
-
-        // Delete this connection from our stats map
-        bpf_map_delete_elem(&conn_stats, &t);
-    } else if (is_ipv6_enabled(status) && check_family(sk, status, AF_INET6)) {
-        conn_tuple_t t = {};
-
-        if (!read_conn_tuple(&t, status, sk, CONN_TYPE_TCP, CONN_V6)) {
-            return 0;
-        }
-
-        t.pid = pid >> 32;
-        t.sport = ntohs(t.sport); // Making ports human-readable
-        t.dport = ntohs(t.dport);
-
-        bpf_map_delete_elem(&conn_stats, &t);
-    }
+    handle_family(sk, status, cleanup_tcp_conn(sk, status, pid, family));
     return 0;
 }
 
@@ -697,6 +756,18 @@ int kretprobe__udp_recvmsg(struct pt_regs* ctx) {
     handle_message(sk, status, pid_tgid, CONN_TYPE_UDP, 0, copied);
 
     return 0;
+}
+
+SEC("kprobe/tcp_retransmit_skb")
+int kprobe__tcp_retransmit_skb(struct pt_regs* ctx) {
+    struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
+    u64 zero = 0;
+    tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
+    if (status == NULL || status->state == TRACER_STATE_UNINITIALIZED) {
+        return 0;
+    }
+
+    return handle_retransmit(sk, status);
 }
 
 // This number will be interpreted by gobpf-elf-loader to set the current running kernel version
