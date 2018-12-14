@@ -119,12 +119,12 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 
 	if enabled, err := isAffirmative(yc.Process.Enabled); enabled {
 		agentConf.Enabled = true
-		agentConf.EnabledChecks = processChecks
+		agentConf.EnabledChecks = append(agentConf.EnabledChecks, processChecks...)
 	} else if strings.ToLower(yc.Process.Enabled) == "disabled" {
 		agentConf.Enabled = false
 	} else if !enabled && err == nil {
 		agentConf.Enabled = true
-		agentConf.EnabledChecks = containerChecks
+		agentConf.EnabledChecks = append(agentConf.EnabledChecks, containerChecks...)
 	}
 	url, err := url.Parse(ddconfig.GetMainEndpoint("https://process.", "process_config.process_dd_url"))
 	if err != nil {
