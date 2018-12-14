@@ -32,8 +32,8 @@ var (
 	// defaultNetworkLogFilePath is the default logging file for the network tracer
 	defaultNetworkLogFilePath = "/var/log/datadog/network-tracer.log"
 
-	processChecks   = []string{"process", "rtprocess"}
-	containerChecks = []string{"container", "rtcontainer"}
+	processChecks   = []string{"process-container", "rt-process-container"}
+	containerChecks = []string{"container", "rt-container"}
 
 	// List of known Kubernetes images that we want to exclude by default.
 	defaultKubeBlacklist = []string{
@@ -188,11 +188,11 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Check config
 		EnabledChecks: containerChecks,
 		CheckIntervals: map[string]time.Duration{
-			"process":     10 * time.Second,
-			"rtprocess":   2 * time.Second,
-			"container":   10 * time.Second,
-			"rtcontainer": 2 * time.Second,
-			"connections": 10 * time.Second,
+			"process-container":    10 * time.Second,
+			"rt-process":           2 * time.Second,
+			"container":            10 * time.Second,
+			"rt-process-container": 2 * time.Second,
+			"connections":          10 * time.Second,
 		},
 
 		// Docker

@@ -143,15 +143,15 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	}
 	if yc.Process.Intervals.ContainerRealTime != 0 {
 		log.Infof("Overriding real-time container check interval to %ds", yc.Process.Intervals.ContainerRealTime)
-		agentConf.CheckIntervals["rtcontainer"] = time.Duration(yc.Process.Intervals.ContainerRealTime) * time.Second
+		agentConf.CheckIntervals["rt-container"] = time.Duration(yc.Process.Intervals.ContainerRealTime) * time.Second
 	}
 	if yc.Process.Intervals.Process != 0 {
 		log.Infof("Overriding process check interval to %ds", yc.Process.Intervals.Process)
-		agentConf.CheckIntervals["process"] = time.Duration(yc.Process.Intervals.Process) * time.Second
+		agentConf.CheckIntervals["process-container"] = time.Duration(yc.Process.Intervals.Process) * time.Second
 	}
 	if yc.Process.Intervals.ProcessRealTime != 0 {
 		log.Infof("Overriding real-time process check interval to %ds", yc.Process.Intervals.ProcessRealTime)
-		agentConf.CheckIntervals["rtprocess"] = time.Duration(yc.Process.Intervals.Process) * time.Second
+		agentConf.CheckIntervals["rt-process-container"] = time.Duration(yc.Process.Intervals.Process) * time.Second
 	}
 	if yc.Process.Intervals.Connections != 0 {
 		log.Infof("Overriding connections check interval to %ds", yc.Process.Intervals.Connections)
