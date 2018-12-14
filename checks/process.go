@@ -39,7 +39,7 @@ func (p *ProcessCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
 }
 
 // Name returns the name of the ProcessCheck.
-func (p *ProcessCheck) Name() string { return "process" }
+func (p *ProcessCheck) Name() string { return "process-container" }
 
 // Endpoint returns the endpoint where this check is submitted.
 func (p *ProcessCheck) Endpoint() string { return "/api/v1/collector" }
