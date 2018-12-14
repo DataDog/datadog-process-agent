@@ -31,7 +31,7 @@ func (r *RTProcessCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
 }
 
 // Name returns the name of the RTProcessCheck.
-func (r *RTProcessCheck) Name() string { return "rtprocess" }
+func (r *RTProcessCheck) Name() string { return "rt-process-container" }
 
 // Endpoint returns the endpoint where this check is submitted.
 func (r *RTProcessCheck) Endpoint() string { return "/api/v1/collector" }
