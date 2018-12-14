@@ -17,3 +17,6 @@ packaging/rpm/*.rpm
 
 .vagrant/
 *.log
+
+#MAC OS 
+.DS_STORE

@@ -41,12 +41,12 @@ There is `Vagrantfile` setup that creates 2 Ubuntu Xenial64 vms:
 $ vagrant up
 
 # in one terminal:
-$ vagrant ssh agent1
+$ vagrant ssh process-agent-test
 $ cd /opt/stackstate-process-agent
 $ sudo ./process-agent -config conf-dev.yaml
 
 # in another terminal:
-$ vagrant ssh agent2
+$ vagrant ssh process-agent-clean
 $ cd /opt/stackstate-process-agent
 $ sudo ./process-agent -config conf-dev.yaml
 ```
@@ -55,11 +55,11 @@ For instance now we can expect a network connection between the 2 VMs:
 
 ```
 # in one terminal:
-$ vagrant ssh agent1
+$ vagrant ssh process-agent-test
 $ nc -l 61234
 
 # in another terminal:
-$ vagrant ssh agent2
+$ vagrant ssh process-agent-clean
 $ yes | nc 192.168.56.101 61234
 ```
 

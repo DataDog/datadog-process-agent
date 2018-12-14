@@ -55,10 +55,16 @@ rake protobuf
 There is a Vagrantfile in the root directory, that can be used to create a vagrant vm where the StackState process agent can be run.
 
 ```
-$ vagrant up process-agent
+$ vagrant up process-agent-test
 ...
-$ vagrant ssh process-agent
+$ vagrant ssh process-agent-test
 $ cd $GOPATH/src/github.com/StackVista/stackstate-process-agent
+```
+
+You can up the memory and pre-install some processes at boot of the Vagrant vm with:
+
+```
+$ MEM="2048" PROCESSES="java mysql postgresql tomcat" vagrant up process-agent-test
 ```
 
 ## Testing
