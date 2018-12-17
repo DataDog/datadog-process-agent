@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 
 	"os"
 
@@ -106,6 +107,15 @@ func TestTCPRemoveEntries(t *testing.T) {
 	}
 	defer c.Close()
 
+	// Write a bunch of messages with blocking iptable rule to create retransmits
+	iptablesWrapper(t, func() {
+		for i := 0; i < 99; i++ {
+			// Send a bunch of messages
+			c.Write(genPayload(clientMessageSize))
+		}
+		time.Sleep(time.Second)
+	})
+
 	// Wait a bit for the first connection to be considered as timeouting
 	time.Sleep(1 * time.Second)
 
@@ -130,6 +140,15 @@ func TestTCPRemoveEntries(t *testing.T) {
 	// Make sure the first connection got cleaned up
 	_, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.False(t, ok)
+
+	// Assert the TCP map is empty because of the clean up
+	key, nextKey, stats := &ConnTuple{}, &ConnTuple{}, &ConnStatsWithTimestamp{}
+	tcpMp, err := tr.getMap(tcpStatsMap)
+	assert.Nil(t, err)
+	// This should return false and an error
+	hasNext, err := tr.m.LookupNextElement(tcpMp, unsafe.Pointer(key), unsafe.Pointer(nextKey), unsafe.Pointer(stats))
+	assert.False(t, hasNext)
+	assert.NotNil(t, err)
 
 	conn, ok := findConnection(c2.LocalAddr(), c2.RemoteAddr(), connections)
 	assert.True(t, ok)
