@@ -26,14 +26,15 @@ typedef struct {
 } conn_stats_ts_t;
 
 // Metadata bit masks
+// 0 << x is only for readability
 typedef enum {
     // Connection type
-    CONN_TYPE_UDP = 0x0,
-    CONN_TYPE_TCP = 0x1,
+    CONN_TYPE_UDP = 0,
+    CONN_TYPE_TCP = 1,
 
     // Connection family
-    CONN_V4 = 0x00,
-    CONN_V6 = 0x10,
+    CONN_V4 = 0 << 1,
+    CONN_V6 = 1 << 1,
 } metadata_mask_t;
 
 typedef struct {
