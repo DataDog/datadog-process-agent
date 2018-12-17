@@ -390,6 +390,11 @@ static int read_conn_tuple(conn_tuple_t* tuple, tracer_status_t* status, struct 
     bpf_probe_read(&sport, sizeof(sport), ((char*)skp) + status->offset_sport);
     bpf_probe_read(&dport, sizeof(dport), ((char*)skp) + status->offset_dport);
 
+    // if addresses or ports are 0, ignore
+    if (!(saddr_h || saddr_l) || !(daddr_h || daddr_l) || sport == 0 || dport == 0) {
+        return 0;
+    }
+
     // Retrieve network namespace id
     bpf_probe_read(&skc_net, sizeof(void*), ((char*)skp) + status->offset_netns);
     bpf_probe_read(&net_ns_inum, sizeof(net_ns_inum), ((char*)skc_net) + status->offset_ino);
@@ -408,11 +413,6 @@ static int read_conn_tuple(conn_tuple_t* tuple, tracer_status_t* status, struct 
         tuple->metadata |= CONN_V4;
     } else {
         tuple->metadata |= family;
-    }
-
-    // if addresses or ports are 0, ignore
-    if (!(saddr_h || saddr_l) || !(daddr_h || daddr_l) || sport == 0 || dport == 0) {
-        return 0;
     }
 
     return 1;
@@ -461,6 +461,7 @@ static void update_tcp_stats(
     tracer_status_t* status,
     metadata_mask_t family,
     u32 retransmits,
+    tcp_metadata_mask_t m,
     u64 ts) {
     conn_tuple_t t = {};
     tcp_stats_t* val;
@@ -476,9 +477,12 @@ static void update_tcp_stats(
     // If already in our map, increment size in-place
     if (val != NULL) {
         (*val).retransmits += retransmits;
+        (*val).metadata &= ~m; // Reset the mask
+        (*val).metadata |= m; // Set the mask
     } else { // Otherwise add the key, value to the map
         tcp_stats_t s = {
             .retransmits = retransmits,
+            .metadata = m,
         };
         bpf_map_update_elem(&tcp_stats, &t, &s, BPF_ANY);
     }
@@ -531,7 +535,7 @@ __attribute__((always_inline))
 static int handle_retransmit(struct sock* sk, tracer_status_t* status) {
     u64 ts = bpf_ktime_get_ns();
 
-    handle_family(sk, status, update_tcp_stats(sk, status, family, 1, ts));
+    handle_family(sk, status, update_tcp_stats(sk, status, family, 1, TCP_CONN_ALIVE, ts));
 
     // Update latest timestamp that we've seen - for connection expiration tracking
     u64 zero = 0;

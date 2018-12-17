@@ -53,8 +53,15 @@ typedef struct {
     __u32 metadata; // This is that big because it seems that we atleast need a 32-bit aligned struct
 } conn_tuple_t;
 
+typedef enum {
+    // Connection status
+    TCP_CONN_ALIVE = 0,
+    TCP_CONN_DEAD = 1,
+} tcp_metadata_mask_t;
+
 typedef struct {
     __u32 retransmits;
+    __u8 metadata;
 } tcp_stats_t;
 
 static const __u8 TRACER_STATE_UNINITIALIZED = 0;

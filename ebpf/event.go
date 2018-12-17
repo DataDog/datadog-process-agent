@@ -48,6 +48,7 @@ type ConnStatsWithTimestamp C.conn_stats_ts_t
 
 /* tcp_stats_t
 __u32 retransmits;
+__u8 metadata;
 */
 type TCPStats C.tcp_stats_t
 
@@ -99,4 +100,9 @@ func connFamily(m _Ctype_uint) ConnectionFamily {
 	}
 
 	return AFINET6
+}
+
+func isAlive(m _Ctype_uint) bool {
+	// First bit of tcp_metadata indicates if the connection is Alive or not
+	return m&C.TCP_CONN_DEAD == 0
 }
