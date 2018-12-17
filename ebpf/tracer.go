@@ -133,7 +133,7 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 		if stats.isExpired(latestTime, t.timeoutForConn(nextKey)) {
 			expired = append(expired, nextKey.copy())
 		} else {
-			// If the conn is marked as Dead queue it for deletion but retrieve its data
+			// If the conn is marked as dead queue it for deletion but retrieve its data
 			if !isAlive(tcpStats) {
 				expired = append(expired, nextKey.copy())
 			}

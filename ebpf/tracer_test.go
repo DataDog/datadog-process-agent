@@ -14,7 +14,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"unsafe"
 
 	"os"
 
@@ -105,58 +104,29 @@ func TestTCPRemoveEntries(t *testing.T) {
 	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
 		t.Fatal(err)
 	}
-	defer c.Close()
+	c.Close()
 
-	// Write a bunch of messages with blocking iptable rule to create retransmits
-	iptablesWrapper(t, func() {
-		for i := 0; i < 99; i++ {
-			// Send a bunch of messages
-			c.Write(genPayload(clientMessageSize))
-		}
-		time.Sleep(time.Second)
-	})
-
-	// Wait a bit for the first connection to be considered as timeouting
-	time.Sleep(1 * time.Second)
-
-	// Create a new client
-	c2, err := net.DialTimeout("tcp", server.address, 1*time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Send a messages
-	if _, err = c2.Write(genPayload(clientMessageSize)); err != nil {
-		t.Fatal(err)
-	}
-	defer c2.Close()
-
-	// Retrieve the list of connections
+	// Retrieve the connection (since it's closed it should be cleaned up after this)
 	connections, err := tr.GetActiveConnections()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Make sure the first connection got cleaned up
-	_, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
-	assert.False(t, ok)
-
-	// Assert the TCP map is empty because of the clean up
-	key, nextKey, stats := &ConnTuple{}, &ConnTuple{}, &ConnStatsWithTimestamp{}
-	tcpMp, err := tr.getMap(tcpStatsMap)
-	assert.Nil(t, err)
-	// This should return false and an error
-	hasNext, err := tr.m.LookupNextElement(tcpMp, unsafe.Pointer(key), unsafe.Pointer(nextKey), unsafe.Pointer(stats))
-	assert.False(t, hasNext)
-	assert.NotNil(t, err)
-
-	conn, ok := findConnection(c2.LocalAddr(), c2.RemoteAddr(), connections)
+	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
 	assert.Equal(t, 0, int(conn.RecvBytes))
 	assert.Equal(t, 0, int(conn.Retransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
+
+	// Retrieve the connections again we should not have the local connection
+	connections, err = tr.GetActiveConnections()
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, ok = findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	assert.False(t, ok)
 
 	doneChan <- struct{}{}
 }
@@ -256,8 +226,23 @@ func TestTCPClosedConnectionsAreCleanedUp(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// We should have the connection even if it has ended
+	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	assert.True(t, ok)
+	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
+	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, addrPort(server.address), int(conn.DPort))
+
+	// Retrieve the connections a second time (we should no more have the connection we are looking for)
+	// It has been cleaned during the last get
+	connections, err = tr.GetActiveConnections()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Confirm that we could not find connection created above
-	_, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	_, ok = findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.False(t, ok)
 
 	doneChan <- struct{}{}
