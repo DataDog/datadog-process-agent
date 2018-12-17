@@ -125,10 +125,19 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(key), unsafe.Pointer(nextKey), unsafe.Pointer(stats))
 		if !hasNext {
 			break
-		} else if stats.isExpired(latestTime, t.timeoutForConn(nextKey)) {
+		}
+
+		tcpStats := t.getTCPStats(tcpMp, nextKey)
+
+		// If the conn expired remove it
+		if stats.isExpired(latestTime, t.timeoutForConn(nextKey)) {
 			expired = append(expired, nextKey.copy())
 		} else {
-			active = append(active, connStats(nextKey, stats, t.getTCPStats(tcpMp, nextKey)))
+			// If the conn is marked as Dead queue it for deletion but retrieve its data
+			if !isAlive(tcpStats) {
+				expired = append(expired, nextKey.copy())
+			}
+			active = append(active, connStats(nextKey, stats, tcpStats))
 		}
 		key = nextKey
 	}

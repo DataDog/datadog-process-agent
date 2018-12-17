@@ -102,7 +102,7 @@ func connFamily(m _Ctype_uint) ConnectionFamily {
 	return AFINET6
 }
 
-func isAlive(m _Ctype_uint) bool {
+func isAlive(t *TCPStats) bool {
 	// First bit of tcp_metadata indicates if the connection is Alive or not
-	return m&C.TCP_CONN_DEAD == 0
+	return t.metadata&C.TCP_CONN_DEAD == 0
 }

@@ -489,28 +489,15 @@ static void update_tcp_stats(
 }
 
 __attribute__((always_inline))
-static void cleanup_tcp_conn(
+static int cleanup_tcp_conn(
     struct sock* sk,
     tracer_status_t* status,
-    u64 pid,
+    u64 ts,
     metadata_mask_t family) {
 
-    conn_tuple_t t = {
-        .pid = 0,
-    };
-
-    if (!read_conn_tuple(&t, status, sk, CONN_TYPE_TCP, family)) {
-        return;
-    }
-
-    t.sport = ntohs(t.sport); // Making ports human-readable
-    t.dport = ntohs(t.dport);
-    // Delete the connection from the tcp_stats map before setting the PID
-    bpf_map_delete_elem(&tcp_stats, &t);
-
-    t.pid = pid >> 32;
-    // Delete this connection from our stats map
-    bpf_map_delete_elem(&conn_stats, &t);
+    // Set the connection status to DEAD
+    handle_family(sk, status, update_tcp_stats(sk, status, family, 0, TCP_CONN_DEAD, ts));
+    return 0;
 }
 
 __attribute__((always_inline))
@@ -672,7 +659,7 @@ int kprobe__tcp_close(struct pt_regs* ctx) {
     struct sock* sk;
     tracer_status_t* status;
     u64 zero = 0;
-    u64 pid = bpf_get_current_pid_tgid();
+    u64 ts = bpf_ktime_get_ns();
     sk = (struct sock*)PT_REGS_PARM1(ctx);
 
     status = bpf_map_lookup_elem(&tracer_status, &zero);
@@ -693,7 +680,7 @@ int kprobe__tcp_close(struct pt_regs* ctx) {
     bpf_probe_read(&skc_net, sizeof(possible_net_t*), ((char*)sk) + status->offset_netns);
     bpf_probe_read(&net_ns_inum, sizeof(net_ns_inum), ((char*)skc_net) + status->offset_ino);
 
-    handle_family(sk, status, cleanup_tcp_conn(sk, status, pid, family));
+    handle_family(sk, status, cleanup_tcp_conn(sk, status, ts, family));
     return 0;
 }
 
