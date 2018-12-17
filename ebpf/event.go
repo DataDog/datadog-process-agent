@@ -5,6 +5,7 @@ package ebpf
 import (
 	"encoding/binary"
 	"net"
+	"unsafe"
 )
 
 /*
@@ -99,4 +100,9 @@ func connFamily(m _Ctype_uint) ConnectionFamily {
 	}
 
 	return AFINET6
+}
+
+func decodeRawConnTuple(data []byte) *ConnTuple {
+	ct := ConnTuple(*(*C.conn_tuple_t)(unsafe.Pointer(&data[0])))
+	return &ct
 }

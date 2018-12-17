@@ -26,8 +26,11 @@ var (
 )
 
 type Tracer struct {
-	m      *bpflib.Module
-	config *Config
+	m             *bpflib.Module
+	config        *Config
+	closedConns   []*ConnTuple
+	closedChannel chan []byte
+	lostChannel   chan uint64
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -61,7 +64,11 @@ func NewTracer(config *Config) (*Tracer, error) {
 
 	// TODO: This currently loads all defined BPF maps in the ELF file. we should load only the maps
 	//       for connection types + families that are enabled.
-	err = m.Load(nil)
+
+	// TODO clean this
+	sections := make(map[string]bpflib.SectionParams)
+	sections[fmt.Sprintf("maps/%s", tcpCloseEventMap)] = bpflib.SectionParams{PerfRingBufferPageCount: 256}
+	err = m.Load(sections)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +88,48 @@ func NewTracer(config *Config) (*Tracer, error) {
 		return nil, fmt.Errorf("failed to init module: error guessing offsets: %v", err)
 	}
 
-	return &Tracer{m: m, config: config}, nil
+	tr := &Tracer{
+		m:           m,
+		config:      config,
+		closedConns: []*ConnTuple{},
+		// TODO buffered channels ?
+		closedChannel: make(chan []byte),
+		lostChannel:   make(chan uint64),
+	}
+
+	tr.initPerfPolling()
+
+	return tr, nil
+}
+
+// initPerfPolling starts the listening on perf buffer events to grab closed connections
+func (t *Tracer) initPerfPolling() error {
+	pm, err := bpflib.InitPerfMap(t.m, string(tcpCloseEventMap), t.closedChannel, t.lostChannel)
+	if err != nil {
+		return fmt.Errorf("error initializing perf map: %s", err)
+	}
+
+	pm.PollStart()
+
+	go func() {
+		for {
+			select {
+			case c, ok := <-t.closedChannel:
+				if !ok {
+					return
+				}
+				t.closedConns = append(t.closedConns, decodeRawConnTuple(c))
+
+			case _, ok := <-t.lostChannel:
+				if !ok {
+					return
+				}
+				// TODO handle this
+			}
+		}
+	}()
+
+	return nil
 }
 
 func (t *Tracer) Stop() {
@@ -140,13 +188,18 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 }
 
 func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
-	for i := range entries {
-		t.m.DeleteElement(mp, unsafe.Pointer(entries[i]))
+	var e *ConnTuple
+	for _, ent := range append(entries, t.closedConns...) {
+		e = ent
+		t.m.DeleteElement(mp, unsafe.Pointer(e))
 
 		// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
-		entries[i].pid = 0
-		t.m.DeleteElement(tcpMp, unsafe.Pointer(entries[i]))
+		e.pid = 0
+		t.m.DeleteElement(tcpMp, unsafe.Pointer(e))
 	}
+
+	// Flush closed conns
+	t.closedConns = []*ConnTuple{}
 }
 
 // getTCPStats reads tcp related stats for the given ConnTuple

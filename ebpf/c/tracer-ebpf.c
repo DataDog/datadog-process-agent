@@ -67,6 +67,18 @@ struct bpf_map_def SEC("maps/tcp_stats") tcp_stats = {
     .namespace = "",
 };
 
+/* Will hold the tcp close events
+ * The keys are the cpu number and the values a perf file descriptor
+ */
+struct bpf_map_def SEC("maps/tcp_close_event") tcp_close_event = {
+    .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
+    .key_size = sizeof(__u32),
+    .value_size = sizeof(__u32),
+    .max_entries = 1024, // TODO figure out a value for this
+    .pinning = 0,
+    .namespace = "",
+};
+
 /* These maps are used to match the kprobe & kretprobe of connect for IPv4 */
 /* This is a key/value store with the keys being a pid
  * and the values being a struct sock *.
@@ -486,10 +498,12 @@ static void update_tcp_stats(
 
 __attribute__((always_inline))
 static void cleanup_tcp_conn(
+    struct pt_regs* ctx,
     struct sock* sk,
     tracer_status_t* status,
     u64 pid,
     metadata_mask_t family) {
+    u32 cpu = bpf_get_smp_processor_id();
 
     conn_tuple_t t = {
         .pid = 0,
@@ -501,12 +515,10 @@ static void cleanup_tcp_conn(
 
     t.sport = ntohs(t.sport); // Making ports human-readable
     t.dport = ntohs(t.dport);
-    // Delete the connection from the tcp_stats map before setting the PID
-    bpf_map_delete_elem(&tcp_stats, &t);
 
     t.pid = pid >> 32;
-    // Delete this connection from our stats map
-    bpf_map_delete_elem(&conn_stats, &t);
+    // Send the connection to the perf buffer for further deletion
+    bpf_perf_event_output(ctx, &tcp_close_event, cpu, &t, sizeof(t));
 }
 
 __attribute__((always_inline))
@@ -689,7 +701,7 @@ int kprobe__tcp_close(struct pt_regs* ctx) {
     bpf_probe_read(&skc_net, sizeof(possible_net_t*), ((char*)sk) + status->offset_netns);
     bpf_probe_read(&net_ns_inum, sizeof(net_ns_inum), ((char*)skc_net) + status->offset_ino);
 
-    handle_family(sk, status, cleanup_tcp_conn(sk, status, pid, family));
+    handle_family(sk, status, cleanup_tcp_conn(ctx, sk, status, pid, family));
     return 0;
 }
 
