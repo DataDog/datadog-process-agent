@@ -71,6 +71,7 @@ func TestTCPSendAndReceive(t *testing.T) {
 	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
 	assert.Equal(t, 0, int(conn.Retransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 
 	doneChan <- struct{}{}
 }
@@ -192,6 +193,7 @@ func TestTCPRetransmit(t *testing.T) {
 	assert.Equal(t, 100*clientMessageSize, int(conn.SendBytes))
 	assert.True(t, int(conn.Retransmits) > 0)
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 
 	doneChan <- struct{}{}
 }
@@ -302,6 +304,7 @@ func TestTCPOverIPv6(t *testing.T) {
 	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
 	assert.Equal(t, 0, int(conn.Retransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, ln.Addr().(*net.TCPAddr).Port, int(conn.DPort))
 
 	doneChan <- struct{}{}
 
@@ -394,6 +397,7 @@ func TestUDPSendAndReceive(t *testing.T) {
 	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 
 	doneChan <- struct{}{}
 }
