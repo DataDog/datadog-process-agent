@@ -26,11 +26,11 @@ var (
 )
 
 type Tracer struct {
-	m             *bpflib.Module
-	config        *Config
-	closedConns   []*ConnTuple
-	closedChannel chan []byte
-	lostChannel   chan uint64
+	m               *bpflib.Module
+	config          *Config
+	shortlivedConns []ConnectionStats
+	closedChannel   chan []byte
+	lostChannel     chan uint64
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -67,6 +67,7 @@ func NewTracer(config *Config) (*Tracer, error) {
 
 	// TODO clean this
 	sections := make(map[string]bpflib.SectionParams)
+	// TODO figure out this value
 	sections[fmt.Sprintf("maps/%s", tcpCloseEventMap)] = bpflib.SectionParams{PerfRingBufferPageCount: 256}
 	err = m.Load(sections)
 	if err != nil {
@@ -89,12 +90,12 @@ func NewTracer(config *Config) (*Tracer, error) {
 	}
 
 	tr := &Tracer{
-		m:           m,
-		config:      config,
-		closedConns: []*ConnTuple{},
-		// TODO buffered channels ?
-		closedChannel: make(chan []byte),
-		lostChannel:   make(chan uint64),
+		m:               m,
+		config:          config,
+		shortlivedConns: []ConnectionStats{},
+		// TODO make this configurable ?
+		closedChannel: make(chan []byte, 100),
+		lostChannel:   make(chan uint64, 100),
 	}
 
 	tr.initPerfPolling()
@@ -111,6 +112,16 @@ func (t *Tracer) initPerfPolling() error {
 
 	pm.PollStart()
 
+	mp, err := t.getMap(connMap)
+	if err != nil {
+		return fmt.Errorf("error retrieving the bpf %s map: %s", connMap, err)
+	}
+
+	tcpMp, err := t.getMap(tcpStatsMap)
+	if err != nil {
+		return fmt.Errorf("error retrieving the bpf %s map: %s", tcpStatsMap, err)
+	}
+
 	go func() {
 		for {
 			select {
@@ -118,7 +129,14 @@ func (t *Tracer) initPerfPolling() error {
 				if !ok {
 					return
 				}
-				t.closedConns = append(t.closedConns, decodeRawConnTuple(c))
+
+				stats, err := t.resolveAndRemove(mp, tcpMp, decodeRawConnTuple(c))
+				if err != nil {
+					// TODO log the error ?
+					break
+				}
+
+				t.shortlivedConns = append(t.shortlivedConns, stats)
 
 			case _, ok := <-t.lostChannel:
 				if !ok {
@@ -148,12 +166,12 @@ func (t *Tracer) GetActiveConnections() (*Connections, error) {
 func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 	mp, err := t.getMap(connMap)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", connMap, err)
 	}
 
 	tcpMp, err := t.getMap(tcpStatsMap)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", tcpStatsMap, err)
 	}
 
 	latestTime, ok, err := t.getLatestTimestamp()
@@ -184,12 +202,37 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 	// Remove expired entries
 	t.removeEntries(mp, tcpMp, expired)
 
+	// Add the shortlived connections
+	// TODO make sure we don't have duplicates
+	active = append(active, t.shortlivedConns...)
+
+	t.shortlivedConns = []ConnectionStats{}
+
 	return active, nil
+}
+
+// resolveAndRemove retrieve the data for the given entry and clean up the tcp map and the connection map for this entry
+func (t *Tracer) resolveAndRemove(mp, tcpMp *bpflib.Map, entry *ConnTuple) (ConnectionStats, error) {
+	stats := &ConnStatsWithTimestamp{}
+
+	if err := t.m.LookupElement(mp, unsafe.Pointer(entry), unsafe.Pointer(stats)); err != nil {
+		return ConnectionStats{}, fmt.Errorf("could not retrieve entry: %v: %s", entry, err)
+	}
+
+	res := connStats(entry, stats, t.getTCPStats(tcpMp, entry))
+
+	t.m.DeleteElement(mp, unsafe.Pointer(entry))
+
+	// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
+	entry.pid = 0
+	t.m.DeleteElement(tcpMp, unsafe.Pointer(entry))
+
+	return res, nil
 }
 
 func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
 	var e *ConnTuple
-	for _, ent := range append(entries, t.closedConns...) {
+	for _, ent := range entries {
 		e = ent
 		t.m.DeleteElement(mp, unsafe.Pointer(e))
 
@@ -197,9 +240,6 @@ func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
 		e.pid = 0
 		t.m.DeleteElement(tcpMp, unsafe.Pointer(e))
 	}
-
-	// Flush closed conns
-	t.closedConns = []*ConnTuple{}
 }
 
 // getTCPStats reads tcp related stats for the given ConnTuple

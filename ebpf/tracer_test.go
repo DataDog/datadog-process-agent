@@ -217,7 +217,7 @@ func TestTCPRetransmit(t *testing.T) {
 	doneChan <- struct{}{}
 }
 
-func TestTCPClosedConnectionsAreCleanedUp(t *testing.T) {
+func TestTCPShortlived(t *testing.T) {
 	// Enable BPF-based network tracer
 	tr, err := NewTracer(NewDefaultConfig())
 	if err != nil {
@@ -256,8 +256,21 @@ func TestTCPClosedConnectionsAreCleanedUp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Confirm that we could not find connection created above
-	_, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	// Confirm that we can retrieve the shortlived connection
+	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	assert.True(t, ok)
+	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
+	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
+	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, addrPort(server.address), int(conn.DPort))
+
+	// Confirm that the connection has been cleaned up since the last get
+	connections, err = tr.GetActiveConnections()
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, ok = findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.False(t, ok)
 
 	doneChan <- struct{}{}
