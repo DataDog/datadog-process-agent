@@ -116,16 +116,6 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 
 	pm.PollStart()
 
-	mp, err := t.getMap(connMap)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", connMap, err)
-	}
-
-	tcpMp, err := t.getMap(tcpStatsMap)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", tcpStatsMap, err)
-	}
-
 	go func() {
 		for {
 			select {
@@ -133,23 +123,13 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 				if !ok {
 					return
 				}
-
-				stats, err := t.resolveAndRemove(mp, tcpMp, decodeRawConnTuple(c))
-				if err != nil {
-					// TODO log the error ?
-					// Errors can happen when we try to delete an element that has already been deleted by the expiration policy
-					// Or when we try to delete a connection that did not send/received anything
-					fmt.Printf("err = %+v\n\n", err)
-					break
-				}
-
+				stats := decodeRawTCPConn(c)
 				t.shortlivedConns = append(t.shortlivedConns, stats)
 
 			case _, ok := <-t.lostChannel:
 				if !ok {
 					return
 				}
-				// TODO handle this
 			}
 		}
 	}()
@@ -217,29 +197,6 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 	t.shortlivedConns = []ConnectionStats{}
 
 	return active, nil
-}
-
-// resolveAndRemove retrieve the data for the given entry and clean up the tcp map and the connection map for this entry
-func (t *Tracer) resolveAndRemove(mp, tcpMp *bpflib.Map, entry *ConnTuple) (ConnectionStats, error) {
-	stats := &ConnStatsWithTimestamp{}
-	res := ConnectionStats{}
-
-	if err := t.m.LookupElement(mp, unsafe.Pointer(entry), unsafe.Pointer(stats)); err != nil {
-		return res, fmt.Errorf("could not retrieve entry: %+v from connection stats map: %s", entry, err)
-	}
-
-	res = connStats(entry, stats, t.getTCPStats(tcpMp, entry))
-
-	if err := t.m.DeleteElement(mp, unsafe.Pointer(entry)); err != nil {
-		return res, fmt.Errorf("error removing entry: %+v from connection stats map: %s", entry, err)
-	}
-
-	// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
-	entry.pid = 0
-	// We can ignore the error for this map since it will not always contain the entry
-	t.m.DeleteElement(tcpMp, unsafe.Pointer(entry))
-
-	return res, nil
 }
 
 func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {

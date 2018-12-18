@@ -57,6 +57,13 @@ typedef struct {
     __u32 retransmits;
 } tcp_stats_t;
 
+// Full data for a tcp connection
+typedef struct {
+    conn_tuple_t tup;
+    conn_stats_ts_t conn_stats;
+    tcp_stats_t tcp_stats;
+} tcp_conn_t;
+
 static const __u8 TRACER_STATE_UNINITIALIZED = 0;
 static const __u8 TRACER_STATE_CHECKING = 1;
 static const __u8 TRACER_STATE_CHECKED = 2;

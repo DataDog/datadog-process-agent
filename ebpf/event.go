@@ -13,6 +13,13 @@ import (
 */
 import "C"
 
+/* tcp_conn_t
+conn_tuple_t tup;
+conn_stats_ts_t conn_stats;
+tcp_stats_t tcp_stats;
+*/
+type TCPConn C.tcp_conn_t
+
 /* conn_tuple_t
 __u64 saddr_h;
 __u64 saddr_l;
@@ -102,7 +109,11 @@ func connFamily(m _Ctype_uint) ConnectionFamily {
 	return AFINET6
 }
 
-func decodeRawConnTuple(data []byte) *ConnTuple {
-	ct := ConnTuple(*(*C.conn_tuple_t)(unsafe.Pointer(&data[0])))
-	return &ct
+func decodeRawTCPConn(data []byte) ConnectionStats {
+	ct := TCPConn(*(*C.tcp_conn_t)(unsafe.Pointer(&data[0])))
+	tup := ConnTuple(ct.tup)
+	cst := ConnStatsWithTimestamp(ct.conn_stats)
+	tst := TCPStats(ct.tcp_stats)
+
+	return connStats(&tup, &cst, &tst)
 }

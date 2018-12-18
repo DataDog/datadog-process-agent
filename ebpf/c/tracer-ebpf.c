@@ -505,19 +505,39 @@ static void cleanup_tcp_conn(
     metadata_mask_t family) {
     u32 cpu = bpf_get_smp_processor_id();
 
-    conn_tuple_t t = {
-        .pid = 0,
+    // Will hold the full connection data to send through the perf buffer
+    tcp_conn_t t = {
+        .tup = (conn_tuple_t) {
+            .pid = 0,
+        },
     };
+    tcp_stats_t* tst;
+    conn_stats_ts_t* cst;
 
-    if (!read_conn_tuple(&t, status, sk, CONN_TYPE_TCP, family)) {
+    if (!read_conn_tuple(&(t.tup), status, sk, CONN_TYPE_TCP, family)) {
         return;
     }
 
-    t.sport = ntohs(t.sport); // Making ports human-readable
-    t.dport = ntohs(t.dport);
+    t.tup.sport = ntohs(t.tup.sport); // Making ports human-readable
+    t.tup.dport = ntohs(t.tup.dport);
 
-    t.pid = pid >> 32;
-    // Send the connection to the perf buffer for further deletion
+    tst = bpf_map_lookup_elem(&tcp_stats, &(t.tup));
+    // Delete the connection from the tcp_stats map before setting the PID
+    bpf_map_delete_elem(&tcp_stats, &(t.tup));
+
+    t.tup.pid = pid >> 32;
+
+    cst = bpf_map_lookup_elem(&conn_stats, &(t.tup));
+    // Delete this connection from our stats map
+    bpf_map_delete_elem(&conn_stats, &(t.tup));
+
+    if (tst != NULL)
+        t.tcp_stats = *tst;
+
+    if (cst != NULL)
+        t.conn_stats = *cst;
+
+    // Send the connection data to the perf buffer
     bpf_perf_event_output(ctx, &tcp_close_event, cpu, &t, sizeof(t));
 }
 
