@@ -561,7 +561,7 @@ func BenchmarkTCPClose(b *testing.B) {
 	// We have to do that otherwise the time spent is too small
 	now := time.Now()
 	bench("", nil)
-	fmt.Printf("---\nTotal time spent: %v\n---\n", now.Sub(time.Now()))
+	fmt.Printf("---\nTotal time spent: %v\n---\n", time.Now().Sub(now))
 
 	// Enable BPF-based network tracer
 	t, err := NewTracer(NewDefaultConfig())
@@ -573,7 +573,7 @@ func BenchmarkTCPClose(b *testing.B) {
 	// We have to do that otherwise the time spent is too small
 	now = time.Now()
 	bench("eBPF", t)
-	fmt.Printf("---\nTotal time spent with eBPF: %v\n---\n", now.Sub(time.Now()))
+	fmt.Printf("---\nTotal time spent with eBPF: %v\n---\n", time.Now().Sub(now))
 }
 
 func BenchmarkTCPEcho(b *testing.B) {
