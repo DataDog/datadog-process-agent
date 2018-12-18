@@ -251,6 +251,9 @@ func TestTCPShortlived(t *testing.T) {
 	// Explicitly close this TCP connection
 	c.Close()
 
+	// Wait for the message to be sent from the perf buffer
+	time.Sleep(10 * time.Millisecond)
+
 	connections, err := tr.GetActiveConnections()
 	if err != nil {
 		t.Fatal(err)
@@ -270,6 +273,7 @@ func TestTCPShortlived(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	conn, ok = findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.False(t, ok)
 

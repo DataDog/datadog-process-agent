@@ -27,6 +27,7 @@ var (
 
 type Tracer struct {
 	m               *bpflib.Module
+	perfMap         *bpflib.PerfMap
 	config          *Config
 	shortlivedConns []ConnectionStats
 	closedChannel   chan []byte
@@ -98,28 +99,31 @@ func NewTracer(config *Config) (*Tracer, error) {
 		lostChannel:   make(chan uint64, 100),
 	}
 
-	tr.initPerfPolling()
+	tr.perfMap, err = tr.initPerfPolling()
+	if err != nil {
+		return nil, fmt.Errorf("could not start polling bpf events: %s", err)
+	}
 
 	return tr, nil
 }
 
 // initPerfPolling starts the listening on perf buffer events to grab closed connections
-func (t *Tracer) initPerfPolling() error {
+func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 	pm, err := bpflib.InitPerfMap(t.m, string(tcpCloseEventMap), t.closedChannel, t.lostChannel)
 	if err != nil {
-		return fmt.Errorf("error initializing perf map: %s", err)
+		return nil, fmt.Errorf("error initializing perf map: %s", err)
 	}
 
 	pm.PollStart()
 
 	mp, err := t.getMap(connMap)
 	if err != nil {
-		return fmt.Errorf("error retrieving the bpf %s map: %s", connMap, err)
+		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", connMap, err)
 	}
 
 	tcpMp, err := t.getMap(tcpStatsMap)
 	if err != nil {
-		return fmt.Errorf("error retrieving the bpf %s map: %s", tcpStatsMap, err)
+		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", tcpStatsMap, err)
 	}
 
 	go func() {
@@ -133,6 +137,9 @@ func (t *Tracer) initPerfPolling() error {
 				stats, err := t.resolveAndRemove(mp, tcpMp, decodeRawConnTuple(c))
 				if err != nil {
 					// TODO log the error ?
+					// Errors can happen when we try to delete an element that has already been deleted by the expiration policy
+					// Or when we try to delete a connection that did not send/received anything
+					fmt.Printf("err = %+v\n\n", err)
 					break
 				}
 
@@ -147,11 +154,12 @@ func (t *Tracer) initPerfPolling() error {
 		}
 	}()
 
-	return nil
+	return pm, nil
 }
 
 func (t *Tracer) Stop() {
 	t.m.Close()
+	t.perfMap.PollStop()
 }
 
 func (t *Tracer) GetActiveConnections() (*Connections, error) {
@@ -214,17 +222,21 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 // resolveAndRemove retrieve the data for the given entry and clean up the tcp map and the connection map for this entry
 func (t *Tracer) resolveAndRemove(mp, tcpMp *bpflib.Map, entry *ConnTuple) (ConnectionStats, error) {
 	stats := &ConnStatsWithTimestamp{}
+	res := ConnectionStats{}
 
 	if err := t.m.LookupElement(mp, unsafe.Pointer(entry), unsafe.Pointer(stats)); err != nil {
-		return ConnectionStats{}, fmt.Errorf("could not retrieve entry: %v: %s", entry, err)
+		return res, fmt.Errorf("could not retrieve entry: %+v from connection stats map: %s", entry, err)
 	}
 
-	res := connStats(entry, stats, t.getTCPStats(tcpMp, entry))
+	res = connStats(entry, stats, t.getTCPStats(tcpMp, entry))
 
-	t.m.DeleteElement(mp, unsafe.Pointer(entry))
+	if err := t.m.DeleteElement(mp, unsafe.Pointer(entry)); err != nil {
+		return res, fmt.Errorf("error removing entry: %+v from connection stats map: %s", entry, err)
+	}
 
 	// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
 	entry.pid = 0
+	// We can ignore the error for this map since it will not always contain the entry
 	t.m.DeleteElement(tcpMp, unsafe.Pointer(entry))
 
 	return res, nil
@@ -234,10 +246,12 @@ func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
 	var e *ConnTuple
 	for _, ent := range entries {
 		e = ent
+		// TODO check for errors
 		t.m.DeleteElement(mp, unsafe.Pointer(e))
 
 		// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
 		e.pid = 0
+		// We can ignore the error for this map since it will not always contain the entry
 		t.m.DeleteElement(tcpMp, unsafe.Pointer(e))
 	}
 }
