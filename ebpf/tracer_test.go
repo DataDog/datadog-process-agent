@@ -26,6 +26,7 @@ var (
 	serverMessageSize = 2 << 14
 	payloadSizesTCP   = []int{2 << 5, 2 << 8, 2 << 10, 2 << 12, 2 << 14, 2 << 15}
 	payloadSizesUDP   = []int{2 << 5, 2 << 8, 2 << 12, 2 << 14}
+	tcpClosesCount    = []int{50, 100, 200, 250, 300}
 )
 
 func TestTCPSendAndReceive(t *testing.T) {
@@ -550,6 +551,31 @@ func benchEchoUDP(size int) func(b *testing.B) {
 	}
 }
 
+func BenchmarkTCPClose(b *testing.B) {
+	bench := func(p string) {
+		for _, count := range tcpClosesCount {
+			b.Run(fmt.Sprintf("%s %d closes", p, count), benchTCPClose(count))
+		}
+	}
+
+	// We have to do that otherwise the time spent is too small
+	now := time.Now()
+	bench("")
+	fmt.Printf("---\nTotal time spent: %v\n---\n", now.Sub(time.Now()))
+
+	// Enable BPF-based network tracer
+	t, err := NewTracer(NewDefaultConfig())
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer t.Stop()
+
+	// We have to do that otherwise the time spent is too small
+	now = time.Now()
+	bench("eBPF")
+	fmt.Printf("---\nTotal time spent with eBPF: %v\n---\n", now.Sub(time.Now()))
+}
+
 func BenchmarkTCPEcho(b *testing.B) {
 	runBenchtests(b, payloadSizesTCP, "", benchEchoTCP)
 
@@ -574,6 +600,39 @@ func BenchmarkTCPSend(b *testing.B) {
 	defer t.Stop()
 
 	runBenchtests(b, payloadSizesTCP, "eBPF", benchSendTCP)
+}
+
+func benchTCPClose(count int) func(b *testing.B) {
+	echoOnMessage := func(c net.Conn) {
+		r := bufio.NewReader(c)
+		for {
+			buf, err := r.ReadBytes(byte('\n'))
+			if err == io.EOF {
+				c.Close()
+				return
+			}
+			c.Write(buf)
+		}
+	}
+
+	return func(b *testing.B) {
+		end := make(chan struct{})
+		server := NewTCPServer(echoOnMessage)
+		server.Run(end)
+		for i := 0; i < count; i++ {
+			c, err := net.DialTimeout("tcp", server.address, 50*time.Millisecond)
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			c.Write([]byte("hello"))
+			err = c.Close()
+			if err != nil {
+				b.Fatalf("can't close connection: %s", err)
+			}
+		}
+		end <- struct{}{}
+	}
 }
 
 func benchEchoTCP(size int) func(b *testing.B) {
