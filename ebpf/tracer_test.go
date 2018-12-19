@@ -25,7 +25,6 @@ var (
 	serverMessageSize = 2 << 14
 	payloadSizesTCP   = []int{2 << 5, 2 << 8, 2 << 10, 2 << 12, 2 << 14, 2 << 15}
 	payloadSizesUDP   = []int{2 << 5, 2 << 8, 2 << 12, 2 << 14}
-	tcpClosesCount    = []int{50, 100, 200, 250, 300}
 )
 
 func TestTCPSendAndReceive(t *testing.T) {
@@ -520,28 +519,28 @@ func benchEchoUDP(size int) func(b *testing.B) {
 }
 
 func BenchmarkTCPClose(b *testing.B) {
-	bench := func(p string, t *Tracer) {
-		for _, count := range tcpClosesCount {
-			b.Run(fmt.Sprintf("%s %d closes", p, count), benchTCPClose(count, t))
-		}
+	bench := func(p string, c func() (*Connections, error)) {
+		b.Run(p, benchTCPClose(c))
 	}
 
-	// We have to do that otherwise the time spent is too small
-	now := time.Now()
 	bench("", nil)
-	fmt.Printf("---\nTotal time spent: %v\n---\n", now.Sub(time.Now()))
 
 	// Enable BPF-based network tracer
 	t, err := NewTracer(NewDefaultConfig())
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer t.Stop()
 
-	// We have to do that otherwise the time spent is too small
-	now = time.Now()
-	bench("eBPF", t)
-	fmt.Printf("---\nTotal time spent with eBPF: %v\n---\n", now.Sub(time.Now()))
+	bench("eBPF", nil)
+	t.Stop()
+
+	// Reset the eBPF module
+	t, err = NewTracer(NewDefaultConfig())
+	if err != nil {
+		b.Fatal(err)
+	}
+	bench("eBPF with connections collection", t.GetActiveConnections)
+	t.Stop()
 }
 
 func BenchmarkTCPEcho(b *testing.B) {
@@ -570,31 +569,23 @@ func BenchmarkTCPSend(b *testing.B) {
 	runBenchtests(b, payloadSizesTCP, "eBPF", benchSendTCP)
 }
 
-func benchTCPClose(count int, t *Tracer) func(b *testing.B) {
+func benchTCPClose(c func() (*Connections, error)) func(b *testing.B) {
 	collect := func() (*Connections, error) { return nil, nil }
 
-	if t != nil {
-		collect = t.GetActiveConnections
+	if c != nil {
+		collect = c
 	}
 
-	echoOnMessage := func(c net.Conn) {
-		r := bufio.NewReader(c)
-		for {
-			buf, err := r.ReadBytes(byte('\n'))
-			if err == io.EOF {
-				c.Close()
-				return
-			}
-			c.Write(buf)
-		}
+	void := func(c net.Conn) {
+		c.Close()
 	}
 
 	return func(b *testing.B) {
 		end := make(chan struct{})
-		server := NewTCPServer(echoOnMessage)
+		server := NewTCPServer(void)
 		server.Run(end)
-		for i := 0; i < count; i++ {
-			c, err := net.DialTimeout("tcp", server.address, 50*time.Millisecond)
+		for i := 0; i < b.N; i++ {
+			c, err := net.DialTimeout("tcp", server.address, 5*time.Second)
 			if err != nil {
 				b.Fatal(err)
 			}
