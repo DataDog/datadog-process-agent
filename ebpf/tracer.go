@@ -70,11 +70,7 @@ func NewTracer(config *Config) (*Tracer, error) {
 
 	// TODO: This currently loads all defined BPF maps in the ELF file. we should load only the maps
 	//       for connection types + families that are enabled.
-
-	sections := map[string]bpflib.SectionParams{
-		fmt.Sprintf("maps/%s", tcpCloseEventMap): {PerfRingBufferPageCount: 256},
-	}
-	err = m.Load(sections)
+	err = m.Load(nil)
 	if err != nil {
 		return nil, err
 	}
