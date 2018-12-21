@@ -5,6 +5,7 @@ package ebpf
 import (
 	"bytes"
 	"fmt"
+	"sync"
 	"unsafe"
 
 	bpflib "github.com/iovisor/gobpf/elf"
@@ -26,12 +27,14 @@ var (
 )
 
 type Tracer struct {
-	m               *bpflib.Module
-	perfMap         *bpflib.PerfMap
-	config          *Config
-	shortlivedConns []ConnectionStats
-	closedChannel   chan []byte
-	lostChannel     chan uint64
+	m       *bpflib.Module
+	perfMap *bpflib.PerfMap
+	config  *Config
+	// Lock for the closedConns
+	sync.Mutex
+	closedConns   []ConnectionStats
+	closedChannel chan []byte
+	lostChannel   chan uint64
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -91,9 +94,9 @@ func NewTracer(config *Config) (*Tracer, error) {
 	}
 
 	tr := &Tracer{
-		m:               m,
-		config:          config,
-		shortlivedConns: []ConnectionStats{},
+		m:           m,
+		config:      config,
+		closedConns: []ConnectionStats{},
 		// TODO make this configurable ?
 		closedChannel: make(chan []byte, 100),
 		lostChannel:   make(chan uint64, 100),
@@ -124,7 +127,9 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 					return
 				}
 				stats := decodeRawTCPConn(c)
-				t.shortlivedConns = append(t.shortlivedConns, stats)
+				t.Lock()
+				t.closedConns = append(t.closedConns, stats)
+				t.Unlock()
 
 			case _, ok := <-t.lostChannel:
 				if !ok {
@@ -192,9 +197,10 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 
 	// Add the shortlived connections
 	// TODO make sure we don't have duplicates
-	active = append(active, t.shortlivedConns...)
-
-	t.shortlivedConns = []ConnectionStats{}
+	t.Lock()
+	active = append(active, t.closedConns...)
+	t.closedConns = []ConnectionStats{}
+	t.Unlock()
 
 	return active, nil
 }
