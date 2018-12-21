@@ -68,13 +68,13 @@ struct bpf_map_def SEC("maps/tcp_stats") tcp_stats = {
 };
 
 /* Will hold the tcp close events
- * The keys are the cpu number and the values a perf file descriptor
+ * The keys are the cpu number and the values a perf file descriptor for a perf event
  */
 struct bpf_map_def SEC("maps/tcp_close_event") tcp_close_event = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(__u32),
     .value_size = sizeof(__u32),
-    .max_entries = 1024, // TODO figure out a value for this
+    .max_entries = 1024, // TODO retrieve the number of CPUs for the current host and use this as max_entries
     .pinning = 0,
     .namespace = "",
 };

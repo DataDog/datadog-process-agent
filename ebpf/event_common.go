@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+
+	log "github.com/cihub/seelog"
 )
 
 // ConnectionType will be either TCP or UDP
@@ -86,4 +88,26 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 		return nil, err
 	}
 	return buffer.Bytes(), nil
+}
+
+func removeDuplicates(conns []ConnectionStats) []ConnectionStats {
+	connections := make([]ConnectionStats, 0, len(conns))
+	seen := map[string]struct{}{}
+	buf := &bytes.Buffer{}
+	for _, c := range conns {
+		key, err := c.ByteKey(buf)
+		if err != nil {
+			// Skip the connection
+			log.Errorf("could not get byte key for connection %v: %s", c, err)
+			continue
+		}
+
+		// If it's the first time we see this connection add it
+		if _, ok := seen[string(key)]; !ok {
+			connections = append(connections, c)
+			seen[string(key)] = struct{}{}
+		}
+	}
+
+	return connections
 }

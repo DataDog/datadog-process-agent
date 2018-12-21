@@ -9,7 +9,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/DataDog/dd-go/log"
+	log "github.com/cihub/seelog"
 	bpflib "github.com/iovisor/gobpf/elf"
 )
 
@@ -71,10 +71,9 @@ func NewTracer(config *Config) (*Tracer, error) {
 	// TODO: This currently loads all defined BPF maps in the ELF file. we should load only the maps
 	//       for connection types + families that are enabled.
 
-	// TODO clean this
-	sections := make(map[string]bpflib.SectionParams)
-	// TODO figure out this value
-	sections[fmt.Sprintf("maps/%s", tcpCloseEventMap)] = bpflib.SectionParams{PerfRingBufferPageCount: 256}
+	sections := map[string]bpflib.SectionParams{
+		fmt.Sprintf("maps/%s", tcpCloseEventMap): {PerfRingBufferPageCount: 256},
+	}
 	err = m.Load(sections)
 	if err != nil {
 		return nil, err
@@ -209,13 +208,12 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 	t.removeEntries(mp, tcpMp, expired)
 
 	// Add the shortlived connections
-	// TODO make sure we don't have duplicates
 	t.Lock()
 	active = append(active, t.closedConns...)
 	t.closedConns = []ConnectionStats{}
 	t.Unlock()
 
-	return active, nil
+	return removeDuplicates(active), nil
 }
 
 func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
