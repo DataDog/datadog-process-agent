@@ -6,8 +6,10 @@ import (
 	"bytes"
 	"fmt"
 	"sync"
+	"time"
 	"unsafe"
 
+	"github.com/DataDog/dd-go/log"
 	bpflib "github.com/iovisor/gobpf/elf"
 )
 
@@ -94,12 +96,11 @@ func NewTracer(config *Config) (*Tracer, error) {
 	}
 
 	tr := &Tracer{
-		m:           m,
-		config:      config,
-		closedConns: []ConnectionStats{},
-		// TODO make this configurable ?
+		m:             m,
+		config:        config,
+		closedConns:   []ConnectionStats{},
 		closedChannel: make(chan []byte, 100),
-		lostChannel:   make(chan uint64, 100),
+		lostChannel:   make(chan uint64, 10),
 	}
 
 	tr.perfMap, err = tr.initPerfPolling()
@@ -120,21 +121,33 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 	pm.PollStart()
 
 	go func() {
+		// Stats about how much connections have been closed / lost
+		var closedCount, lostCount uint64
+		ticker := time.NewTicker(5 * time.Minute)
+
 		for {
 			select {
 			case c, ok := <-t.closedChannel:
 				if !ok {
 					return
 				}
+				closedCount += 1
 				stats := decodeRawTCPConn(c)
+
 				t.Lock()
 				t.closedConns = append(t.closedConns, stats)
 				t.Unlock()
 
-			case _, ok := <-t.lostChannel:
+			case c, ok := <-t.lostChannel:
 				if !ok {
 					return
 				}
+				lostCount += c
+
+			case <-ticker.C:
+				log.Infof("Connection stats: %d losts, %d closed", lostCount, closedCount)
+				closedCount = 0
+				lostCount = 0
 			}
 		}
 	}()
