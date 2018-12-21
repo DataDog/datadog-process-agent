@@ -34,9 +34,7 @@ type Tracer struct {
 	config  *Config
 	// Lock for the closedConns
 	sync.Mutex
-	closedConns   []ConnectionStats
-	closedChannel chan []byte
-	lostChannel   chan uint64
+	closedConns []ConnectionStats
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -91,11 +89,9 @@ func NewTracer(config *Config) (*Tracer, error) {
 	}
 
 	tr := &Tracer{
-		m:             m,
-		config:        config,
-		closedConns:   []ConnectionStats{},
-		closedChannel: make(chan []byte, 100),
-		lostChannel:   make(chan uint64, 10),
+		m:           m,
+		config:      config,
+		closedConns: []ConnectionStats{},
 	}
 
 	tr.perfMap, err = tr.initPerfPolling()
@@ -108,7 +104,10 @@ func NewTracer(config *Config) (*Tracer, error) {
 
 // initPerfPolling starts the listening on perf buffer events to grab closed connections
 func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
-	pm, err := bpflib.InitPerfMap(t.m, string(tcpCloseEventMap), t.closedChannel, t.lostChannel)
+	closedChannel := make(chan []byte, 100)
+	lostChannel := make(chan uint64, 10)
+
+	pm, err := bpflib.InitPerfMap(t.m, string(tcpCloseEventMap), closedChannel, lostChannel)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing perf map: %s", err)
 	}
@@ -122,7 +121,7 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 
 		for {
 			select {
-			case c, ok := <-t.closedChannel:
+			case c, ok := <-closedChannel:
 				if !ok {
 					return
 				}
@@ -133,14 +132,14 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 				t.closedConns = append(t.closedConns, stats)
 				t.Unlock()
 
-			case c, ok := <-t.lostChannel:
+			case c, ok := <-lostChannel:
 				if !ok {
 					return
 				}
 				lostCount += c
 
 			case <-ticker.C:
-				log.Infof("Connection stats: %d losts, %d closed", lostCount, closedCount)
+				log.Infof("Connection stats: %d lost, %d closed", lostCount, closedCount)
 				closedCount = 0
 				lostCount = 0
 			}
@@ -203,7 +202,7 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 	// Remove expired entries
 	t.removeEntries(mp, tcpMp, expired)
 
-	// Add the shortlived connections
+	// Add the closed connections
 	t.Lock()
 	active = append(active, t.closedConns...)
 	t.closedConns = []ConnectionStats{}
