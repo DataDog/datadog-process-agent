@@ -76,6 +76,7 @@ func connStats(t *ConnTuple, s *ConnStatsWithTimestamp, tcpStats *TCPStats) Conn
 		SendBytes:   uint64(s.send_bytes),
 		RecvBytes:   uint64(s.recv_bytes),
 		Retransmits: uint32(tcpStats.retransmits),
+		collected:   false,
 	}
 }
 

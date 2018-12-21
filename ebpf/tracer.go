@@ -28,6 +28,10 @@ var (
 	minRequiredKernelCode = linuxKernelVersionCode(4, 3, 0)
 )
 
+const (
+	closedConnCleanupInterval = 10 * time.Second
+)
+
 type Tracer struct {
 	m       *bpflib.Module
 	perfMap *bpflib.PerfMap
@@ -146,6 +150,14 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 		}
 	}()
 
+	// Start a goroutine to cleanup the closed connections regularly
+	go func() {
+		ticker := time.NewTicker(closedConnCleanupInterval)
+		for range ticker.C {
+			t.cleanupClosedConns()
+		}
+	}()
+
 	return pm, nil
 }
 
@@ -204,11 +216,26 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 
 	// Add the closed connections
 	t.Lock()
+	// Mark the connections as collected
+	for i := 0; i < len(t.closedConns); i++ {
+		t.closedConns[i].collected = true
+	}
 	active = append(active, t.closedConns...)
-	t.closedConns = []ConnectionStats{}
 	t.Unlock()
 
 	return removeDuplicates(active), nil
+}
+
+func (t *Tracer) cleanupClosedConns() {
+	newClosedConns := []ConnectionStats{}
+	t.Lock()
+	for _, c := range t.closedConns {
+		if !c.collected {
+			newClosedConns = append(newClosedConns, c)
+		}
+	}
+	t.closedConns = newClosedConns
+	t.Unlock()
 }
 
 func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {

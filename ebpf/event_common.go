@@ -60,6 +60,9 @@ type ConnectionStats struct {
 	RecvBytes uint64 `json:"recv_bytes"`
 
 	Retransmits uint32 `json:"retransmits"`
+
+	// collected is used internally to know if this connection stats has been collected or not
+	collected bool
 }
 
 func (c ConnectionStats) String() string {
