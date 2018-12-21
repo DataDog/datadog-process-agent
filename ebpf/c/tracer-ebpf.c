@@ -18,11 +18,15 @@
 #include <net/inet_sock.h>
 #include <net/net_namespace.h>
 
+#if DEBUG
 #define bpf_debug(fmt, ...)                                        \
     ({                                                             \
         char ____fmt[] = fmt;                                      \
         bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
     })
+#else
+#define bpf_debug(fmt, ...) ({})
+#endif
 
 /* Macro to execute the given expression replacing family by the correct family
  */
@@ -629,13 +633,11 @@ int kretprobe__tcp_v6_connect(struct pt_regs* ctx) {
 
 SEC("kprobe/tcp_sendmsg")
 int kprobe__tcp_sendmsg(struct pt_regs* ctx) {
+    bpf_debug("tcp send message event\n");
     struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
     size_t size = (size_t)PT_REGS_PARM3(ctx);
     u64 pid_tgid = bpf_get_current_pid_tgid();
     u64 zero = 0;
-
-    // TODO: Add DEBUG macro so this is only printed, if enabled
-    // bpf_debug("map: tcp_send_ipv4 kprobe\n");
 
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
     if (status == NULL || status->state == TRACER_STATE_UNINITIALIZED) {
@@ -647,6 +649,7 @@ int kprobe__tcp_sendmsg(struct pt_regs* ctx) {
 
 SEC("kprobe/tcp_cleanup_rbuf")
 int kprobe__tcp_cleanup_rbuf(struct pt_regs* ctx) {
+    bpf_debug("tcp cleanup rbuf event\n");
     struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
     int copied = (int)PT_REGS_PARM2(ctx);
     if (copied < 0) {
@@ -665,6 +668,7 @@ int kprobe__tcp_cleanup_rbuf(struct pt_regs* ctx) {
 
 SEC("kprobe/tcp_close")
 int kprobe__tcp_close(struct pt_regs* ctx) {
+    bpf_debug("tcp close event\n");
     struct sock* sk;
     tracer_status_t* status;
     u64 zero = 0;
@@ -695,6 +699,7 @@ int kprobe__tcp_close(struct pt_regs* ctx) {
 
 SEC("kprobe/udp_sendmsg")
 int kprobe__udp_sendmsg(struct pt_regs* ctx) {
+    bpf_debug("udp send message event\n");
     struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
     size_t size = (size_t)PT_REGS_PARM3(ctx);
     u64 pid_tgid = bpf_get_current_pid_tgid();
@@ -719,6 +724,7 @@ int kprobe__udp_sendmsg(struct pt_regs* ctx) {
 // skb_consume_udp (v4.10+, https://elixir.bootlin.com/linux/v4.10/source/net/ipv4/udp.c#L1500)
 SEC("kprobe/udp_recvmsg")
 int kprobe__udp_recvmsg(struct pt_regs* ctx) {
+    bpf_debug("udp receive message event\n");
     struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
     u64 pid_tgid = bpf_get_current_pid_tgid();
 
@@ -760,6 +766,7 @@ int kretprobe__udp_recvmsg(struct pt_regs* ctx) {
 
 SEC("kprobe/tcp_retransmit_skb")
 int kprobe__tcp_retransmit_skb(struct pt_regs* ctx) {
+    bpf_debug("tcp retransmit message event\n");
     struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
     u64 zero = 0;
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);

@@ -1,11 +1,13 @@
 SHELL=/bin/bash -o pipefail
 DEST_DIR?=/ebpf
+DEBUG?=0
 LINUX_HEADERS=$(shell rpm -q kernel-devel --last | head -n 1 | awk -F'kernel-devel-' '{print "/usr/src/kernels/"$$2}' | cut -d " " -f 1)
 
 build:
 	@sudo mkdir -p "$(DEST_DIR)"
 	@sudo clang -D__KERNEL__ -D__ASM_SYSREG_H -D__BPF_TRACING__ \
 		-DCIRCLE_BUILD_URL=\"$(CIRCLE_BUILD_URL)\" \
+		-DDEBUG=$(DEBUG) \
 		-Wno-unused-value \
 		-Wno-pointer-sign \
 		-Wno-compare-distinct-pointer-types \

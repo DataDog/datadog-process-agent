@@ -154,7 +154,10 @@ namespace "ebpf" do
     end
   end
 
-  DEBUG=1
+  debug = 0
+  if ENV['DEBUG'] == "1"
+    debug = 1
+  end
   DOCKER_FILE='packaging/Dockerfile-ebpf'
   DOCKER_IMAGE='datadog/tracer-bpf-builder'
 
@@ -196,7 +199,7 @@ namespace "ebpf" do
     if ENV['TEST'] != "true"
       cmd += " install"
     end
-    sh "#{sudo} docker run --rm -e DEBUG=#{DEBUG} \
+    sh "#{sudo} docker run --rm -e DEBUG=#{debug} \
         -e CIRCLE_BUILD_URL=#{ENV['CIRCLE_BUILD_URL']} \
         -v $(pwd):/src:ro \
     -v $(pwd)/ebpf:/ebpf/ \
@@ -212,7 +215,7 @@ namespace "ebpf" do
     if ENV['TEST'] != "true"
       cmd += " install"
     end
-    sh "#{sudo} docker run --rm -e DEBUG=#{DEBUG} \
+    sh "#{sudo} docker run --rm -e DEBUG=#{debug} \
         -e CIRCLE_BUILD_URL=#{ENV['CIRCLE_BUILD_URL']} \
         -v $(pwd):/src:ro \
     -v $(pwd)/ebpf:/ebpf/ \
