@@ -220,8 +220,10 @@ func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
 	var e *ConnTuple
 	for _, ent := range entries {
 		e = ent
-		// TODO check for errors
-		t.m.DeleteElement(mp, unsafe.Pointer(e))
+		err := t.m.DeleteElement(mp, unsafe.Pointer(e))
+		if err != nil {
+			log.Errorf("error when removing entry from connections bpf map: %s", err)
+		}
 
 		// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
 		e.pid = 0
