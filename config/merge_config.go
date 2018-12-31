@@ -17,6 +17,36 @@ import (
 	"github.com/go-ini/ini"
 )
 
+func mergeCheckIntervalIfSet(dc ddconfig.Config, agentConf *AgentConfig, key, mapKey string) {
+	if dc.IsSet(key) {
+		agentConf.CheckIntervals[mapKey] = time.Duration(dc.GetInt(key)) * time.Second
+	}
+}
+
+func mergeString(dc ddconfig.Config, key string, defaultVal string) string {
+	if dc.IsSet(key) {
+		return dc.GetString(key)
+	}
+
+	return defaultVal
+}
+
+func mergeInt(dc ddconfig.Config, key string, defaultVal int) int {
+	if dc.IsSet(key) {
+		return dc.GetInt(key)
+	}
+
+	return defaultVal
+}
+
+func mergeBool(dc ddconfig.Config, key string, defaultVal bool) bool {
+	if dc.IsSet(key) {
+		return dc.GetBool(key)
+	}
+
+	return defaultVal
+}
+
 func mergeAPIKeys(apiKey string, agentConf *AgentConfig) {
 	vals := strings.Split(apiKey, ",")
 	for i := range vals {
@@ -65,25 +95,13 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 		agentConf.LogToConsole = enabled
 	}
 
-	if dc.IsSet(keyLogFile) {
-		agentConf.LogFile = dc.GetString(keyLogFile)
-	}
+	agentConf.LogFile = mergeString(dc, keyLogFile, agentConf.LogFile)
 
-	if dc.IsSet(keyIntervalsContainer) {
-		agentConf.CheckIntervals["container"] = time.Duration(dc.GetInt(keyIntervalsContainer)) * time.Second
-	}
-	if dc.IsSet(keyIntervalsContainerRT) {
-		agentConf.CheckIntervals["rtcontainer"] = time.Duration(dc.GetInt(keyIntervalsContainerRT)) * time.Second
-	}
-	if dc.IsSet(keyIntervalsProcess) {
-		agentConf.CheckIntervals["process"] = time.Duration(dc.GetInt(keyIntervalsProcess)) * time.Second
-	}
-	if dc.IsSet(keyIntervalsProcessRT) {
-		agentConf.CheckIntervals["rtprocess"] = time.Duration(dc.GetInt(keyIntervalsProcessRT)) * time.Second
-	}
-	if dc.IsSet(keyIntervalsConnections) {
-		agentConf.CheckIntervals["connections"] = time.Duration(dc.GetInt(keyIntervalsConnections)) * time.Second
-	}
+	mergeCheckIntervalIfSet(dc, agentConf, keyIntervalsContainer, "container")
+	mergeCheckIntervalIfSet(dc, agentConf, keyIntervalsContainerRT, "rtcontainer")
+	mergeCheckIntervalIfSet(dc, agentConf, keyIntervalsProcess, "process")
+	mergeCheckIntervalIfSet(dc, agentConf, keyIntervalsProcessRT, "rtprocess")
+	mergeCheckIntervalIfSet(dc, agentConf, keyIntervalsConnections, "connections")
 
 	if dc.IsSet(keyBlacklistPatterns) {
 		blackPat := dc.GetStringSlice(keyBlacklistPatterns)
@@ -98,57 +116,34 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 		agentConf.Blacklist = blacklist
 	}
 
-	if dc.IsSet(keyScrubArgs) {
-		agentConf.Scrubber.Enabled = dc.GetBool(keyScrubArgs)
+	agentConf.Scrubber.Enabled = mergeBool(dc, keyScrubArgs, agentConf.Scrubber.Enabled)
+
+	csw := mergeString(dc, keyCustomSensitiveWords, "")
+	agentConf.Scrubber.AddCustomSensitiveWords(strings.Split(csw, ","))
+	agentConf.Scrubber.StripAllArguments = mergeBool(dc, keyStripProcessArguments, agentConf.Scrubber.StripAllArguments)
+
+	agentConf.QueueSize = mergeInt(dc, keyQueueSize, agentConf.QueueSize)
+
+	agentConf.MaxProcFDs = mergeInt(dc, keyMaxProcFDs, agentConf.MaxProcFDs)
+
+	if mpm := mergeInt(dc, keyMaxPerMessage, agentConf.MaxPerMessage); mpm <= maxMessageBatch {
+		agentConf.MaxPerMessage = mpm
+	} else {
+		log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
 	}
 
-	if dc.IsSet(keyCustomSensitiveWords) {
-		csw := dc.GetString(keyCustomSensitiveWords)
-		agentConf.Scrubber.AddCustomSensitiveWords(strings.Split(csw, ","))
+	agentConf.DDAgentBin = mergeString(dc, keyDDAgentBin, agentConf.DDAgentBin)
+
+	agentConf.DDAgentPy = mergeString(dc, keyDDAgentPy, agentConf.DDAgentPy)
+
+	agentConf.DDAgentPyEnv = strings.Split(mergeString(dc, keyDDAgentPyEnv, ""), ",")
+
+	winAri := mergeInt(dc, keyWinArgsRefreshInterval, agentConf.Windows.ArgsRefreshInterval)
+	if winAri != 0 {
+		agentConf.Windows.ArgsRefreshInterval = winAri
 	}
 
-	if dc.IsSet(keyStripProcessArguments) {
-		agentConf.Scrubber.StripAllArguments = dc.GetBool(keyStripProcessArguments)
-	}
-
-	if dc.IsSet(keyQueueSize) {
-		agentConf.QueueSize = dc.GetInt(keyQueueSize)
-	}
-
-	if dc.IsSet(keyMaxProcFDs) {
-		agentConf.MaxProcFDs = dc.GetInt(keyMaxProcFDs)
-	}
-
-	if dc.IsSet(keyMaxPerMessage) {
-		if mpm := dc.GetInt(keyMaxPerMessage); mpm <= maxMessageBatch {
-			agentConf.MaxPerMessage = mpm
-		} else {
-			log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
-		}
-	}
-
-	if dc.IsSet(keyDDAgentBin) {
-		agentConf.DDAgentBin = dc.GetString(keyDDAgentBin)
-	}
-
-	if dc.IsSet(keyDDAgentPy) {
-		agentConf.DDAgentPy = dc.GetString(keyDDAgentPy)
-	}
-
-	if dc.IsSet(keyDDAgentPyEnv) {
-		agentConf.DDAgentPyEnv = strings.Split(dc.GetString(keyDDAgentPyEnv), ",")
-	}
-
-	if dc.IsSet(keyWinArgsRefreshInterval) {
-		winAri := dc.GetInt(keyWinArgsRefreshInterval)
-		if winAri != 0 {
-			agentConf.Windows.ArgsRefreshInterval = winAri
-		}
-	}
-
-	if dc.IsSet(keyWinAddNewArgs) {
-		agentConf.Windows.AddNewArgs = dc.GetBool(keyWinAddNewArgs)
-	}
+	agentConf.Windows.AddNewArgs = mergeBool(dc, keyWinAddNewArgs, agentConf.Windows.AddNewArgs)
 
 	if dc.IsSet(keyAdditionalEndpoints) {
 		additionalEndpoints := dc.GetStringMapStringSlice(keyAdditionalEndpoints)
@@ -167,15 +162,9 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 	}
 
 	// Pull additional parameters from the global config file.
-	if ok := dc.IsSet("log_level"); ok {
-		agentConf.LogLevel = dc.GetString("log_level")
-	}
-	if dc.IsSet("dogstatsd_port") {
-		agentConf.StatsdPort = dc.GetInt("dogstatsd_port")
-	}
-	if dc.IsSet("bind_host") {
-		agentConf.StatsdHost = dc.GetString("bind_host")
-	}
+	agentConf.LogLevel = mergeString(dc, "log_level", agentConf.LogLevel)
+	agentConf.StatsdPort = mergeInt(dc, "dogstatsd_port", agentConf.StatsdPort)
+	agentConf.StatsdHost = mergeString(dc, "bind_host", agentConf.StatsdHost)
 	agentConf.Transport = ddutil.CreateHTTPTransport()
 
 	// Network related config
@@ -184,13 +173,8 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 		agentConf.EnableNetworkTracing = true
 	}
 
-	if dc.IsSet(keyNetworkUnixSocketPath) {
-		agentConf.NetworkTracerSocketPath = dc.GetString(keyNetworkUnixSocketPath)
-	}
-
-	if dc.IsSet(keyNetworkLogFile) {
-		agentConf.NetworkTracerLogFile = dc.GetString(keyNetworkLogFile)
-	}
+	agentConf.NetworkTracerSocketPath = mergeString(dc, keyNetworkUnixSocketPath, agentConf.NetworkTracerSocketPath)
+	agentConf.NetworkTracerLogFile = mergeString(dc, keyNetworkLogFile, agentConf.NetworkTracerLogFile)
 
 	agentConf.DisableTCPTracing, _ = isAffirmative(dc.GetString(keyNetworkDisableTCPTracing))
 	agentConf.DisableUDPTracing, _ = isAffirmative(dc.GetString(keyNetworkDisableUDPTracing))
