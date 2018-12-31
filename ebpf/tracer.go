@@ -36,9 +36,10 @@ type Tracer struct {
 	m       *bpflib.Module
 	perfMap *bpflib.PerfMap
 	config  *Config
-	// Lock for the closedConns
-	sync.Mutex
-	closedConns []ConnectionStats
+	// Closed conns handlers
+	closedConnsLock   sync.Mutex
+	closedConns       []ConnectionStats
+	closedConnsTicker *time.Ticker
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -129,12 +130,12 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 				if !ok {
 					return
 				}
-				closedCount += 1
+				closedCount++
 				stats := decodeRawTCPConn(c)
 
-				t.Lock()
+				t.closedConnsLock.Lock()
 				t.closedConns = append(t.closedConns, stats)
-				t.Unlock()
+				t.closedConnsLock.Unlock()
 
 			case c, ok := <-lostChannel:
 				if !ok {
@@ -150,10 +151,10 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 		}
 	}()
 
+	t.closedConnsTicker = time.NewTicker(closedConnCleanupInterval)
 	// Start a goroutine to cleanup the closed connections regularly
 	go func() {
-		ticker := time.NewTicker(closedConnCleanupInterval)
-		for range ticker.C {
+		for range t.closedConnsTicker.C {
 			t.cleanupClosedConns()
 		}
 	}()
@@ -164,6 +165,7 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 func (t *Tracer) Stop() {
 	t.m.Close()
 	t.perfMap.PollStop()
+	t.closedConnsTicker.Stop()
 }
 
 func (t *Tracer) GetActiveConnections() (*Connections, error) {
@@ -215,27 +217,27 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 	t.removeEntries(mp, tcpMp, expired)
 
 	// Add the closed connections
-	t.Lock()
+	t.closedConnsLock.Lock()
 	// Mark the connections as collected
 	for i := 0; i < len(t.closedConns); i++ {
 		t.closedConns[i].collected = true
 	}
 	active = append(active, t.closedConns...)
-	t.Unlock()
+	t.closedConnsLock.Unlock()
 
 	return removeDuplicates(active), nil
 }
 
 func (t *Tracer) cleanupClosedConns() {
 	newClosedConns := []ConnectionStats{}
-	t.Lock()
+	t.closedConnsLock.Lock()
 	for _, c := range t.closedConns {
 		if !c.collected {
 			newClosedConns = append(newClosedConns, c)
 		}
 	}
 	t.closedConns = newClosedConns
-	t.Unlock()
+	t.closedConnsLock.Unlock()
 }
 
 func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
