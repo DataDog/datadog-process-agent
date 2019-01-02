@@ -977,8 +977,7 @@ func TestNetYamlConfig(t *testing.T) {
 func TestTooHighMessagesBatches(t *testing.T) {
 	assert := assert.New(t)
 
-	raw := `
-process_config:
+	raw := `process_config:
   max_per_message: 200
 `
 
