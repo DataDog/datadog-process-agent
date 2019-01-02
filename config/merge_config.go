@@ -136,7 +136,9 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 
 	agentConf.DDAgentPy = getString(dc, keyDDAgentPy, agentConf.DDAgentPy)
 
-	agentConf.DDAgentPyEnv = strings.Split(getString(dc, keyDDAgentPyEnv, ""), ",")
+	if pyEnv := getString(dc, keyDDAgentPyEnv, ""); len(pyEnv) != 0 {
+		agentConf.DDAgentPyEnv = strings.Split(pyEnv, ",")
+	}
 
 	winAri := getInt(dc, keyWinArgsRefreshInterval, agentConf.Windows.ArgsRefreshInterval)
 	if winAri != 0 {
