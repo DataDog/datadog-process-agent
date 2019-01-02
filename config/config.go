@@ -89,8 +89,6 @@ type AgentConfig struct {
 	CheckIntervals map[string]time.Duration
 
 	// Containers
-	ContainerBlacklist     []string
-	ContainerWhitelist     []string
 	CollectDockerNetwork   bool
 	ContainerCacheDuration time.Duration
 
@@ -249,10 +247,6 @@ func NewDefaultAgentConfig() *AgentConfig {
 		if v := os.Getenv("HOST_SYS"); v == "" {
 			os.Setenv("HOST_SYS", "/host/sys")
 		}
-	}
-
-	if ddconfig.IsKubernetes() {
-		ac.ContainerBlacklist = defaultKubeBlacklist
 	}
 
 	return ac

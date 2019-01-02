@@ -830,8 +830,6 @@ func TestIniConfig(t *testing.T) {
     rtcontainer_interval = "7"
 
     collect_docker_network = true
-    container_blacklist = aaa,bbb
-    container_whitelist = ccc,ddd
     container_cache_duration = "11"
 
     windows_args_refresh_interval = 11
@@ -869,8 +867,6 @@ func TestIniConfig(t *testing.T) {
 	assert.Equal(6*time.Second, conf.CheckInterval("container"))
 	assert.Equal(7*time.Second, conf.CheckInterval("rtcontainer"))
 	assert.Equal(true, conf.CollectDockerNetwork)
-	assert.Equal([]string{"aaa", "bbb"}, conf.ContainerBlacklist)
-	assert.Equal([]string{"ccc", "ddd"}, conf.ContainerWhitelist)
 	assert.Equal(11*time.Second, conf.ContainerCacheDuration)
 	assert.Equal(11, conf.Windows.ArgsRefreshInterval)
 	assert.Equal(true, conf.Windows.AddNewArgs)
@@ -1058,20 +1054,6 @@ func TestContainerEnvVariables(t *testing.T) {
 	conf, err := newAgentConfig(nil, nil, strings.NewReader(""))
 	assert.NoError(err)
 	assert.Equal(true, conf.CollectDockerNetwork)
-	os.Unsetenv(name)
-
-	name = "DD_CONTAINER_BLACKLIST"
-	os.Setenv(name, "blacklist1,blacklist2,blacklist3")
-	conf, err = newAgentConfig(nil, nil, strings.NewReader(""))
-	assert.NoError(err)
-	assert.Equal([]string{"blacklist1", "blacklist2", "blacklist3"}, conf.ContainerBlacklist)
-	os.Unsetenv(name)
-
-	name = "DD_CONTAINER_WHITELIST"
-	os.Setenv(name, "whitelist1,whitelist5")
-	conf, err = newAgentConfig(nil, nil, strings.NewReader(""))
-	assert.NoError(err)
-	assert.Equal([]string{"whitelist1", "whitelist5"}, conf.ContainerWhitelist)
 	os.Unsetenv(name)
 
 	name = "DD_CONTAINER_CACHE_DURATION"

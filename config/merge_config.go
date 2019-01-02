@@ -27,7 +27,6 @@ func getString(dc ddconfig.Config, key string, defaultVal string) string {
 	if dc.IsSet(key) {
 		return dc.GetString(key)
 	}
-
 	return defaultVal
 }
 
@@ -35,7 +34,6 @@ func getInt(dc ddconfig.Config, key string, defaultVal int) int {
 	if dc.IsSet(key) {
 		return dc.GetInt(key)
 	}
-
 	return defaultVal
 }
 
@@ -43,7 +41,6 @@ func getBool(dc ddconfig.Config, key string, defaultVal bool) bool {
 	if dc.IsSet(key) {
 		return dc.GetBool(key)
 	}
-
 	return defaultVal
 }
 
@@ -224,12 +221,6 @@ func mergeEnvironmentVariablesOnly(dc ddconfig.Config, c *AgentConfig) {
 		c.CollectDockerNetwork, _ = isAffirmative(v)
 	}
 
-	if v := os.Getenv("DD_CONTAINER_BLACKLIST"); v != "" {
-		c.ContainerBlacklist = strings.Split(v, ",")
-	}
-	if v := os.Getenv("DD_CONTAINER_WHITELIST"); v != "" {
-		c.ContainerWhitelist = strings.Split(v, ",")
-	}
 	if v := os.Getenv("DD_CONTAINER_CACHE_DURATION"); v != "" {
 		durationS, _ := strconv.Atoi(v)
 		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
@@ -366,8 +357,6 @@ func mergeIniConfig(conf io.Reader, c *AgentConfig) error {
 
 	// Docker config
 	c.CollectDockerNetwork = agentIni.GetBool(ns, "collect_docker_network", c.CollectDockerNetwork)
-	c.ContainerBlacklist = agentIni.GetStrArrayDefault(ns, "container_blacklist", ",", c.ContainerBlacklist)
-	c.ContainerWhitelist = agentIni.GetStrArrayDefault(ns, "container_whitelist", ",", c.ContainerWhitelist)
 	c.ContainerCacheDuration = agentIni.GetDurationDefault(ns, "container_cache_duration", time.Second, 30*time.Second)
 
 	// windows args config
