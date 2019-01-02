@@ -221,7 +221,7 @@ func mergeEnvironmentVariablesOnly(dc ddconfig.Config, c *AgentConfig) {
 	}
 
 	if v := os.Getenv("DD_COLLECT_DOCKER_NETWORK"); v != "" {
-		c.CollectDockerNetwork, _ = isAffirmative(os.Getenv("DD_COLLECT_DOCKER_NETWORK"))
+		c.CollectDockerNetwork, _ = isAffirmative(v)
 	}
 
 	if v := os.Getenv("DD_CONTAINER_BLACKLIST"); v != "" {
