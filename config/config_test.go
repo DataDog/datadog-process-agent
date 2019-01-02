@@ -1017,7 +1017,6 @@ func TestNetworkDefaultValuesConfig(t *testing.T) {
 	assert.Equal(false, conf.EnableNetworkTracing)
 	assert.Equal(defaultNetworkTracerSocketPath, conf.NetworkTracerSocketPath)
 	assert.Equal(defaultNetworkLogFilePath, conf.NetworkTracerLogFile)
-	assert.Equal(defaultNetworkLogFilePath, conf.NetworkTracerLogFile)
 	assert.Equal(false, conf.DisableTCPTracing)
 	assert.Equal(false, conf.DisableUDPTracing)
 	assert.Equal(false, conf.DisableIPv6Tracing)
