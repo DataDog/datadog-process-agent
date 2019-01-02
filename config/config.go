@@ -23,10 +23,6 @@ import (
 )
 
 var (
-	// defaultProxyPort is the default port used for proxies.
-	// This mirrors the configuration for the infrastructure agent.
-	defaultProxyPort = 3128
-
 	// defaultNetworkTracerSocketPath is the default unix socket path to be used for connecting to the network tracer
 	defaultNetworkTracerSocketPath = "/opt/datadog-agent/run/nettracer.sock"
 	// defaultNetworkLogFilePath is the default logging file for the network tracer
@@ -41,8 +37,6 @@ var (
 		"image:openshift/origin-pod",
 	}
 )
-
-type proxyFunc func(*http.Request) (*url.URL, error)
 
 // WindowsConfig stores all windows-specific configuration for the process-agent.
 type WindowsConfig struct {
@@ -299,13 +293,12 @@ func NewAgentConfig(dc ddconfig.Config, agentIni, agentYaml, networkYaml io.Read
 		}
 	}
 
-	// For Agents >= 6 we will have a YAML config file to use.
 	if err = mergeConfig(dc, cfg); err != nil {
 		return nil, err
 	}
 
 	// Environment variables
-	mergeEnvironmentVariables(dc, cfg)
+	mergeEnvironmentVariablesOnly(dc, cfg)
 
 	// Python-style log level has WARNING vs WARN
 	if strings.ToLower(cfg.LogLevel) == "warning" {

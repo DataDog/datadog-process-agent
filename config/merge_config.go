@@ -23,7 +23,7 @@ func mergeCheckIntervalIfSet(dc ddconfig.Config, agentConf *AgentConfig, key, ma
 	}
 }
 
-func mergeString(dc ddconfig.Config, key string, defaultVal string) string {
+func getString(dc ddconfig.Config, key string, defaultVal string) string {
 	if dc.IsSet(key) {
 		return dc.GetString(key)
 	}
@@ -31,7 +31,7 @@ func mergeString(dc ddconfig.Config, key string, defaultVal string) string {
 	return defaultVal
 }
 
-func mergeInt(dc ddconfig.Config, key string, defaultVal int) int {
+func getInt(dc ddconfig.Config, key string, defaultVal int) int {
 	if dc.IsSet(key) {
 		return dc.GetInt(key)
 	}
@@ -39,7 +39,7 @@ func mergeInt(dc ddconfig.Config, key string, defaultVal int) int {
 	return defaultVal
 }
 
-func mergeBool(dc ddconfig.Config, key string, defaultVal bool) bool {
+func getBool(dc ddconfig.Config, key string, defaultVal bool) bool {
 	if dc.IsSet(key) {
 		return dc.GetBool(key)
 	}
@@ -95,7 +95,7 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 		agentConf.LogToConsole = enabled
 	}
 
-	agentConf.LogFile = mergeString(dc, keyLogFile, agentConf.LogFile)
+	agentConf.LogFile = getString(dc, keyLogFile, agentConf.LogFile)
 
 	mergeCheckIntervalIfSet(dc, agentConf, keyIntervalsContainer, "container")
 	mergeCheckIntervalIfSet(dc, agentConf, keyIntervalsContainerRT, "rtcontainer")
@@ -116,34 +116,34 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 		agentConf.Blacklist = blacklist
 	}
 
-	agentConf.Scrubber.Enabled = mergeBool(dc, keyScrubArgs, agentConf.Scrubber.Enabled)
+	agentConf.Scrubber.Enabled = getBool(dc, keyScrubArgs, agentConf.Scrubber.Enabled)
 
-	csw := mergeString(dc, keyCustomSensitiveWords, "")
+	csw := getString(dc, keyCustomSensitiveWords, "")
 	agentConf.Scrubber.AddCustomSensitiveWords(strings.Split(csw, ","))
-	agentConf.Scrubber.StripAllArguments = mergeBool(dc, keyStripProcessArguments, agentConf.Scrubber.StripAllArguments)
+	agentConf.Scrubber.StripAllArguments = getBool(dc, keyStripProcessArguments, agentConf.Scrubber.StripAllArguments)
 
-	agentConf.QueueSize = mergeInt(dc, keyQueueSize, agentConf.QueueSize)
+	agentConf.QueueSize = getInt(dc, keyQueueSize, agentConf.QueueSize)
 
-	agentConf.MaxProcFDs = mergeInt(dc, keyMaxProcFDs, agentConf.MaxProcFDs)
+	agentConf.MaxProcFDs = getInt(dc, keyMaxProcFDs, agentConf.MaxProcFDs)
 
-	if mpm := mergeInt(dc, keyMaxPerMessage, agentConf.MaxPerMessage); mpm <= maxMessageBatch {
+	if mpm := getInt(dc, keyMaxPerMessage, agentConf.MaxPerMessage); mpm <= maxMessageBatch {
 		agentConf.MaxPerMessage = mpm
 	} else {
 		log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
 	}
 
-	agentConf.DDAgentBin = mergeString(dc, keyDDAgentBin, agentConf.DDAgentBin)
+	agentConf.DDAgentBin = getString(dc, keyDDAgentBin, agentConf.DDAgentBin)
 
-	agentConf.DDAgentPy = mergeString(dc, keyDDAgentPy, agentConf.DDAgentPy)
+	agentConf.DDAgentPy = getString(dc, keyDDAgentPy, agentConf.DDAgentPy)
 
-	agentConf.DDAgentPyEnv = strings.Split(mergeString(dc, keyDDAgentPyEnv, ""), ",")
+	agentConf.DDAgentPyEnv = strings.Split(getString(dc, keyDDAgentPyEnv, ""), ",")
 
-	winAri := mergeInt(dc, keyWinArgsRefreshInterval, agentConf.Windows.ArgsRefreshInterval)
+	winAri := getInt(dc, keyWinArgsRefreshInterval, agentConf.Windows.ArgsRefreshInterval)
 	if winAri != 0 {
 		agentConf.Windows.ArgsRefreshInterval = winAri
 	}
 
-	agentConf.Windows.AddNewArgs = mergeBool(dc, keyWinAddNewArgs, agentConf.Windows.AddNewArgs)
+	agentConf.Windows.AddNewArgs = getBool(dc, keyWinAddNewArgs, agentConf.Windows.AddNewArgs)
 
 	if dc.IsSet(keyAdditionalEndpoints) {
 		additionalEndpoints := dc.GetStringMapStringSlice(keyAdditionalEndpoints)
@@ -162,9 +162,9 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 	}
 
 	// Pull additional parameters from the global config file.
-	agentConf.LogLevel = mergeString(dc, "log_level", agentConf.LogLevel)
-	agentConf.StatsdPort = mergeInt(dc, "dogstatsd_port", agentConf.StatsdPort)
-	agentConf.StatsdHost = mergeString(dc, "bind_host", agentConf.StatsdHost)
+	agentConf.LogLevel = getString(dc, "log_level", agentConf.LogLevel)
+	agentConf.StatsdPort = getInt(dc, "dogstatsd_port", agentConf.StatsdPort)
+	agentConf.StatsdHost = getString(dc, "bind_host", agentConf.StatsdHost)
 	agentConf.Transport = ddutil.CreateHTTPTransport()
 
 	// Network related config
@@ -173,8 +173,8 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 		agentConf.EnableNetworkTracing = true
 	}
 
-	agentConf.NetworkTracerSocketPath = mergeString(dc, keyNetworkUnixSocketPath, agentConf.NetworkTracerSocketPath)
-	agentConf.NetworkTracerLogFile = mergeString(dc, keyNetworkLogFile, agentConf.NetworkTracerLogFile)
+	agentConf.NetworkTracerSocketPath = getString(dc, keyNetworkUnixSocketPath, agentConf.NetworkTracerSocketPath)
+	agentConf.NetworkTracerLogFile = getString(dc, keyNetworkLogFile, agentConf.NetworkTracerLogFile)
 
 	agentConf.DisableTCPTracing, _ = isAffirmative(dc.GetString(keyNetworkDisableTCPTracing))
 	agentConf.DisableUDPTracing, _ = isAffirmative(dc.GetString(keyNetworkDisableUDPTracing))
@@ -183,8 +183,8 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 	return nil
 }
 
-// mergeEnvironmentVariables applies overrides from environment variables to the process agent configuration
-func mergeEnvironmentVariables(dc ddconfig.Config, c *AgentConfig) {
+// mergeEnvironmentVariablesOnly applies overrides from environment variables to the process agent configuration
+func mergeEnvironmentVariablesOnly(dc ddconfig.Config, c *AgentConfig) {
 	var err error
 
 	// Support API_KEY and DD_API_KEY but prefer DD_API_KEY.

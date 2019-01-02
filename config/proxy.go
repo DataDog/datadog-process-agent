@@ -11,6 +11,14 @@ import (
 	"github.com/go-ini/ini"
 )
 
+var (
+	// defaultProxyPort is the default port used for proxies.
+	// This mirrors the configuration for the infrastructure agent.
+	defaultProxyPort = 3128
+)
+
+type proxyFunc func(*http.Request) (*url.URL, error)
+
 // getProxySettings returns a url.Url for the proxy configuration from datadog.conf, if available.
 // In the case of invalid settings an error is logged and nil is returned. If settings are missing,
 // meaning we don't want a proxy, then nil is returned with no error.
