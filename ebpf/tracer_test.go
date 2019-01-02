@@ -9,10 +9,12 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 
 	"os"
 
@@ -32,7 +34,6 @@ func TestTCPSendAndReceive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr.Start()
 	defer tr.Stop()
 
 	// Create TCP Server which sends back serverMessageSize bytes
@@ -69,6 +70,149 @@ func TestTCPSendAndReceive(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
+	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, addrPort(server.address), int(conn.DPort))
+
+	doneChan <- struct{}{}
+}
+
+func TestTCPRemoveEntries(t *testing.T) {
+	tr, err := NewTracer(&Config{
+		CollectTCPConns: true,
+		TCPConnTimeout:  100 * time.Millisecond,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tr.Stop()
+
+	// Create a dummy TCP Server
+	server := NewTCPServer(func(c net.Conn) {
+		c.Close()
+	})
+	doneChan := make(chan struct{})
+	server.Run(doneChan)
+
+	// Connect to server
+	c, err := net.DialTimeout("tcp", server.address, 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Write a message
+	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	// Write a bunch of messages with blocking iptable rule to create retransmits
+	iptablesWrapper(t, func() {
+		for i := 0; i < 99; i++ {
+			// Send a bunch of messages
+			c.Write(genPayload(clientMessageSize))
+		}
+		time.Sleep(time.Second)
+	})
+
+	// Wait a bit for the first connection to be considered as timeouting
+	time.Sleep(1 * time.Second)
+
+	// Create a new client
+	c2, err := net.DialTimeout("tcp", server.address, 1*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Send a messages
+	if _, err = c2.Write(genPayload(clientMessageSize)); err != nil {
+		t.Fatal(err)
+	}
+	defer c2.Close()
+
+	// Retrieve the list of connections
+	connections, err := tr.GetActiveConnections()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Make sure the first connection got cleaned up
+	_, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	assert.False(t, ok)
+
+	// Assert the TCP map is empty because of the clean up
+	key, nextKey, stats := &ConnTuple{}, &ConnTuple{}, &ConnStatsWithTimestamp{}
+	tcpMp, err := tr.getMap(tcpStatsMap)
+	assert.Nil(t, err)
+	// This should return false and an error
+	hasNext, err := tr.m.LookupNextElement(tcpMp, unsafe.Pointer(key), unsafe.Pointer(nextKey), unsafe.Pointer(stats))
+	assert.False(t, hasNext)
+	assert.NotNil(t, err)
+
+	conn, ok := findConnection(c2.LocalAddr(), c2.RemoteAddr(), connections)
+	assert.True(t, ok)
+	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
+	assert.Equal(t, 0, int(conn.RecvBytes))
+	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, addrPort(server.address), int(conn.DPort))
+
+	doneChan <- struct{}{}
+}
+
+func TestTCPRetransmit(t *testing.T) {
+	// Enable BPF-based network tracer
+	tr, err := NewTracer(NewDefaultConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tr.Stop()
+
+	// Create TCP Server which sends back serverMessageSize bytes
+	server := NewTCPServer(func(c net.Conn) {
+		r := bufio.NewReader(c)
+		r.ReadBytes(byte('\n'))
+		c.Write(genPayload(serverMessageSize))
+		c.Close()
+	})
+	doneChan := make(chan struct{})
+	server.Run(doneChan)
+
+	// Connect to server
+	c, err := net.DialTimeout("tcp", server.address, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	// Write clientMessageSize to server, and read response
+	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
+		t.Fatal(err)
+	}
+	r := bufio.NewReader(c)
+	r.ReadBytes(byte('\n'))
+
+	iptablesWrapper(t, func() {
+		for i := 0; i < 99; i++ {
+			// Send a bunch of messages
+			c.Write(genPayload(clientMessageSize))
+		}
+		time.Sleep(time.Second)
+	})
+
+	// Iterate through active connections until we find connection created above, and confirm send + recv counts and there was at least 1 retransmission
+	connections, err := tr.GetActiveConnections()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	assert.True(t, ok)
+	assert.Equal(t, 100*clientMessageSize, int(conn.SendBytes))
+	assert.True(t, int(conn.Retransmits) > 0)
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 
 	doneChan <- struct{}{}
 }
@@ -79,7 +223,6 @@ func TestTCPClosedConnectionsAreCleanedUp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr.Start()
 	defer tr.Stop()
 
 	// Create TCP Server which sends back serverMessageSize bytes
@@ -120,6 +263,72 @@ func TestTCPClosedConnectionsAreCleanedUp(t *testing.T) {
 	doneChan <- struct{}{}
 }
 
+func TestTCPOverIPv6(t *testing.T) {
+	config := NewDefaultConfig()
+	config.CollectIPv6Conns = true
+
+	tr, err := NewTracer(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tr.Stop()
+
+	ln, err := net.Listen("tcp6", net.IPv6loopback.String())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	doneChan := make(chan struct{})
+	go func(done chan struct{}) {
+		<-done
+		ln.Close()
+	}(doneChan)
+
+	// Create TCP Server which sends back serverMessageSize bytes
+	go func() {
+		for {
+			if c, err := ln.Accept(); err != nil {
+				return
+			} else {
+				r := bufio.NewReader(c)
+				r.ReadBytes(byte('\n'))
+				c.Write(genPayload(serverMessageSize))
+				c.Close()
+			}
+		}
+	}()
+
+	// Connect to server
+	c, err := net.DialTimeout("tcp6", net.IPv6loopback.String(), 50*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Write clientMessageSize to server, and read response
+	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
+		t.Fatal(err)
+	}
+	r := bufio.NewReader(c)
+	r.ReadBytes(byte('\n'))
+
+	connections, err := tr.GetActiveConnections()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	assert.True(t, ok)
+	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
+	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
+	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, ln.Addr().(*net.TCPAddr).Port, int(conn.DPort))
+
+	doneChan <- struct{}{}
+
+}
+
 func TestTCPCollectionDisabled(t *testing.T) {
 	// Enable BPF-based network tracer with TCP disabled
 	config := NewDefaultConfig()
@@ -129,7 +338,6 @@ func TestTCPCollectionDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr.Start()
 	defer tr.Stop()
 
 	// Create TCP Server which sends back serverMessageSize bytes
@@ -173,7 +381,6 @@ func TestUDPSendAndReceive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr.Start()
 	defer tr.Stop()
 
 	// Create UDP Server which sends back serverMessageSize bytes
@@ -208,6 +415,8 @@ func TestUDPSendAndReceive(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 
 	doneChan <- struct{}{}
 }
@@ -221,7 +430,6 @@ func TestUDPDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr.Start()
 	defer tr.Stop()
 
 	// Create UDP Server which sends back serverMessageSize bytes
@@ -284,7 +492,6 @@ func BenchmarkUDPEcho(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	t.Start()
 	defer t.Stop()
 
 	runBenchtests(b, payloadSizesUDP, "eBPF", benchEchoUDP)
@@ -334,7 +541,6 @@ func BenchmarkTCPEcho(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	t.Start()
 	defer t.Stop()
 
 	runBenchtests(b, payloadSizesTCP, "eBPF", benchEchoTCP)
@@ -348,7 +554,6 @@ func BenchmarkTCPSend(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	t.Start()
 	defer t.Stop()
 
 	runBenchtests(b, payloadSizesTCP, "eBPF", benchSendTCP)
@@ -525,4 +730,34 @@ func genPayload(n int) []byte {
 		}
 	}
 	return b
+}
+
+func iptablesWrapper(t *testing.T, f func()) {
+	iptables, err := exec.LookPath("iptables")
+	assert.Nil(t, err)
+
+	// Init iptables rule to simulate packet loss
+	rule := "INPUT --source 127.0.0.1 -j DROP"
+	create := strings.Fields(fmt.Sprintf("-A %s", rule))
+	remove := strings.Fields(fmt.Sprintf("-D %s", rule))
+
+	createCmd := exec.Command(iptables, create...)
+	err = createCmd.Start()
+	assert.Nil(t, err)
+	err = createCmd.Wait()
+	assert.Nil(t, err)
+
+	f()
+
+	// Remove the iptable rule
+	removeCmd := exec.Command(iptables, remove...)
+	err = removeCmd.Start()
+	assert.Nil(t, err)
+	err = removeCmd.Wait()
+	assert.Nil(t, err)
+}
+
+func addrPort(addr string) int {
+	p, _ := strconv.Atoi(strings.Split(addr, ":")[1])
+	return p
 }

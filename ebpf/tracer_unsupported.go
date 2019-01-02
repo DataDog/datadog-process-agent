@@ -20,9 +20,6 @@ func NewTracer(_ *Config) (*Tracer, error) {
 	return nil, ErrNotImplemented
 }
 
-// Start is not implemented on non-linux systems
-func (t *Tracer) Start() {}
-
 // Stop is not implemented on non-linux systems
 func (t *Tracer) Stop() {}
 

@@ -15,6 +15,8 @@ import (
 	"github.com/DataDog/datadog-process-agent/util"
 )
 
+const emptyCtrID = ""
+
 // Process is a singleton ProcessCheck.
 var Process = &ProcessCheck{}
 
@@ -76,28 +78,10 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		return nil, nil
 	}
 
-	chunkedProcs := fmtProcesses(cfg, procs, p.lastProcs,
-		ctrList, cpuTimes[0], p.lastCPUTime, p.lastRun)
-	// In case we skip every process..
-	if len(chunkedProcs) == 0 {
-		return nil, nil
-	}
-	groupSize := len(chunkedProcs)
-	chunkedContainers := fmtContainers(ctrList, p.lastCtrRates, p.lastRun, groupSize)
-	messages := make([]model.MessageBody, 0, groupSize)
-	totalProcs, totalContainers := float64(0), float64(0)
-	for i := 0; i < groupSize; i++ {
-		totalProcs += float64(len(chunkedProcs[i]))
-		totalContainers += float64(len(chunkedContainers[i]))
-		messages = append(messages, &model.CollectorProc{
-			HostName:   cfg.HostName,
-			Info:       p.sysInfo,
-			Processes:  chunkedProcs[i],
-			Containers: chunkedContainers[i],
-			GroupId:    groupID,
-			GroupSize:  int32(groupSize),
-		})
-	}
+	procsByCtr := fmtProcesses(cfg, procs, p.lastProcs, ctrList, cpuTimes[0], p.lastCPUTime, p.lastRun)
+	containers := fmtContainers(ctrList, p.lastCtrRates, p.lastRun)
+
+	messages, totalProcs, totalContainers := createProcCtrMessages(procsByCtr, containers, cfg, p.sysInfo, groupID)
 
 	// Store the last state for comparison on the next run.
 	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
@@ -106,19 +90,93 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	p.lastCPUTime = cpuTimes[0]
 	p.lastRun = time.Now()
 
-	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
-	statsd.Client.Gauge("datadog.process.processes.host_count", totalProcs, []string{}, 1)
+	statsd.Client.Gauge("datadog.process.containers.host_count", float64(totalContainers), []string{}, 1)
+	statsd.Client.Gauge("datadog.process.processes.host_count", float64(totalProcs), []string{}, 1)
 	log.Debugf("collected processes in %s", time.Now().Sub(start))
 	return messages, nil
 }
 
+func createProcCtrMessages(
+	procsByCtr map[string][]*model.Process,
+	containers []*model.Container,
+	cfg *config.AgentConfig,
+	sysInfo *model.SystemInfo,
+	groupID int32,
+) ([]model.MessageBody, int, int) {
+	totalProcs, totalContainers := 0, 0
+	msgs := make([]*model.CollectorProc, 0)
+
+	// we first split non-container processes in chunks
+	chunks := chunkProcesses(procsByCtr[emptyCtrID], cfg.MaxPerMessage)
+	for _, c := range chunks {
+		msgs = append(msgs, &model.CollectorProc{
+			HostName:  cfg.HostName,
+			Info:      sysInfo,
+			Processes: c,
+			GroupId:   groupID,
+		})
+	}
+
+	ctrProcs := make([]*model.Process, 0)
+	ctrs := make([]*model.Container, 0, len(containers))
+	for _, ctr := range containers {
+		if procs, ok := procsByCtr[ctr.Id]; ok {
+			ctrProcs = append(ctrProcs, procs...)
+		}
+		ctrs = append(ctrs, ctr)
+	}
+
+	if len(ctrs) > 0 {
+		msgs = append(msgs, &model.CollectorProc{
+			HostName:   cfg.HostName,
+			Info:       sysInfo,
+			Processes:  ctrProcs,
+			Containers: ctrs,
+			GroupId:    groupID,
+		})
+	}
+
+	// fill in GroupSize for each CollectorProc and convert them to final messages
+	// also count containers and processes
+	messages := make([]model.MessageBody, 0, len(msgs))
+	for _, m := range msgs {
+		m.GroupSize = int32(len(msgs))
+		messages = append(messages, m)
+		totalProcs += len(m.Processes)
+		totalContainers += len(m.Containers)
+	}
+
+	return messages, totalProcs, totalContainers
+}
+
+// chunkProcesses split non-container processes into chunks and return a list of chunks
+func chunkProcesses(procs []*model.Process, size int) [][]*model.Process {
+	chunkCount := len(procs) / size
+	if chunkCount*size < len(procs) {
+		chunkCount++
+	}
+	chunks := make([][]*model.Process, 0, chunkCount)
+
+	for i := 0; i < len(procs); i += size {
+		end := i + size
+		if end > len(procs) {
+			end = len(procs)
+		}
+		chunks = append(chunks, procs[i:end])
+	}
+
+	return chunks
+}
+
+// fmtProcesses goes through each process, converts them to process object and group them by containers
+// non-container processes would be in a single group with key as empty string ""
 func fmtProcesses(
 	cfg *config.AgentConfig,
 	procs, lastProcs map[int32]*process.FilledProcess,
 	ctrList []*containers.Container,
 	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
-) [][]*model.Process {
+) map[string][]*model.Process {
 	cidByPid := make(map[int32]string, len(ctrList))
 	for _, c := range ctrList {
 		for _, p := range c.Pids {
@@ -126,8 +184,8 @@ func fmtProcesses(
 		}
 	}
 
-	chunked := make([][]*model.Process, 0)
-	chunk := make([]*model.Process, 0, cfg.MaxPerMessage)
+	procsByCtr := make(map[string][]*model.Process)
+
 	for _, fp := range procs {
 		if skipProcess(cfg, fp, lastProcs) {
 			continue
@@ -136,7 +194,7 @@ func fmtProcesses(
 		// Hide blacklisted args if the Scrubber is enabled
 		fp.Cmdline = cfg.Scrubber.ScrubProcessCommand(fp)
 
-		chunk = append(chunk, &model.Process{
+		proc := &model.Process{
 			Pid:                    fp.Pid,
 			Command:                formatCommand(fp),
 			User:                   formatUser(fp),
@@ -149,17 +207,17 @@ func fmtProcesses(
 			VoluntaryCtxSwitches:   uint64(fp.CtxSwitches.Voluntary),
 			InvoluntaryCtxSwitches: uint64(fp.CtxSwitches.Involuntary),
 			ContainerId:            cidByPid[fp.Pid],
-		})
-		if len(chunk) == cfg.MaxPerMessage {
-			chunked = append(chunked, chunk)
-			chunk = make([]*model.Process, 0, cfg.MaxPerMessage)
 		}
+		_, ok := procsByCtr[proc.ContainerId]
+		if !ok {
+			procsByCtr[proc.ContainerId] = make([]*model.Process, 0)
+		}
+		procsByCtr[proc.ContainerId] = append(procsByCtr[proc.ContainerId], proc)
 	}
-	if len(chunk) > 0 {
-		chunked = append(chunked, chunk)
-	}
+
 	cfg.Scrubber.IncrementCacheAge()
-	return chunked
+
+	return procsByCtr
 }
 
 func formatCommand(fp *process.FilledProcess) *model.Command {

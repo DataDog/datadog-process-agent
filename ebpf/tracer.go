@@ -84,55 +84,26 @@ func NewTracer(config *Config) (*Tracer, error) {
 	return &Tracer{m: m, config: config}, nil
 }
 
-func (t *Tracer) Start() error {
-	return nil
-}
-
 func (t *Tracer) Stop() {
 	t.m.Close()
 }
 
 func (t *Tracer) GetActiveConnections() (*Connections, error) {
-	conns := make([]ConnectionStats, 0)
-
-	if t.config.CollectTCPConns {
-		v4, err := t.getTCPv4Connections()
-		if err != nil {
-			return nil, err
-		}
-
-		if t.config.CollectIPv6Conns {
-			v6, err := t.getTCPv6Connections()
-			if err != nil {
-				return nil, err
-			}
-			conns = append(conns, append(v4, v6...)...)
-		} else {
-			conns = append(conns, v4...)
-		}
+	conns, err := t.getConnections()
+	if err != nil {
+		return nil, err
 	}
 
-	if t.config.CollectUDPConns {
-		v4, err := t.getUDPv4Connections()
-		if err != nil {
-			return nil, err
-		}
-
-		if t.config.CollectIPv6Conns {
-			v6, err := t.getUDPv6Connections()
-			if err != nil {
-				return nil, err
-			}
-			conns = append(conns, append(v4, v6...)...)
-		} else {
-			conns = append(conns, v4...)
-		}
-	}
 	return &Connections{Conns: conns}, nil
 }
 
-func (t *Tracer) getUDPv4Connections() ([]ConnectionStats, error) {
-	mp, err := t.getMap(v4UDPMap)
+func (t *Tracer) getConnections() ([]ConnectionStats, error) {
+	mp, err := t.getMap(connMap)
+	if err != nil {
+		return nil, err
+	}
+
+	tcpMp, err := t.getMap(tcpStatsMap)
 	if err != nil {
 		return nil, err
 	}
@@ -140,146 +111,56 @@ func (t *Tracer) getUDPv4Connections() ([]ConnectionStats, error) {
 	latestTime, ok, err := t.getLatestTimestamp()
 	if err != nil {
 		return nil, err
-	} else if !ok { // if we haven't yet captured any timestamps, there can be no UDP packets
+	}
+
+	if !ok { // if no timestamps have been captured, there can be no packets
 		return nil, nil
 	}
 
 	// Iterate through all key-value pairs in map
-	key, nextKey, stats := &ConnTupleV4{}, &ConnTupleV4{}, &ConnStatsWithTimestamp{}
+	key, nextKey, stats := &ConnTuple{}, &ConnTuple{}, &ConnStatsWithTimestamp{}
 	active := make([]ConnectionStats, 0)
-	expired := make([]*ConnTupleV4, 0)
+	expired := make([]*ConnTuple, 0)
 	for {
 		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(key), unsafe.Pointer(nextKey), unsafe.Pointer(stats))
 		if !hasNext {
 			break
-		} else if stats.isExpired(latestTime, t.config.UDPConnTimeout.Nanoseconds()) {
+		} else if stats.isExpired(latestTime, t.timeoutForConn(nextKey)) {
 			expired = append(expired, nextKey.copy())
 		} else {
-			active = append(active, connStatsFromUDPv4(nextKey, stats))
+			active = append(active, connStats(nextKey, stats, t.getTCPStats(tcpMp, nextKey)))
 		}
 		key = nextKey
 	}
 
 	// Remove expired entries
-	for i := range expired {
-		t.m.DeleteElement(mp, unsafe.Pointer(expired[i]))
-	}
+	t.removeEntries(mp, tcpMp, expired)
+
 	return active, nil
 }
 
-func (t *Tracer) getUDPv6Connections() ([]ConnectionStats, error) {
-	mp, err := t.getMap(v6UDPMap)
-	if err != nil {
-		return nil, err
-	}
+func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
+	for i := range entries {
+		t.m.DeleteElement(mp, unsafe.Pointer(entries[i]))
 
-	latestTime, ok, err := t.getLatestTimestamp()
-	if err != nil {
-		return nil, err
-	} else if !ok { // if no timestamps have been captured there can be no UDP packets
-		return nil, nil
+		// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
+		entries[i].pid = 0
+		t.m.DeleteElement(tcpMp, unsafe.Pointer(entries[i]))
 	}
-
-	// Iterate through all key-value pairs in map
-	key, nextKey, stats := &ConnTupleV6{}, &ConnTupleV6{}, &ConnStatsWithTimestamp{}
-	active := make([]ConnectionStats, 0)
-	expired := make([]*ConnTupleV6, 0)
-	for {
-		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(key), unsafe.Pointer(nextKey), unsafe.Pointer(stats))
-		if !hasNext {
-			break
-		} else if stats.isExpired(latestTime, t.config.UDPConnTimeout.Nanoseconds()) {
-			expired = append(expired, nextKey.copy())
-		} else {
-			active = append(active, connStatsFromUDPv6(nextKey, stats))
-		}
-		key = nextKey
-	}
-
-	// Remove expired entries
-	for i := range expired {
-		t.m.DeleteElement(mp, unsafe.Pointer(expired[i]))
-	}
-	return active, nil
 }
 
-func (t *Tracer) getTCPv4Connections() ([]ConnectionStats, error) {
-	mp, err := t.getMap(v4TCPMap)
-	if err != nil {
-		return nil, err
+// getTCPStats reads tcp related stats for the given ConnTuple
+func (t *Tracer) getTCPStats(mp *bpflib.Map, tuple *ConnTuple) *TCPStats {
+	// Remove the PID since we don't use it in the TCP Stats map
+	tup := tuple.copy()
+	tup.pid = 0
+
+	stats := &TCPStats{retransmits: 0}
+	if err := t.m.LookupElement(mp, unsafe.Pointer(tup), unsafe.Pointer(stats)); err != nil {
+		return stats
 	}
 
-	latestTime, ok, err := t.getLatestTimestamp()
-	if err != nil {
-		return nil, err
-	}
-
-	if !ok { // if no timestamps have been captured, there can be no TCP packets
-		return nil, nil
-	}
-
-	// Iterate through all key-value pairs in map
-	key, nextKey, val := &ConnTupleV4{}, &ConnTupleV4{}, &ConnStatsWithTimestamp{}
-	conns := make([]ConnectionStats, 0)
-	var expired []unsafe.Pointer
-	for {
-		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(key), unsafe.Pointer(nextKey), unsafe.Pointer(val))
-		if !hasNext {
-			break
-		} else {
-			if val.isExpired(latestTime, t.config.TCPConnTimeout.Nanoseconds()) {
-				expired = append(expired, unsafe.Pointer(val))
-			} else {
-				conns = append(conns, connStatsFromTCPv4(nextKey, val))
-			}
-			key = nextKey
-		}
-	}
-
-	for _, ptr := range expired {
-		t.m.DeleteElement(mp, ptr)
-	}
-	return conns, nil
-}
-
-func (t *Tracer) getTCPv6Connections() ([]ConnectionStats, error) {
-	mp, err := t.getMap(v6TCPMap)
-	if err != nil {
-		return nil, err
-	}
-
-	latestTime, ok, err := t.getLatestTimestamp()
-	if err != nil {
-		return nil, err
-	}
-
-	if !ok { // if no timestamps have been captured, there can be no TCP packets
-		return nil, nil
-	}
-
-	// Iterate through all key-value pairs in map
-	key, nextKey, val := &ConnTupleV6{}, &ConnTupleV6{}, &ConnStatsWithTimestamp{}
-	conns := make([]ConnectionStats, 0)
-	expired := make([]*ConnTupleV6, 0)
-	for {
-		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(key), unsafe.Pointer(nextKey), unsafe.Pointer(val))
-		if !hasNext {
-			break
-		} else {
-			if val.isExpired(latestTime, t.config.TCPConnTimeout.Nanoseconds()) {
-				expired = append(expired, nextKey.copy())
-			} else {
-				conns = append(conns, connStatsFromTCPv6(nextKey, val))
-			}
-			key = nextKey
-		}
-	}
-
-	for _, expiredTuple := range expired {
-		t.m.DeleteElement(mp, unsafe.Pointer(expiredTuple))
-	}
-
-	return conns, nil
+	return stats
 }
 
 // getLatestTimestamp reads the most recent timestamp captured by the eBPF
@@ -320,4 +201,11 @@ func loadBPFModule() (*bpflib.Module, error) {
 		return nil, fmt.Errorf("BPF not supported")
 	}
 	return m, nil
+}
+
+func (t *Tracer) timeoutForConn(c *ConnTuple) int64 {
+	if connType(c.metadata) == TCP {
+		return t.config.TCPConnTimeout.Nanoseconds()
+	}
+	return t.config.UDPConnTimeout.Nanoseconds()
 }

@@ -161,12 +161,12 @@ func TestConfigNewIfExists(t *testing.T) {
 
 	// The file exists but cannot be read for another reason: an error is
 	// returned.
-	var filename string
-	if runtime.GOOS != "windows" {
+	if runtime.GOOS != "windows" && os.Geteuid() != 0 {
 
-		//go doesn't honor the file permissions, so skip this test on Windows
+		// go doesn't honor the file permissions, so skip this test on Windows
+		// And if user is root it will have the right to read the file anyway
 
-		filename = "/tmp/process-agent-test-config.ini"
+		filename := "/tmp/process-agent-test-config.ini"
 		os.Remove(filename)
 		f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0200) // write only
 		assert.Nil(t, err)
@@ -174,7 +174,7 @@ func TestConfigNewIfExists(t *testing.T) {
 		conf, err = NewIfExists(filename)
 		assert.NotNil(t, err)
 		assert.Nil(t, conf)
-		//os.Remove(filename)
+		os.Remove(filename)
 	}
 }
 

@@ -24,7 +24,7 @@ import (
 */
 import "C"
 
-type tracerStatus C.struct_tracer_status_t
+type tracerStatus C.tracer_status_t
 
 const (
 	// When reading kernel structs at different offsets, don't go over that
@@ -369,7 +369,7 @@ func guess(m *elf.Module, cfg *Config) error {
 
 	status := &tracerStatus{
 		state:        stateChecking,
-		proc:         C.struct_proc_t{comm: cProcName},
+		proc:         C.proc_t{comm: cProcName},
 		ipv6_enabled: enableV6,
 	}
 	if !cfg.CollectIPv6Conns {

@@ -55,7 +55,6 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		}
 
 		c.localTracer = t
-		c.localTracer.Start()
 	} else {
 		// Calling the remote tracer will cause it to initialize and check connectivity
 		net.SetNetworkTracerSocketPath(cfg.NetworkTracerSocketPath)

@@ -27,3 +27,8 @@
 [[override]]
   name = "github.com/kardianos/osext"
   revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
+
+[[override]]
+  name = "bitbucket.org/ww/goautoneg"
+  source = "github.com/adjust/goautoneg"
+  revision = "d788f35a0315672bc90f50a6145d1252a230ee0d"

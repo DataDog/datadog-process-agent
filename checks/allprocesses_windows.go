@@ -356,6 +356,10 @@ func rebuildProcessMapFromWMI() {
 	}
 
 	for pid, proc := range wmimap {
+		if pid == 0 {
+			// PID 0 is System Process, will cause syscall.OpenProcess to fail with ERROR_INVALID_PARAMETER.
+			continue
+		}
 		cp := cachedProcess{}
 		if err := cp.fill(&proc); err != nil {
 			continue

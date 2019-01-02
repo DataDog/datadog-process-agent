@@ -35,27 +35,31 @@ func TestContainerChunking(t *testing.T) {
 		last     map[string]util.ContainerRateMetrics
 		chunks   int
 		expected int
+		maxSize  int
 	}{
 		{
 			cur:      []*containers.Container{ctrs[0], ctrs[1], ctrs[2]},
 			last:     util.ExtractContainerRateMetric([]*containers.Container{ctrs[0], ctrs[1], ctrs[2]}),
 			chunks:   2,
 			expected: 3,
+			maxSize:  2,
 		},
 		{
 			cur:      []*containers.Container{ctrs[0], ctrs[1], ctrs[2]},
 			last:     util.ExtractContainerRateMetric([]*containers.Container{ctrs[0], ctrs[2]}),
 			chunks:   2,
 			expected: 3,
+			maxSize:  2,
 		},
 		{
 			cur:      []*containers.Container{ctrs[0], ctrs[2]},
 			last:     util.ExtractContainerRateMetric([]*containers.Container{ctrs[0], ctrs[1], ctrs[2]}),
-			chunks:   20,
+			chunks:   2,
 			expected: 2,
+			maxSize:  1,
 		},
 	} {
-		chunked := fmtContainers(tc.cur, tc.last, lastRun, tc.chunks)
+		chunked := chunkContainers(tc.cur, tc.last, lastRun, tc.chunks, tc.maxSize)
 		assert.Len(t, chunked, tc.chunks, "len test %d", i)
 		total := 0
 		for _, c := range chunked {
@@ -74,22 +78,22 @@ func TestContainerChunking(t *testing.T) {
 	}
 }
 
-func TestContainerAddressList(t *testing.T) {
+func TestContainerAddresses(t *testing.T) {
 	ctr := makeContainer("haha")
 	ctr.AddressList = []containers.NetworkAddress{containers.NetworkAddress{IP: net.ParseIP("192.168.128.141"), Port: 443, Protocol: "TCP"}}
-	results := fmtContainers([]*containers.Container{ctr}, map[string]util.ContainerRateMetrics{}, time.Now(), 1)
-	assert.Equal(t, 1, len(results[0]))
+	results := fmtContainers([]*containers.Container{ctr}, map[string]util.ContainerRateMetrics{}, time.Now())
+	assert.Equal(t, 1, len(results))
 	addrs := []*model.ContainerAddr{
 		&model.ContainerAddr{Ip: "192.168.128.141", Port: int32(443), Protocol: model.ConnectionType_tcp},
 	}
-	assert.Equal(t, results[0][0].Addresses, addrs)
+	assert.Equal(t, results[0].Addresses, addrs)
 }
 
 func TestContainerNils(t *testing.T) {
 	// Make sure formatting doesn't crash with nils
 	cur := []*containers.Container{&containers.Container{}}
 	last := map[string]util.ContainerRateMetrics{}
-	fmtContainers(cur, last, time.Now(), 10)
+	chunkContainers(cur, last, time.Now(), 10, 10)
 	fmtContainerStats(cur, last, time.Now(), 10)
 	// Make sure we get values when we have nils in last.
 	cur = []*containers.Container{
@@ -103,7 +107,7 @@ func TestContainerNils(t *testing.T) {
 			CPU: &metrics.CgroupTimesStat{},
 		},
 	}
-	fmtContainers(cur, last, time.Now(), 10)
+	chunkContainers(cur, last, time.Now(), 10, 10)
 	fmtContainerStats(cur, last, time.Now(), 10)
 }
 
