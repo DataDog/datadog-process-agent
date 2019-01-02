@@ -55,25 +55,26 @@ type APIEndpoint struct {
 // AgentConfig is the global config for the process-agent. This information
 // is sourced from config files and the environment variables.
 type AgentConfig struct {
-	Enabled       bool
-	HostName      string
-	APIEndpoints  []APIEndpoint
-	LogFile       string
-	LogLevel      string
-	LogToConsole  bool
-	QueueSize     int
-	Blacklist     []*regexp.Regexp
-	Scrubber      *DataScrubber
-	MaxProcFDs    int
-	MaxPerMessage int
-	AllowRealTime bool
-	Transport     *http.Transport `json:"-"`
-	Logger        *LoggerConfig
-	DDAgentPy     string
-	DDAgentBin    string
-	DDAgentPyEnv  []string
-	StatsdHost    string
-	StatsdPort    int
+	Enabled            bool
+	HostName           string
+	APIEndpoints       []APIEndpoint
+	LogFile            string
+	LogLevel           string
+	LogToConsole       bool
+	QueueSize          int
+	Blacklist          []*regexp.Regexp
+	Scrubber           *DataScrubber
+	MaxProcFDs         int
+	MaxPerMessage      int
+	MaxConnsPerMessage int
+	AllowRealTime      bool
+	Transport          *http.Transport `json:"-"`
+	Logger             *LoggerConfig
+	DDAgentPy          string
+	DDAgentBin         string
+	DDAgentPyEnv       []string
+	StatsdHost         string
+	StatsdPort         int
 
 	// Network collection configuration
 	EnableNetworkTracing     bool
@@ -117,8 +118,9 @@ func (a AgentConfig) CheckInterval(checkName string) time.Duration {
 }
 
 const (
-	defaultEndpoint = "https://process.datadoghq.com"
-	maxMessageBatch = 100
+	defaultEndpoint      = "https://process.datadoghq.com"
+	maxMessageBatch      = 100
+	maxConnsMessageBatch = 300
 )
 
 // NewDefaultTransport provides a http transport configuration with sane default timeouts
@@ -168,6 +170,7 @@ func initConfig(dc ddconfig.Config) {
 	dc.BindEnv(keyNetworkDisableTCPTracing, envNetworkDisableTCPTracing)
 	dc.BindEnv(keyNetworkDisableUDPTracing, envNetworkDisableUDPTracing)
 	dc.BindEnv(keyNetworkDisableIPV6Tracing, envNetworkDisableIPV6Tracing)
+	dc.BindEnv(keyMaxConnsPerMessage)
 }
 
 // NewDefaultAgentConfig returns an AgentConfig with defaults initialized
@@ -184,17 +187,18 @@ func NewDefaultAgentConfig() *AgentConfig {
 	canAccessContainers := err == nil
 
 	ac := &AgentConfig{
-		Enabled:       canAccessContainers, // We'll always run inside of a container.
-		APIEndpoints:  []APIEndpoint{{Endpoint: u}},
-		LogFile:       defaultLogFilePath,
-		LogLevel:      "info",
-		LogToConsole:  false,
-		QueueSize:     20,
-		MaxProcFDs:    200,
-		MaxPerMessage: 100,
-		AllowRealTime: true,
-		HostName:      "",
-		Transport:     NewDefaultTransport(),
+		Enabled:            canAccessContainers, // We'll always run inside of a container.
+		APIEndpoints:       []APIEndpoint{{Endpoint: u}},
+		LogFile:            defaultLogFilePath,
+		LogLevel:           "info",
+		LogToConsole:       false,
+		QueueSize:          20,
+		MaxProcFDs:         200,
+		MaxPerMessage:      100,
+		MaxConnsPerMessage: 300,
+		AllowRealTime:      true,
+		HostName:           "",
+		Transport:          NewDefaultTransport(),
 
 		// Statsd for internal instrumentation
 		StatsdHost: "127.0.0.1",

@@ -132,6 +132,12 @@ func mergeConfig(dc ddconfig.Config, agentConf *AgentConfig) error {
 		log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
 	}
 
+	if mcpm := getInt(dc, keyMaxConnsPerMessage, agentConf.MaxConnsPerMessage); mcpm <= maxConnsMessageBatch {
+		agentConf.MaxConnsPerMessage = mcpm
+	} else {
+		log.Warn("Overriding the configured item count connections per message limit because it exceeds maximum")
+	}
+
 	agentConf.DDAgentBin = getString(dc, keyDDAgentBin, agentConf.DDAgentBin)
 
 	agentConf.DDAgentPy = getString(dc, keyDDAgentPy, agentConf.DDAgentPy)

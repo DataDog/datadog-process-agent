@@ -53,7 +53,7 @@ const (
 	// The maximum number of file descriptors to open when collecting net connections.
 	// Only change if you are running out of file descriptors from the Agent.
 	keyMaxProcFDs = procPrefix + "max_proc_fds"
-	// The maximum number of processes, connections or containers per message.
+	// The maximum number of processes, or containers per message.
 	// Only change if the defaults are causing issues.
 	keyMaxPerMessage = procPrefix + "max_per_message"
 	// Overrides the path to the Agent bin used for getting the hostname. The default is usually fine.
@@ -104,4 +104,8 @@ const (
 	// Whether agent should disable collection for IPV6 connection type
 	keyNetworkDisableIPV6Tracing = networkPrefix + "disable_ipv6"
 	envNetworkDisableIPV6Tracing = "DD_DISABLE_IPV6_TRACING"
+
+	// The maximum number of connections per message.
+	// Only change if the defaults are causing issues.
+	keyMaxConnsPerMessage = networkPrefix + "max_conns_per_message"
 )

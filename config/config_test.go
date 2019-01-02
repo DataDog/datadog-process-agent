@@ -963,6 +963,7 @@ func TestNetYamlConfig(t *testing.T) {
   enabled: true
   nettracer_socket: /tmp/dummy.sock
   log_file: /tmp/net.log
+  max_conns_per_message: 250
 `
 
 	conf, err := newAgentConfig(nil, nil, strings.NewReader(raw))
@@ -970,6 +971,25 @@ func TestNetYamlConfig(t *testing.T) {
 	assert.Equal(true, conf.EnableNetworkTracing)
 	assert.Equal("/tmp/dummy.sock", conf.NetworkTracerSocketPath)
 	assert.Equal("/tmp/net.log", conf.NetworkTracerLogFile)
+	assert.Equal(250, conf.MaxConnsPerMessage)
+}
+
+func TestTooHighMessagesBatches(t *testing.T) {
+	assert := assert.New(t)
+
+	raw := `
+process_config:
+  max_per_message: 200
+`
+
+	netRaw := `network_tracer_config:
+  max_conns_per_message: 500
+`
+
+	conf, err := newAgentConfig(nil, strings.NewReader(raw), strings.NewReader(netRaw))
+	assert.NoError(err)
+	assert.Equal(100, conf.MaxPerMessage)
+	assert.Equal(300, conf.MaxConnsPerMessage)
 }
 
 func TestDefaultValuesConfig(t *testing.T) {
@@ -1021,6 +1041,7 @@ func TestNetworkDefaultValuesConfig(t *testing.T) {
 	assert.Equal(false, conf.DisableTCPTracing)
 	assert.Equal(false, conf.DisableUDPTracing)
 	assert.Equal(false, conf.DisableIPv6Tracing)
+	assert.Equal(300, conf.MaxConnsPerMessage)
 }
 
 func TestDisableNetworkConnType(t *testing.T) {
