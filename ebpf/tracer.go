@@ -144,7 +144,7 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 				lostCount += c
 
 			case <-ticker.C:
-				log.Infof("Connection stats: %d lost, %d closed", lostCount, closedCount)
+				log.Debugf("Connection stats: %d lost, %d closed", lostCount, closedCount)
 				closedCount = 0
 				lostCount = 0
 			}
@@ -218,7 +218,6 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 
 	// Add the closed connections
 	t.closedConnsLock.Lock()
-	// Mark the connections as collected
 	for i := 0; i < len(t.closedConns); i++ {
 		t.closedConns[i].collected = true
 	}

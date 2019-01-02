@@ -62,6 +62,8 @@ type ConnectionStats struct {
 	Retransmits uint32 `json:"retransmits"`
 
 	// collected is used internally to know if this connection stats has been collected or not
+	// we need to keep track of this to make sure we don't cleanup connections we have not
+	// collected / retrieved yet
 	collected bool
 }
 
@@ -95,12 +97,13 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 
 func removeDuplicates(conns []ConnectionStats) []ConnectionStats {
 	connections := make([]ConnectionStats, 0, len(conns))
-	seen := map[string]struct{}{}
+	seen := make(map[string]struct{})
 	buf := &bytes.Buffer{}
+
 	for _, c := range conns {
 		key, err := c.ByteKey(buf)
+
 		if err != nil {
-			// Skip the connection
 			log.Errorf("could not get byte key for connection %v: %s", c, err)
 			continue
 		}
