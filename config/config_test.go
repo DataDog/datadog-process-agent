@@ -974,7 +974,7 @@ func TestNetYamlConfig(t *testing.T) {
 	assert.Equal(250, conf.MaxConnsPerMessage)
 }
 
-func TestTooHighMessagesBatches(t *testing.T) {
+func TestTooBigBatchesForMessages(t *testing.T) {
 	assert := assert.New(t)
 
 	raw := `process_config:
