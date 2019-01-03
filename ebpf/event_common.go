@@ -102,7 +102,6 @@ func removeDuplicates(conns []ConnectionStats) []ConnectionStats {
 
 	for _, c := range conns {
 		key, err := c.ByteKey(buf)
-
 		if err != nil {
 			log.Errorf("could not get byte key for connection %v: %s", c, err)
 			continue

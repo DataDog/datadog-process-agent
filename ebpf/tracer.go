@@ -131,10 +131,9 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 					return
 				}
 				closedCount++
-				stats := decodeRawTCPConn(c)
 
 				t.closedConnsLock.Lock()
-				t.closedConns = append(t.closedConns, stats)
+				t.closedConns = append(t.closedConns, decodeRawTCPConn(c))
 				t.closedConnsLock.Unlock()
 
 			case c, ok := <-lostChannel:
@@ -240,18 +239,16 @@ func (t *Tracer) cleanupClosedConns() {
 }
 
 func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
-	var e *ConnTuple
-	for _, ent := range entries {
-		e = ent
-		err := t.m.DeleteElement(mp, unsafe.Pointer(e))
+	for i := range entries {
+		err := t.m.DeleteElement(mp, unsafe.Pointer(entries[i]))
 		if err != nil {
 			log.Errorf("error when removing entry from connections bpf map: %s", err)
 		}
 
 		// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
-		e.pid = 0
+		entries[i].pid = 0
 		// We can ignore the error for this map since it will not always contain the entry
-		t.m.DeleteElement(tcpMp, unsafe.Pointer(e))
+		t.m.DeleteElement(tcpMp, unsafe.Pointer(entries[i]))
 	}
 }
 
