@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/tagger"
+	"github.com/DataDog/datadog-agent/pkg/tagger/collectors"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	log "github.com/cihub/seelog"
 
@@ -102,7 +103,7 @@ func fmtContainers(ctrList []*containers.Container, lastRates map[string]util.Co
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 
 		// Retrieves metadata tags
-		tags, err := tagger.Tag(ctr.EntityID, true)
+		tags, err := tagger.Tag(ctr.EntityID, collectors.HighCardinality)
 		if err != nil {
 			log.Errorf("unable to retrieve tags for container: %s", err)
 			tags = []string{}
