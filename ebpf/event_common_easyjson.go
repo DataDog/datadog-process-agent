@@ -154,9 +154,15 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.L
 		case "dport":
 			out.DPort = uint16(in.Uint16())
 		case "send_bytes":
-			out.SendBytes = uint64(in.Uint64())
+			out.MonotonicSendBytes = uint64(in.Uint64())
 		case "recv_bytes":
-			out.RecvBytes = uint64(in.Uint64())
+			out.MonotonicRecvBytes = uint64(in.Uint64())
+		case "last_send_bytes":
+			out.LastSendBytes = uint64(in.Uint64())
+		case "last_recv_bytes":
+			out.LastRecvBytes = uint64(in.Uint64())
+		case "retransmits":
+			out.Retransmits = uint32(in.Uint32())
 		default:
 			in.SkipRecursive()
 		}
@@ -249,7 +255,7 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		} else {
 			out.RawString(prefix)
 		}
-		out.Uint64(uint64(in.SendBytes))
+		out.Uint64(uint64(in.MonotonicSendBytes))
 	}
 	{
 		const prefix string = ",\"recv_bytes\":"
@@ -259,7 +265,37 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		} else {
 			out.RawString(prefix)
 		}
-		out.Uint64(uint64(in.RecvBytes))
+		out.Uint64(uint64(in.MonotonicRecvBytes))
+	}
+	{
+		const prefix string = ",\"last_send_bytes\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint64(uint64(in.LastSendBytes))
+	}
+	{
+		const prefix string = ",\"last_recv_bytes\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint64(uint64(in.LastRecvBytes))
+	}
+	{
+		const prefix string = ",\"retransmits\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint32(uint32(in.Retransmits))
 	}
 	out.RawByte('}')
 }

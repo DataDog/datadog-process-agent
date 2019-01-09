@@ -5,7 +5,6 @@ package ebpf
 import (
 	"bytes"
 	"fmt"
-	"sync"
 	"time"
 	"unsafe"
 
@@ -28,18 +27,12 @@ var (
 	minRequiredKernelCode = linuxKernelVersionCode(4, 3, 0)
 )
 
-const (
-	closedConnCleanupInterval = 10 * time.Second
-)
-
 type Tracer struct {
 	m       *bpflib.Module
 	perfMap *bpflib.PerfMap
 	config  *Config
-	// Closed conns handlers
-	closedConnsLock   sync.Mutex
-	closedConns       []ConnectionStats
-	closedConnsTicker *time.Ticker
+	// State handler
+	state NetworkState
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -94,15 +87,25 @@ func NewTracer(config *Config) (*Tracer, error) {
 	}
 
 	tr := &Tracer{
-		m:           m,
-		config:      config,
-		closedConns: []ConnectionStats{},
+		m:      m,
+		config: config,
+		state:  NewDefaultNetworkState(),
 	}
 
 	tr.perfMap, err = tr.initPerfPolling()
 	if err != nil {
 		return nil, fmt.Errorf("could not start polling bpf events: %s", err)
 	}
+
+	// Poll connections every 10s
+	// TODO change this
+	go func() {
+		for range time.NewTicker(10 * time.Second).C {
+			if err := tr.updateState(); err != nil {
+				log.Errorf("could not retrieve connections: %s", err)
+			}
+		}
+	}()
 
 	return tr, nil
 }
@@ -132,9 +135,7 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 				}
 				closedCount++
 
-				t.closedConnsLock.Lock()
-				t.closedConns = append(t.closedConns, decodeRawTCPConn(c))
-				t.closedConnsLock.Unlock()
+				t.state.StoreClosedConnection(decodeRawTCPConn(c))
 
 			case c, ok := <-lostChannel:
 				if !ok {
@@ -150,30 +151,27 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 		}
 	}()
 
-	t.closedConnsTicker = time.NewTicker(closedConnCleanupInterval)
-	// Start a goroutine to cleanup the closed connections regularly
-	go func() {
-		for range t.closedConnsTicker.C {
-			t.cleanupClosedConns()
-		}
-	}()
-
 	return pm, nil
 }
 
 func (t *Tracer) Stop() {
 	t.m.Close()
 	t.perfMap.PollStop()
-	t.closedConnsTicker.Stop()
 }
 
 func (t *Tracer) GetActiveConnections() (*Connections, error) {
+	// TODO change use PID ?
+	conns := t.state.Connections(1)
+	return &Connections{Conns: conns}, nil
+}
+
+func (t *Tracer) updateState() error {
 	conns, err := t.getConnections()
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return &Connections{Conns: conns}, nil
+	t.state.StoreConnections(conns)
+	return nil
 }
 
 func (t *Tracer) getConnections() ([]ConnectionStats, error) {
@@ -215,27 +213,7 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 	// Remove expired entries
 	t.removeEntries(mp, tcpMp, expired)
 
-	// Add the closed connections
-	t.closedConnsLock.Lock()
-	for i := 0; i < len(t.closedConns); i++ {
-		t.closedConns[i].collected = true
-	}
-	active = append(active, t.closedConns...)
-	t.closedConnsLock.Unlock()
-
-	return removeDuplicates(active), nil
-}
-
-func (t *Tracer) cleanupClosedConns() {
-	newClosedConns := []ConnectionStats{}
-	t.closedConnsLock.Lock()
-	for _, c := range t.closedConns {
-		if !c.collected {
-			newClosedConns = append(newClosedConns, c)
-		}
-	}
-	t.closedConns = newClosedConns
-	t.closedConnsLock.Unlock()
+	return active, nil
 }
 
 func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {

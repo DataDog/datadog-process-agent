@@ -11,15 +11,15 @@ import (
 
 var (
 	testConn = ConnectionStats{
-		Pid:       123,
-		Type:      1,
-		Family:    0,
-		Source:    "192.168.0.1",
-		Dest:      "192.168.0.103",
-		SPort:     123,
-		DPort:     35000,
-		SendBytes: 123123,
-		RecvBytes: 312312,
+		Pid:                123,
+		Type:               1,
+		Family:             0,
+		Source:             "192.168.0.1",
+		Dest:               "192.168.0.103",
+		SPort:              123,
+		DPort:              35000,
+		MonotonicSendBytes: 123123,
+		MonotonicRecvBytes: 312312,
 	}
 )
 

@@ -56,20 +56,18 @@ type ConnectionStats struct {
 	SPort  uint16 `json:"sport"`
 	DPort  uint16 `json:"dport"`
 
-	SendBytes uint64 `json:"send_bytes"`
-	RecvBytes uint64 `json:"recv_bytes"`
+	MonotonicSendBytes uint64 `json:"send_bytes"`
+	MonotonicRecvBytes uint64 `json:"recv_bytes"`
+
+	LastSendBytes uint64 `json:"last_send_bytes"`
+	LastRecvBytes uint64 `json:"last_recv_bytes"`
 
 	Retransmits uint32 `json:"retransmits"`
-
-	// collected is used internally to know if this connection stats has been collected or not
-	// we need to keep track of this to make sure we don't cleanup connections we have not
-	// collected / retrieved yet
-	collected bool
 }
 
 func (c ConnectionStats) String() string {
 	return fmt.Sprintf("[%s] [PID: %d] [%v:%d ⇄ %v:%d] %d bytes sent, %d bytes received, %d retransmits",
-		c.Type, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.SendBytes, c.RecvBytes, c.Retransmits)
+		c.Type, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.MonotonicSendBytes, c.MonotonicRecvBytes, c.Retransmits)
 }
 
 // ByteKey returns a unique key for this connection represented as a byte array
@@ -95,22 +93,31 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
+// StrKey returns a unique key for this connection represented as a string
+func (c ConnectionStats) StrKey() (string, error) {
+	buf := &bytes.Buffer{}
+	raw, err := c.ByteKey(buf)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
 func removeDuplicates(conns []ConnectionStats) []ConnectionStats {
 	connections := make([]ConnectionStats, 0, len(conns))
 	seen := make(map[string]struct{})
-	buf := &bytes.Buffer{}
 
 	for _, c := range conns {
-		key, err := c.ByteKey(buf)
+		key, err := c.StrKey()
 		if err != nil {
 			log.Errorf("could not get byte key for connection %v: %s", c, err)
 			continue
 		}
 
 		// If it's the first time we see this connection add it
-		if _, ok := seen[string(key)]; !ok {
+		if _, ok := seen[key]; !ok {
 			connections = append(connections, c)
-			seen[string(key)] = struct{}{}
+			seen[key] = struct{}{}
 		}
 	}
 
