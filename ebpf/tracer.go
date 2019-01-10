@@ -204,7 +204,7 @@ func loadBPFModule() (*bpflib.Module, error) {
 }
 
 func (t *Tracer) timeoutForConn(c *ConnTuple) int64 {
-	if connType(c.metadata) == TCP {
+	if connType(uint(c.metadata)) == TCP {
 		return t.config.TCPConnTimeout.Nanoseconds()
 	}
 	return t.config.UDPConnTimeout.Nanoseconds()

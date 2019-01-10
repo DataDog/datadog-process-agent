@@ -5,7 +5,7 @@ RUN dnf update -y && \
       openssl-devel libcap-devel clang llvm kernel-devel && \
     dnf clean all
 
-ENV GOLANG_VERSION 1.9.1
+ENV GOLANG_VERSION 1.11.2
 ENV GOPATH /go
 ENV GOROOT /root/.gvm/versions/go${GOLANG_VERSION}.linux.amd64
 
