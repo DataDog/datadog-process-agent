@@ -65,8 +65,7 @@ func (nt *NetworkTracer) Run() {
 
 	http.HandleFunc("/connections", func(w http.ResponseWriter, req *http.Request) {
 
-		// TODO allow to query without providing a client id
-		// And return all the connections without changing the state
+		// We require to send a client_id to the network state
 		rawCID := req.URL.Query().Get("client_id")
 		clientID := ebpf.DEBUGCLIENT
 
@@ -81,7 +80,6 @@ func (nt *NetworkTracer) Run() {
 		}
 
 		cs, err := nt.tracer.GetActiveConnections(clientID)
-
 		if err != nil {
 			log.Errorf("unable to retrieve connections: %s", err)
 			w.WriteHeader(500)

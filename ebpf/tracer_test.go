@@ -37,7 +37,7 @@ func TestRemoveDuplicates(t *testing.T) {
 		Dest:                 "localhost",
 		SPort:                31890,
 		DPort:                80,
-		MonotonicSendBytes:   12345,
+		MonotonicSentBytes:   12345,
 		MonotonicRecvBytes:   6789,
 		MonotonicRetransmits: 2,
 	}
@@ -51,7 +51,7 @@ func TestRemoveDuplicates(t *testing.T) {
 		Dest:                 "localhost",
 		SPort:                31890,
 		DPort:                80,
-		MonotonicSendBytes:   12345,
+		MonotonicSentBytes:   12345,
 		MonotonicRecvBytes:   6789,
 		MonotonicRetransmits: 2,
 	}
@@ -65,7 +65,7 @@ func TestRemoveDuplicates(t *testing.T) {
 		Dest:                 "localhost",
 		SPort:                31890,
 		DPort:                80,
-		MonotonicSendBytes:   0,
+		MonotonicSentBytes:   0,
 		MonotonicRecvBytes:   123,
 		MonotonicRetransmits: 1,
 	}
@@ -118,7 +118,7 @@ func TestTCPSendAndReceive(t *testing.T) {
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
-	assert.Equal(t, clientMessageSize, int(conn.MonotonicSendBytes))
+	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
@@ -199,7 +199,7 @@ func TestTCPRemoveEntries(t *testing.T) {
 
 	conn, ok := findConnection(c2.LocalAddr(), c2.RemoteAddr(), connections)
 	assert.True(t, ok)
-	assert.Equal(t, clientMessageSize, int(conn.MonotonicSendBytes))
+	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
@@ -253,7 +253,7 @@ func TestTCPRetransmit(t *testing.T) {
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
-	assert.Equal(t, 100*clientMessageSize, int(conn.MonotonicSendBytes))
+	assert.Equal(t, 100*clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.True(t, int(conn.MonotonicRetransmits) > 0)
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
@@ -306,7 +306,7 @@ func TestTCPShortlived(t *testing.T) {
 	// Confirm that we can retrieve the shortlived connection
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
-	assert.Equal(t, clientMessageSize, int(conn.MonotonicSendBytes))
+	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
@@ -374,7 +374,7 @@ func TestTCPOverIPv6(t *testing.T) {
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
-	assert.Equal(t, clientMessageSize, int(conn.MonotonicSendBytes))
+	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
@@ -462,7 +462,7 @@ func TestUDPSendAndReceive(t *testing.T) {
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
-	assert.Equal(t, clientMessageSize, int(conn.MonotonicSendBytes))
+	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))

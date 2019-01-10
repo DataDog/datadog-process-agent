@@ -18,7 +18,7 @@ var (
 		Dest:               "192.168.0.103",
 		SPort:              123,
 		DPort:              35000,
-		MonotonicSendBytes: 123123,
+		MonotonicSentBytes: 123123,
 		MonotonicRecvBytes: 312312,
 	}
 )

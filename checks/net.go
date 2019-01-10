@@ -170,11 +170,11 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 				Ip:   conn.Dest,
 				Port: int32(conn.DPort),
 			},
-			TotalBytesSent:     conn.MonotonicSendBytes,
+			TotalBytesSent:     conn.MonotonicSentBytes,
 			TotalBytesReceived: conn.MonotonicRecvBytes,
 			TotalRetransmits:   conn.MonotonicRetransmits,
 
-			LastBytesSent:     conn.LastSendBytes,
+			LastBytesSent:     conn.LastSentBytes,
 			LastBytesReceived: conn.LastRecvBytes,
 			LastRetransmits:   conn.LastRetransmits,
 		})

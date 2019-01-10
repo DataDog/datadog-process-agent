@@ -48,7 +48,7 @@ func (t *ConnTuple) copy() *ConnTuple {
 }
 
 /* conn_stats_ts_t
-__u64 send_bytes;
+__u64 sent_bytes;
 __u64 recv_bytes;
 __u64 timestamp;
 */
@@ -73,7 +73,7 @@ func connStats(t *ConnTuple, s *ConnStatsWithTimestamp, tcpStats *TCPStats) Conn
 		Dest:                 ipString(uint64(t.daddr_h), uint64(t.daddr_l), family),
 		SPort:                uint16(t.sport),
 		DPort:                uint16(t.dport),
-		MonotonicSendBytes:   uint64(s.send_bytes),
+		MonotonicSentBytes:   uint64(s.sent_bytes),
 		MonotonicRecvBytes:   uint64(s.recv_bytes),
 		MonotonicRetransmits: uint32(tcpStats.retransmits),
 	}

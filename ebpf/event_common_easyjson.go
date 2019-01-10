@@ -153,10 +153,10 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.L
 			out.SPort = uint16(in.Uint16())
 		case "dport":
 			out.DPort = uint16(in.Uint16())
-		case "monotonic_send_bytes":
-			out.MonotonicSendBytes = uint64(in.Uint64())
-		case "last_send_bytes":
-			out.LastSendBytes = uint64(in.Uint64())
+		case "monotonic_sent_bytes":
+			out.MonotonicSentBytes = uint64(in.Uint64())
+		case "last_sent_bytes":
+			out.LastSentBytes = uint64(in.Uint64())
 		case "monotonic_recv_bytes":
 			out.MonotonicRecvBytes = uint64(in.Uint64())
 		case "last_recv_bytes":
@@ -250,24 +250,24 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		out.Uint16(uint16(in.DPort))
 	}
 	{
-		const prefix string = ",\"monotonic_send_bytes\":"
+		const prefix string = ",\"monotonic_sent_bytes\":"
 		if first {
 			first = false
 			out.RawString(prefix[1:])
 		} else {
 			out.RawString(prefix)
 		}
-		out.Uint64(uint64(in.MonotonicSendBytes))
+		out.Uint64(uint64(in.MonotonicSentBytes))
 	}
 	{
-		const prefix string = ",\"last_send_bytes\":"
+		const prefix string = ",\"last_sent_bytes\":"
 		if first {
 			first = false
 			out.RawString(prefix[1:])
 		} else {
 			out.RawString(prefix)
 		}
-		out.Uint64(uint64(in.LastSendBytes))
+		out.Uint64(uint64(in.LastSentBytes))
 	}
 	{
 		const prefix string = ",\"monotonic_recv_bytes\":"

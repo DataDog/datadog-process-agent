@@ -20,7 +20,7 @@ func TestRetrieveClosedConnection(t *testing.T) {
 		Dest:                 "localhost",
 		SPort:                31890,
 		DPort:                80,
-		MonotonicSendBytes:   12345,
+		MonotonicSentBytes:   12345,
 		MonotonicRecvBytes:   6789,
 		MonotonicRetransmits: 2,
 	}
@@ -85,12 +85,12 @@ func TestCleanupClient(t *testing.T) {
 	assert.Equal(t, 0, len(clients))
 }
 
-func TestLastSendRecvStats(t *testing.T) {
+func TestLastStats(t *testing.T) {
 	client1 := 1
 	client2 := 2
 	state := NewDefaultNetworkState()
 
-	dSend := uint64(42)
+	dSent := uint64(42)
 	dRecv := uint64(133)
 	dRetransmits := uint32(7)
 
@@ -102,18 +102,18 @@ func TestLastSendRecvStats(t *testing.T) {
 		Dest:                 "localhost",
 		SPort:                31890,
 		DPort:                80,
-		MonotonicSendBytes:   36,
+		MonotonicSentBytes:   36,
 		MonotonicRecvBytes:   24,
 		MonotonicRetransmits: 2,
 	}
 
 	conn2 := conn
-	conn2.MonotonicSendBytes += dSend
+	conn2.MonotonicSentBytes += dSent
 	conn2.MonotonicRecvBytes += dRecv
 	conn2.MonotonicRetransmits += dRetransmits
 
 	conn3 := conn2
-	conn3.MonotonicSendBytes += dSend
+	conn3.MonotonicSentBytes += dSent
 	conn3.MonotonicRecvBytes += dRecv
 	conn3.MonotonicRetransmits += dRetransmits
 
@@ -132,10 +132,10 @@ func TestLastSendRecvStats(t *testing.T) {
 	// We should have only one connection but without last stats (= 0)
 	conns = state.Connections(client1)
 	assert.Equal(t, 1, len(conns))
-	assert.Equal(t, zero, conns[0].LastSendBytes)
+	assert.Equal(t, zero, conns[0].LastSentBytes)
 	assert.Equal(t, zero, conns[0].LastRecvBytes)
 	assert.Equal(t, uint32(zero), conns[0].LastRetransmits)
-	assert.Equal(t, conn.MonotonicSendBytes, conns[0].MonotonicSendBytes)
+	assert.Equal(t, conn.MonotonicSentBytes, conns[0].MonotonicSentBytes)
 	assert.Equal(t, conn.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
 	assert.Equal(t, conn.MonotonicRetransmits, conns[0].MonotonicRetransmits)
 
@@ -145,10 +145,10 @@ func TestLastSendRecvStats(t *testing.T) {
 	// we should have last stats = to monotonic stats
 	conns = state.Connections(client2)
 	assert.Equal(t, 1, len(conns))
-	assert.Equal(t, zero, conns[0].LastSendBytes)
+	assert.Equal(t, zero, conns[0].LastSentBytes)
 	assert.Equal(t, zero, conns[0].LastRecvBytes)
 	assert.Equal(t, uint32(zero), conns[0].LastRetransmits)
-	assert.Equal(t, conn2.MonotonicSendBytes, conns[0].MonotonicSendBytes)
+	assert.Equal(t, conn2.MonotonicSentBytes, conns[0].MonotonicSentBytes)
 	assert.Equal(t, conn2.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
 	assert.Equal(t, conn2.MonotonicRetransmits, conns[0].MonotonicRetransmits)
 
@@ -157,20 +157,20 @@ func TestLastSendRecvStats(t *testing.T) {
 	// Client 1 should have conn3 - conn1 since it did not collected conn2
 	conns = state.Connections(client1)
 	assert.Equal(t, 1, len(conns))
-	assert.Equal(t, 2*dSend, conns[0].LastSendBytes)
+	assert.Equal(t, 2*dSent, conns[0].LastSentBytes)
 	assert.Equal(t, 2*dRecv, conns[0].LastRecvBytes)
 	assert.Equal(t, 2*dRetransmits, conns[0].LastRetransmits)
-	assert.Equal(t, conn3.MonotonicSendBytes, conns[0].MonotonicSendBytes)
+	assert.Equal(t, conn3.MonotonicSentBytes, conns[0].MonotonicSentBytes)
 	assert.Equal(t, conn3.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
 	assert.Equal(t, conn3.MonotonicRetransmits, conns[0].MonotonicRetransmits)
 
 	// Client 2 should have conn3 - conn2
 	conns = state.Connections(client2)
 	assert.Equal(t, 1, len(conns))
-	assert.Equal(t, dSend, conns[0].LastSendBytes)
+	assert.Equal(t, dSent, conns[0].LastSentBytes)
 	assert.Equal(t, dRecv, conns[0].LastRecvBytes)
 	assert.Equal(t, dRetransmits, conns[0].LastRetransmits)
-	assert.Equal(t, conn3.MonotonicSendBytes, conns[0].MonotonicSendBytes)
+	assert.Equal(t, conn3.MonotonicSentBytes, conns[0].MonotonicSentBytes)
 	assert.Equal(t, conn3.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
 	assert.Equal(t, conn3.MonotonicRetransmits, conns[0].MonotonicRetransmits)
 }
@@ -179,7 +179,7 @@ func TestLastStatsForClosedConnection(t *testing.T) {
 	clientID := 1
 	state := NewDefaultNetworkState()
 
-	dSend := uint64(42)
+	dSent := uint64(42)
 	dRecv := uint64(133)
 	dRetransmits := uint32(0)
 
@@ -191,13 +191,13 @@ func TestLastStatsForClosedConnection(t *testing.T) {
 		Dest:                 "localhost",
 		SPort:                31890,
 		DPort:                80,
-		MonotonicSendBytes:   36,
+		MonotonicSentBytes:   36,
 		MonotonicRecvBytes:   24,
 		MonotonicRetransmits: 1,
 	}
 
 	conn2 := conn
-	conn2.MonotonicSendBytes += dSend
+	conn2.MonotonicSentBytes += dSent
 	conn2.MonotonicRecvBytes += dRecv
 	conn2.MonotonicRetransmits += dRetransmits
 
@@ -213,10 +213,10 @@ func TestLastStatsForClosedConnection(t *testing.T) {
 	// We should have one connection without last stats
 	conns = state.Connections(clientID)
 	assert.Equal(t, 1, len(conns))
-	assert.Equal(t, zero, conns[0].LastSendBytes)
+	assert.Equal(t, zero, conns[0].LastSentBytes)
 	assert.Equal(t, zero, conns[0].LastRecvBytes)
 	assert.Equal(t, uint32(zero), conns[0].LastRetransmits)
-	assert.Equal(t, conn.MonotonicSendBytes, conns[0].MonotonicSendBytes)
+	assert.Equal(t, conn.MonotonicSentBytes, conns[0].MonotonicSentBytes)
 	assert.Equal(t, conn.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
 	assert.Equal(t, conn.MonotonicRetransmits, conns[0].MonotonicRetransmits)
 
@@ -226,10 +226,10 @@ func TestLastStatsForClosedConnection(t *testing.T) {
 	// We should have one connection with last stats
 	conns = state.Connections(clientID)
 	assert.Equal(t, 1, len(conns))
-	assert.Equal(t, dSend, conns[0].LastSendBytes)
+	assert.Equal(t, dSent, conns[0].LastSentBytes)
 	assert.Equal(t, dRecv, conns[0].LastRecvBytes)
 	assert.Equal(t, dRetransmits, conns[0].LastRetransmits)
-	assert.Equal(t, conn2.MonotonicSendBytes, conns[0].MonotonicSendBytes)
+	assert.Equal(t, conn2.MonotonicSentBytes, conns[0].MonotonicSentBytes)
 	assert.Equal(t, conn2.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
 	assert.Equal(t, conn2.MonotonicRetransmits, conns[0].MonotonicRetransmits)
 }
@@ -249,7 +249,7 @@ func TestRaceConditions(t *testing.T) {
 				Dest:                 "localhost",
 				SPort:                uint16(rand.Int()),
 				DPort:                uint16(rand.Int()),
-				MonotonicSendBytes:   uint64(rand.Int()),
+				MonotonicSentBytes:   uint64(rand.Int()),
 				MonotonicRecvBytes:   uint64(rand.Int()),
 				MonotonicRetransmits: uint32(rand.Int()),
 			})

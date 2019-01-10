@@ -29,8 +29,8 @@ type NetworkState interface {
 }
 
 type sendRecvStats struct {
-	totalSend uint64
-	lastSend  uint64
+	totalSent uint64
+	lastSent  uint64
 
 	totalRecv uint64
 	lastRecv  uint64
@@ -116,21 +116,21 @@ func (ns *networkState) Connections(id int) []ConnectionStats {
 
 		if prev, ok := ns.clients[id].stats[key]; ok {
 			// Update last data
-			ns.clients[id].stats[key].lastSend = conn.MonotonicSendBytes - prev.totalSend
+			ns.clients[id].stats[key].lastSent = conn.MonotonicSentBytes - prev.totalSent
 			ns.clients[id].stats[key].lastRecv = conn.MonotonicRecvBytes - prev.totalRecv
 			ns.clients[id].stats[key].lastRetransmits = conn.MonotonicRetransmits - prev.totalRetransmits
 		} else {
 			// If it's the first collect for this client on this connection
-			// We do not return any lastSend / lastRecv / lastRetransmits
+			// We do not return any lastSent / lastRecv / lastRetransmits
 			ns.clients[id].stats[key] = &sendRecvStats{}
 		}
 
-		ns.clients[id].stats[key].totalSend = conn.MonotonicSendBytes
+		ns.clients[id].stats[key].totalSent = conn.MonotonicSentBytes
 		ns.clients[id].stats[key].totalRecv = conn.MonotonicRecvBytes
 		ns.clients[id].stats[key].totalRetransmits = conn.MonotonicRetransmits
 
 		prev := ns.clients[id].stats[key]
-		conns[i].LastSendBytes = prev.lastSend
+		conns[i].LastSentBytes = prev.lastSent
 		conns[i].LastRecvBytes = prev.lastRecv
 		conns[i].LastRetransmits = prev.lastRetransmits
 	}

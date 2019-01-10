@@ -437,7 +437,7 @@ static void update_conn_stats(
     u64 pid,
     metadata_mask_t type,
     metadata_mask_t family,
-    size_t send_bytes,
+    size_t sent_bytes,
     size_t recv_bytes,
     u64 ts) {
     conn_tuple_t t = {};
@@ -454,12 +454,12 @@ static void update_conn_stats(
     val = bpf_map_lookup_elem(&conn_stats, &t);
     // If already in our map, increment size in-place
     if (val != NULL) {
-        (*val).send_bytes += send_bytes;
+        (*val).sent_bytes += sent_bytes;
         (*val).recv_bytes += recv_bytes;
         (*val).timestamp = ts;
     } else { // Otherwise add the key, value to the map
         conn_stats_ts_t s = {
-            .send_bytes = send_bytes,
+            .sent_bytes = sent_bytes,
             .recv_bytes = recv_bytes,
             .timestamp = ts,
         };
@@ -546,13 +546,13 @@ static int handle_message(struct sock* sk,
     tracer_status_t* status,
     u64 pid_tgid,
     metadata_mask_t type,
-    size_t send_bytes,
+    size_t sent_bytes,
     size_t recv_bytes) {
 
     u64 zero = 0;
     u64 ts = bpf_ktime_get_ns();
 
-    handle_family(sk, status, update_conn_stats(sk, status, pid_tgid, type, family, send_bytes, recv_bytes, ts));
+    handle_family(sk, status, update_conn_stats(sk, status, pid_tgid, type, family, sent_bytes, recv_bytes, ts));
 
     // Update latest timestamp that we've seen - for connection expiration tracking
     bpf_map_update_elem(&latest_ts, &zero, &ts, BPF_ANY);
