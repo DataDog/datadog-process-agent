@@ -346,12 +346,12 @@ message Connection {
 	// Monotonic counters
 	uint64 totalBytesSent = 13;
 	uint64 totalBytesReceived = 14;
-	uint64 totalRetransmits = 15;
+	uint32 totalRetransmits = 15;
 
 	// Relative counters since last check
 	uint64 lastBytesSent = 16;
 	uint64 lastBytesReceived = 17;
-	uint64 lastRetransmits = 18;
+	uint32 lastRetransmits = 18;
 }
 
 message Addr {
