@@ -21,8 +21,11 @@ func TestRetrieveClosedConnection(t *testing.T) {
 		SPort:                31890,
 		DPort:                80,
 		MonotonicSentBytes:   12345,
+		LastSentBytes:        12345,
 		MonotonicRecvBytes:   6789,
+		LastRecvBytes:        6789,
 		MonotonicRetransmits: 2,
+		LastRetransmits:      2,
 	}
 
 	clientID := 1
@@ -127,14 +130,12 @@ func TestLastStats(t *testing.T) {
 
 	state.StoreConnections([]ConnectionStats{conn})
 
-	zero := uint64(0)
-
 	// We should have only one connection but without last stats (= 0)
 	conns = state.Connections(client1)
 	assert.Equal(t, 1, len(conns))
-	assert.Equal(t, zero, conns[0].LastSentBytes)
-	assert.Equal(t, zero, conns[0].LastRecvBytes)
-	assert.Equal(t, uint32(zero), conns[0].LastRetransmits)
+	assert.Equal(t, conn.MonotonicSentBytes, conns[0].LastSentBytes)
+	assert.Equal(t, conn.MonotonicRecvBytes, conns[0].LastRecvBytes)
+	assert.Equal(t, conn.MonotonicRetransmits, conns[0].LastRetransmits)
 	assert.Equal(t, conn.MonotonicSentBytes, conns[0].MonotonicSentBytes)
 	assert.Equal(t, conn.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
 	assert.Equal(t, conn.MonotonicRetransmits, conns[0].MonotonicRetransmits)
@@ -145,9 +146,9 @@ func TestLastStats(t *testing.T) {
 	// we should have last stats = to monotonic stats
 	conns = state.Connections(client2)
 	assert.Equal(t, 1, len(conns))
-	assert.Equal(t, zero, conns[0].LastSentBytes)
-	assert.Equal(t, zero, conns[0].LastRecvBytes)
-	assert.Equal(t, uint32(zero), conns[0].LastRetransmits)
+	assert.Equal(t, conn2.MonotonicSentBytes, conns[0].LastSentBytes)
+	assert.Equal(t, conn2.MonotonicRecvBytes, conns[0].LastRecvBytes)
+	assert.Equal(t, conn2.MonotonicRetransmits, conns[0].LastRetransmits)
 	assert.Equal(t, conn2.MonotonicSentBytes, conns[0].MonotonicSentBytes)
 	assert.Equal(t, conn2.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
 	assert.Equal(t, conn2.MonotonicRetransmits, conns[0].MonotonicRetransmits)
@@ -205,17 +206,15 @@ func TestLastStatsForClosedConnection(t *testing.T) {
 	conns := state.Connections(clientID)
 	assert.Equal(t, 0, len(conns))
 
-	zero := uint64(0)
-
 	// Store the connection
 	state.StoreConnections([]ConnectionStats{conn})
 
 	// We should have one connection without last stats
 	conns = state.Connections(clientID)
 	assert.Equal(t, 1, len(conns))
-	assert.Equal(t, zero, conns[0].LastSentBytes)
-	assert.Equal(t, zero, conns[0].LastRecvBytes)
-	assert.Equal(t, uint32(zero), conns[0].LastRetransmits)
+	assert.Equal(t, conn.MonotonicSentBytes, conns[0].LastSentBytes)
+	assert.Equal(t, conn.MonotonicRecvBytes, conns[0].LastRecvBytes)
+	assert.Equal(t, conn.MonotonicRetransmits, conns[0].LastRetransmits)
 	assert.Equal(t, conn.MonotonicSentBytes, conns[0].MonotonicSentBytes)
 	assert.Equal(t, conn.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
 	assert.Equal(t, conn.MonotonicRetransmits, conns[0].MonotonicRetransmits)
