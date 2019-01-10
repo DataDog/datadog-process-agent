@@ -206,11 +206,10 @@ func (ns *networkState) RemoveClient(clientID int) error {
 
 func (ns *networkState) trackClientExpiry(now time.Time) {
 	ns.clientsMutex.Lock()
-
+	defer ns.clientsMutex.Unlock()
 	for id, c := range ns.clients {
 		if c.lastFetch.Add(ns.clientExpiry).Before(now) {
 			delete(ns.clients, id)
 		}
 	}
-	ns.clientsMutex.Unlock()
 }

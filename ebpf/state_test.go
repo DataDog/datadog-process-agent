@@ -194,8 +194,9 @@ func TestRaceConditions(t *testing.T) {
 
 	// Spawn multiple clients to get multiple times
 	for _, c := range clients {
-		go func() {
+		go func(c int) {
 			defer wg.Done()
+			defer state.RemoveClient(c)
 			timer := time.NewTimer(1 * time.Second)
 			for {
 				select {
@@ -205,7 +206,7 @@ func TestRaceConditions(t *testing.T) {
 					state.Connections(c)
 				}
 			}
-		}()
+		}(c)
 	}
 
 	// Spawn a worker to store random connections
