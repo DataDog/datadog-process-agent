@@ -37,7 +37,10 @@ type Tracer struct {
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
 // This value should be enough for typical workloads (e.g. some amount of processes blocked on the accept syscall).
-const maxActive = 128
+const (
+	maxActive         = 128
+	connsPollInterval = 10 * time.Second
+)
 
 // CurrentKernelVersion exposes calculated kernel version - exposed in LINUX_VERSION_CODE format
 // That is, for kernel "a.b.c", the version number will be (a<<16 + b<<8 + c)
@@ -98,9 +101,8 @@ func NewTracer(config *Config) (*Tracer, error) {
 	}
 
 	// Poll connections every 10s
-	// TODO change this
 	go func() {
-		for range time.NewTicker(10 * time.Second).C {
+		for range time.NewTicker(connsPollInterval).C {
 			if err := tr.updateState(); err != nil {
 				log.Errorf("could not retrieve connections: %s", err)
 			}

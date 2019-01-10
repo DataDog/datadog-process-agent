@@ -167,10 +167,6 @@ func (ns *networkState) closedConns(clientID int) []ConnectionStats {
 	for _, conn := range ns.clients[clientID].closedConnections {
 		conns = append(conns, *conn)
 	}
-	// TODO Add connections for send/recv stats
-	// Cleanup the connection sendRecv stats
-	// Or do it inside Connections ?
-	// Or do a function to do that ?
 
 	// Flush closed connections for this client
 	ns.clients[clientID].closedConnections = []*ConnectionStats{}
