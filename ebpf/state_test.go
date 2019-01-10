@@ -13,16 +13,16 @@ import (
 
 func TestRetrieveClosedConnection(t *testing.T) {
 	conn := ConnectionStats{
-		Pid:                123,
-		Type:               TCP,
-		Family:             AFINET,
-		Source:             "localhost",
-		Dest:               "localhost",
-		SPort:              31890,
-		DPort:              80,
-		MonotonicSendBytes: 12345,
-		MonotonicRecvBytes: 6789,
-		Retransmits:        2,
+		Pid:                  123,
+		Type:                 TCP,
+		Family:               AFINET,
+		Source:               "localhost",
+		Dest:                 "localhost",
+		SPort:                31890,
+		DPort:                80,
+		MonotonicSendBytes:   12345,
+		MonotonicRecvBytes:   6789,
+		MonotonicRetransmits: 2,
 	}
 
 	clientID := 1
@@ -92,26 +92,30 @@ func TestLastSendRecvStats(t *testing.T) {
 
 	dSend := uint64(42)
 	dRecv := uint64(133)
+	dRetransmits := uint32(7)
 
 	conn := ConnectionStats{
-		Pid:                123,
-		Type:               TCP,
-		Family:             AFINET,
-		Source:             "localhost",
-		Dest:               "localhost",
-		SPort:              31890,
-		DPort:              80,
-		MonotonicSendBytes: 36,
-		MonotonicRecvBytes: 24,
+		Pid:                  123,
+		Type:                 TCP,
+		Family:               AFINET,
+		Source:               "localhost",
+		Dest:                 "localhost",
+		SPort:                31890,
+		DPort:                80,
+		MonotonicSendBytes:   36,
+		MonotonicRecvBytes:   24,
+		MonotonicRetransmits: 2,
 	}
 
 	conn2 := conn
 	conn2.MonotonicSendBytes += dSend
 	conn2.MonotonicRecvBytes += dRecv
+	conn2.MonotonicRetransmits += dRetransmits
 
 	conn3 := conn2
 	conn3.MonotonicSendBytes += dSend
 	conn3.MonotonicRecvBytes += dRecv
+	conn3.MonotonicRetransmits += dRetransmits
 
 	// First get, we should not have any connections stored
 	conns := state.Connections(client1)
@@ -130,8 +134,10 @@ func TestLastSendRecvStats(t *testing.T) {
 	assert.Equal(t, 1, len(conns))
 	assert.Equal(t, zero, conns[0].LastSendBytes)
 	assert.Equal(t, zero, conns[0].LastRecvBytes)
+	assert.Equal(t, uint32(zero), conns[0].LastRetransmits)
 	assert.Equal(t, conn.MonotonicSendBytes, conns[0].MonotonicSendBytes)
 	assert.Equal(t, conn.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
+	assert.Equal(t, conn.MonotonicRetransmits, conns[0].MonotonicRetransmits)
 
 	state.StoreConnections([]ConnectionStats{conn2})
 
@@ -141,8 +147,10 @@ func TestLastSendRecvStats(t *testing.T) {
 	assert.Equal(t, 1, len(conns))
 	assert.Equal(t, zero, conns[0].LastSendBytes)
 	assert.Equal(t, zero, conns[0].LastRecvBytes)
+	assert.Equal(t, uint32(zero), conns[0].LastRetransmits)
 	assert.Equal(t, conn2.MonotonicSendBytes, conns[0].MonotonicSendBytes)
 	assert.Equal(t, conn2.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
+	assert.Equal(t, conn2.MonotonicRetransmits, conns[0].MonotonicRetransmits)
 
 	state.StoreConnections([]ConnectionStats{conn3})
 
@@ -151,16 +159,79 @@ func TestLastSendRecvStats(t *testing.T) {
 	assert.Equal(t, 1, len(conns))
 	assert.Equal(t, 2*dSend, conns[0].LastSendBytes)
 	assert.Equal(t, 2*dRecv, conns[0].LastRecvBytes)
+	assert.Equal(t, 2*dRetransmits, conns[0].LastRetransmits)
 	assert.Equal(t, conn3.MonotonicSendBytes, conns[0].MonotonicSendBytes)
 	assert.Equal(t, conn3.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
+	assert.Equal(t, conn3.MonotonicRetransmits, conns[0].MonotonicRetransmits)
 
-	// Client 2 shoudl have conn3 - conn2
+	// Client 2 should have conn3 - conn2
 	conns = state.Connections(client2)
 	assert.Equal(t, 1, len(conns))
 	assert.Equal(t, dSend, conns[0].LastSendBytes)
 	assert.Equal(t, dRecv, conns[0].LastRecvBytes)
+	assert.Equal(t, dRetransmits, conns[0].LastRetransmits)
 	assert.Equal(t, conn3.MonotonicSendBytes, conns[0].MonotonicSendBytes)
 	assert.Equal(t, conn3.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
+	assert.Equal(t, conn3.MonotonicRetransmits, conns[0].MonotonicRetransmits)
+}
+
+func TestLastStatsForClosedConnection(t *testing.T) {
+	clientID := 1
+	state := NewDefaultNetworkState()
+
+	dSend := uint64(42)
+	dRecv := uint64(133)
+	dRetransmits := uint32(0)
+
+	conn := ConnectionStats{
+		Pid:                  123,
+		Type:                 TCP,
+		Family:               AFINET,
+		Source:               "localhost",
+		Dest:                 "localhost",
+		SPort:                31890,
+		DPort:                80,
+		MonotonicSendBytes:   36,
+		MonotonicRecvBytes:   24,
+		MonotonicRetransmits: 1,
+	}
+
+	conn2 := conn
+	conn2.MonotonicSendBytes += dSend
+	conn2.MonotonicRecvBytes += dRecv
+	conn2.MonotonicRetransmits += dRetransmits
+
+	// First get, we should not have any connections stored
+	conns := state.Connections(clientID)
+	assert.Equal(t, 0, len(conns))
+
+	zero := uint64(0)
+
+	// Store the connection
+	state.StoreConnections([]ConnectionStats{conn})
+
+	// We should have one connection without last stats
+	conns = state.Connections(clientID)
+	assert.Equal(t, 1, len(conns))
+	assert.Equal(t, zero, conns[0].LastSendBytes)
+	assert.Equal(t, zero, conns[0].LastRecvBytes)
+	assert.Equal(t, uint32(zero), conns[0].LastRetransmits)
+	assert.Equal(t, conn.MonotonicSendBytes, conns[0].MonotonicSendBytes)
+	assert.Equal(t, conn.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
+	assert.Equal(t, conn.MonotonicRetransmits, conns[0].MonotonicRetransmits)
+
+	// Store the connection as closed
+	state.StoreClosedConnection(conn2)
+
+	// We should have one connection with last stats
+	conns = state.Connections(clientID)
+	assert.Equal(t, 1, len(conns))
+	assert.Equal(t, dSend, conns[0].LastSendBytes)
+	assert.Equal(t, dRecv, conns[0].LastRecvBytes)
+	assert.Equal(t, dRetransmits, conns[0].LastRetransmits)
+	assert.Equal(t, conn2.MonotonicSendBytes, conns[0].MonotonicSendBytes)
+	assert.Equal(t, conn2.MonotonicRecvBytes, conns[0].MonotonicRecvBytes)
+	assert.Equal(t, conn2.MonotonicRetransmits, conns[0].MonotonicRetransmits)
 }
 
 func TestRaceConditions(t *testing.T) {
@@ -171,16 +242,16 @@ func TestRaceConditions(t *testing.T) {
 		conns := make([]ConnectionStats, 0, n)
 		for i := uint32(0); i < n; i++ {
 			conns = append(conns, ConnectionStats{
-				Pid:                1 + i,
-				Type:               TCP,
-				Family:             AFINET,
-				Source:             "localhost",
-				Dest:               "localhost",
-				SPort:              uint16(rand.Int()),
-				DPort:              uint16(rand.Int()),
-				MonotonicSendBytes: uint64(rand.Int()),
-				MonotonicRecvBytes: uint64(rand.Int()),
-				Retransmits:        uint32(rand.Int()),
+				Pid:                  1 + i,
+				Type:                 TCP,
+				Family:               AFINET,
+				Source:               "localhost",
+				Dest:                 "localhost",
+				SPort:                uint16(rand.Int()),
+				DPort:                uint16(rand.Int()),
+				MonotonicSendBytes:   uint64(rand.Int()),
+				MonotonicRecvBytes:   uint64(rand.Int()),
+				MonotonicRetransmits: uint32(rand.Int()),
 			})
 		}
 		return conns
@@ -216,5 +287,3 @@ func TestRaceConditions(t *testing.T) {
 
 	wg.Wait()
 }
-
-// TODO test stats on closed connections

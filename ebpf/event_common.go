@@ -56,18 +56,19 @@ type ConnectionStats struct {
 	SPort  uint16 `json:"sport"`
 	DPort  uint16 `json:"dport"`
 
-	MonotonicSendBytes uint64 `json:"send_bytes"`
-	MonotonicRecvBytes uint64 `json:"recv_bytes"`
+	MonotonicSendBytes uint64 `json:"monotonic_send_bytes"`
+	LastSendBytes      uint64 `json:"last_send_bytes"`
 
-	LastSendBytes uint64 `json:"last_send_bytes"`
-	LastRecvBytes uint64 `json:"last_recv_bytes"`
+	MonotonicRecvBytes uint64 `json:"monotonic_recv_bytes"`
+	LastRecvBytes      uint64 `json:"last_recv_bytes"`
 
-	Retransmits uint32 `json:"retransmits"`
+	MonotonicRetransmits uint32 `json:"monotonic_retransmits"`
+	LastRetransmits      uint32 `json:"last_retransmits"`
 }
 
 func (c ConnectionStats) String() string {
 	return fmt.Sprintf("[%s] [PID: %d] [%v:%d ⇄ %v:%d] %d bytes sent, %d bytes received, %d retransmits",
-		c.Type, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.MonotonicSendBytes, c.MonotonicRecvBytes, c.Retransmits)
+		c.Type, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.MonotonicSendBytes, c.MonotonicRecvBytes, c.MonotonicRetransmits)
 }
 
 // ByteKey returns a unique key for this connection represented as a byte array

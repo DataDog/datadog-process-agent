@@ -153,16 +153,18 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.L
 			out.SPort = uint16(in.Uint16())
 		case "dport":
 			out.DPort = uint16(in.Uint16())
-		case "send_bytes":
+		case "monotonic_send_bytes":
 			out.MonotonicSendBytes = uint64(in.Uint64())
-		case "recv_bytes":
-			out.MonotonicRecvBytes = uint64(in.Uint64())
 		case "last_send_bytes":
 			out.LastSendBytes = uint64(in.Uint64())
+		case "monotonic_recv_bytes":
+			out.MonotonicRecvBytes = uint64(in.Uint64())
 		case "last_recv_bytes":
 			out.LastRecvBytes = uint64(in.Uint64())
-		case "retransmits":
-			out.Retransmits = uint32(in.Uint32())
+		case "monotonic_retransmits":
+			out.MonotonicRetransmits = uint32(in.Uint32())
+		case "last_retransmits":
+			out.LastRetransmits = uint32(in.Uint32())
 		default:
 			in.SkipRecursive()
 		}
@@ -248,7 +250,7 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		out.Uint16(uint16(in.DPort))
 	}
 	{
-		const prefix string = ",\"send_bytes\":"
+		const prefix string = ",\"monotonic_send_bytes\":"
 		if first {
 			first = false
 			out.RawString(prefix[1:])
@@ -256,16 +258,6 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 			out.RawString(prefix)
 		}
 		out.Uint64(uint64(in.MonotonicSendBytes))
-	}
-	{
-		const prefix string = ",\"recv_bytes\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		out.Uint64(uint64(in.MonotonicRecvBytes))
 	}
 	{
 		const prefix string = ",\"last_send_bytes\":"
@@ -278,6 +270,16 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		out.Uint64(uint64(in.LastSendBytes))
 	}
 	{
+		const prefix string = ",\"monotonic_recv_bytes\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint64(uint64(in.MonotonicRecvBytes))
+	}
+	{
 		const prefix string = ",\"last_recv_bytes\":"
 		if first {
 			first = false
@@ -288,14 +290,24 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		out.Uint64(uint64(in.LastRecvBytes))
 	}
 	{
-		const prefix string = ",\"retransmits\":"
+		const prefix string = ",\"monotonic_retransmits\":"
 		if first {
 			first = false
 			out.RawString(prefix[1:])
 		} else {
 			out.RawString(prefix)
 		}
-		out.Uint32(uint32(in.Retransmits))
+		out.Uint32(uint32(in.MonotonicRetransmits))
+	}
+	{
+		const prefix string = ",\"last_retransmits\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint32(uint32(in.LastRetransmits))
 	}
 	out.RawByte('}')
 }

@@ -66,16 +66,16 @@ func (cs *ConnStatsWithTimestamp) isExpired(latestTime int64, timeout int64) boo
 func connStats(t *ConnTuple, s *ConnStatsWithTimestamp, tcpStats *TCPStats) ConnectionStats {
 	family := connFamily(t.metadata)
 	return ConnectionStats{
-		Pid:                uint32(t.pid),
-		Type:               connType(t.metadata),
-		Family:             family,
-		Source:             ipString(uint64(t.saddr_h), uint64(t.saddr_l), family),
-		Dest:               ipString(uint64(t.daddr_h), uint64(t.daddr_l), family),
-		SPort:              uint16(t.sport),
-		DPort:              uint16(t.dport),
-		MonotonicSendBytes: uint64(s.send_bytes),
-		MonotonicRecvBytes: uint64(s.recv_bytes),
-		Retransmits:        uint32(tcpStats.retransmits),
+		Pid:                  uint32(t.pid),
+		Type:                 connType(t.metadata),
+		Family:               family,
+		Source:               ipString(uint64(t.saddr_h), uint64(t.saddr_l), family),
+		Dest:                 ipString(uint64(t.daddr_h), uint64(t.daddr_l), family),
+		SPort:                uint16(t.sport),
+		DPort:                uint16(t.dport),
+		MonotonicSendBytes:   uint64(s.send_bytes),
+		MonotonicRecvBytes:   uint64(s.recv_bytes),
+		MonotonicRetransmits: uint32(tcpStats.retransmits),
 	}
 }
 

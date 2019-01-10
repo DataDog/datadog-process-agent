@@ -30,44 +30,44 @@ var (
 
 func TestRemoveDuplicates(t *testing.T) {
 	conn1 := ConnectionStats{
-		Pid:                123,
-		Type:               TCP,
-		Family:             AFINET,
-		Source:             "localhost",
-		Dest:               "localhost",
-		SPort:              31890,
-		DPort:              80,
-		MonotonicSendBytes: 12345,
-		MonotonicRecvBytes: 6789,
-		Retransmits:        2,
+		Pid:                  123,
+		Type:                 TCP,
+		Family:               AFINET,
+		Source:               "localhost",
+		Dest:                 "localhost",
+		SPort:                31890,
+		DPort:                80,
+		MonotonicSendBytes:   12345,
+		MonotonicRecvBytes:   6789,
+		MonotonicRetransmits: 2,
 	}
 
 	// Different family
 	conn2 := ConnectionStats{
-		Pid:                123,
-		Type:               TCP,
-		Family:             AFINET6,
-		Source:             "localhost",
-		Dest:               "localhost",
-		SPort:              31890,
-		DPort:              80,
-		MonotonicSendBytes: 12345,
-		MonotonicRecvBytes: 6789,
-		Retransmits:        2,
+		Pid:                  123,
+		Type:                 TCP,
+		Family:               AFINET6,
+		Source:               "localhost",
+		Dest:                 "localhost",
+		SPort:                31890,
+		DPort:                80,
+		MonotonicSendBytes:   12345,
+		MonotonicRecvBytes:   6789,
+		MonotonicRetransmits: 2,
 	}
 
 	// Same as conn1 but with different stats
 	conn3 := ConnectionStats{
-		Pid:                123,
-		Type:               TCP,
-		Family:             AFINET6,
-		Source:             "localhost",
-		Dest:               "localhost",
-		SPort:              31890,
-		DPort:              80,
-		MonotonicSendBytes: 0,
-		MonotonicRecvBytes: 123,
-		Retransmits:        1,
+		Pid:                  123,
+		Type:                 TCP,
+		Family:               AFINET6,
+		Source:               "localhost",
+		Dest:                 "localhost",
+		SPort:                31890,
+		DPort:                80,
+		MonotonicSendBytes:   0,
+		MonotonicRecvBytes:   123,
+		MonotonicRetransmits: 1,
 	}
 
 	conns := []ConnectionStats{conn1, conn1}
@@ -120,7 +120,7 @@ func TestTCPSendAndReceive(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.MonotonicSendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
-	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 
@@ -201,7 +201,7 @@ func TestTCPRemoveEntries(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.MonotonicSendBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRecvBytes))
-	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 
@@ -254,7 +254,7 @@ func TestTCPRetransmit(t *testing.T) {
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
 	assert.Equal(t, 100*clientMessageSize, int(conn.MonotonicSendBytes))
-	assert.True(t, int(conn.Retransmits) > 0)
+	assert.True(t, int(conn.MonotonicRetransmits) > 0)
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 
@@ -308,7 +308,7 @@ func TestTCPShortlived(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.MonotonicSendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
-	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 
@@ -376,7 +376,7 @@ func TestTCPOverIPv6(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.MonotonicSendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
-	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, ln.Addr().(*net.TCPAddr).Port, int(conn.DPort))
 

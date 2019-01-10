@@ -28,12 +28,15 @@ type NetworkState interface {
 	RemoveClient(clientID int) error
 }
 
-// TODO monotonic retransmits too ?
 type sendRecvStats struct {
 	totalSend uint64
-	totalRecv uint64
 	lastSend  uint64
+
+	totalRecv uint64
 	lastRecv  uint64
+
+	totalRetransmits uint32
+	lastRetransmits  uint32
 }
 
 type client struct {
@@ -111,28 +114,27 @@ func (ns *networkState) Connections(id int) []ConnectionStats {
 			continue
 		}
 
-		if _, ok := ns.clients[id].stats[key]; !ok {
+		if prev, ok := ns.clients[id].stats[key]; ok {
+			// Update last data
+			ns.clients[id].stats[key].lastSend = conn.MonotonicSendBytes - prev.totalSend
+			ns.clients[id].stats[key].lastRecv = conn.MonotonicRecvBytes - prev.totalRecv
+			ns.clients[id].stats[key].lastRetransmits = conn.MonotonicRetransmits - prev.totalRetransmits
+		} else {
+			// If it's the first collect for this client on this connection
+			// We do not return any lastSend / lastRecv / lastRetransmits
 			ns.clients[id].stats[key] = &sendRecvStats{}
 		}
 
-		// TODO remove
-		// fmt.Println("before")
-		// fmt.Printf("id = %+v\n", id)
-		// fmt.Printf("ns.clients[id].stats[key] = %+v\n", ns.clients[id].stats[key])
-		// Inject last data
-		conns[i].LastSendBytes = ns.clients[id].stats[key].lastSend
-		conns[i].LastRecvBytes = ns.clients[id].stats[key].lastRecv
-
-		// Update last data
-		ns.clients[id].stats[key].lastSend = conn.MonotonicSendBytes - ns.clients[id].stats[key].totalSend
-		ns.clients[id].stats[key].lastRecv = conn.MonotonicRecvBytes - ns.clients[id].stats[key].totalRecv
 		ns.clients[id].stats[key].totalSend = conn.MonotonicSendBytes
 		ns.clients[id].stats[key].totalRecv = conn.MonotonicRecvBytes
+		ns.clients[id].stats[key].totalRetransmits = conn.MonotonicRetransmits
 
-		// TODO remove
-		// fmt.Println("after")
-		// fmt.Printf("ns.clients[id].stats[key] = %+v\n", ns.clients[id].stats[key])
+		prev := ns.clients[id].stats[key]
+		conns[i].LastSendBytes = prev.lastSend
+		conns[i].LastRecvBytes = prev.lastRecv
+		conns[i].LastRetransmits = prev.lastRetransmits
 	}
+
 	return conns
 }
 
