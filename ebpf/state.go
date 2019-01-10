@@ -2,7 +2,6 @@ package ebpf
 
 import (
 	"bytes"
-	"fmt"
 	"sync"
 	"time"
 
@@ -25,7 +24,7 @@ type NetworkState interface {
 	Connections(clientID string) []ConnectionStats
 	StoreConnections(conns []ConnectionStats)
 	StoreClosedConnection(conn ConnectionStats)
-	RemoveClient(clientID string) error
+	RemoveClient(clientID string)
 	getClients() []string
 }
 
@@ -74,7 +73,7 @@ func NewNetworkState(cleanInterval time.Duration, clientExpiry time.Duration) Ne
 	// Start tracking expiry time for clients
 	go func() {
 		for now := range time.NewTicker(ns.cleanInterval).C {
-			ns.trackClientExpiry(now)
+			ns.removeExpiredClients(now)
 		}
 	}()
 
@@ -114,7 +113,6 @@ func (ns *networkState) Connections(id string) []ConnectionStats {
 			log.Errorf("could not get string key for conn: %v: %s", conn, err)
 			continue
 		}
-
 		key := string(rawKey)
 
 		if _, ok := ns.clients[id].stats[key]; !ok {
@@ -189,19 +187,13 @@ func (ns *networkState) newClient(clientID string) bool {
 	return false
 }
 
-func (ns *networkState) RemoveClient(clientID string) error {
+func (ns *networkState) RemoveClient(clientID string) {
 	ns.clientsMutex.Lock()
 	defer ns.clientsMutex.Unlock()
-
-	if _, ok := ns.clients[clientID]; !ok {
-		return fmt.Errorf("can't remove client %s, it is not stored", clientID)
-	}
-
 	delete(ns.clients, clientID)
-	return nil
 }
 
-func (ns *networkState) trackClientExpiry(now time.Time) {
+func (ns *networkState) removeExpiredClients(now time.Time) {
 	ns.clientsMutex.Lock()
 	defer ns.clientsMutex.Unlock()
 	for id, c := range ns.clients {
