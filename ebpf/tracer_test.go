@@ -816,7 +816,7 @@ func updateAndGetConnections(t *testing.T, tr *Tracer) *Connections {
 	}
 
 	// Iterate through active connections until we find connection created above, and confirm send + recv counts
-	connections, err := tr.GetActiveConnections(1)
+	connections, err := tr.GetActiveConnections("1")
 	if err != nil {
 		t.Fatal(err)
 	}

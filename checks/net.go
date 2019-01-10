@@ -27,7 +27,7 @@ type ConnectionsCheck struct {
 	// Local network tracer
 	useLocalTracer bool
 	localTracer    *ebpf.Tracer
-	pid            int // Used as a client ID for the local tracer
+	tracerClientId string
 
 	prevCheckConns []ebpf.ConnectionStats
 	prevCheckTime  time.Time
@@ -57,7 +57,8 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		}
 
 		c.localTracer = t
-		c.pid = os.Getpid()
+		// We use the current process PID as the local tracer client ID
+		c.tracerClientId = fmt.Sprintf("%d", os.Getpid())
 	} else {
 		// Calling the remote tracer will cause it to initialize and check connectivity
 		net.SetNetworkTracerSocketPath(cfg.NetworkTracerSocketPath)
@@ -123,7 +124,7 @@ func (c *ConnectionsCheck) getConnections() ([]ebpf.ConnectionStats, error) {
 		if c.localTracer == nil {
 			return nil, fmt.Errorf("using local network tracer, but no tracer was initialized")
 		}
-		cs, err := c.localTracer.GetActiveConnections(c.pid)
+		cs, err := c.localTracer.GetActiveConnections(c.tracerClientId)
 		return cs.Conns, err
 	}
 

@@ -12,7 +12,7 @@ var _ NetworkState = &networkState{}
 
 const (
 	// DEBUGCLIENT is the ClientID for debugging
-	DEBUGCLIENT          = -1
+	DEBUGCLIENT          = "-1"
 	defaultClientExpiry  = 5 * time.Minute
 	defaultCleanInterval = 10 * time.Second
 )
@@ -21,11 +21,11 @@ const (
 // - closed connections
 // - sent and received bytes per connection
 type NetworkState interface {
-	Clients() []int
-	Connections(clientID int) []ConnectionStats
+	Connections(clientID string) []ConnectionStats
 	StoreConnections(conns []ConnectionStats)
 	StoreClosedConnection(conn ConnectionStats)
-	RemoveClient(clientID int) error
+	RemoveClient(clientID string) error
+	getClients() []string
 }
 
 type sendRecvStats struct {
@@ -40,14 +40,13 @@ type sendRecvStats struct {
 }
 
 type client struct {
-	id                int
 	lastFetch         time.Time
 	closedConnections []*ConnectionStats
 	stats             map[string]*sendRecvStats
 }
 
 type networkState struct {
-	clients      map[int]*client
+	clients      map[string]*client
 	clientsMutex sync.Mutex
 
 	connections []ConnectionStats
@@ -65,7 +64,7 @@ func NewDefaultNetworkState() NetworkState {
 // NewNetworkState creates a new network state
 func NewNetworkState(cleanInterval time.Duration, clientExpiry time.Duration) NetworkState {
 	ns := &networkState{
-		clients:       map[int]*client{},
+		clients:       map[string]*client{},
 		connections:   []ConnectionStats{},
 		cleanInterval: cleanInterval,
 		clientExpiry:  clientExpiry,
@@ -81,10 +80,10 @@ func NewNetworkState(cleanInterval time.Duration, clientExpiry time.Duration) Ne
 	return ns
 }
 
-func (ns *networkState) Clients() []int {
+func (ns *networkState) getClients() []string {
 	ns.clientsMutex.Lock()
 	defer ns.clientsMutex.Unlock()
-	clients := make([]int, 0, len(ns.clients))
+	clients := make([]string, 0, len(ns.clients))
 
 	for id := range ns.clients {
 		clients = append(clients, id)
@@ -93,7 +92,7 @@ func (ns *networkState) Clients() []int {
 	return clients
 }
 
-func (ns *networkState) Connections(id int) []ConnectionStats {
+func (ns *networkState) Connections(id string) []ConnectionStats {
 	ns.connsMutex.Lock()
 	defer ns.connsMutex.Unlock()
 
@@ -147,6 +146,7 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 	defer ns.clientsMutex.Unlock()
 
 	for id := range ns.clients {
+		// TODO clear the stats entry for this connection
 		// We only store the pointer to the connection, when it will be cleared for each client it will get GCed
 		ns.clients[id].closedConnections = append(ns.clients[id].closedConnections, &conn)
 	}
@@ -154,7 +154,7 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 
 // closedConns returns the closed connections for the given client and takes care of updating last fetch
 // the provided client is supposed to exist
-func (ns *networkState) closedConns(clientID int) []ConnectionStats {
+func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 	conns := []ConnectionStats{}
 
 	ns.clientsMutex.Lock()
@@ -171,7 +171,7 @@ func (ns *networkState) closedConns(clientID int) []ConnectionStats {
 }
 
 // newClient creates a new client and returns true if the given client already exists
-func (ns *networkState) newClient(clientID int) bool {
+func (ns *networkState) newClient(clientID string) bool {
 	ns.clientsMutex.Lock()
 	defer ns.clientsMutex.Unlock()
 	if _, ok := ns.clients[clientID]; ok {
@@ -179,19 +179,18 @@ func (ns *networkState) newClient(clientID int) bool {
 	}
 
 	ns.clients[clientID] = &client{
-		id:        clientID,
 		lastFetch: time.Now(),
 		stats:     map[string]*sendRecvStats{},
 	}
 	return false
 }
 
-func (ns *networkState) RemoveClient(clientID int) error {
+func (ns *networkState) RemoveClient(clientID string) error {
 	ns.clientsMutex.Lock()
 	defer ns.clientsMutex.Unlock()
 
 	if _, ok := ns.clients[clientID]; !ok {
-		return fmt.Errorf("can't remove client %d, it is not stored", clientID)
+		return fmt.Errorf("can't remove client %s, it is not stored", clientID)
 	}
 
 	delete(ns.clients, clientID)

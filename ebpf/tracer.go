@@ -161,7 +161,7 @@ func (t *Tracer) Stop() {
 	t.perfMap.PollStop()
 }
 
-func (t *Tracer) GetActiveConnections(clientID int) (*Connections, error) {
+func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
 	return &Connections{Conns: t.state.Connections(clientID)}, nil
 }
 

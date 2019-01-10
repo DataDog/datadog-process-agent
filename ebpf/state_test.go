@@ -3,6 +3,7 @@
 package ebpf
 
 import (
+	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
@@ -28,7 +29,7 @@ func TestRetrieveClosedConnection(t *testing.T) {
 		LastRetransmits:      2,
 	}
 
-	clientID := 1
+	clientID := "1"
 
 	t.Run("without prior registration", func(t *testing.T) {
 		state := NewDefaultNetworkState()
@@ -51,7 +52,7 @@ func TestRetrieveClosedConnection(t *testing.T) {
 		assert.Equal(t, conn, conns[0])
 
 		// An other client that is not registered should not have the closed connection
-		conns = state.Connections(clientID + 1)
+		conns = state.Connections("2")
 		assert.Equal(t, 0, len(conns))
 
 		// It should no more have connections stored
@@ -61,12 +62,12 @@ func TestRetrieveClosedConnection(t *testing.T) {
 }
 
 func TestCleanupClient(t *testing.T) {
-	clientID := 1
+	clientID := "1"
 
 	wait := 100 * time.Millisecond
 
 	state := NewNetworkState(defaultCleanInterval, wait)
-	clients := state.Clients()
+	clients := state.getClients()
 	assert.Equal(t, 0, len(clients))
 
 	conns := state.Connections(clientID)
@@ -75,22 +76,22 @@ func TestCleanupClient(t *testing.T) {
 	// Should be a no op
 	state.(*networkState).trackClientExpiry(time.Now())
 
-	clients = state.Clients()
+	clients = state.getClients()
 	assert.Equal(t, 1, len(clients))
-	assert.Equal(t, 1, clients[0])
+	assert.Equal(t, "1", clients[0])
 
 	time.Sleep(wait)
 
 	// Should delete the client 1
 	state.(*networkState).trackClientExpiry(time.Now())
 
-	clients = state.Clients()
+	clients = state.getClients()
 	assert.Equal(t, 0, len(clients))
 }
 
 func TestLastStats(t *testing.T) {
-	client1 := 1
-	client2 := 2
+	client1 := "1"
+	client2 := "2"
 	state := NewDefaultNetworkState()
 
 	dSent := uint64(42)
@@ -177,7 +178,7 @@ func TestLastStats(t *testing.T) {
 }
 
 func TestLastStatsForClosedConnection(t *testing.T) {
-	clientID := 1
+	clientID := "1"
 	state := NewDefaultNetworkState()
 
 	dSent := uint64(42)
@@ -234,7 +235,7 @@ func TestLastStatsForClosedConnection(t *testing.T) {
 }
 
 func TestRaceConditions(t *testing.T) {
-	clients := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	nClients := 10
 
 	// Generate random conns
 	genConns := func(n uint32) []ConnectionStats {
@@ -260,11 +261,11 @@ func TestRaceConditions(t *testing.T) {
 	nConns := uint32(100)
 
 	var wg sync.WaitGroup
-	wg.Add(len(clients))
+	wg.Add(nClients)
 
 	// Spawn multiple clients to get multiple times
-	for _, c := range clients {
-		go func(c int) {
+	for i := 1; i <= nClients; i++ {
+		go func(c string) {
 			defer wg.Done()
 			defer state.RemoveClient(c)
 			timer := time.NewTimer(1 * time.Second)
@@ -276,7 +277,7 @@ func TestRaceConditions(t *testing.T) {
 					state.Connections(c)
 				}
 			}
-		}(c)
+		}(fmt.Sprintf("%d", i))
 	}
 
 	// Spawn a worker to store random connections

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	log "github.com/cihub/seelog"
 	"github.com/mailru/easyjson"
@@ -64,19 +63,13 @@ func (nt *NetworkTracer) Run() {
 	http.HandleFunc("/status", func(w http.ResponseWriter, req *http.Request) {})
 
 	http.HandleFunc("/connections", func(w http.ResponseWriter, req *http.Request) {
-
 		// We require to send a client_id to the network state
-		rawCID := req.URL.Query().Get("client_id")
-		clientID := ebpf.DEBUGCLIENT
-
-		if rawCID != "" {
-			var err error
-			clientID, err = strconv.Atoi(rawCID)
-			if err != nil {
-				log.Errorf("wrong clientID: '%s': %s", rawCID, err)
-				w.WriteHeader(500)
-				return
-			}
+		var clientID string
+		if rawCID := req.URL.Query().Get("client_id"); rawCID != "" {
+			clientID = rawCID
+		} else {
+			// This is the default client ID
+			clientID = ebpf.DEBUGCLIENT
 		}
 
 		cs, err := nt.tracer.GetActiveConnections(clientID)
