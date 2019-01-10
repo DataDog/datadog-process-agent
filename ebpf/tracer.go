@@ -159,10 +159,8 @@ func (t *Tracer) Stop() {
 	t.perfMap.PollStop()
 }
 
-func (t *Tracer) GetActiveConnections() (*Connections, error) {
-	// TODO change use PID ?
-	conns := t.state.Connections(1)
-	return &Connections{Conns: conns}, nil
+func (t *Tracer) GetActiveConnections(clientID int) (*Connections, error) {
+	return &Connections{Conns: t.state.Connections(clientID)}, nil
 }
 
 func (t *Tracer) updateState() error {

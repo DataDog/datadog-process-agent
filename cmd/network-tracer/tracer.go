@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	log "github.com/cihub/seelog"
 	"github.com/mailru/easyjson"
@@ -63,7 +64,23 @@ func (nt *NetworkTracer) Run() {
 	http.HandleFunc("/status", func(w http.ResponseWriter, req *http.Request) {})
 
 	http.HandleFunc("/connections", func(w http.ResponseWriter, req *http.Request) {
-		cs, err := nt.tracer.GetActiveConnections()
+
+		// TODO allow to query without providing a client id
+		// And return all the connections without changing the state
+		rawCID := req.URL.Query().Get("client_id")
+		clientID := ebpf.DEBUGCLIENT
+
+		if rawCID != "" {
+			var err error
+			clientID, err = strconv.Atoi(rawCID)
+			if err != nil {
+				log.Errorf("wrong clientID: '%s': %s", rawCID, err)
+				w.WriteHeader(500)
+				return
+			}
+		}
+
+		cs, err := nt.tracer.GetActiveConnections(clientID)
 
 		if err != nil {
 			log.Errorf("unable to retrieve connections: %s", err)

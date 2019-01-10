@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/DataDog/datadog-process-agent/config"
@@ -26,6 +27,7 @@ type ConnectionsCheck struct {
 	// Local network tracer
 	useLocalTracer bool
 	localTracer    *ebpf.Tracer
+	pid            int // Used as a client ID for the local tracer
 
 	prevCheckConns []ebpf.ConnectionStats
 	prevCheckTime  time.Time
@@ -55,6 +57,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		}
 
 		c.localTracer = t
+		c.pid = os.Getpid()
 	} else {
 		// Calling the remote tracer will cause it to initialize and check connectivity
 		net.SetNetworkTracerSocketPath(cfg.NetworkTracerSocketPath)
@@ -120,7 +123,7 @@ func (c *ConnectionsCheck) getConnections() ([]ebpf.ConnectionStats, error) {
 		if c.localTracer == nil {
 			return nil, fmt.Errorf("using local network tracer, but no tracer was initialized")
 		}
-		cs, err := c.localTracer.GetActiveConnections()
+		cs, err := c.localTracer.GetActiveConnections(c.pid)
 		return cs.Conns, err
 	}
 
@@ -167,10 +170,13 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 				Ip:   conn.Dest,
 				Port: int32(conn.DPort),
 			},
-			BytesSent:          calculateRate(conn.SendBytes, lastConns[key].SendBytes, lastCheckTime),
-			BytesReceived:      calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
-			TotalBytesSent:     conn.SendBytes,
-			TotalBytesReceived: conn.RecvBytes,
+			TotalBytesSent:     conn.MonotonicSendBytes,
+			TotalBytesReceived: conn.MonotonicRecvBytes,
+			TotalRetransmits:   conn.MonotonicRetransmits,
+
+			LastBytesSent:     conn.LastSendBytes,
+			LastBytesReceived: conn.LastRecvBytes,
+			LastRetransmits:   conn.LastRetransmits,
 		})
 	}
 	c.prevCheckConns = conns
