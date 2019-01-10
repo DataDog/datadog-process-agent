@@ -1,6 +1,7 @@
 package ebpf
 
 import (
+	"bytes"
 	"fmt"
 	"sync"
 	"time"
@@ -106,12 +107,15 @@ func (ns *networkState) Connections(id string) []ConnectionStats {
 	// Update send/recv bytes stats
 	ns.clientsMutex.Lock()
 	defer ns.clientsMutex.Unlock()
+	buf := &bytes.Buffer{}
 	for i, conn := range conns {
-		key, err := conn.StrKey()
+		rawKey, err := conn.ByteKey(buf)
 		if err != nil {
 			log.Errorf("could not get string key for conn: %v: %s", conn, err)
 			continue
 		}
+
+		key := string(rawKey)
 
 		if _, ok := ns.clients[id].stats[key]; !ok {
 			ns.clients[id].stats[key] = &sendRecvStats{}

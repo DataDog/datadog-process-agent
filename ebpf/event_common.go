@@ -94,31 +94,22 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-// StrKey returns a unique key for this connection represented as a string
-func (c ConnectionStats) StrKey() (string, error) {
-	buf := &bytes.Buffer{}
-	raw, err := c.ByteKey(buf)
-	if err != nil {
-		return "", err
-	}
-	return string(raw), nil
-}
-
 func removeDuplicates(conns []ConnectionStats) []ConnectionStats {
 	connections := make([]ConnectionStats, 0, len(conns))
 	seen := make(map[string]struct{})
 
+	buf := &bytes.Buffer{}
 	for _, c := range conns {
-		key, err := c.StrKey()
+		key, err := c.ByteKey(buf)
 		if err != nil {
 			log.Errorf("could not get byte key for connection %v: %s", c, err)
 			continue
 		}
 
 		// If it's the first time we see this connection add it
-		if _, ok := seen[key]; !ok {
+		if _, ok := seen[string(key)]; !ok {
 			connections = append(connections, c)
-			seen[key] = struct{}{}
+			seen[string(key)] = struct{}{}
 		}
 	}
 
