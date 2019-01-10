@@ -146,17 +146,10 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 
 	cxs := make([]*model.Connection, 0, len(conns))
 	for _, conn := range conns {
-		b, err := conn.ByteKey(c.buf)
-		if err != nil {
-			log.Debugf("failed to create connection byte key: %s", err)
-			continue
-		}
-
 		if _, ok := createTimeForPID[conn.Pid]; !ok {
 			continue
 		}
 
-		key := string(b)
 		cxs = append(cxs, &model.Connection{
 			Pid:           int32(conn.Pid),
 			PidCreateTime: createTimeForPID[conn.Pid],
@@ -173,10 +166,9 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 			TotalBytesSent:     conn.MonotonicSentBytes,
 			TotalBytesReceived: conn.MonotonicRecvBytes,
 			TotalRetransmits:   conn.MonotonicRetransmits,
-
-			LastBytesSent:     conn.LastSentBytes,
-			LastBytesReceived: conn.LastRecvBytes,
-			LastRetransmits:   conn.LastRetransmits,
+			LastBytesSent:      conn.LastSentBytes,
+			LastBytesReceived:  conn.LastRecvBytes,
+			LastRetransmits:    conn.LastRetransmits,
 		})
 	}
 	c.prevCheckConns = conns
