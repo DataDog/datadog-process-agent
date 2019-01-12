@@ -16,7 +16,7 @@ def os
 desc "Setup dependencies"
 task :deps do
   system("go get -u github.com/golang/dep/cmd/dep")
-  system("go get -u github.com/mailru/easyjson")
+  system("go get -u github.com/mailru/easyjson/...")
   system("go get -u golang.org/x/lint/golint")
   system("dep ensure -v -vendor-only")
 end
@@ -190,7 +190,7 @@ namespace "ebpf" do
     end
   end
 
-  desc "Generate and instal eBPF program via gobindata"
+  desc "Generate and install eBPF program via gobindata"
   task :build => ['ebpf:fmt', 'ebpf:image', 'ebpf:build-only']
 
   desc "Build only the eBPF object (do not rebuild the docker image builder)"

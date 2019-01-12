@@ -333,6 +333,12 @@ enum ConnectionFamily {
 	v6 = 1;
 }
 
+enum ConnectionDirection {
+	unspecified = 0;
+	incoming = 1;
+	outgoing = 2;
+}
+
 message Connection {
 	int32 pid = 1;
 	// 2, 3, & 4 are deprecated
@@ -348,6 +354,8 @@ message Connection {
 	// Monotonic counters
 	uint64 totalBytesSent = 13;
 	uint64 totalBytesReceived = 14;
+
+	ConnectionDirection direction = 15;
 }
 
 message Addr {

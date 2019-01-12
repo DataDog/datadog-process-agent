@@ -27,12 +27,29 @@ func (c ConnectionType) String() string {
 // ConnectionFamily will be either v4 or v6
 type ConnectionFamily uint8
 
+// ConnectionDirection indicates if the connection is incoming to the host or outbound
+type ConnectionDirection uint8
+
+func (d ConnectionDirection) String() string {
+	if d == OUTGOING {
+		return "outgoing"
+	}
+
+	return "incoming"
+}
+
 const (
 	// AFINET represents v4 connections
 	AFINET ConnectionFamily = 0
 
 	// AFINET6 represents v6 connections
 	AFINET6 ConnectionFamily = 1
+
+	// INCOMING represents connections inbound to the host
+	INCOMING ConnectionDirection = 0
+
+	// OUTGOING represents outbound connections from the host
+	OUTGOING ConnectionDirection = 1
 )
 
 // Connections wraps a collection of ConnectionStats
@@ -58,11 +75,13 @@ type ConnectionStats struct {
 	RecvBytes uint64 `json:"recv_bytes"`
 
 	Retransmits uint32 `json:"retransmits"`
+
+	Direction ConnectionDirection `json:"direction"`
 }
 
 func (c ConnectionStats) String() string {
-	return fmt.Sprintf("[%s] [PID: %d] [%v:%d ⇄ %v:%d] %d bytes sent, %d bytes received, %d retransmits",
-		c.Type, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.SendBytes, c.RecvBytes, c.Retransmits)
+	return fmt.Sprintf("[%s] [PID: %d] [%v:%d ⇄ %v:%d] (%s) %d bytes sent, %d bytes received, %d retransmits",
+		c.Type, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.Direction, c.SendBytes, c.RecvBytes, c.Retransmits)
 }
 
 // ByteKey returns a unique key for this connection represented as a byte array

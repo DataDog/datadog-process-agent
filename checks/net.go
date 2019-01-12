@@ -171,6 +171,7 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 			BytesReceived:      calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
 			TotalBytesSent:     conn.SendBytes,
 			TotalBytesReceived: conn.RecvBytes,
+			Direction:          formatDirection(conn.Direction),
 		})
 	}
 	c.prevCheckConns = conns
@@ -196,6 +197,17 @@ func formatType(f ebpf.ConnectionType) model.ConnectionType {
 		return model.ConnectionType_udp
 	default:
 		return -1
+	}
+}
+
+func formatDirection(d ebpf.ConnectionDirection) model.ConnectionDirection {
+	switch d {
+	case ebpf.INCOMING:
+		return model.ConnectionDirection_incoming
+	case ebpf.OUTGOING:
+		return model.ConnectionDirection_outgoing
+	default:
+		return model.ConnectionDirection_unspecified
 	}
 }
 

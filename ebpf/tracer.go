@@ -10,11 +10,6 @@ import (
 	bpflib "github.com/iovisor/gobpf/elf"
 )
 
-/*
-#include "c/tracer-ebpf.h"
-*/
-import "C"
-
 var (
 	// Feature versions sourced from: https://github.com/iovisor/bcc/blob/master/docs/kernel-versions.md
 	// Minimum kernel version -> max(3.15 - eBPF,
@@ -26,8 +21,9 @@ var (
 )
 
 type Tracer struct {
-	m      *bpflib.Module
-	config *Config
+	m           *bpflib.Module
+	config      *Config
+	portMapping *PortMapping
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -81,7 +77,13 @@ func NewTracer(config *Config) (*Tracer, error) {
 		return nil, fmt.Errorf("failed to init module: error guessing offsets: %v", err)
 	}
 
-	return &Tracer{m: m, config: config}, nil
+	// TODO: We don't have the proc root configurable yet
+	portMapping := NewPortMapping("/proc", config)
+	if err := portMapping.ReadInitialState(); err != nil {
+		return nil, fmt.Errorf("failed to read initial pid->port mapping: %s", err)
+	}
+
+	return &Tracer{m: m, config: config, portMapping: portMapping}, nil
 }
 
 func (t *Tracer) Stop() {
@@ -108,6 +110,11 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 		return nil, err
 	}
 
+	portMp, err := t.getMap(portBindingsMap)
+	if err != nil {
+		return nil, err
+	}
+
 	latestTime, ok, err := t.getLatestTimestamp()
 	if err != nil {
 		return nil, err
@@ -115,6 +122,11 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 
 	if !ok { // if no timestamps have been captured, there can be no packets
 		return nil, nil
+	}
+
+	closedPortBindings, err := t.populatePortMapping(portMp)
+	if err != nil {
+		return nil, err
 	}
 
 	// Iterate through all key-value pairs in map
@@ -128,7 +140,15 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 		} else if stats.isExpired(latestTime, t.timeoutForConn(nextKey)) {
 			expired = append(expired, nextKey.copy())
 		} else {
-			active = append(active, connStats(nextKey, stats, t.getTCPStats(tcpMp, nextKey)))
+			conn := connStats(nextKey, stats, t.getTCPStats(tcpMp, nextKey))
+
+			if t.portMapping.IsListening(conn.DPort, conn.Dest) {
+				conn.Direction = INCOMING
+			} else {
+				conn.Direction = OUTGOING
+			}
+
+			active = append(active, conn)
 		}
 		key = nextKey
 	}
@@ -136,16 +156,22 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 	// Remove expired entries
 	t.removeEntries(mp, tcpMp, expired)
 
+	for _, key := range closedPortBindings {
+		t.portMapping.RemoveMapping(key)
+
+		_ = t.m.DeleteElement(portMp, unsafe.Pointer(&key))
+	}
+
 	return active, nil
 }
 
 func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
 	for i := range entries {
-		t.m.DeleteElement(mp, unsafe.Pointer(entries[i]))
+		_ = t.m.DeleteElement(mp, unsafe.Pointer(entries[i]))
 
 		// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
 		entries[i].pid = 0
-		t.m.DeleteElement(tcpMp, unsafe.Pointer(entries[i]))
+		_ = t.m.DeleteElement(tcpMp, unsafe.Pointer(entries[i]))
 	}
 }
 
@@ -208,4 +234,33 @@ func (t *Tracer) timeoutForConn(c *ConnTuple) int64 {
 		return t.config.TCPConnTimeout.Nanoseconds()
 	}
 	return t.config.UDPConnTimeout.Nanoseconds()
+}
+
+// populatePortMapping reads the entire portBinding bpf map and populates the local port/address map.  A list of
+// closed ports will be returned
+func (t *Tracer) populatePortMapping(mp *bpflib.Map) ([]uint16, error) {
+	var key, nextKey uint16
+	value := &PortStatus{}
+
+	closedPortBindings := make([]uint16, 0)
+
+	for {
+		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(&key), unsafe.Pointer(&nextKey), unsafe.Pointer(value))
+		if !hasNext {
+			break
+		}
+
+		port := nextKey
+		address, closed := parsePortStatus(value)
+
+		t.portMapping.AddMapping(port, address)
+
+		if closed {
+			closedPortBindings = append(closedPortBindings, nextKey)
+		}
+
+		key = nextKey
+	}
+
+	return closedPortBindings, nil
 }

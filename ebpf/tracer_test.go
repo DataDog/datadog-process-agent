@@ -6,9 +6,11 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"io"
 	"math/rand"
 	"net"
+	"net/url"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -73,6 +75,55 @@ func TestTCPSendAndReceive(t *testing.T) {
 	assert.Equal(t, 0, int(conn.Retransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
+	assert.Equal(t, INCOMING, conn.Direction)
+
+	doneChan <- struct{}{}
+}
+
+func TestPreexistingConnectionDirection(t *testing.T) {
+	// Start the client and server before we enable the network tracer to test that the tracer picks
+	// up the pre-existing connection
+	doneChan := make(chan struct{})
+
+	server := NewTCPServer(func(c net.Conn) {
+		r := bufio.NewReader(c)
+		_, _ = r.ReadBytes(byte('\n'))
+		_, _ = c.Write(genPayload(serverMessageSize))
+		_ = c.Close()
+	})
+	server.Run(doneChan)
+
+	c, err := net.DialTimeout("tcp", server.address, 50*time.Millisecond)
+	require.NoError(t, err)
+	defer func() { _ = c.Close() }()
+
+	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
+		t.Fatal(err)
+	}
+
+	// Enable BPF-based network tracer
+	tr, err := NewTracer(NewDefaultConfig())
+	require.NoError(t, err)
+	defer tr.Stop()
+
+	// Write more data so that the tracer will notice the connection
+	_, err = c.Write(genPayload(clientMessageSize))
+	require.NoError(t, err)
+
+	r := bufio.NewReader(c)
+	_, _ = r.ReadBytes(byte('\n'))
+
+	connections, err := tr.GetActiveConnections()
+	require.NoError(t, err)
+
+	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	require.True(t, ok)
+	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
+	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
+	assert.Equal(t, 0, int(conn.Retransmits))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, addrPort(server.address), int(conn.DPort))
+	assert.Equal(t, INCOMING, conn.Direction)
 
 	doneChan <- struct{}{}
 }
@@ -273,11 +324,8 @@ func TestTCPOverIPv6(t *testing.T) {
 	}
 	defer tr.Stop()
 
-	ln, err := net.Listen("tcp6", net.IPv6loopback.String())
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	ln, err := net.Listen("tcp6", ":0")
+	require.NoError(t, err)
 
 	doneChan := make(chan struct{})
 	go func(done chan struct{}) {
@@ -300,10 +348,8 @@ func TestTCPOverIPv6(t *testing.T) {
 	}()
 
 	// Connect to server
-	c, err := net.DialTimeout("tcp6", net.IPv6loopback.String(), 50*time.Millisecond)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, err := net.DialTimeout("tcp6", ln.Addr().String(), 50*time.Millisecond)
+	require.NoError(t, err)
 
 	// Write clientMessageSize to server, and read response
 	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
@@ -313,17 +359,16 @@ func TestTCPOverIPv6(t *testing.T) {
 	r.ReadBytes(byte('\n'))
 
 	connections, err := tr.GetActiveConnections()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
-	assert.True(t, ok)
+	require.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
 	assert.Equal(t, serverMessageSize, int(conn.RecvBytes))
 	assert.Equal(t, 0, int(conn.Retransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, ln.Addr().(*net.TCPAddr).Port, int(conn.DPort))
+	assert.Equal(t, INCOMING, conn.Direction)
 
 	doneChan <- struct{}{}
 
@@ -468,13 +513,18 @@ func TestUDPDisabled(t *testing.T) {
 
 func findConnection(l, r net.Addr, c *Connections) (*ConnectionStats, bool) {
 	for _, conn := range c.Conns {
-		localAddr := fmt.Sprintf("%s:%d", conn.Source, conn.SPort)
-		remoteAddr := fmt.Sprintf("%s:%d", conn.Dest, conn.DPort)
-		if localAddr == l.String() && remoteAddr == r.String() {
+		if addrMatches(l, conn.Source, conn.SPort) && addrMatches(r, conn.Dest, conn.DPort) {
 			return &conn, true
 		}
+
 	}
 	return nil, false
+}
+
+func addrMatches(addr net.Addr, host string, port uint16) bool {
+	addrUrl := url.URL{Scheme: addr.Network(), Host: addr.String()}
+
+	return addrUrl.Hostname() == host && addrUrl.Port() == strconv.Itoa(int(port))
 }
 
 func runBenchtests(b *testing.B, payloads []int, prefix string, f func(p int) func(*testing.B)) {

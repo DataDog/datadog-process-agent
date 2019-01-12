@@ -94,4 +94,17 @@ typedef struct {
     __u8 padding;
 } tracer_status_t;
 
+static const __u8 LISTENING = 1;
+static const __u8 CLOSED = 0;
+
+static const __u8 FAMILY_V4 = 0;
+static const __u8 FAMILY_V6 = 1;
+
+typedef struct {
+    __u32 state;
+    __u32 family;
+    __u64 addr_h;
+    __u64 addr_l;
+} port_status_t;
+
 #endif
