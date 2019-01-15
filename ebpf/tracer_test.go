@@ -61,7 +61,7 @@ func TestTCPSendAndReceive(t *testing.T) {
 	r.ReadBytes(byte('\n'))
 
 	// Iterate through active connections until we find connection created above, and confirm send + recv counts
-	connections := updateAndGetConnections(t, tr)
+	connections := getConnections(t, tr)
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
@@ -129,7 +129,7 @@ func TestTCPRemoveEntries(t *testing.T) {
 	defer c2.Close()
 
 	// Retrieve the list of connections
-	connections := updateAndGetConnections(t, tr)
+	connections := getConnections(t, tr)
 
 	// Make sure the first connection got cleaned up
 	_, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
@@ -196,7 +196,7 @@ func TestTCPRetransmit(t *testing.T) {
 	})
 
 	// Iterate through active connections until we find connection created above, and confirm send + recv counts and there was at least 1 retransmission
-	connections := updateAndGetConnections(t, tr)
+	connections := getConnections(t, tr)
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
@@ -217,7 +217,7 @@ func TestTCPShortlived(t *testing.T) {
 	defer tr.Stop()
 
 	// Simulate registering by calling get one time
-	updateAndGetConnections(t, tr)
+	getConnections(t, tr)
 
 	// Create TCP Server which sends back serverMessageSize bytes
 	server := NewTCPServer(func(c net.Conn) {
@@ -248,7 +248,7 @@ func TestTCPShortlived(t *testing.T) {
 	// Wait for the message to be sent from the perf buffer
 	time.Sleep(10 * time.Millisecond)
 
-	connections := updateAndGetConnections(t, tr)
+	connections := getConnections(t, tr)
 
 	// Confirm that we can retrieve the shortlived connection
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
@@ -260,7 +260,7 @@ func TestTCPShortlived(t *testing.T) {
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 
 	// Confirm that the connection has been cleaned up since the last get
-	connections = updateAndGetConnections(t, tr)
+	connections = getConnections(t, tr)
 
 	conn, ok = findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.False(t, ok)
@@ -317,7 +317,7 @@ func TestTCPOverIPv6(t *testing.T) {
 	r := bufio.NewReader(c)
 	r.ReadBytes(byte('\n'))
 
-	connections := updateAndGetConnections(t, tr)
+	connections := getConnections(t, tr)
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
@@ -365,7 +365,7 @@ func TestTCPCollectionDisabled(t *testing.T) {
 	r := bufio.NewReader(c)
 	r.ReadBytes(byte('\n'))
 
-	connections := updateAndGetConnections(t, tr)
+	connections := getConnections(t, tr)
 
 	// Confirm that we could not find connection created above
 	_, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
@@ -405,7 +405,7 @@ func TestUDPSendAndReceive(t *testing.T) {
 	c.Read(make([]byte, serverMessageSize))
 
 	// Iterate through active connections until we find connection created above, and confirm send + recv counts
-	connections := updateAndGetConnections(t, tr)
+	connections := getConnections(t, tr)
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
@@ -451,7 +451,7 @@ func TestUDPDisabled(t *testing.T) {
 	c.Read(make([]byte, serverMessageSize))
 
 	// Iterate through active connections until we find connection created above, and confirm send + recv counts
-	connections := updateAndGetConnections(t, tr)
+	connections := getConnections(t, tr)
 
 	_, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.False(t, ok)
@@ -755,13 +755,7 @@ func addrPort(addr string) int {
 	return p
 }
 
-func updateAndGetConnections(t *testing.T, tr *Tracer) *Connections {
-	// Force state update
-	err := tr.updateState()
-	if err != nil {
-		t.Fatal(err)
-	}
-
+func getConnections(t *testing.T, tr *Tracer) *Connections {
 	// Iterate through active connections until we find connection created above, and confirm send + recv counts
 	connections, err := tr.GetActiveConnections("1")
 	if err != nil {
