@@ -46,11 +46,10 @@ type client struct {
 }
 
 type networkState struct {
-	clients      map[string]*client
-	clientsMutex sync.Mutex
+	sync.Mutex
 
+	clients     map[string]*client
 	connections []ConnectionStats
-	connsMutex  sync.Mutex
 
 	cleanInterval time.Duration
 	clientExpiry  time.Duration
@@ -81,8 +80,8 @@ func NewNetworkState(cleanInterval time.Duration, clientExpiry time.Duration) Ne
 }
 
 func (ns *networkState) getClients() []string {
-	ns.clientsMutex.Lock()
-	defer ns.clientsMutex.Unlock()
+	ns.Lock()
+	defer ns.Unlock()
 	clients := make([]string, 0, len(ns.clients))
 
 	for id := range ns.clients {
@@ -93,60 +92,28 @@ func (ns *networkState) getClients() []string {
 }
 
 func (ns *networkState) Connections(id string) []ConnectionStats {
-	ns.connsMutex.Lock()
-	defer ns.connsMutex.Unlock()
-
+	// First time we see this client, use global state
 	if old := ns.newClient(id); !old {
-		// First time we see this client, use global state
+		ns.Lock()
+		defer ns.Unlock()
 		return ns.connections
 	}
 
 	// TODO check for duplicates here
-	conns := append(ns.closedConns(id), ns.connections...)
-
-	// Update send/recv bytes stats
-	ns.clientsMutex.Lock()
-	defer ns.clientsMutex.Unlock()
-	buf := &bytes.Buffer{}
-	for i, conn := range conns {
-		rawKey, err := conn.ByteKey(buf)
-		if err != nil {
-			log.Errorf("could not get string key for conn: %v: %s", conn, err)
-			continue
-		}
-		key := string(rawKey)
-
-		if _, ok := ns.clients[id].stats[key]; !ok {
-			ns.clients[id].stats[key] = &sendRecvStats{}
-		}
-
-		prev := ns.clients[id].stats[key]
-		ns.clients[id].stats[key].lastSent = conn.MonotonicSentBytes - prev.totalSent
-		ns.clients[id].stats[key].lastRecv = conn.MonotonicRecvBytes - prev.totalRecv
-		ns.clients[id].stats[key].lastRetransmits = conn.MonotonicRetransmits - prev.totalRetransmits
-		ns.clients[id].stats[key].totalSent = conn.MonotonicSentBytes
-		ns.clients[id].stats[key].totalRecv = conn.MonotonicRecvBytes
-		ns.clients[id].stats[key].totalRetransmits = conn.MonotonicRetransmits
-
-		conns[i].LastSentBytes = prev.lastSent
-		conns[i].LastRecvBytes = prev.lastRecv
-		conns[i].LastRetransmits = prev.lastRetransmits
-	}
-
-	return conns
+	return append(ns.closedConns(id), ns.getConnections(id)...)
 }
 
 func (ns *networkState) StoreConnections(conns []ConnectionStats) {
 	// Update connections
-	ns.connsMutex.Lock()
-	defer ns.connsMutex.Unlock()
+	ns.Lock()
+	defer ns.Unlock()
 	ns.connections = conns
 }
 
 // StoreClosedConnection stores the given connection for every client
 func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
-	ns.clientsMutex.Lock()
-	defer ns.clientsMutex.Unlock()
+	ns.Lock()
+	defer ns.Unlock()
 
 	for id := range ns.clients {
 		// TODO clear the stats entry for this connection
@@ -160,8 +127,8 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 	conns := []ConnectionStats{}
 
-	ns.clientsMutex.Lock()
-	defer ns.clientsMutex.Unlock()
+	ns.Lock()
+	defer ns.Unlock()
 
 	for _, conn := range ns.clients[clientID].closedConnections {
 		conns = append(conns, *conn)
@@ -175,8 +142,8 @@ func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 
 // newClient creates a new client and returns true if the given client already exists
 func (ns *networkState) newClient(clientID string) bool {
-	ns.clientsMutex.Lock()
-	defer ns.clientsMutex.Unlock()
+	ns.Lock()
+	defer ns.Unlock()
 	if _, ok := ns.clients[clientID]; ok {
 		return true
 	}
@@ -188,15 +155,56 @@ func (ns *networkState) newClient(clientID string) bool {
 	return false
 }
 
+// getConnections return the connections and takes care of updating their last stats
+func (ns *networkState) getConnections(id string) []ConnectionStats {
+	ns.Lock()
+	defer ns.Unlock()
+
+	conns := make([]ConnectionStats, 0, len(ns.connections))
+
+	buf := &bytes.Buffer{}
+	// Update send/recv bytes stats
+	for _, conn := range ns.connections {
+		rawKey, err := conn.ByteKey(buf)
+		if err != nil {
+			log.Errorf("could not build byte key for conn %v: %s", conn, err)
+			continue
+		}
+		key := string(rawKey)
+
+		if _, old := ns.clients[id].stats[key]; !old {
+			ns.clients[id].stats[key] = &sendRecvStats{}
+		}
+
+		prev := ns.clients[id].stats[key]
+		ns.clients[id].stats[key].lastSent = conn.MonotonicSentBytes - prev.totalSent
+		ns.clients[id].stats[key].lastRecv = conn.MonotonicRecvBytes - prev.totalRecv
+		ns.clients[id].stats[key].lastRetransmits = conn.MonotonicRetransmits - prev.totalRetransmits
+
+		conn.LastSentBytes = prev.lastSent
+		conn.LastRecvBytes = prev.lastRecv
+		conn.LastRetransmits = prev.lastRetransmits
+
+		ns.clients[id].stats[key].totalSent = conn.MonotonicSentBytes
+		ns.clients[id].stats[key].totalRecv = conn.MonotonicRecvBytes
+		ns.clients[id].stats[key].totalRetransmits = conn.MonotonicRetransmits
+
+		conns = append(conns, conn)
+	}
+
+	return conns
+}
+
 func (ns *networkState) RemoveClient(clientID string) {
-	ns.clientsMutex.Lock()
-	defer ns.clientsMutex.Unlock()
+	ns.Lock()
+	defer ns.Unlock()
 	delete(ns.clients, clientID)
 }
 
 func (ns *networkState) removeExpiredClients(now time.Time) {
-	ns.clientsMutex.Lock()
-	defer ns.clientsMutex.Unlock()
+	ns.Lock()
+	defer ns.Unlock()
+
 	for id, c := range ns.clients {
 		if c.lastFetch.Add(ns.clientExpiry).Before(now) {
 			delete(ns.clients, id)
