@@ -41,7 +41,7 @@ type sendRecvStats struct {
 
 type client struct {
 	lastFetch         time.Time
-	closedConnections []*ConnectionStats
+	closedConnections map[string]*ConnectionStats
 	stats             map[string]*sendRecvStats
 }
 
@@ -49,7 +49,7 @@ type networkState struct {
 	sync.Mutex
 
 	clients     map[string]*client
-	connections []ConnectionStats
+	connections map[string]*ConnectionStats
 
 	cleanInterval time.Duration
 	clientExpiry  time.Duration
@@ -64,7 +64,7 @@ func NewDefaultNetworkState() NetworkState {
 func NewNetworkState(cleanInterval time.Duration, clientExpiry time.Duration) NetworkState {
 	ns := &networkState{
 		clients:       map[string]*client{},
-		connections:   []ConnectionStats{},
+		connections:   map[string]*ConnectionStats{},
 		cleanInterval: cleanInterval,
 		clientExpiry:  clientExpiry,
 	}
@@ -96,7 +96,11 @@ func (ns *networkState) Connections(id string) []ConnectionStats {
 	if old := ns.newClient(id); !old {
 		ns.Lock()
 		defer ns.Unlock()
-		return ns.connections
+		conns := make([]ConnectionStats, 0, len(ns.connections))
+		for _, conn := range ns.connections {
+			conns = append(conns, *conn)
+		}
+		return conns
 	}
 
 	// TODO check for duplicates here
@@ -107,7 +111,20 @@ func (ns *networkState) StoreConnections(conns []ConnectionStats) {
 	// Update connections
 	ns.Lock()
 	defer ns.Unlock()
-	ns.connections = conns
+
+	buf := &bytes.Buffer{}
+	for _, c := range conns {
+		rawKey, err := c.ByteKey(buf)
+		if err != nil {
+			log.Errorf("%s", err)
+			continue
+		}
+
+		// copy to get pointer to struct
+		c2 := c
+		// TODO aggregate
+		ns.connections[string(rawKey)] = &c2
+	}
 }
 
 // StoreClosedConnection stores the given connection for every client
@@ -115,10 +132,17 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 	ns.Lock()
 	defer ns.Unlock()
 
+	rawKey, err := conn.ByteKey(&bytes.Buffer{})
+	if err != nil {
+		log.Errorf("%s", err)
+		return
+	}
+	key := string(rawKey)
+
 	for id := range ns.clients {
 		// TODO clear the stats entry for this connection
 		// We only store the pointer to the connection, when it will be cleared for each client it will get GCed
-		ns.clients[id].closedConnections = append(ns.clients[id].closedConnections, &conn)
+		ns.clients[id].closedConnections[key] = &conn
 	}
 }
 
@@ -135,7 +159,7 @@ func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 	}
 
 	// Flush closed connections for this client
-	ns.clients[clientID].closedConnections = []*ConnectionStats{}
+	ns.clients[clientID].closedConnections = map[string]*ConnectionStats{}
 	ns.clients[clientID].lastFetch = time.Now()
 	return conns
 }
@@ -149,8 +173,9 @@ func (ns *networkState) newClient(clientID string) bool {
 	}
 
 	ns.clients[clientID] = &client{
-		lastFetch: time.Now(),
-		stats:     map[string]*sendRecvStats{},
+		lastFetch:         time.Now(),
+		stats:             map[string]*sendRecvStats{},
+		closedConnections: map[string]*ConnectionStats{},
 	}
 	return false
 }
@@ -162,16 +187,8 @@ func (ns *networkState) getConnections(id string) []ConnectionStats {
 
 	conns := make([]ConnectionStats, 0, len(ns.connections))
 
-	buf := &bytes.Buffer{}
 	// Update send/recv bytes stats
-	for _, conn := range ns.connections {
-		rawKey, err := conn.ByteKey(buf)
-		if err != nil {
-			log.Errorf("could not build byte key for conn %v: %s", conn, err)
-			continue
-		}
-		key := string(rawKey)
-
+	for key, conn := range ns.connections {
 		if _, old := ns.clients[id].stats[key]; !old {
 			ns.clients[id].stats[key] = &sendRecvStats{}
 		}
@@ -189,7 +206,7 @@ func (ns *networkState) getConnections(id string) []ConnectionStats {
 		ns.clients[id].stats[key].totalRecv = conn.MonotonicRecvBytes
 		ns.clients[id].stats[key].totalRetransmits = conn.MonotonicRetransmits
 
-		conns = append(conns, conn)
+		conns = append(conns, *conn)
 	}
 
 	return conns

@@ -209,7 +209,7 @@ func TestLastStatsForClosedConnection(t *testing.T) {
 	// Store the connection
 	state.StoreConnections([]ConnectionStats{conn})
 
-	// We should have one connection with last stats equal to 0
+	// We should have one connection with last stats equal to monotonic stats
 	conns = state.Connections(clientID)
 	assert.Equal(t, 1, len(conns))
 	assert.Equal(t, conn.MonotonicSentBytes, conns[0].LastSentBytes)

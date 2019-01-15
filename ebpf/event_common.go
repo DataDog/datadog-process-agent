@@ -101,3 +101,18 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 	}
 	return buffer.Bytes(), nil
 }
+
+// ConnByteKeyBuildError represent an error that occurs when building a byte key for a connection
+type ConnByteKeyBuildError struct {
+	c   ConnectionStats
+	err error
+}
+
+// NewConnByteKeyBuildError returns a ConnByteKeyBuildError
+func NewConnByteKeyBuildError(c ConnectionStats, err error) *ConnByteKeyBuildError {
+	return &ConnByteKeyBuildError{c, err}
+}
+
+func (e *ConnByteKeyBuildError) Error() string {
+	return fmt.Sprintf("could not build byte key for conn %v: %s", e.c, e.err)
+}
