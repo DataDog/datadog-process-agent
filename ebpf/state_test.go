@@ -131,7 +131,7 @@ func TestLastStats(t *testing.T) {
 
 	state.StoreConnections([]ConnectionStats{conn})
 
-	// We should have only one connection but with last stats equal to monotonic value
+	// We should have only one connection but with last stats equal to monotonic
 	conns = state.Connections(client1)
 	assert.Equal(t, 1, len(conns))
 	assert.Equal(t, conn.MonotonicSentBytes, conns[0].LastSentBytes)
@@ -143,8 +143,7 @@ func TestLastStats(t *testing.T) {
 
 	state.StoreConnections([]ConnectionStats{conn2})
 
-	// This client didn't collected the first connection so
-	// we should have last stats = to monotonic stats
+	// This client didn't collected the first connection so last stats = monotonic
 	conns = state.Connections(client2)
 	assert.Equal(t, 1, len(conns))
 	assert.Equal(t, conn2.MonotonicSentBytes, conns[0].LastSentBytes)
@@ -210,7 +209,7 @@ func TestLastStatsForClosedConnection(t *testing.T) {
 	// Store the connection
 	state.StoreConnections([]ConnectionStats{conn})
 
-	// We should have one connection with last stats = monotonic value
+	// We should have one connection with last stats equal to 0
 	conns = state.Connections(clientID)
 	assert.Equal(t, 1, len(conns))
 	assert.Equal(t, conn.MonotonicSentBytes, conns[0].LastSentBytes)
@@ -286,4 +285,165 @@ func TestRaceConditions(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestSameKeyEdgeCases(t *testing.T) {
+	// For this test all the connections have the same key
+
+	client := "1"
+	conn := ConnectionStats{
+		Pid:                123,
+		Type:               TCP,
+		Family:             AFINET,
+		Source:             "localhost",
+		Dest:               "localhost",
+		MonotonicSentBytes: 3,
+	}
+
+	t.Run("ShortlivedConnection", func(t *testing.T) {
+		// +     3 bytes      +
+		// |                  |
+		// |   +---------+    |
+		// |                  |
+		// +                  +
+
+		// c0                 c1
+
+		// We expect:
+		// c0: Nothing
+		// c1: Monotonic: 3 bytes, Last seen: 3 bytes
+		state := NewDefaultNetworkState()
+
+		// First get, we should have nothing
+		conns := state.Connections(client)
+		assert.Equal(t, 0, len(conns))
+
+		// Store the connection as closed
+		state.StoreClosedConnection(conn)
+
+		// Second get, we should have monotonic and last stats = 3
+		conns = state.Connections(client)
+		assert.Equal(t, 1, len(conns))
+		assert.Equal(t, 3, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 3, int(conns[0].LastSentBytes))
+	})
+
+	t.Run("TwoShortlivedConnectionsWithSameKey", func(t *testing.T) {
+		//  +    3 bytes       5 bytes    +
+		//  |                             |
+		//  |    +-----+       +-----+    |
+		//  |                             |
+		//  +                             +
+
+		//  c0                            c1
+
+		// We expect:
+		// c0: Nothing
+		// c1: Monotonic: 8 bytes, Last seenL 8 bytes
+
+		state := NewDefaultNetworkState()
+
+		// First get, we should have nothing
+		conns := state.Connections(client)
+		assert.Equal(t, 0, len(conns))
+
+		// Store the connection as closed
+		state.StoreClosedConnection(conn)
+
+		conn2 := conn
+		conn2.MonotonicSentBytes = 5
+		// Store the connection another time
+		state.StoreClosedConnection(conn2)
+
+		// Second get, we should have monotonic and last stats = 8
+		conns = state.Connections(client)
+		assert.Equal(t, 1, len(conns))
+		assert.Equal(t, 8, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 8, int(conns[0].LastSentBytes))
+	})
+
+	t.Run("TwoShortlivedConnectionsWithSameKeyCrossing", func(t *testing.T) {
+		// +    3 bytes    2 b  +  3 bytes        +
+		// |                    |                 |
+		// |    +-----+    +-----------+          |
+		// |                    |                 |
+		// +                    +                 +
+
+		// c0                   c1                c2
+		// We expect:
+
+		// c0: Nothing
+		// c1: Monotonic: 5 bytes, Last seen: 5 bytes
+		// c2: Monotonic: 8 bytes, Last seen: 3 bytes
+
+		state := NewDefaultNetworkState()
+
+		// First get, we should have nothing
+		conns := state.Connections(client)
+		assert.Equal(t, 0, len(conns))
+
+		// Store the connection as closed
+		state.StoreClosedConnection(conn)
+
+		conn2 := conn
+		conn2.MonotonicSentBytes = 2
+		// Store the connection as an opened connection
+		state.StoreConnections([]ConnectionStats{conn2})
+
+		// Second get, we should have monotonic and last stats = 5
+		conns = state.Connections(client)
+		assert.Equal(t, 1, len(conns))
+		assert.Equal(t, 5, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 5, int(conns[0].LastSentBytes))
+
+		// Store the connection as closed
+		conn2.MonotonicSentBytes += 3
+		state.StoreClosedConnection(conn2)
+
+		// Third get, we should have monotonic = 8 and last stats = 3
+		conns = state.Connections(client)
+		assert.Equal(t, 1, len(conns))
+		assert.Equal(t, 8, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 3, int(conns[0].LastSentBytes))
+	})
+
+	t.Run("ConnectionCrossing", func(t *testing.T) {
+		// 3 b  +  5 bytes        +
+		//      |                 |
+		// +-----------+          |
+		//      |                 |
+		//      +                 +
+
+		//     c0                c1
+		// We expect:
+
+		// c0: Monotonic: 3 bytes, Last seen: 3 bytes
+		// c1: Monotonic: 8 bytes, Last seen: 5 bytes
+
+		state := NewDefaultNetworkState()
+
+		// this is to register we should not have anything
+		conns := state.Connections(client)
+		assert.Equal(t, 0, len(conns))
+
+		// Store the connection as opened
+		state.StoreConnections([]ConnectionStats{conn})
+
+		// First get, we should have monotonic = 3 and last seen = 3
+		conns = state.Connections(client)
+		assert.Equal(t, 1, len(conns))
+		assert.Equal(t, 3, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 3, int(conns[0].LastSentBytes))
+
+		// Store the connection as closed
+		conn2 := conn
+		conn2.MonotonicSentBytes = 8
+		state.StoreClosedConnection(conn2)
+
+		// Second get, we should have monotonic = 8 and last stats = 5
+		conns = state.Connections(client)
+		assert.Equal(t, 1, len(conns))
+		assert.Equal(t, 8, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 5, int(conns[0].LastSentBytes))
+	})
 }
