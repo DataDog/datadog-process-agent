@@ -36,6 +36,20 @@ func NewUDSListener(cfg *config.AgentConfig) (*UDSListener, error) {
 		return nil, fmt.Errorf("can't set the socket at write only: %s", err)
 	}
 
+	fileInfo, err := os.Stat(socketPath)
+	// Socket file already exists
+	if err = nil {
+		// Confirm that it's a UNIX socket
+		if fileInfo.Mode()&os.ModeSocket == 0 {
+			return nil, fmt.Errorf("uds: cannot reuse %s socket path: path already exists  and it is not a UNIX socket"),
+		}
+		err = os.Remove(socketPath)
+		if err != nil {
+			return nil, fmt.Errorf("uds: cannot remove stale UNIX socket: %v", err)
+		}
+	}
+
+
 	listener := &UDSListener{
 		conn:       conn,
 		socketPath: cfg.NetworkTracerSocketPath,
