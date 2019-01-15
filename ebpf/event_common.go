@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-
-	log "github.com/cihub/seelog"
 )
 
 // ConnectionType will be either TCP or UDP
@@ -67,8 +65,18 @@ type ConnectionStats struct {
 }
 
 func (c ConnectionStats) String() string {
-	return fmt.Sprintf("[%s] [PID: %d] [%v:%d ⇄ %v:%d] %d bytes sent, %d bytes received, %d retransmits",
-		c.Type, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.MonotonicSentBytes, c.MonotonicRecvBytes, c.MonotonicRetransmits)
+	return fmt.Sprintf(
+		"[%s] [PID: %d] [%v:%d ⇄ %v:%d] %d bytes sent (+%d), %d bytes received (+%d), %d retransmits (+%d)",
+		c.Type,
+		c.Pid,
+		c.Source,
+		c.SPort,
+		c.Dest,
+		c.DPort,
+		c.MonotonicSentBytes, c.LastSentBytes,
+		c.MonotonicRecvBytes, c.LastRecvBytes,
+		c.MonotonicRetransmits, c.LastRetransmits,
+	)
 }
 
 // ByteKey returns a unique key for this connection represented as a byte array
@@ -92,26 +100,4 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 		return nil, err
 	}
 	return buffer.Bytes(), nil
-}
-
-func removeDuplicates(conns []ConnectionStats) []ConnectionStats {
-	connections := make([]ConnectionStats, 0, len(conns))
-	seen := make(map[string]struct{})
-
-	buf := &bytes.Buffer{}
-	for _, c := range conns {
-		key, err := c.ByteKey(buf)
-		if err != nil {
-			log.Errorf("could not get byte key for connection %v: %s", c, err)
-			continue
-		}
-
-		// If it's the first time we see this connection add it
-		if _, ok := seen[string(key)]; !ok {
-			connections = append(connections, c)
-			seen[string(key)] = struct{}{}
-		}
-	}
-
-	return connections
 }

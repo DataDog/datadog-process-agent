@@ -38,8 +38,7 @@ type Tracer struct {
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
 // This value should be enough for typical workloads (e.g. some amount of processes blocked on the accept syscall).
 const (
-	maxActive         = 128
-	connsPollInterval = 10 * time.Second
+	maxActive = 128
 )
 
 // CurrentKernelVersion exposes calculated kernel version - exposed in LINUX_VERSION_CODE format
@@ -100,15 +99,6 @@ func NewTracer(config *Config) (*Tracer, error) {
 		return nil, fmt.Errorf("could not start polling bpf events: %s", err)
 	}
 
-	// Poll connections every 10s
-	go func() {
-		for range time.NewTicker(connsPollInterval).C {
-			if err := tr.updateState(); err != nil {
-				log.Errorf("could not retrieve connections: %s", err)
-			}
-		}
-	}()
-
 	return tr, nil
 }
 
@@ -162,6 +152,10 @@ func (t *Tracer) Stop() {
 }
 
 func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
+	if err := t.updateState(); err != nil {
+		return nil, fmt.Errorf("error updating network-tracer state: %s", err)
+	}
+
 	return &Connections{Conns: t.state.Connections(clientID)}, nil
 }
 

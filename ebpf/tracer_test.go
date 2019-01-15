@@ -28,59 +28,6 @@ var (
 	payloadSizesUDP   = []int{2 << 5, 2 << 8, 2 << 12, 2 << 14}
 )
 
-func TestRemoveDuplicates(t *testing.T) {
-	conn1 := ConnectionStats{
-		Pid:                  123,
-		Type:                 TCP,
-		Family:               AFINET,
-		Source:               "localhost",
-		Dest:                 "localhost",
-		SPort:                31890,
-		DPort:                80,
-		MonotonicSentBytes:   12345,
-		MonotonicRecvBytes:   6789,
-		MonotonicRetransmits: 2,
-	}
-
-	// Different family
-	conn2 := ConnectionStats{
-		Pid:                  123,
-		Type:                 TCP,
-		Family:               AFINET6,
-		Source:               "localhost",
-		Dest:                 "localhost",
-		SPort:                31890,
-		DPort:                80,
-		MonotonicSentBytes:   12345,
-		MonotonicRecvBytes:   6789,
-		MonotonicRetransmits: 2,
-	}
-
-	// Same as conn1 but with different stats
-	conn3 := ConnectionStats{
-		Pid:                  123,
-		Type:                 TCP,
-		Family:               AFINET6,
-		Source:               "localhost",
-		Dest:                 "localhost",
-		SPort:                31890,
-		DPort:                80,
-		MonotonicSentBytes:   0,
-		MonotonicRecvBytes:   123,
-		MonotonicRetransmits: 1,
-	}
-
-	conns := []ConnectionStats{conn1, conn1}
-	assert.Equal(t, 1, len(removeDuplicates(conns)))
-
-	// conn1 and conn3 are duplicates
-	conns = []ConnectionStats{conn1, conn2, conn3}
-	assert.Equal(t, 2, len(removeDuplicates(conns)))
-
-	conns = []ConnectionStats{conn1, conn1, conn1, conn2, conn2, conn2, conn3, conn3, conn3}
-	assert.Equal(t, 2, len(removeDuplicates(conns)))
-}
-
 func TestTCPSendAndReceive(t *testing.T) {
 	// Enable BPF-based network tracer
 	tr, err := NewTracer(NewDefaultConfig())

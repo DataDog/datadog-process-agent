@@ -101,7 +101,8 @@ func (ns *networkState) Connections(id string) []ConnectionStats {
 		return ns.connections
 	}
 
-	conns := removeDuplicates(append(ns.closedConns(id), ns.connections...))
+	// TODO check for duplicates here
+	conns := append(ns.closedConns(id), ns.connections...)
 
 	// Update send/recv bytes stats
 	ns.clientsMutex.Lock()
