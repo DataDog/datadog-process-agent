@@ -27,7 +27,7 @@ type NetworkState interface {
 	RemoveClient(clientID string)                  // Stop tracking stateful data for the given client
 }
 
-type sendRecvStats struct {
+type sentRecvStats struct {
 	totalSent uint64
 	lastSent  uint64
 
@@ -45,8 +45,8 @@ type client struct {
 	// However this restrict us from modifying the underlying connection (otherwise it
 	// will be modified for each client
 	closedConnections   map[string]*ConnectionStats
-	overrideConnections map[string]sendRecvStats
-	stats               map[string]*sendRecvStats
+	overrideConnections map[string]sentRecvStats
+	stats               map[string]*sentRecvStats
 }
 
 type networkState struct {
@@ -200,7 +200,7 @@ func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 		}
 
 		// Total defaults to 0 if it's not stored
-		prev := sendRecvStats{}
+		prev := sentRecvStats{}
 		if _, ok := ns.clients[clientID].stats[key]; ok {
 			prev = *ns.clients[clientID].stats[key]
 			delete(ns.clients[clientID].stats, key)
@@ -230,9 +230,9 @@ func (ns *networkState) newClient(clientID string) bool {
 
 	ns.clients[clientID] = &client{
 		lastFetch:           time.Now(),
-		stats:               map[string]*sendRecvStats{},
+		stats:               map[string]*sentRecvStats{},
 		closedConnections:   map[string]*ConnectionStats{},
-		overrideConnections: map[string]sendRecvStats{},
+		overrideConnections: map[string]sentRecvStats{},
 	}
 	return false
 }
@@ -251,7 +251,7 @@ func (ns *networkState) getConnections(id string) []ConnectionStats {
 		c := *conn
 
 		if _, old := ns.clients[id].stats[key]; !old {
-			ns.clients[id].stats[key] = &sendRecvStats{}
+			ns.clients[id].stats[key] = &sentRecvStats{}
 		}
 
 		// If we have an override for this conn for this client, aggregate the conn
@@ -306,7 +306,7 @@ func aggregateConnections(c1 *ConnectionStats, c2 ConnectionStats) {
 }
 
 // aggregateConnectionAndStats aggregates s into c
-func aggregateConnAndStat(c1 *ConnectionStats, s sendRecvStats) {
+func aggregateConnAndStat(c1 *ConnectionStats, s sentRecvStats) {
 	c1.LastSentBytes += s.lastSent
 	c1.MonotonicSentBytes += s.totalSent
 	c1.LastRecvBytes += s.lastRecv
@@ -316,8 +316,8 @@ func aggregateConnAndStat(c1 *ConnectionStats, s sendRecvStats) {
 }
 
 // aggregateStats returns an aggregation of two stats
-func aggregateStats(s1, s2 sendRecvStats) sendRecvStats {
-	return sendRecvStats{
+func aggregateStats(s1, s2 sentRecvStats) sentRecvStats {
+	return sentRecvStats{
 		lastSent:         s1.lastSent + s2.lastSent,
 		lastRecv:         s1.lastRecv + s2.lastRecv,
 		lastRetransmits:  s1.lastRetransmits + s2.lastRetransmits,
@@ -327,8 +327,8 @@ func aggregateStats(s1, s2 sendRecvStats) sendRecvStats {
 	}
 }
 
-func statsFromConn(conn ConnectionStats) sendRecvStats {
-	return sendRecvStats{
+func statsFromConn(conn ConnectionStats) sentRecvStats {
+	return sentRecvStats{
 		lastSent:         conn.LastSentBytes,
 		lastRecv:         conn.LastRecvBytes,
 		lastRetransmits:  conn.LastRetransmits,
