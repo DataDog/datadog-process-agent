@@ -123,7 +123,7 @@ func TestCleanupClient(t *testing.T) {
 	wait := 100 * time.Millisecond
 
 	state := NewNetworkState(defaultCleanInterval, wait)
-	clients := state.getClients()
+	clients := state.(*networkState).getClients()
 	assert.Equal(t, 0, len(clients))
 
 	conns := state.Connections(clientID)
@@ -132,7 +132,7 @@ func TestCleanupClient(t *testing.T) {
 	// Should be a no op
 	state.(*networkState).removeExpiredClients(time.Now())
 
-	clients = state.getClients()
+	clients = state.(*networkState).getClients()
 	assert.Equal(t, 1, len(clients))
 	assert.Equal(t, "1", clients[0])
 
@@ -141,7 +141,7 @@ func TestCleanupClient(t *testing.T) {
 	// Should delete the client 1
 	state.(*networkState).removeExpiredClients(time.Now())
 
-	clients = state.getClients()
+	clients = state.(*networkState).getClients()
 	assert.Equal(t, 0, len(clients))
 }
 

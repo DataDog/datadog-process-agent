@@ -21,11 +21,10 @@ const (
 // - closed connections
 // - sent and received bytes per connection
 type NetworkState interface {
-	Connections(clientID string) []ConnectionStats
-	StoreConnections(conns []ConnectionStats)
-	StoreClosedConnection(conn ConnectionStats)
-	RemoveClient(clientID string)
-	getClients() []string
+	Connections(clientID string) []ConnectionStats // Returns the list of connections for the given client
+	StoreConnections(conns []ConnectionStats)      // Store new connections in state
+	StoreClosedConnection(conn ConnectionStats)    // Store a new closed connection
+	RemoveClient(clientID string)                  // Stop tracking stateful data for the given client
 }
 
 type sendRecvStats struct {
@@ -216,6 +215,7 @@ func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 
 	// Flush closed connections for this client
 	ns.clients[clientID].closedConnections = map[string]*ConnectionStats{}
+	// TODO move this
 	ns.clients[clientID].lastFetch = time.Now()
 	return conns
 }
