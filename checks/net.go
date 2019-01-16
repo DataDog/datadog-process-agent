@@ -66,6 +66,9 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 	}
 
 	c.buf = new(bytes.Buffer)
+
+	// Run the check one time on init to register the client on the network tracer
+	c.Run(cfg, 0)
 }
 
 // Name returns the name of the ConnectionsCheck.
