@@ -215,8 +215,6 @@ func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 
 	// Flush closed connections for this client
 	ns.clients[clientID].closedConnections = map[string]*ConnectionStats{}
-	// TODO move this
-	ns.clients[clientID].lastFetch = time.Now()
 	return conns
 }
 
@@ -241,6 +239,9 @@ func (ns *networkState) newClient(clientID string) bool {
 func (ns *networkState) getConnections(id string) []ConnectionStats {
 	ns.Lock()
 	defer ns.Unlock()
+
+	// Update client's last fetch time
+	ns.clients[id].lastFetch = time.Now()
 
 	conns := make([]ConnectionStats, 0, len(ns.connections))
 
