@@ -359,7 +359,7 @@ message Connection {
 	uint64 lastBytesSent = 16;
 	uint64 lastBytesReceived = 17;
 	uint32 lastRetransmits = 18;
-    ConnectionDirection direction = 19;
+    	ConnectionDirection direction = 19;
 }
 
 message Addr {

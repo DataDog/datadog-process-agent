@@ -30,7 +30,7 @@ type Tracer struct {
 	// State handler
 	state          NetworkState
 	portMapping    *PortMapping
-	localAddresses map[string]interface{}
+	localAddresses map[string]struct{}
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -357,8 +357,8 @@ func (t *Tracer) isLocalAddress(address string) bool {
 	return ok
 }
 
-func readLocalAddresses() map[string]interface{} {
-	addresses := make(map[string]interface{}, 0)
+func readLocalAddresses() map[string]struct{} {
+	addresses := make(map[string]struct{}, 0)
 
 	interfaces, err := net.Interfaces()
 	if err != nil {

@@ -445,6 +445,8 @@ static int read_conn_tuple(conn_tuple_t* tuple, tracer_status_t* status, struct 
     if (family == CONN_V6 && is_ipv4_mapped_ipv6(saddr_h, saddr_l, daddr_h, daddr_l)) {
         tuple->metadata |= CONN_V4;
 
+        tuple->saddr_h = 0;
+        tuple->daddr_h = 0;
         tuple->saddr_l = (u32)(saddr_l >> 32);
         tuple->daddr_l = (u32)(daddr_l >> 32);
     } else {

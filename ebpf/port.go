@@ -10,7 +10,7 @@ import (
 type PortMapping struct {
 	procRoot string
 	config   *Config
-	ports    map[uint16]interface{}
+	ports    map[uint16]struct{}
 }
 
 //NewPortMapping creates a new PortMapping instance
@@ -18,7 +18,7 @@ func NewPortMapping(procRoot string, config *Config) *PortMapping {
 	return &PortMapping{
 		procRoot: procRoot,
 		config:   config,
-		ports:    make(map[uint16]interface{}),
+		ports:    make(map[uint16]struct{}),
 	}
 }
 
@@ -62,7 +62,7 @@ func (pm *PortMapping) ReadInitialState() error {
 		}
 	}
 
-	log.Infof("Read initial pid->port mapping in %s", time.Now().Sub(start))
+	log.Debugf("Read initial pid->port mapping in %s", time.Now().Sub(start))
 
 	return nil
 }
