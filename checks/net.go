@@ -200,11 +200,11 @@ func formatType(f ebpf.ConnectionType) model.ConnectionType {
 }
 
 func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
-	groupSize := groupSize(len(cxs), cfg.MaxPerMessage)
+	groupSize := groupSize(len(cxs), cfg.MaxConnsPerMessage)
 	batches := make([]model.MessageBody, 0, groupSize)
 
 	for len(cxs) > 0 {
-		batchSize := min(cfg.MaxPerMessage, len(cxs))
+		batchSize := min(cfg.MaxConnsPerMessage, len(cxs))
 		batches = append(batches, &model.CollectorConnections{
 			HostName:    cfg.HostName,
 			Connections: cxs[:batchSize],

@@ -59,7 +59,7 @@ func TestNetworkConnectionBatching(t *testing.T) {
 			expectedChunks: 3,
 		},
 	} {
-		cfg.MaxPerMessage = tc.maxSize
+		cfg.MaxConnsPerMessage = tc.maxSize
 		chunks := batchConnections(cfg, 0, tc.cur)
 
 		assert.Len(t, chunks, tc.expectedChunks, "len %d", i)
