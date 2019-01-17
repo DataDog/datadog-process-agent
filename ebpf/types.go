@@ -43,6 +43,7 @@ type bpfMapName string
 const (
 	connMap            bpfMapName = "conn_stats"
 	tcpStatsMap        bpfMapName = "tcp_stats"
+	tcpCloseEventMap   bpfMapName = "tcp_close_events"
 	latestTimestampMap bpfMapName = "latest_ts"
 	tracerStatusMap    bpfMapName = "tracer_status"
 	portBindingsMap    bpfMapName = "port_bindings"

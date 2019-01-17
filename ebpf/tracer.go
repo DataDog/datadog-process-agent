@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"time"
 	"unsafe"
 
 	log "github.com/cihub/seelog"
@@ -23,15 +24,20 @@ var (
 )
 
 type Tracer struct {
-	m              *bpflib.Module
-	config         *Config
+	m       *bpflib.Module
+	perfMap *bpflib.PerfMap
+	config  *Config
+	// State handler
+	state          NetworkState
 	portMapping    *PortMapping
 	localAddresses map[string]interface{}
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
 // This value should be enough for typical workloads (e.g. some amount of processes blocked on the accept syscall).
-const maxActive = 128
+const (
+	maxActive = 128
+)
 
 // CurrentKernelVersion exposes calculated kernel version - exposed in LINUX_VERSION_CODE format
 // That is, for kernel "a.b.c", the version number will be (a<<16 + b<<8 + c)
@@ -88,31 +94,93 @@ func NewTracer(config *Config) (*Tracer, error) {
 
 	localAddresses := readLocalAddresses()
 
-	return &Tracer{m: m, config: config, portMapping: portMapping, localAddresses: localAddresses}, nil
+	tr := &Tracer{
+		m:              m,
+		config:         config,
+		state:          NewDefaultNetworkState(),
+		portMapping:    portMapping,
+		localAddresses: localAddresses,
+	}
+
+	tr.perfMap, err = tr.initPerfPolling()
+	if err != nil {
+		return nil, fmt.Errorf("could not start polling bpf events: %s", err)
+	}
+
+	return tr, nil
+}
+
+// initPerfPolling starts the listening on perf buffer events to grab closed connections
+func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
+	closedChannel := make(chan []byte, 100)
+	lostChannel := make(chan uint64, 10)
+
+	pm, err := bpflib.InitPerfMap(t.m, string(tcpCloseEventMap), closedChannel, lostChannel)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing perf map: %s", err)
+	}
+
+	pm.PollStart()
+
+	go func() {
+		// Stats about how much connections have been closed / lost
+		var closedCount, lostCount uint64
+		ticker := time.NewTicker(5 * time.Minute)
+
+		for {
+			select {
+			case c, ok := <-closedChannel:
+				if !ok {
+					return
+				}
+				closedCount++
+				t.state.StoreClosedConnection(decodeRawTCPConn(c))
+			case c, ok := <-lostChannel:
+				if !ok {
+					return
+				}
+				lostCount += c
+			case <-ticker.C:
+				log.Debugf("Connection stats: %d lost, %d closed", lostCount, closedCount)
+				closedCount, lostCount = 0, 0
+			}
+		}
+	}()
+
+	return pm, nil
 }
 
 func (t *Tracer) Stop() {
 	t.m.Close()
+	t.perfMap.PollStop()
 }
 
-func (t *Tracer) GetActiveConnections() (*Connections, error) {
-	conns, err := t.getConnections()
-	if err != nil {
-		return nil, err
+func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
+	if err := t.updateState(); err != nil {
+		return nil, fmt.Errorf("error updating network-tracer state: %s", err)
 	}
 
-	return &Connections{Conns: conns}, nil
+	return &Connections{Conns: t.state.Connections(clientID)}, nil
+}
+
+func (t *Tracer) updateState() error {
+	conns, err := t.getConnections()
+	if err != nil {
+		return err
+	}
+	t.state.StoreConnections(conns)
+	return nil
 }
 
 func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 	mp, err := t.getMap(connMap)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", connMap, err)
 	}
 
 	tcpMp, err := t.getMap(tcpStatsMap)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", tcpStatsMap, err)
 	}
 
 	portMp, err := t.getMap(portBindingsMap)
@@ -168,10 +236,14 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 
 func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
 	for i := range entries {
-		_ = t.m.DeleteElement(mp, unsafe.Pointer(entries[i]))
+		err := t.m.DeleteElement(mp, unsafe.Pointer(entries[i]))
+		if err != nil {
+			log.Errorf("error when removing entry from connections bpf map: %s", err)
+		}
 
 		// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
 		entries[i].pid = 0
+		// We can ignore the error for this map since it will not always contain the entry
 		_ = t.m.DeleteElement(tcpMp, unsafe.Pointer(entries[i]))
 	}
 }

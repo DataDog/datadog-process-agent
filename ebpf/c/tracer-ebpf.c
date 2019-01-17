@@ -67,6 +67,18 @@ struct bpf_map_def SEC("maps/tcp_stats") tcp_stats = {
     .namespace = "",
 };
 
+/* Will hold the tcp close events
+ * The keys are the cpu number and the values a perf file descriptor for a perf event
+ */
+struct bpf_map_def SEC("maps/tcp_close_events") tcp_close_event = {
+    .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
+    .key_size = sizeof(__u32),
+    .value_size = sizeof(__u32),
+    .max_entries = 1024, // TODO retrieve the number of CPUs for the current host and use this as max_entries
+    .pinning = 0,
+    .namespace = "",
+};
+
 /* These maps are used to match the kprobe & kretprobe of connect for IPv4 */
 /* This is a key/value store with the keys being a pid
  * and the values being a struct sock *.
@@ -449,7 +461,7 @@ static void update_conn_stats(
     u64 pid,
     metadata_mask_t type,
     metadata_mask_t family,
-    size_t send_bytes,
+    size_t sent_bytes,
     size_t recv_bytes,
     u64 ts) {
     conn_tuple_t t = {};
@@ -466,12 +478,12 @@ static void update_conn_stats(
     val = bpf_map_lookup_elem(&conn_stats, &t);
     // If already in our map, increment size in-place
     if (val != NULL) {
-        (*val).send_bytes += send_bytes;
+        (*val).sent_bytes += sent_bytes;
         (*val).recv_bytes += recv_bytes;
         (*val).timestamp = ts;
     } else { // Otherwise add the key, value to the map
         conn_stats_ts_t s = {
-            .send_bytes = send_bytes,
+            .sent_bytes = sent_bytes,
             .recv_bytes = recv_bytes,
             .timestamp = ts,
         };
@@ -510,27 +522,47 @@ static void update_tcp_stats(
 
 __attribute__((always_inline))
 static void cleanup_tcp_conn(
+    struct pt_regs* ctx,
     struct sock* sk,
     tracer_status_t* status,
     u64 pid,
     metadata_mask_t family) {
+    u32 cpu = bpf_get_smp_processor_id();
 
-    conn_tuple_t t = {
-        .pid = 0,
+    // Will hold the full connection data to send through the perf buffer
+    tcp_conn_t t = {
+        .tup = (conn_tuple_t){
+            .pid = 0,
+        },
     };
+    tcp_stats_t* tst;
+    conn_stats_ts_t* cst;
 
-    if (!read_conn_tuple(&t, status, sk, CONN_TYPE_TCP, family)) {
+    if (!read_conn_tuple(&(t.tup), status, sk, CONN_TYPE_TCP, family)) {
         return;
     }
 
-    t.sport = ntohs(t.sport); // Making ports human-readable
-    t.dport = ntohs(t.dport);
-    // Delete the connection from the tcp_stats map before setting the PID
-    bpf_map_delete_elem(&tcp_stats, &t);
+    t.tup.sport = ntohs(t.tup.sport); // Making ports human-readable
+    t.tup.dport = ntohs(t.tup.dport);
 
-    t.pid = pid >> 32;
+    tst = bpf_map_lookup_elem(&tcp_stats, &(t.tup));
+    // Delete the connection from the tcp_stats map before setting the PID
+    bpf_map_delete_elem(&tcp_stats, &(t.tup));
+
+    t.tup.pid = pid >> 32;
+
+    cst = bpf_map_lookup_elem(&conn_stats, &(t.tup));
     // Delete this connection from our stats map
-    bpf_map_delete_elem(&conn_stats, &t);
+    bpf_map_delete_elem(&conn_stats, &(t.tup));
+
+    if (tst != NULL)
+        t.tcp_stats = *tst;
+
+    if (cst != NULL)
+        t.conn_stats = *cst;
+
+    // Send the connection data to the perf buffer
+    bpf_perf_event_output(ctx, &tcp_close_event, cpu, &t, sizeof(t));
 }
 
 __attribute__((always_inline))
@@ -538,13 +570,13 @@ static int handle_message(struct sock* sk,
     tracer_status_t* status,
     u64 pid_tgid,
     metadata_mask_t type,
-    size_t send_bytes,
+    size_t sent_bytes,
     size_t recv_bytes) {
 
     u64 zero = 0;
     u64 ts = bpf_ktime_get_ns();
 
-    handle_family(sk, status, update_conn_stats(sk, status, pid_tgid, type, family, send_bytes, recv_bytes, ts));
+    handle_family(sk, status, update_conn_stats(sk, status, pid_tgid, type, family, sent_bytes, recv_bytes, ts));
 
     // Update latest timestamp that we've seen - for connection expiration tracking
     bpf_map_update_elem(&latest_ts, &zero, &ts, BPF_ANY);
@@ -713,7 +745,7 @@ int kprobe__tcp_close(struct pt_regs* ctx) {
     bpf_probe_read(&skc_net, sizeof(possible_net_t*), ((char*)sk) + status->offset_netns);
     bpf_probe_read(&net_ns_inum, sizeof(net_ns_inum), ((char*)skc_net) + status->offset_ino);
 
-    handle_family(sk, status, cleanup_tcp_conn(sk, status, pid, family));
+    handle_family(sk, status, cleanup_tcp_conn(ctx, sk, status, pid, family));
     return 0;
 }
 

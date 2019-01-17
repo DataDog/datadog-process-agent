@@ -153,12 +153,18 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.L
 			out.SPort = uint16(in.Uint16())
 		case "dport":
 			out.DPort = uint16(in.Uint16())
-		case "send_bytes":
-			out.SendBytes = uint64(in.Uint64())
-		case "recv_bytes":
-			out.RecvBytes = uint64(in.Uint64())
-		case "retransmits":
-			out.Retransmits = uint32(in.Uint32())
+		case "monotonic_sent_bytes":
+			out.MonotonicSentBytes = uint64(in.Uint64())
+		case "last_sent_bytes":
+			out.LastSentBytes = uint64(in.Uint64())
+		case "monotonic_recv_bytes":
+			out.MonotonicRecvBytes = uint64(in.Uint64())
+		case "last_recv_bytes":
+			out.LastRecvBytes = uint64(in.Uint64())
+		case "monotonic_retransmits":
+			out.MonotonicRetransmits = uint32(in.Uint32())
+		case "last_retransmits":
+			out.LastRetransmits = uint32(in.Uint32())
 		case "direction":
 			out.Direction = ConnectionDirection(in.Uint8())
 		default:
@@ -246,34 +252,64 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		out.Uint16(uint16(in.DPort))
 	}
 	{
-		const prefix string = ",\"send_bytes\":"
+		const prefix string = ",\"monotonic_sent_bytes\":"
 		if first {
 			first = false
 			out.RawString(prefix[1:])
 		} else {
 			out.RawString(prefix)
 		}
-		out.Uint64(uint64(in.SendBytes))
+		out.Uint64(uint64(in.MonotonicSentBytes))
 	}
 	{
-		const prefix string = ",\"recv_bytes\":"
+		const prefix string = ",\"last_sent_bytes\":"
 		if first {
 			first = false
 			out.RawString(prefix[1:])
 		} else {
 			out.RawString(prefix)
 		}
-		out.Uint64(uint64(in.RecvBytes))
+		out.Uint64(uint64(in.LastSentBytes))
 	}
 	{
-		const prefix string = ",\"retransmits\":"
+		const prefix string = ",\"monotonic_recv_bytes\":"
 		if first {
 			first = false
 			out.RawString(prefix[1:])
 		} else {
 			out.RawString(prefix)
 		}
-		out.Uint32(uint32(in.Retransmits))
+		out.Uint64(uint64(in.MonotonicRecvBytes))
+	}
+	{
+		const prefix string = ",\"last_recv_bytes\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint64(uint64(in.LastRecvBytes))
+	}
+	{
+		const prefix string = ",\"monotonic_retransmits\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint32(uint32(in.MonotonicRetransmits))
+	}
+	{
+		const prefix string = ",\"last_retransmits\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint32(uint32(in.LastRetransmits))
 	}
 	{
 		const prefix string = ",\"direction\":"

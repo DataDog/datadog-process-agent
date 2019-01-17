@@ -5,10 +5,18 @@ package ebpf
 import (
 	"encoding/binary"
 	"net"
+	"unsafe"
 )
 
 // #include "c/tracer-ebpf.h"
 import "C"
+
+/* tcp_conn_t
+conn_tuple_t tup;
+conn_stats_ts_t conn_stats;
+tcp_stats_t tcp_stats;
+*/
+type TCPConn C.tcp_conn_t
 
 /* conn_tuple_t
 __u64 saddr_h;
@@ -38,7 +46,7 @@ func (t *ConnTuple) copy() *ConnTuple {
 }
 
 /* conn_stats_ts_t
-__u64 send_bytes;
+__u64 sent_bytes;
 __u64 recv_bytes;
 __u64 timestamp;
 */
@@ -56,16 +64,16 @@ func (cs *ConnStatsWithTimestamp) isExpired(latestTime int64, timeout int64) boo
 func connStats(t *ConnTuple, s *ConnStatsWithTimestamp, tcpStats *TCPStats) ConnectionStats {
 	family := connFamily(uint(t.metadata))
 	return ConnectionStats{
-		Pid:         uint32(t.pid),
-		Type:        connType(uint(t.metadata)),
-		Family:      family,
-		Source:      ipString(uint64(t.saddr_h), uint64(t.saddr_l), family),
-		Dest:        ipString(uint64(t.daddr_h), uint64(t.daddr_l), family),
-		SPort:       uint16(t.sport),
-		DPort:       uint16(t.dport),
-		SendBytes:   uint64(s.send_bytes),
-		RecvBytes:   uint64(s.recv_bytes),
-		Retransmits: uint32(tcpStats.retransmits),
+		Pid:                  uint32(t.pid),
+		Type:                 connType(uint(t.metadata)),
+		Family:               family,
+		Source:               ipString(uint64(t.saddr_h), uint64(t.saddr_l), family),
+		Dest:                 ipString(uint64(t.daddr_h), uint64(t.daddr_l), family),
+		SPort:                uint16(t.sport),
+		DPort:                uint16(t.dport),
+		MonotonicSentBytes:   uint64(s.sent_bytes),
+		MonotonicRecvBytes:   uint64(s.recv_bytes),
+		MonotonicRetransmits: uint32(tcpStats.retransmits),
 	}
 }
 
@@ -97,6 +105,15 @@ func connFamily(m uint) ConnectionFamily {
 	}
 
 	return AFINET6
+}
+
+func decodeRawTCPConn(data []byte) ConnectionStats {
+	ct := TCPConn(*(*C.tcp_conn_t)(unsafe.Pointer(&data[0])))
+	tup := ConnTuple(ct.tup)
+	cst := ConnStatsWithTimestamp(ct.conn_stats)
+	tst := TCPStats(ct.tcp_stats)
+
+	return connStats(&tup, &cst, &tst)
 }
 
 func isPortClosed(state uint8) bool {
