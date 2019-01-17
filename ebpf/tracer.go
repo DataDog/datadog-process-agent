@@ -126,19 +126,15 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 					return
 				}
 				closedCount++
-
 				t.state.StoreClosedConnection(decodeRawTCPConn(c))
-
 			case c, ok := <-lostChannel:
 				if !ok {
 					return
 				}
 				lostCount += c
-
 			case <-ticker.C:
 				log.Debugf("Connection stats: %d lost, %d closed", lostCount, closedCount)
-				closedCount = 0
-				lostCount = 0
+				closedCount, lostCount = 0, 0
 			}
 		}
 	}()
