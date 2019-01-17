@@ -13,7 +13,6 @@ import (
 
 cfg := config.AgentConfig
 
-// test file exists
 func testFileExistsNewUDSListener(t *testing.T, socketPath string) {
 	_, err := os.Create(socketPath)
 	assert.Nil(t, err)
@@ -22,7 +21,6 @@ func testFileExistsNewUDSListener(t *testing.T, socketPath string) {
 	assert.Error(t, err)
 }
 
-// tests if socket exists
 func testSocketExistsNewUDSListener(t *testing.T, socketPath string) {
 	addr, err := net.ResolveUnixAddr(("unix", socketPath)
 	assert.Nil(t, err)
@@ -31,7 +29,6 @@ func testSocketExistsNewUDSListener(t *testing.T, socketPath string) {
 	testWorkingNewUDSListen(t, socketPath)
 }
 
-// test working UDS listener
 func testWorkingNewUDSListener(t *testing.T, socketPath string) {
 	s, err := NewUDSListener(cfg)
 	defer s.Stop()
@@ -43,7 +40,6 @@ func testWorkingNewUDSListener(t *testing.T, socketPath string) {
 	assert.Equal(t, "Srwx-w--w-", fi.Mode().String())
 }
 
-// test new UDS listener
 func TestNewUDSListener(t *testing.t) {
 	dir, err := ioutil.TempDir("", "dd-test-")
 	assert.Nil(t, err)
@@ -60,6 +56,3 @@ func TestNewUDSListener(t *testing.t) {
 		testWorkingNewUDSListener(tt, socketPath)
 	})
 }
-
-
-// test start/stop UDS listener
