@@ -56,7 +56,7 @@ type YamlAgentConfig struct {
 		// The maximum number of file descriptors to open when collecting net connections.
 		// Only change if you are running out of file descriptors from the Agent.
 		MaxProcFDs int `yaml:"max_proc_fds"`
-		// The maximum number of processes, connections or containers per message.
+		// The maximum number of processes, or containers per message.
 		// Only change if the defaults are causing issues.
 		MaxPerMessage int `yaml:"max_per_message"`
 		// Overrides the path to the Agent bin used for getting the hostname. The default is usually fine.
@@ -88,6 +88,9 @@ type YamlAgentConfig struct {
 		DisableUDP bool `yaml:"disable_udp"`
 		// Whether agent should disable collection for IPv6 connection type
 		DisableIPv6 bool `yaml:"disable_ipv6"`
+		// The maximum number of connections per message.
+		// Only change if the defaults are causing issues.
+		MaxConnsPerMessage int `yaml:"max_conns_per_message"`
 	} `yaml:"network_tracer_config"`
 }
 
@@ -236,6 +239,14 @@ func mergeNetworkYamlConfig(agentConf *AgentConfig, networkConf *YamlAgentConfig
 	}
 	if networkConf.Network.LogFile != "" {
 		agentConf.LogFile = networkConf.Network.LogFile
+	}
+
+	if mcpm := networkConf.Network.MaxConnsPerMessage; mcpm > 0 {
+		if mcpm <= maxConnsMessageBatch {
+			agentConf.MaxConnsPerMessage = mcpm
+		} else {
+			log.Warn("Overriding the configured connections count per message limit because it exceeds maximum")
+		}
 	}
 
 	return agentConf, nil
