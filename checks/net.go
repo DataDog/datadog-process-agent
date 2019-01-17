@@ -179,7 +179,6 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 	return cxs
 }
 
-
 func formatFamily(f ebpf.ConnectionFamily) model.ConnectionFamily {
 	switch f {
 	case ebpf.AFINET:

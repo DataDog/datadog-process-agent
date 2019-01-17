@@ -49,7 +49,6 @@ func NewUDSListener(cfg *config.AgentConfig) (*UDSListener, error) {
 		}
 	}
 
-
 	listener := &UDSListener{
 		conn:       conn,
 		socketPath: cfg.NetworkTracerSocketPath,
