@@ -348,6 +348,9 @@ func parseCmdLineArgs(cmdline string) (res []string) {
 }
 
 func rebuildProcessMapFromWMI() {
+	for _, p := range cachedProcesses {
+		p.close()
+	}
 	cachedProcesses = make(map[uint32]cachedProcess)
 	wmimap, err := getProcessMapFromWMI()
 	if err != nil {

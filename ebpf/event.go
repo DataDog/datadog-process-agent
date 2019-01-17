@@ -64,7 +64,7 @@ func (cs *ConnStatsWithTimestamp) isExpired(latestTime int64, timeout int64) boo
 }
 
 func connStats(t *ConnTuple, s *ConnStatsWithTimestamp, tcpStats *TCPStats) ConnectionStats {
-	family := connFamily(t.metadata)
+	family := connFamily(uint(t.metadata))
 	return ConnectionStats{
 		Pid:                  uint32(t.pid),
 		Type:                 connType(t.metadata),
@@ -92,7 +92,7 @@ func ipString(addr_h, addr_l uint64, family ConnectionFamily) string {
 	return net.IP(buf).String()
 }
 
-func connType(m _Ctype_uint) ConnectionType {
+func connType(m uint) ConnectionType {
 	// First bit of metadata indicates if the connection is TCP or UDP
 	if m&C.CONN_TYPE_TCP == 0 {
 		return UDP
@@ -100,7 +100,7 @@ func connType(m _Ctype_uint) ConnectionType {
 	return TCP
 }
 
-func connFamily(m _Ctype_uint) ConnectionFamily {
+func connFamily(m uint) ConnectionFamily {
 	// Second bit of metadata indicates if the connection is IPv6 or IPv4
 	if m&C.CONN_V6 == 0 {
 		return AFINET

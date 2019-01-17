@@ -191,20 +191,7 @@ namespace "ebpf" do
   end
 
   desc "Generate and instal eBPF program via gobindata"
-  task :build => ['ebpf:fmt', 'ebpf:image'] do
-    cmd = "build"
-    if ENV['TEST'] != "true"
-      cmd += " install"
-    end
-    sh "#{sudo} docker run --rm -e DEBUG=#{DEBUG} \
-        -e CIRCLE_BUILD_URL=#{ENV['CIRCLE_BUILD_URL']} \
-        -v $(pwd):/src:ro \
-    -v $(pwd)/ebpf:/ebpf/ \
-        --workdir=/src \
-        #{DOCKER_IMAGE} \
-        make -f ebpf/c/tracer-ebpf.mk #{cmd}"
-    sh "sudo chown -R $(id -u):$(id -u) ebpf"
-  end
+  task :build => ['ebpf:fmt', 'ebpf:image', 'ebpf:build-only']
 
   desc "Build only the eBPF object (do not rebuild the docker image builder)"
   task 'build-only' do
@@ -222,14 +209,14 @@ namespace "ebpf" do
     sh "sudo chown -R $(id -u):$(id -u) ebpf"
   end
 
-    desc "Build and run dockerized `nettop` command for testing"
-    task :nettop => 'ebpf:build' do
-      sh 'sudo docker build -t "ebpf-nettop" . -f packaging/Dockerfile-nettop'
-      sh "sudo docker run \
-        --net=host \
-        --cap-add=SYS_ADMIN \
-        --privileged \
-        -v /sys/kernel/debug:/sys/kernel/debug \
-        ebpf-nettop"
-    end
+  desc "Build and run dockerized `nettop` command for testing"
+  task :nettop => 'ebpf:build' do
+    sh 'sudo docker build -t "ebpf-nettop" . -f packaging/Dockerfile-nettop'
+    sh "sudo docker run \
+      --net=host \
+      --cap-add=SYS_ADMIN \
+      --privileged \
+      -v /sys/kernel/debug:/sys/kernel/debug \
+      ebpf-nettop"
+  end
 end
