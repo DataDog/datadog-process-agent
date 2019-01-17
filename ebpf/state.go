@@ -13,8 +13,8 @@ var _ NetworkState = &networkState{}
 const (
 	// DEBUGCLIENT is the ClientID for debugging
 	DEBUGCLIENT          = "-1"
-	defaultClientExpiry  = 5 * time.Minute
-	defaultCleanInterval = 10 * time.Second
+	defaultClientExpiry  = 2 * time.Minute
+	defaultCleanInterval = 30 * time.Second
 )
 
 // NetworkState takes care of handling the logic for:
