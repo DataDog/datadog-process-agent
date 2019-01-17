@@ -38,10 +38,10 @@ func NewUDSListener(cfg *config.AgentConfig) (*UDSListener, error) {
 
 	fileInfo, err := os.Stat(socketPath)
 	// Socket file already exists
-	if err = nil {
+	if err == nil {
 		// Confirm that it's a UNIX socket
 		if fileInfo.Mode()&os.ModeSocket == 0 {
-			return nil, fmt.Errorf("uds: cannot reuse %s socket path: path already exists  and it is not a UNIX socket"),
+			return nil, fmt.Errorf("uds: cannot reuse %s socket path: path already exists  and it is not a UNIX socket", socketPath)
 		}
 		err = os.Remove(socketPath)
 		if err != nil {
