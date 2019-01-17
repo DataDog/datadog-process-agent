@@ -63,8 +63,16 @@ func (nt *NetworkTracer) Run() {
 	http.HandleFunc("/status", func(w http.ResponseWriter, req *http.Request) {})
 
 	http.HandleFunc("/connections", func(w http.ResponseWriter, req *http.Request) {
-		cs, err := nt.tracer.GetActiveConnections()
+		// We require to send a client_id to the network state
+		var clientID string
+		if rawCID := req.URL.Query().Get("client_id"); rawCID != "" {
+			clientID = rawCID
+		} else {
+			// This is the default client ID
+			clientID = ebpf.DEBUGCLIENT
+		}
 
+		cs, err := nt.tracer.GetActiveConnections(clientID)
 		if err != nil {
 			log.Errorf("unable to retrieve connections: %s", err)
 			w.WriteHeader(500)

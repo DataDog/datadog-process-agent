@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/DataDog/datadog-process-agent/config"
@@ -26,6 +27,7 @@ type ConnectionsCheck struct {
 	// Local network tracer
 	useLocalTracer bool
 	localTracer    *ebpf.Tracer
+	tracerClientID string
 
 	prevCheckConns []ebpf.ConnectionStats
 	prevCheckTime  time.Time
@@ -55,6 +57,8 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		}
 
 		c.localTracer = t
+		// We use the current process PID as the local tracer client ID
+		c.tracerClientID = fmt.Sprintf("%d", os.Getpid())
 	} else {
 		// Calling the remote tracer will cause it to initialize and check connectivity
 		net.SetNetworkTracerSocketPath(cfg.NetworkTracerSocketPath)
@@ -62,6 +66,9 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 	}
 
 	c.buf = new(bytes.Buffer)
+
+	// Run the check one time on init to register the client on the network tracer
+	c.Run(cfg, 0)
 }
 
 // Name returns the name of the ConnectionsCheck.
@@ -120,7 +127,7 @@ func (c *ConnectionsCheck) getConnections() ([]ebpf.ConnectionStats, error) {
 		if c.localTracer == nil {
 			return nil, fmt.Errorf("using local network tracer, but no tracer was initialized")
 		}
-		cs, err := c.localTracer.GetActiveConnections()
+		cs, err := c.localTracer.GetActiveConnections(c.tracerClientID)
 		return cs.Conns, err
 	}
 
@@ -143,18 +150,10 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 
 	cxs := make([]*model.Connection, 0, len(conns))
 	for _, conn := range conns {
-		b, err := conn.ByteKey(c.buf)
-		if err != nil {
-			log.Debugf("failed to create connection byte key: %s", err)
-			continue
-		}
-
-		// default creation time to ensure network connections from short-lived processes are not dropped 
 		if _, ok := createTimeForPID[conn.Pid]; !ok {
 			createTimeForPID[conn.Pid] =  0;
 		}
 
-		key := string(b)
 		cxs = append(cxs, &model.Connection{
 			Pid:           int32(conn.Pid),
 			PidCreateTime: createTimeForPID[conn.Pid],
@@ -168,10 +167,12 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 				Ip:   conn.Dest,
 				Port: int32(conn.DPort),
 			},
-			BytesSent:          calculateRate(conn.SendBytes, lastConns[key].SendBytes, lastCheckTime),
-			BytesReceived:      calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
-			TotalBytesSent:     conn.SendBytes,
-			TotalBytesReceived: conn.RecvBytes,
+			TotalBytesSent:     conn.MonotonicSentBytes,
+			TotalBytesReceived: conn.MonotonicRecvBytes,
+			TotalRetransmits:   conn.MonotonicRetransmits,
+			LastBytesSent:      conn.LastSentBytes,
+			LastBytesReceived:  conn.LastRecvBytes,
+			LastRetransmits:    conn.LastRetransmits,
 		})
 	}
 	c.prevCheckConns = conns
@@ -201,11 +202,11 @@ func formatType(f ebpf.ConnectionType) model.ConnectionType {
 }
 
 func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
-	groupSize := groupSize(len(cxs), cfg.MaxPerMessage)
+	groupSize := groupSize(len(cxs), cfg.MaxConnsPerMessage)
 	batches := make([]model.MessageBody, 0, groupSize)
 
 	for len(cxs) > 0 {
-		batchSize := min(cfg.MaxPerMessage, len(cxs))
+		batchSize := min(cfg.MaxConnsPerMessage, len(cxs))
 		batches = append(batches, &model.CollectorConnections{
 			HostName:    cfg.HostName,
 			Connections: cxs[:batchSize],
