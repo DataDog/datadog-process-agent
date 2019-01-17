@@ -54,15 +54,29 @@ type ConnectionStats struct {
 	SPort  uint16 `json:"sport"`
 	DPort  uint16 `json:"dport"`
 
-	SendBytes uint64 `json:"send_bytes"`
-	RecvBytes uint64 `json:"recv_bytes"`
+	MonotonicSentBytes uint64 `json:"monotonic_sent_bytes"`
+	LastSentBytes      uint64 `json:"last_sent_bytes"`
 
-	Retransmits uint32 `json:"retransmits"`
+	MonotonicRecvBytes uint64 `json:"monotonic_recv_bytes"`
+	LastRecvBytes      uint64 `json:"last_recv_bytes"`
+
+	MonotonicRetransmits uint32 `json:"monotonic_retransmits"`
+	LastRetransmits      uint32 `json:"last_retransmits"`
 }
 
 func (c ConnectionStats) String() string {
-	return fmt.Sprintf("[%s] [PID: %d] [%v:%d ⇄ %v:%d] %d bytes sent, %d bytes received, %d retransmits",
-		c.Type, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.SendBytes, c.RecvBytes, c.Retransmits)
+	return fmt.Sprintf(
+		"[%s] [PID: %d] [%v:%d ⇄ %v:%d] %d bytes sent (+%d), %d bytes received (+%d), %d retransmits (+%d)",
+		c.Type,
+		c.Pid,
+		c.Source,
+		c.SPort,
+		c.Dest,
+		c.DPort,
+		c.MonotonicSentBytes, c.LastSentBytes,
+		c.MonotonicRecvBytes, c.LastRecvBytes,
+		c.MonotonicRetransmits, c.LastRetransmits,
+	)
 }
 
 // ByteKey returns a unique key for this connection represented as a byte array
