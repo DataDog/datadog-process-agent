@@ -337,6 +337,7 @@ enum ConnectionDirection {
 	unspecified = 0;
 	incoming = 1;
 	outgoing = 2;
+	local = 3;
 }
 
 message Connection {

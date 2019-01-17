@@ -5,8 +5,10 @@ package ebpf
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"unsafe"
 
+	log "github.com/cihub/seelog"
 	bpflib "github.com/iovisor/gobpf/elf"
 )
 
@@ -21,9 +23,10 @@ var (
 )
 
 type Tracer struct {
-	m           *bpflib.Module
-	config      *Config
-	portMapping *PortMapping
+	m              *bpflib.Module
+	config         *Config
+	portMapping    *PortMapping
+	localAddresses map[string]interface{}
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -83,7 +86,9 @@ func NewTracer(config *Config) (*Tracer, error) {
 		return nil, fmt.Errorf("failed to read initial pid->port mapping: %s", err)
 	}
 
-	return &Tracer{m: m, config: config, portMapping: portMapping}, nil
+	localAddresses := readLocalAddresses()
+
+	return &Tracer{m: m, config: config, portMapping: portMapping, localAddresses: localAddresses}, nil
 }
 
 func (t *Tracer) Stop() {
@@ -142,11 +147,7 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 		} else {
 			conn := connStats(nextKey, stats, t.getTCPStats(tcpMp, nextKey))
 
-			if t.portMapping.IsListening(conn.DPort, conn.Dest) {
-				conn.Direction = INCOMING
-			} else {
-				conn.Direction = OUTGOING
-			}
+			conn.Direction = t.determineConnectionDirection(&conn)
 
 			active = append(active, conn)
 		}
@@ -240,27 +241,77 @@ func (t *Tracer) timeoutForConn(c *ConnTuple) int64 {
 // closed ports will be returned
 func (t *Tracer) populatePortMapping(mp *bpflib.Map) ([]uint16, error) {
 	var key, nextKey uint16
-	value := &PortStatus{}
+	var state uint8
 
 	closedPortBindings := make([]uint16, 0)
 
 	for {
-		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(&key), unsafe.Pointer(&nextKey), unsafe.Pointer(value))
+		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(&key), unsafe.Pointer(&nextKey), unsafe.Pointer(&state))
 		if !hasNext {
 			break
 		}
 
 		port := nextKey
-		address, closed := parsePortStatus(value)
 
-		t.portMapping.AddMapping(port, address)
+		t.portMapping.AddMapping(port)
 
-		if closed {
-			closedPortBindings = append(closedPortBindings, nextKey)
+		if isPortClosed(state) {
+			closedPortBindings = append(closedPortBindings, port)
 		}
 
 		key = nextKey
 	}
 
 	return closedPortBindings, nil
+}
+
+func (t *Tracer) determineConnectionDirection(conn *ConnectionStats) ConnectionDirection {
+	sourceLocal := t.isLocalAddress(conn.Source)
+	destLocal := t.isLocalAddress(conn.Dest)
+
+	if sourceLocal && destLocal {
+		return LOCAL
+	}
+
+	if sourceLocal && t.portMapping.IsListening(conn.SPort) {
+		return INCOMING
+	}
+
+	return OUTGOING
+}
+
+func (t *Tracer) isLocalAddress(address string) bool {
+	_, ok := t.localAddresses[address]
+	return ok
+}
+
+func readLocalAddresses() map[string]interface{} {
+	addresses := make(map[string]interface{}, 0)
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		log.Errorf("error reading network interfaces: %s", err)
+		return addresses
+	}
+
+	for _, intf := range interfaces {
+		addrs, err := intf.Addrs()
+
+		if err != nil {
+			log.Errorf("error reading interface %s addresses", intf.Name, err)
+			continue
+		}
+
+		for _, addr := range addrs {
+			switch v := addr.(type) {
+			case *net.IPNet:
+				addresses[v.IP.String()] = struct{}{}
+			case *net.IPAddr:
+				addresses[v.IP.String()] = struct{}{}
+			}
+		}
+
+	}
+
+	return addresses
 }

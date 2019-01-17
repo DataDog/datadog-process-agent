@@ -75,7 +75,7 @@ func TestTCPSendAndReceive(t *testing.T) {
 	assert.Equal(t, 0, int(conn.Retransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
-	assert.Equal(t, INCOMING, conn.Direction)
+	assert.Equal(t, LOCAL, conn.Direction)
 
 	doneChan <- struct{}{}
 }
@@ -123,7 +123,7 @@ func TestPreexistingConnectionDirection(t *testing.T) {
 	assert.Equal(t, 0, int(conn.Retransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
-	assert.Equal(t, INCOMING, conn.Direction)
+	assert.Equal(t, LOCAL, conn.Direction)
 
 	doneChan <- struct{}{}
 }
@@ -361,6 +361,10 @@ func TestTCPOverIPv6(t *testing.T) {
 	connections, err := tr.GetActiveConnections()
 	require.NoError(t, err)
 
+	for _, conn := range connections.Conns {
+		fmt.Printf("conn %+v\n", conn)
+	}
+
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	require.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.SendBytes))
@@ -368,7 +372,7 @@ func TestTCPOverIPv6(t *testing.T) {
 	assert.Equal(t, 0, int(conn.Retransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, ln.Addr().(*net.TCPAddr).Port, int(conn.DPort))
-	assert.Equal(t, INCOMING, conn.Direction)
+	assert.Equal(t, LOCAL, conn.Direction)
 
 	doneChan <- struct{}{}
 

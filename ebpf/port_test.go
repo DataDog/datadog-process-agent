@@ -17,38 +17,38 @@ func TestReadInitialState(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = l.Close() }()
 
-	tcpAddr, tcpPort := getAddress(t, l)
-	tcp6Addr, tcp6Port := getAddress(t, l6)
+	tcpPort := getPort(t, l)
+	tcp6Port := getPort(t, l6)
 
 	ports := NewPortMapping("/proc", NewDefaultConfig())
 
 	err = ports.ReadInitialState()
 	require.NoError(t, err)
 
-	require.True(t, ports.IsListening(tcpPort, tcpAddr))
-	require.True(t, ports.IsListening(tcp6Port, tcp6Addr))
+	require.True(t, ports.IsListening(tcpPort))
+	require.True(t, ports.IsListening(tcp6Port))
 
-	require.False(t, ports.IsListening(999, tcpAddr))
+	require.False(t, ports.IsListening(999))
 }
 
 func TestAddRemove(t *testing.T) {
 	ports := NewPortMapping("/proc", NewDefaultConfig())
 
-	require.False(t, ports.IsListening(123, "0.0.0.0"))
+	require.False(t, ports.IsListening(123))
 
-	ports.AddMapping(123, "0.0.0.0")
+	ports.AddMapping(123)
 
-	require.True(t, ports.IsListening(123, "0.0.0.0"))
+	require.True(t, ports.IsListening(123))
 
 	ports.RemoveMapping(123)
 
-	require.False(t, ports.IsListening(123, "0.0.0.0"))
+	require.False(t, ports.IsListening(123))
 }
 
-func getAddress(t *testing.T, listener net.Listener) (string, uint16) {
+func getPort(t *testing.T, listener net.Listener) uint16 {
 	addr := listener.Addr()
 	listenerURL := url.URL{Scheme: addr.Network(), Host: addr.String()}
 	port, err := strconv.Atoi(listenerURL.Port())
 	require.NoError(t, err)
-	return listenerURL.Hostname(), uint16(port)
+	return uint16(port)
 }

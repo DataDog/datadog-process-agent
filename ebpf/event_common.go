@@ -30,12 +30,26 @@ type ConnectionFamily uint8
 // ConnectionDirection indicates if the connection is incoming to the host or outbound
 type ConnectionDirection uint8
 
-func (d ConnectionDirection) String() string {
-	if d == OUTGOING {
-		return "outgoing"
-	}
+const (
+	// INCOMING represents connections inbound to the host
+	INCOMING ConnectionDirection = 0
 
-	return "incoming"
+	// OUTGOING represents outbound connections from the host
+	OUTGOING ConnectionDirection = 1
+
+	// LOCAL represents connections that don't leave the host
+	LOCAL ConnectionDirection = 2
+)
+
+func (d ConnectionDirection) String() string {
+	switch d {
+	case OUTGOING:
+		return "outgoing"
+	case LOCAL:
+		return "local"
+	default:
+		return "incoming"
+	}
 }
 
 const (
@@ -44,12 +58,6 @@ const (
 
 	// AFINET6 represents v6 connections
 	AFINET6 ConnectionFamily = 1
-
-	// INCOMING represents connections inbound to the host
-	INCOMING ConnectionDirection = 0
-
-	// OUTGOING represents outbound connections from the host
-	OUTGOING ConnectionDirection = 1
 )
 
 // Connections wraps a collection of ConnectionStats

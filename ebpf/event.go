@@ -49,8 +49,6 @@ __u32 retransmits;
 */
 type TCPStats C.tcp_stats_t
 
-type PortStatus C.port_status_t
-
 func (cs *ConnStatsWithTimestamp) isExpired(latestTime int64, timeout int64) bool {
 	return latestTime-int64(cs.timestamp) > timeout
 }
@@ -101,10 +99,6 @@ func connFamily(m uint) ConnectionFamily {
 	return AFINET6
 }
 
-func parsePortStatus(value *PortStatus) (string, bool) {
-	address := ipString(uint64(value.addr_h), uint64(value.addr_l), ConnectionFamily(value.family))
-	closed := value.state == 0
-
-	return address, closed
-
+func isPortClosed(state uint8) bool {
+	return state == C.PORT_CLOSED
 }

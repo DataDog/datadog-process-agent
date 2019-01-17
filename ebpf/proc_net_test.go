@@ -10,7 +10,7 @@ import (
 func TestReadProcNet(t *testing.T) {
 	tests := [...]struct {
 		input    string
-		expected map[uint16]string
+		expected []uint16
 	}{
 		{
 			input: `  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
@@ -18,11 +18,7 @@ func TestReadProcNet(t *testing.T) {
    1: 00000000:A160 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 16753 1 ffff880034e46d00 100 0 0 10 0
    7: 00000000:0016 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 16529 1 ffff880034e45e00 100 0 0 10 0
    8: 0F02000A:0016 0202000A:C121 01 00000000:00000000 02:00091FA3 00000000     0        0 20179 3 ffff88003cc20000 20 4 1 10 -1`,
-			expected: map[uint16]string{
-				46592: "127.0.0.2",
-				41312: "0.0.0.0",
-				22:    "0.0.0.0",
-			},
+			expected: []uint16{46592, 41312, 22},
 		},
 		{
 			input: `  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode
@@ -30,10 +26,7 @@ func TestReadProcNet(t *testing.T) {
    6: 00000000000000000000000000000000:B696 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 16511 1 ffff88003b349080 100 0 0 10 0
    7: 00000000000000000000000001000000:EBCE 00000000000000000000000001000000:303A 06 00000000:00000000 03:00000AA4 00000000     0        0 0 3 ffff880035387000
    8: 00000000000000000000000001000000:EBD0 00000000000000000000000001000000:303A 06 00000000:00000000 03:00000B06 00000000     0        0 0 3 ffff880035387118`,
-			expected: map[uint16]string{
-				44448: "::",
-				46742: "::",
-			},
+			expected: []uint16{44448, 46742},
 		},
 	}
 
@@ -47,12 +40,7 @@ func TestReadProcNet(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Len(t, ports, len(tt.expected))
-
-		for expectedPort, expectedAddress := range tt.expected {
-			addr, ok := ports[expectedPort]
-			require.True(t, ok)
-			require.Equal(t, expectedAddress, addr)
-		}
+		require.ElementsMatch(t, ports, tt.expected)
 	}
 }
 

@@ -5,15 +5,14 @@ import (
 	"bytes"
 	log "github.com/cihub/seelog"
 	"io"
-	"net"
 	"os"
 	"strconv"
 )
 
 const tcpListen = 10
 
-// readProcNet reads a /proc/net/ file and returns a map of port->address for all listening addresses
-func readProcNet(path string) (map[uint16]string, error) {
+// readProcNet reads a /proc/net/ file and returns a list of all ports being listened on
+func readProcNet(path string) ([]uint16, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -22,9 +21,7 @@ func readProcNet(path string) (map[uint16]string, error) {
 
 	reader := bufio.NewReader(f)
 
-	var addrBuf [16]byte
-
-	ports := make(map[uint16]string)
+	ports := make([]uint16, 0)
 
 	// Skip header line
 	_, _ = reader.ReadBytes('\n')
@@ -63,48 +60,18 @@ func readProcNet(path string) (map[uint16]string, error) {
 				continue
 			}
 
-			address := decodeAddress(rawLocal[:idx], &addrBuf)
-
 			port, err := strconv.ParseInt(string(rawLocal[idx+1:]), 16, 0)
 			if err != nil {
 				log.Errorf("error parsing port [%s] as hex: %s", rawLocal[idx+1:], err)
 				continue
 			}
 
-			ports[uint16(port)] = address
+			ports = append(ports, uint16(port))
+
 		}
 	}
 
 	return ports, nil
-}
-
-// decodeAddress decodes sequences of 32bit big endian bytes. The address is a big endian 32 bit ints, hex encoded
-// so we just decode the hex and flip the bytes in every group of 4.
-// adapted from weaveworks/scope/probe/endpoint/procspy/procnet.go
-func decodeAddress(src []byte, buf *[16]byte) string {
-	blocks := len(src) / 8
-	for block := 0; block < blocks; block++ {
-		for i := 0; i < 4; i++ {
-			a := fromHexChar(src[block*8+i*2])
-			b := fromHexChar(src[block*8+i*2+1])
-			buf[block*4+3-i] = (a << 4) | b
-		}
-	}
-	return net.IP(buf[:blocks*4]).String()
-}
-
-// fromHexChar converts a hex character into its value.
-// from weaveworks/scope/probe/endpoint/procspy/procnet.go
-func fromHexChar(c byte) uint8 {
-	switch {
-	case '0' <= c && c <= '9':
-		return c - '0'
-	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10
-	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10
-	}
-	return 0
 }
 
 type fieldIterator struct {
