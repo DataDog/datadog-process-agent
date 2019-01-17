@@ -95,6 +95,9 @@ func (ns *networkState) getClients() []string {
 	return clients
 }
 
+// Connections returns the connections for the given client
+// If the client is not registered yet, we register it and return the connections we have in the global state
+// Otherwise we return both the connections with last stats and the closed connections for this client
 func (ns *networkState) Connections(id string) []ConnectionStats {
 	// First time we see this client, use global state
 	if old := ns.newClient(id); !old {
@@ -110,6 +113,7 @@ func (ns *networkState) Connections(id string) []ConnectionStats {
 	return removeDuplicates(ns.getConnections(id), ns.closedConns(id))
 }
 
+// StoreConnections stores the provided list of connections in the global state
 func (ns *networkState) StoreConnections(conns []ConnectionStats) {
 	// Update connections
 	ns.Lock()
