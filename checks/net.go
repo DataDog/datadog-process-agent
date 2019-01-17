@@ -153,7 +153,7 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 		// default creation time to ensure network connections from short-lived processes are not dropped 
 		if _, ok := createTimeForPID[conn.Pid]; !ok {
 			createTimeForPID[conn.Pid] =  0;
-		} 
+		}
 
 		key := string(b)
 		cxs = append(cxs, &model.Connection{
