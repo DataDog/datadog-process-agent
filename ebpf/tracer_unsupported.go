@@ -24,6 +24,6 @@ func NewTracer(_ *Config) (*Tracer, error) {
 func (t *Tracer) Stop() {}
 
 // GetActiveConnections is not implemented on non-linux systems
-func (t *Tracer) GetActiveConnections() (*Connections, error) {
+func (t *Tracer) GetActiveConnections(_ string) (*Connections, error) {
 	return nil, ErrNotImplemented
 }

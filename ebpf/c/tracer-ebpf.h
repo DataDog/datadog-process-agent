@@ -20,7 +20,7 @@ typedef struct {
 } proc_t;
 
 typedef struct {
-    __u64 send_bytes;
+    __u64 sent_bytes;
     __u64 recv_bytes;
     __u64 timestamp;
 } conn_stats_ts_t;

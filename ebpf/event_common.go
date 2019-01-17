@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-
-	log "github.com/cihub/seelog"
 )
 
 // ConnectionType will be either TCP or UDP
@@ -56,20 +54,29 @@ type ConnectionStats struct {
 	SPort  uint16 `json:"sport"`
 	DPort  uint16 `json:"dport"`
 
-	SendBytes uint64 `json:"send_bytes"`
-	RecvBytes uint64 `json:"recv_bytes"`
+	MonotonicSentBytes uint64 `json:"monotonic_sent_bytes"`
+	LastSentBytes      uint64 `json:"last_sent_bytes"`
 
-	Retransmits uint32 `json:"retransmits"`
+	MonotonicRecvBytes uint64 `json:"monotonic_recv_bytes"`
+	LastRecvBytes      uint64 `json:"last_recv_bytes"`
 
-	// collected is used internally to know if this connection stats has been collected or not
-	// we need to keep track of this to make sure we don't cleanup connections we have not
-	// collected / retrieved yet
-	collected bool
+	MonotonicRetransmits uint32 `json:"monotonic_retransmits"`
+	LastRetransmits      uint32 `json:"last_retransmits"`
 }
 
 func (c ConnectionStats) String() string {
-	return fmt.Sprintf("[%s] [PID: %d] [%v:%d ⇄ %v:%d] %d bytes sent, %d bytes received, %d retransmits",
-		c.Type, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.SendBytes, c.RecvBytes, c.Retransmits)
+	return fmt.Sprintf(
+		"[%s] [PID: %d] [%v:%d ⇄ %v:%d] %d bytes sent (+%d), %d bytes received (+%d), %d retransmits (+%d)",
+		c.Type,
+		c.Pid,
+		c.Source,
+		c.SPort,
+		c.Dest,
+		c.DPort,
+		c.MonotonicSentBytes, c.LastSentBytes,
+		c.MonotonicRecvBytes, c.LastRecvBytes,
+		c.MonotonicRetransmits, c.LastRetransmits,
+	)
 }
 
 // ByteKey returns a unique key for this connection represented as a byte array
@@ -93,26 +100,4 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 		return nil, err
 	}
 	return buffer.Bytes(), nil
-}
-
-func removeDuplicates(conns []ConnectionStats) []ConnectionStats {
-	connections := make([]ConnectionStats, 0, len(conns))
-	seen := make(map[string]struct{})
-	buf := &bytes.Buffer{}
-
-	for _, c := range conns {
-		key, err := c.ByteKey(buf)
-		if err != nil {
-			log.Errorf("could not get byte key for connection %v: %s", c, err)
-			continue
-		}
-
-		// If it's the first time we see this connection add it
-		if _, ok := seen[string(key)]; !ok {
-			connections = append(connections, c)
-			seen[string(key)] = struct{}{}
-		}
-	}
-
-	return connections
 }
