@@ -159,14 +159,14 @@ namespace "ebpf" do
   DOCKER_IMAGE='datadog/tracer-bpf-builder'
 
   desc "Run tests for eBPF code"
-  task :test do
+  task :test => 'ebpf:build-only' do
     tags = ''
     if ENV["SKIP_BPF_TESTS"] != "true" then
       tags = 'linux_bpf'
     else
       puts "Skipping BPF tests"
     end
-      sh "go list ./... | grep -v vendor | sudo -E PATH=#{ENV['PATH']} GOCACHE=off xargs go test -tags #{tags}"
+      sh "go list ./... | grep -v vendor | sudo -E PATH=#{ENV['PATH']} xargs go test -v -tags #{tags}"
   end
 
   desc "Format ebpf code"

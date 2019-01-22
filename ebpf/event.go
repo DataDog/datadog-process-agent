@@ -67,7 +67,7 @@ func connStats(t *ConnTuple, s *ConnStatsWithTimestamp, tcpStats *TCPStats) Conn
 	family := connFamily(uint(t.metadata))
 	return ConnectionStats{
 		Pid:                  uint32(t.pid),
-		Type:                 connType(t.metadata),
+		Type:                 connType(uint(t.metadata)),
 		Family:               family,
 		Source:               ipString(uint64(t.saddr_h), uint64(t.saddr_l), family),
 		Dest:                 ipString(uint64(t.daddr_h), uint64(t.daddr_l), family),
