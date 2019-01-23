@@ -13,6 +13,7 @@ import (
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/net"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
+	tracerConfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 )
 
 // ErrTracerUnsupported is the unsupported error prefix, for error-class matching from callers
@@ -24,7 +25,7 @@ type NetworkTracer struct {
 	cfg *config.AgentConfig
 
 	supported bool
-	tracer    *tracer.Tracer
+	tracer    tracer.Tracer
 	conn      net.Conn
 }
 
@@ -40,7 +41,7 @@ func CreateNetworkTracer(cfg *config.AgentConfig) (*NetworkTracer, error) {
 	}
 
 	log.Infof("Creating tracer for: %s", filepath.Base(os.Args[0]))
-	t, err := tracer.NewTracer(tracer.DefaultConfig)
+	t, err := tracer.NewTracer(tracerConfig.DefaultConfig)
 	if err != nil {
 		return nil, err
 	}
