@@ -127,7 +127,7 @@ struct bpf_map_def SEC("maps/port_bindings") port_bindings = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(__u16),
     .value_size = sizeof(__u8),
-    .max_entries = 32768,
+    .max_entries = 65536,
     .pinning = 0,
     .namespace = "",
 };
