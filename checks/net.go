@@ -34,10 +34,6 @@ type ConnectionsCheck struct {
 	buf *bytes.Buffer // Internal buffer
 }
 
-func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
-	c.initialize(cfg, sysInfo)
-}
-
 // Name returns the name of the ConnectionsCheck.
 func (c *ConnectionsCheck) Name() string { return "connections" }
 

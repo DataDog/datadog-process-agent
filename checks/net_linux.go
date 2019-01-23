@@ -15,7 +15,7 @@ import (
 )
 
 // Init initializes a ConnectionsCheck instance.
-func (c *ConnectionsCheck) initialize(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
+func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
 	var err error
 
 	if cfg.EnableLocalNetworkTracer {

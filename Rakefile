@@ -35,21 +35,9 @@ task :build do
     :race => ENV['GO_RACE'] == 'true',
     :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
     :static => ENV['PROCESS_AGENT_STATIC'] == 'true',
-    :os => os,
-    :bpf => ENV['EBPF'] != 'false'
+    :bpf => true
   })
 end
-
-# Deprecated, should go away once we are fully merged into dd-agent
-#desc "DEPRECATED: Build Datadog Process agent for dd-process-agent pkg release"
-#task :build_ddpkg do
-#  go_build("github.com/StackVista/stackstate-process-agent/agent", {
-#    :cmd => "go build -a -o stackstate-process-agent",
-#    :race => ENV['GO_RACE'] == 'true',
-#    :add_build_vars => ENV['PROCESS_AGENT_ADD_BUILD_VARS'] != 'false',
-#    :static => ENV['PROCESS_AGENT_STATIC'] == 'true'
-#  })
-#end
 
 desc "Install Datadog Process agent"
 task :install do
@@ -64,11 +52,10 @@ end
 
 desc "Test Datadog Process agent"
 task :test do
-  cmd = "go list ./... | grep -v vendor | xargs go test"
-  if os != "windows"
-    cmd += " -tags 'docker kubelet kubeapiserver'"
-  end
-  sh cmd
+  go_test("./...", {
+   :static => ENV['PROCESS_AGENT_STATIC'] == 'true',
+   :bpf => true
+  })
 end
 
 desc "Test Datadog Process agent -- cmd"
@@ -90,7 +77,10 @@ task 'build-network-tracer' do
 end
 
 task :vet do
-  sh "go list ./... | grep -v vendor | xargs go vet"
+  go_vet("./...", {
+    :static => ENV['PROCESS_AGENT_STATIC'] == 'true',
+    :bpf => true
+  })
 end
 
 task :fmt do
