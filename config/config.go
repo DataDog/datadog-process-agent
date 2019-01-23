@@ -15,8 +15,8 @@ import (
 
 	"github.com/StackVista/stackstate-process-agent/util"
 
-	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
-	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
+	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
+	ecsutil "github.com/StackVista/stackstate-agent/pkg/util/ecs"
 
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"

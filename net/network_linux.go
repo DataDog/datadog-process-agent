@@ -11,8 +11,8 @@ import (
 	"context"
 	"net"
 
-	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"github.com/DataDog/datadog-agent/pkg/util/retry"
+	"github.com/StackVista/stackstate-agent/pkg/util/log"
+	"github.com/StackVista/stackstate-agent/pkg/util/retry"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
 )
 

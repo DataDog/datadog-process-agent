@@ -10,8 +10,8 @@ import (
 	log "github.com/cihub/seelog"
 	"gopkg.in/yaml.v2"
 
-	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
-	ddutil "github.com/DataDog/datadog-agent/pkg/util"
+	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
+	ddutil "github.com/StackVista/stackstate-agent/pkg/util"
 
 	"github.com/StackVista/stackstate-process-agent/util"
 )

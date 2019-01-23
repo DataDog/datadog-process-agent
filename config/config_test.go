@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/gopsutil/process"
+	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
 	"github.com/go-ini/ini"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"

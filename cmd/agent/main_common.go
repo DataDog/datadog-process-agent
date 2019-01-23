@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/pidfile"
+	"github.com/StackVista/stackstate-agent/pkg/pidfile"
 	log "github.com/cihub/seelog"
 
 	"github.com/StackVista/stackstate-agent/pkg/tagger"

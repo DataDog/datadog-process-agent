@@ -1,6 +1,7 @@
 stages:
 #- tests
 - build
+- pre_release
 #- publish
 
 
@@ -9,7 +10,7 @@ variables:
   STS_REPO_BRANCH_NAME: $CI_COMMIT_REF_NAME
   BASH_ENV: /root/.bashrc
 
-build:
+build_linux:
   image: stackstate/stackstate-agent-runner-circle:process-agent-go1_10_1-0.0.1
   stage: build
   before_script:
@@ -50,5 +51,34 @@ build:
         - $CI_PROJECT_DIR/packaging/debian/*.deb
     expire_in: 2 week
 
-#  tags:
-#  - sts-aws
+# Gitlab dedicated runner in a Windows VM
+build_windows:
+  stage: build
+  allow_failure: false
+  before_script:
+    - if exist %GOPATH%\src\github.com\StackVista\stackstate-process-agent rd /s/q %GOPATH%\src\github.com\StackVista\stackstate-process-agent
+    - mkdir %GOPATH%\src\github.com\StackVista\stackstate-process-agent
+    - xcopy /q/h/e/s * %GOPATH%\src\github.com\StackVista\stackstate-process-agent
+    - cd %GOPATH%\src\github.com\StackVista\stackstate-process-agent
+  script:
+    - cd %GOPATH%\src\github.com\StackVista\stackstate-process-agent
+    - call rake deps
+    - call .gitlab-scripts/windows_build.cmd
+  after_script:
+    - copy %GOPATH%\src\github.com\StackVista\stackstate-process-agent\process-agent.exe
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+      - ./process-agent.exe
+  tags:
+    - sts_windows
+
+pre_release_windows:
+  stage: pre_release
+  dependencies:
+    - build_windows
+  script:
+    - call rake windows-versioned-artifact
+    - aws.exe s3 cp . s3://stackstate-process-agent-2-test --recursive --exclude "*" --include "*.exe"
+  tags:
+    - sts_windows

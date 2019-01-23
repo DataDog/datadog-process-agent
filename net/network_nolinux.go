@@ -4,6 +4,7 @@ package net
 
 import (
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
+	tracerCommon "github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 )
 
 // RemoteNetTracerUtil is only implemented on linux
@@ -21,7 +22,7 @@ func GetRemoteNetworkTracerUtil() (*RemoteNetTracerUtil, error) {
 
 // GetConnections is only implemented on linux
 func (r *RemoteNetTracerUtil) GetConnections() ([]tracer.ConnectionStats, error) {
-	return nil, tracer.ErrNotImplemented
+	return nil, tracerCommon.ErrNotImplemented
 }
 
 // ShouldLogTracerUtilError is only implemented on linux

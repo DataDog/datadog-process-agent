@@ -134,3 +134,9 @@ task :err do
   system("go get github.com/kisielk/errcheck")
   sh "errcheck github.com/StackVista/stackstate-process-agent"
 end
+
+task 'windows-versioned-artifact' do
+  process_agent_version = `bash -c "packaging/version.sh"`.strip!
+  system("cp process-agent.exe stackstate-process-agent-%s.exe" % process_agent_version)
+end
+

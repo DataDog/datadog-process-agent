@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	ddlog "github.com/DataDog/datadog-agent/pkg/util/log"
+	ddlog "github.com/StackVista/stackstate-agent/pkg/util/log"
 	log "github.com/cihub/seelog"
 )
 
