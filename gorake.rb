@@ -1,3 +1,13 @@
+def get_tag_set(opts)
+ cmd = ""
+  if os != "windows"
+    tag_set = 'docker kubelet kubeapiserver' # Default tags for non-windows OSes (e.g. linux)
+    tag_set += ' linux_bpf' if opts[:bpf]    # Add BPF if ebpf exists
+    tag_set += ' netgo' if opts[:bpf] && opts[:static]
+    cmd += " -tags \'#{tag_set}\'"
+  end
+  return cmd
+end
 
 def go_build(program, opts={})
   default_cmd = "go build -a"
@@ -9,7 +19,6 @@ def go_build(program, opts={})
     :race => false,
     :add_build_vars => true,
     :static => false,
-    :os => "",
   }.merge(opts)
 
   dd = 'main'
@@ -40,12 +49,7 @@ def go_build(program, opts={})
 
   cmd = opts[:cmd]
   cmd += ' -race' if opts[:race]
-  if os != "windows"
-    tag_set = 'docker kubelet kubeapiserver' # Default tags for non-windows OSes (e.g. linux)
-    tag_set += ' linux_bpf' if opts[:bpf]    # Add BPF if ebpf exists
-    tag_set += ' netgo' if opts[:bpf] && opts[:static]
-    cmd += " -tags \'#{tag_set}\'"
-  end
+  cmd += get_tag_set(opts)
   print "cmd"
 
   # NOTE: We currently have issues running eBPF components in statically linked binaries, so in the meantime,
@@ -96,15 +100,12 @@ def go_lint(path)
   end
 end
 
-def go_vet(path)
-  sh "go vet #{path}"
+def go_vet(path, opts={})
+  sh "go vet #{get_tag_set(opts)} #{path}"
 end
 
 def go_test(path, opts = {})
-  cmd = 'go test'
-  if os != "windows"
-    cmd += ' -tags \'docker \''
-  end
+  cmd = "go test #{get_tag_set(opts)}"
   filter = ''
   if opts[:coverage_file]
     cmd += " -coverprofile=#{opts[:coverage_file]} -coverpkg=./..."

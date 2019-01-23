@@ -99,15 +99,17 @@
   revision = "3185a432dfed61437a6c62ed5622006d9027f513"
 
 [[projects]]
-  digest = "1:b4d2c417c78087328332c35e019da33334944399e195d911a2ac2ccc81a5694c"
+  digest = "1:7d994226e919d859d388ba8370dddeeba3b7d98198123b6655d92ab424574e8e"
   name = "github.com/StackVista/tcptracer-bpf"
   packages = [
     "pkg/tracer",
+    "pkg/tracer/collector",
     "pkg/tracer/common",
+    "pkg/tracer/config",
     "pkg/tracer/procspy",
   ]
   pruneopts = ""
-  revision = "e3b4f3a2db3858a9a97a434eafaba19e766e60b8"
+  revision = "1131a39218473b6a89583067bad83e6b2604bcda"
 
 [[projects]]
   digest = "1:63776251fbaa60062742412a9d2fa1e4b7cd24bcf5527fa9656b314ea8d60913"
@@ -394,8 +396,7 @@
   version = "v0.3.6"
 
 [[projects]]
-  branch = "master"
-  digest = "1:6c767afded99cc25461d11885e9c4033a6370cb77fcd235ffca4a429e1c11081"
+  digest = "1:ec4e79082b19b134e6d42d0947c0ebf73feb28fd8b9e15e744854efc73e9fa17"
   name = "github.com/iovisor/gobpf"
   packages = [
     "elf",
@@ -403,7 +404,7 @@
     "pkg/cpuonline",
   ]
   pruneopts = ""
-  revision = "7b7b3edb5dd243c5147560a6908488f2abacf87b"
+  revision = "3b07770c6d5e2bd37e582ecd49460e6ef094f257"
 
 [[projects]]
   digest = "1:6f49eae0c1e5dab1dafafee34b207aeb7a42303105960944828c2079b92fc88e"
@@ -437,7 +438,6 @@
   version = "v1.8.0"
 
 [[projects]]
-  branch = "master"
   digest = "1:212bebc561f4f654a653225868b2a97353cd5e160dc0b0bbc7232b06608474ec"
   name = "github.com/mailru/easyjson"
   packages = [
@@ -596,6 +596,13 @@
   ]
   pruneopts = ""
   revision = "bf6a532e95b1f7a62adf0ab5050a5bb2237ad2f4"
+
+[[projects]]
+  digest = "1:964470ab35de3c75203226685ea0ce6d569e3807a5d0266ed217e24fa16fd674"
+  name = "github.com/pytimer/win-netstat"
+  packages = ["."]
+  pruneopts = ""
+  revision = "efa1aff6aafc7b37ca3ffb136b6b27a11178ffd6"
 
 [[projects]]
   digest = "1:02135a4151567d48ebff6cf36f73b5d8dee566855df84ffd96111d5225848bb7"
@@ -1128,6 +1135,7 @@
     "github.com/StackVista/stackstate-agent/pkg/util/retry",
     "github.com/StackVista/tcptracer-bpf/pkg/tracer",
     "github.com/StackVista/tcptracer-bpf/pkg/tracer/common",
+    "github.com/StackVista/tcptracer-bpf/pkg/tracer/config",
     "github.com/cihub/seelog",
     "github.com/go-ini/ini",
     "github.com/gogo/protobuf/jsonpb",

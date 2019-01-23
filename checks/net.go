@@ -11,7 +11,6 @@ import (
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	log "github.com/cihub/seelog"
-	"os"
 	"time"
 )
 
@@ -27,53 +26,12 @@ var (
 type ConnectionsCheck struct {
 	// Local network tracer
 	useLocalTracer bool
-	localTracer    *tracer.Tracer
+	localTracer    tracer.Tracer
 
-	prevCheckConns []tracer.ConnectionStats
+	prevCheckConns []common.ConnectionStats
 	prevCheckTime  time.Time
 
 	buf *bytes.Buffer // Internal buffer
-}
-
-// Init initializes a ConnectionsCheck instance.
-func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
-	var err error
-
-	if cfg.EnableLocalNetworkTracer {
-		log.Info("starting network tracer locally")
-		c.useLocalTracer = true
-
-		// Checking whether the current kernel version is supported by the tracer
-		if _, err = tracer.IsTracerSupportedByOS(); err != nil {
-			// err is always returned when false, so the above catches the !ok case as well
-			log.Warnf("network tracer unsupported by OS: %s", err)
-			return
-		}
-
-		conf := tracer.DefaultConfig
-		// This is what the process check uses to get /proc aswell, "github.com/DataDog/gopsutil/internal/common/common.go"
-		// Unfortunately that is internal so i cannot use that here and we did not yet put stackstate-agent as a dependency
-		if proc := os.Getenv("HOST_PROC"); proc != "" {
-			conf.ProcRoot = proc
-		}
-		conf.MaxConnections = cfg.MaxPerMessage
-		conf.BackfillFromProc = cfg.NetworkInitialConnectionsFromProc
-
-		t, err := tracer.NewTracer(conf)
-		if err != nil {
-			log.Errorf("failed to create network tracer: %s", err)
-			return
-		}
-
-		c.localTracer = t
-		c.localTracer.Start()
-	} else {
-		// Calling the remote tracer will cause it to initialize and check connectivity
-		net.SetNetworkTracerSocketPath(cfg.NetworkTracerSocketPath)
-		net.GetRemoteNetworkTracerUtil()
-	}
-
-	c.buf = new(bytes.Buffer)
 }
 
 // Name returns the name of the ConnectionsCheck.
@@ -114,7 +72,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 	}
 
 	// Temporary map to help find matching connections from previous check
-	lastConnByKey := make(map[string]tracer.ConnectionStats)
+	lastConnByKey := make(map[string]common.ConnectionStats)
 	for _, conn := range c.prevCheckConns {
 		if b, err := conn.ByteKey(c.buf); err == nil {
 			lastConnByKey[string(b)] = conn
@@ -127,7 +85,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 	return batchConnections(cfg, groupID, c.formatConnections(conns, lastConnByKey, c.prevCheckTime)), nil
 }
 
-func (c *ConnectionsCheck) getConnections() ([]tracer.ConnectionStats, error) {
+func (c *ConnectionsCheck) getConnections() ([]common.ConnectionStats, error) {
 	if c.useLocalTracer { // If local tracer is set up, use that
 		if c.localTracer == nil {
 			return nil, fmt.Errorf("using local network tracer, but no tracer was initialized")
@@ -149,7 +107,7 @@ func (c *ConnectionsCheck) getConnections() ([]tracer.ConnectionStats, error) {
 
 // Connections are split up into a chunks of at most 100 connections per message to
 // limit the message size on intake.
-func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, lastConns map[string]tracer.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
+func (c *ConnectionsCheck) formatConnections(conns []common.ConnectionStats, lastConns map[string]common.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
 	// Process create-times required to construct unique process hash keys on the backend
 	createTimeForPID := Process.createTimesforPIDs(connectionPIDs(conns))
 
@@ -189,33 +147,33 @@ func (c *ConnectionsCheck) formatConnections(conns []tracer.ConnectionStats, las
 	return cxs
 }
 
-func formatFamily(f tracer.ConnectionFamily) model.ConnectionFamily {
+func formatFamily(f common.ConnectionFamily) model.ConnectionFamily {
 	switch f {
-	case tracer.AF_INET:
+	case common.AF_INET:
 		return model.ConnectionFamily_v4
-	case tracer.AF_INET6:
+	case common.AF_INET6:
 		return model.ConnectionFamily_v6
 	default:
 		return -1
 	}
 }
 
-func formatType(f tracer.ConnectionType) model.ConnectionType {
+func formatType(f common.ConnectionType) model.ConnectionType {
 	switch f {
-	case tracer.TCP:
+	case common.TCP:
 		return model.ConnectionType_tcp
-	case tracer.UDP:
+	case common.UDP:
 		return model.ConnectionType_udp
 	default:
 		return -1
 	}
 }
 
-func calculateDirection(d tracer.Direction) model.ConnectionDirection {
+func calculateDirection(d common.Direction) model.ConnectionDirection {
 	switch d {
-	case tracer.OUTGOING:
+	case common.OUTGOING:
 		return model.ConnectionDirection_outgoing
-	case tracer.INCOMING:
+	case common.INCOMING:
 		return model.ConnectionDirection_incoming
 	default:
 		return model.ConnectionDirection_none
@@ -252,7 +210,7 @@ func groupSize(total, maxBatchSize int) int32 {
 	return int32(groupSize)
 }
 
-func connectionPIDs(conns []tracer.ConnectionStats) []uint32 {
+func connectionPIDs(conns []common.ConnectionStats) []uint32 {
 	ps := make(map[uint32]struct{}) // Map used to represent a set
 	for _, c := range conns {
 		ps[c.Pid] = struct{}{}

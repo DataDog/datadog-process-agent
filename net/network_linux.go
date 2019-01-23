@@ -13,7 +13,7 @@ import (
 
 	"github.com/StackVista/stackstate-agent/pkg/util/log"
 	"github.com/StackVista/stackstate-agent/pkg/util/retry"
-	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
+	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 )
 
 const (
@@ -73,7 +73,7 @@ func GetRemoteNetworkTracerUtil() (*RemoteNetTracerUtil, error) {
 }
 
 // GetConnections returns a set of active network connections, retrieved from the network tracer service
-func (r *RemoteNetTracerUtil) GetConnections() ([]tracer.ConnectionStats, error) {
+func (r *RemoteNetTracerUtil) GetConnections() ([]common.ConnectionStats, error) {
 	// Otherwise, get it remotely (via unix socket), and parse from JSON
 	resp, err := r.httpClient.Get(connectionsURL)
 	if err != nil {
@@ -87,7 +87,7 @@ func (r *RemoteNetTracerUtil) GetConnections() ([]tracer.ConnectionStats, error)
 		return nil, err
 	}
 
-	conn := &tracer.Connections{}
+	conn := &common.Connections{}
 	if err := conn.UnmarshalJSON(body); err != nil {
 		return nil, err
 	}
