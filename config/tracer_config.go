@@ -1,12 +1,13 @@
 package config
 
 import (
+	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-process-agent/ebpf"
+	"github.com/DataDog/datadog-process-agent/util"
+	log "github.com/cihub/seelog"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"github.com/DataDog/datadog-process-agent/ebpf"
-	log "github.com/cihub/seelog"
 )
 
 // TracerConfigFromConfig returns a valid tracer-bpf config sourced from our agent config
@@ -31,34 +32,24 @@ func TracerConfigFromConfig(cfg *AgentConfig) *ebpf.Config {
 		log.Info("network tracer TCP tracing disabled by configuration")
 	}
 
+	tracerConfig.ProcRoot = getProcRoot()
+
 	return tracerConfig
 }
 
 func isIPv6EnabledOnHost() bool {
-	_, err := ioutil.ReadFile(hostProc("net/if_inet6"))
+	_, err := ioutil.ReadFile(filepath.Join(getProcRoot(), "net/if_inet6"))
 	return err == nil
 }
 
-// getEnv retrieves the environment variable key. If it does not exist it returns the default.
-func getEnv(key string, dfault string, combineWith ...string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		value = dfault
+func getProcRoot() string {
+	if v := os.Getenv("HOST_PROC"); v != "" {
+		return v
 	}
 
-	switch len(combineWith) {
-	case 0:
-		return value
-	case 1:
-		return filepath.Join(value, combineWith[0])
-	default:
-		all := make([]string, len(combineWith)+1)
-		all[0] = value
-		copy(all[1:], combineWith)
-		return filepath.Join(all...)
+	if ddconfig.IsContainerized() && util.PathExists("/host") {
+		return "/host/proc"
 	}
-}
 
-func hostProc(combineWith ...string) string {
-	return getEnv("HOST_PROC", "/proc", combineWith...)
+	return "/proc"
 }

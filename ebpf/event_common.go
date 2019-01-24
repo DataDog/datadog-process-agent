@@ -27,6 +27,31 @@ func (c ConnectionType) String() string {
 // ConnectionFamily will be either v4 or v6
 type ConnectionFamily uint8
 
+// ConnectionDirection indicates if the connection is incoming to the host or outbound
+type ConnectionDirection uint8
+
+const (
+	// INCOMING represents connections inbound to the host
+	INCOMING ConnectionDirection = 0
+
+	// OUTGOING represents outbound connections from the host
+	OUTGOING ConnectionDirection = 1
+
+	// LOCAL represents connections that don't leave the host
+	LOCAL ConnectionDirection = 2
+)
+
+func (d ConnectionDirection) String() string {
+	switch d {
+	case OUTGOING:
+		return "outgoing"
+	case LOCAL:
+		return "local"
+	default:
+		return "incoming"
+	}
+}
+
 const (
 	// AFINET represents v4 connections
 	AFINET ConnectionFamily = 0
@@ -62,17 +87,20 @@ type ConnectionStats struct {
 
 	MonotonicRetransmits uint32 `json:"monotonic_retransmits"`
 	LastRetransmits      uint32 `json:"last_retransmits"`
+
+	Direction ConnectionDirection `json:"direction"`
 }
 
 func (c ConnectionStats) String() string {
 	return fmt.Sprintf(
-		"[%s] [PID: %d] [%v:%d ⇄ %v:%d] %d bytes sent (+%d), %d bytes received (+%d), %d retransmits (+%d)",
+		"[%s] [PID: %d] [%v:%d ⇄ %v:%d] (%s) %d bytes sent (+%d), %d bytes received (+%d), %d retransmits (+%d)",
 		c.Type,
 		c.Pid,
 		c.Source,
 		c.SPort,
 		c.Dest,
 		c.DPort,
+		c.Direction,
 		c.MonotonicSentBytes, c.LastSentBytes,
 		c.MonotonicRecvBytes, c.LastRecvBytes,
 		c.MonotonicRetransmits, c.LastRetransmits,

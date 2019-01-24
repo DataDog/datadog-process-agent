@@ -8,6 +8,8 @@ const (
 	TCPv4Connect KProbeName = "kprobe/tcp_v4_connect"
 	// TCPv4ConnectReturn traces the return value for the v4 connect() system call
 	TCPv4ConnectReturn KProbeName = "kretprobe/tcp_v4_connect"
+	// TCPv4DestroySock traces the tcp_v4_destroy_sock system call (called for both ipv4 and ipv6)
+	TCPv4DestroySock KProbeName = "kprobe/tcp_v4_destroy_sock"
 
 	// TCPv6Connect traces the v6 connect() system call
 	TCPv6Connect KProbeName = "kprobe/tcp_v6_connect"
@@ -30,6 +32,9 @@ const (
 
 	// TCPRetransmit traces the return value for the tcp_retransmit_skb() system call
 	TCPRetransmit KProbeName = "kprobe/tcp_retransmit_skb"
+
+	// InetCskAcceptReturn traces the return value for the inet_csk_accept syscall
+	InetCskAcceptReturn KProbeName = "kretprobe/inet_csk_accept"
 )
 
 // bpfMapName stores the name of the BPF maps storing statistics and other info
@@ -41,4 +46,5 @@ const (
 	tcpCloseEventMap   bpfMapName = "tcp_close_events"
 	latestTimestampMap bpfMapName = "latest_ts"
 	tracerStatusMap    bpfMapName = "tracer_status"
+	portBindingsMap    bpfMapName = "port_bindings"
 )
