@@ -2,8 +2,10 @@ package net
 
 import (
 	"testing"
+	"io/ioutil"
 	"net"
 	"os"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,48 +13,56 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 )
 
-cfg := config.AgentConfig
+var cfg = config.AgentConfig{}
+
 
 func testFileExistsNewUDSListener(t *testing.T, socketPath string) {
-	_, err := os.Create(socketPath)
-	assert.Nil(t, err)
+	// _, err := os.Create(socketPath)
+	// require.NoError(t, err)
 	defer os.Remove(socketPath)
-	_, err = NewUDSListener(cfg)
-	assert.Error(t, err)
+	assert.NotEmpty(t, socketPath)
+	s, err := NewUDSListener(&config.AgentConfig{NetworkTracerSocketPath:socketPath})
+	require.NoError(t, err)
+	defer s.Stop()	
 }
 
 func testSocketExistsNewUDSListener(t *testing.T, socketPath string) {
-	addr, err := net.ResolveUnixAddr(("unix", socketPath)
+	addr, err := net.ResolveUnixAddr("unix", socketPath)
 	assert.Nil(t, err)
-	_, err = net.Listen("unix", addr.name)
+	_, err = net.Listen("unix", addr.Name)
 	assert.Nil(t, err)
-	testWorkingNewUDSListen(t, socketPath)
+	// testWorkingNewUDSListener(t, socketPath)
+	_, err = NewUDSListener(&config.AgentConfig{NetworkTracerSocketPath:socketPath})	
+	require.Error(t, err)
 }
 
 func testWorkingNewUDSListener(t *testing.T, socketPath string) {
-	s, err := NewUDSListener(cfg)
+	s, err := NewUDSListener(&config.AgentConfig{NetworkTracerSocketPath:socketPath})
+	require.NoError(t, err)
 	defer s.Stop()
 
-	assert.Nil(t, err)
-	assert.NotNill(t, s)
+	assert.NoError(t, err)
+	assert.NotNil(t, s)
+	time.Sleep(1 * time.Second)
 	fi, err := os.Stat(socketPath)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Srwx-w--w-", fi.Mode().String())
 }
 
-func TestNewUDSListener(t *testing.t) {
-	dir, err := ioutil.TempDir("", "dd-test-")
-	assert.Nil(t, err)
-	defer os.RemoveAll(dir) // clean up after
-	socketPath := cfg.NetworkTracerSocketPath
-
+func TestNewUDSListener(t *testing.T) {
 	t.Run("fail_file_exists", func(tt *testing.T) {
-		testFileExistsNewUDSListener(tt, socketPath)
+		socket, _ := ioutil.TempFile("", "net*.sock")
+		defer os.RemoveAll(socket.Name()) // clean up after
+		testFileExistsNewUDSListener(tt, socket.Name())
 	})
 	t.Run("socket_exists", func(tt *testing.T) {
-		testSocketExistsNewUSDListener(tt, socketPath)
+		socket, _ := ioutil.TempFile("", "net*.sock")
+		defer os.RemoveAll(socket.Name()) // clean up after
+		testSocketExistsNewUDSListener(tt, socket.Name())
 	})
 	t.Run("working", func(tt *testing.T) {
-		testWorkingNewUDSListener(tt, socketPath)
+		socket, _ := ioutil.TempFile("", "net*.sock")
+		defer os.RemoveAll(socket.Name()) // clean up after
+		testWorkingNewUDSListener(tt, socket.Name())
 	})
 }
