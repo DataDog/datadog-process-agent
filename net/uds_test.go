@@ -51,18 +51,18 @@ func testWorkingNewUDSListener(t *testing.T, socketPath string) {
 
 func TestNewUDSListener(t *testing.T) {
 	t.Run("fail_file_exists", func(tt *testing.T) {
-		socket, _ := ioutil.TempFile("", "net*.sock")
-		defer os.RemoveAll(socket.Name()) // clean up after
-		testFileExistsNewUDSListener(tt, socket.Name())
+		dir, _ := ioutil.TempDir("", "dd-test-")
+		defer os.RemoveAll(dir) // clean up after
+		testFileExistsNewUDSListener(tt, dir + "/net.sock")
 	})
 	t.Run("socket_exists", func(tt *testing.T) {
-		socket, _ := ioutil.TempFile("", "net*.sock")
-		defer os.RemoveAll(socket.Name()) // clean up after
-		testSocketExistsNewUDSListener(tt, socket.Name())
+		dir, _ := ioutil.TempDir("", "dd-test-")
+		defer os.RemoveAll(dir) // clean up after
+		testSocketExistsNewUDSListener(tt, dir + "/net.sock")
 	})
 	t.Run("working", func(tt *testing.T) {
-		socket, _ := ioutil.TempFile("", "net*.sock")
-		defer os.RemoveAll(socket.Name()) // clean up after
-		testWorkingNewUDSListener(tt, socket.Name())
+		dir, _ := ioutil.TempDir("", "dd-test-")
+		defer os.RemoveAll(dir) // clean up after
+		testWorkingNewUDSListener(tt, dir + "/net.sock")
 	})
 }
