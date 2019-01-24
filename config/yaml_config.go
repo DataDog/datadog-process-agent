@@ -91,6 +91,8 @@ type YamlAgentConfig struct {
 		// The maximum number of connections per message.
 		// Only change if the defaults are causing issues.
 		MaxConnsPerMessage int `yaml:"max_conns_per_message"`
+		// The maximum number of connections the tracer can track
+		MaxTrackedConnections uint `yaml:"max_tracked_connections"`
 	} `yaml:"network_tracer_config"`
 }
 
@@ -246,6 +248,14 @@ func mergeNetworkYamlConfig(agentConf *AgentConfig, networkConf *YamlAgentConfig
 			agentConf.MaxConnsPerMessage = mcpm
 		} else {
 			log.Warn("Overriding the configured connections count per message limit because it exceeds maximum")
+		}
+	}
+
+	if mtc := networkConf.Network.MaxTrackedConnections; mtc > 0 {
+		if mtc <= maxMaxTrackedConnections {
+			agentConf.NetworkMaxTrackedConnections = mtc
+		} else {
+			log.Warnf("Overriding the configured max tracked connections limit because it exceeds maximum 65536, got: %v", mtc)
 		}
 	}
 

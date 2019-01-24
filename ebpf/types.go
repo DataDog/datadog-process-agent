@@ -1,5 +1,7 @@
 package ebpf
 
+import "fmt"
+
 // KProbeName stores the name of the kernel probes setup for tracing
 type KProbeName string
 
@@ -42,3 +44,8 @@ const (
 	latestTimestampMap bpfMapName = "latest_ts"
 	tracerStatusMap    bpfMapName = "tracer_status"
 )
+
+// sectionName returns the sectionName for the given BPF map
+func (b bpfMapName) sectionName() string {
+	return fmt.Sprintf("maps/%s", b)
+}

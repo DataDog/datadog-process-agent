@@ -83,13 +83,14 @@ type AgentConfig struct {
 	StatsdPort         int
 
 	// Network collection configuration
-	EnableNetworkTracing     bool
-	EnableLocalNetworkTracer bool // To have the network tracer embedded in the process-agent
-	DisableTCPTracing        bool
-	DisableUDPTracing        bool
-	DisableIPv6Tracing       bool
-	NetworkTracerSocketPath  string
-	NetworkTracerLogFile     string
+	EnableNetworkTracing         bool
+	EnableLocalNetworkTracer     bool // To have the network tracer embedded in the process-agent
+	DisableTCPTracing            bool
+	DisableUDPTracing            bool
+	DisableIPv6Tracing           bool
+	NetworkTracerSocketPath      string
+	NetworkTracerLogFile         string
+	NetworkMaxTrackedConnections uint
 
 	// Check config
 	EnabledChecks  []string
@@ -124,9 +125,10 @@ func (a AgentConfig) CheckInterval(checkName string) time.Duration {
 }
 
 const (
-	defaultEndpoint      = "https://process.datadoghq.com"
-	maxMessageBatch      = 100
-	maxConnsMessageBatch = 300
+	defaultEndpoint          = "https://process.datadoghq.com"
+	maxMessageBatch          = 100
+	maxConnsMessageBatch     = 300
+	maxMaxTrackedConnections = 65536
 )
 
 // NewDefaultTransport provides a http transport configuration with sane default timeouts

@@ -1,6 +1,10 @@
 package ebpf
 
-import "time"
+import (
+	"time"
+
+	bpflib "github.com/iovisor/gobpf/elf"
+)
 
 // Config stores all flags used by the eBPF tracer
 type Config struct {
@@ -23,16 +27,35 @@ type Config struct {
 	// the BPF module receives a tcp_close call, but TCP connections also age out to catch cases where
 	// tcp_close is not intercepted for some reason.
 	TCPConnTimeout time.Duration
+
+	// MaxTrackedConnections specifies the maximum number of connections we can track, this will be the size of the BPF maps
+	MaxTrackedConnections uint
 }
 
 // NewDefaultConfig enables traffic collection for all connection types
 func NewDefaultConfig() *Config {
 	return &Config{
-		CollectTCPConns:  true,
-		CollectUDPConns:  true,
-		CollectIPv6Conns: true,
-		UDPConnTimeout:   30 * time.Second,
-		TCPConnTimeout:   10 * time.Minute,
+		CollectTCPConns:       true,
+		CollectUDPConns:       true,
+		CollectIPv6Conns:      true,
+		UDPConnTimeout:        30 * time.Second,
+		TCPConnTimeout:        10 * time.Minute,
+		MaxTrackedConnections: 65536,
+	}
+}
+
+// Sections returns a map of string -> gobpf.SectionParams used to configure the way we load the BPF program
+func (c *Config) Sections() map[string]bpflib.SectionParams {
+	return map[string]bpflib.SectionParams{
+		connMap.sectionName(): {
+			// MapMaxEntries: c.MaxTrackedConnections
+		},
+		tcpStatsMap.sectionName(): {
+			// MapMaxEntries: c.MaxTrackedConnections
+		},
+		tcpCloseEventMap.sectionName(): {
+			// MapMaxEntries: runtime.NumCPUs()
+		},
 	}
 }
 

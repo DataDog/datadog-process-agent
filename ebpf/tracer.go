@@ -68,7 +68,7 @@ func NewTracer(config *Config) (*Tracer, error) {
 
 	// TODO: This currently loads all defined BPF maps in the ELF file. we should load only the maps
 	//       for connection types + families that are enabled.
-	err = m.Load(nil)
+	err = m.Load(config.Sections())
 	if err != nil {
 		return nil, err
 	}
