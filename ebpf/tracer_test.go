@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -455,6 +456,54 @@ func TestUDPDisabled(t *testing.T) {
 
 	_, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.False(t, ok)
+
+	doneChan <- struct{}{}
+}
+
+func TestTooSmallBPFMap(t *testing.T) {
+	// Enable BPF-based network tracer with BPF maps size = 1
+	config := NewDefaultConfig()
+	config.MaxTrackedConnections = 1
+
+	tr, err := NewTracer(config)
+	require.NoError(t, err)
+	defer tr.Stop()
+
+	// Create TCP Server which sends back serverMessageSize bytes
+	server := NewTCPServer(func(c net.Conn) {
+		r := bufio.NewReader(c)
+		r.ReadBytes(byte('\n'))
+		c.Write(genPayload(serverMessageSize))
+		c.Close()
+	})
+	doneChan := make(chan struct{})
+	server.Run(doneChan)
+
+	// Connect to server two times
+	// Write clientMessageSize to server
+	c, err := net.DialTimeout("tcp", server.address, 50*time.Millisecond)
+	require.NoError(t, err)
+	defer c.Close()
+	_, err = c.Write(genPayload(clientMessageSize))
+	require.NoError(t, err)
+
+	// Second time
+	c2, err := net.DialTimeout("tcp", server.address, 50*time.Millisecond)
+	require.NoError(t, err)
+	defer c2.Close()
+	_, err = c2.Write(genPayload(clientMessageSize))
+	require.NoError(t, err)
+
+	connections := getConnections(t, tr)
+	// we should only have one connection returned
+	assert.Len(t, connections.Conns, 1)
+
+	// Confirm that we could only find the first connection created above
+	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	assert.True(t, ok)
+	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 
 	doneChan <- struct{}{}
 }
