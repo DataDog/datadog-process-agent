@@ -86,8 +86,7 @@ func NewTracer(config *Config) (*Tracer, error) {
 		return nil, fmt.Errorf("failed to init module: error guessing offsets: %v", err)
 	}
 
-	// TODO: We don't have the proc root configurable yet
-	portMapping := NewPortMapping("/proc", config)
+	portMapping := NewPortMapping(config.ProcRoot, config)
 	if err := portMapping.ReadInitialState(); err != nil {
 		return nil, fmt.Errorf("failed to read initial pid->port mapping: %s", err)
 	}

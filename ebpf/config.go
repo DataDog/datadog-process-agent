@@ -23,6 +23,9 @@ type Config struct {
 	// the BPF module receives a tcp_close call, but TCP connections also age out to catch cases where
 	// tcp_close is not intercepted for some reason.
 	TCPConnTimeout time.Duration
+
+	// ProcRoot is the root path to the proc filesystem
+	ProcRoot string
 }
 
 // NewDefaultConfig enables traffic collection for all connection types
@@ -33,6 +36,7 @@ func NewDefaultConfig() *Config {
 		CollectIPv6Conns: true,
 		UDPConnTimeout:   30 * time.Second,
 		TCPConnTimeout:   10 * time.Minute,
+		ProcRoot:         "/proc",
 	}
 }
 
