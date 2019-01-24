@@ -66,9 +66,7 @@ func NewTracer(config *Config) (*Tracer, error) {
 		return nil, err
 	}
 
-	// TODO: This currently loads all defined BPF maps in the ELF file. we should load only the maps
-	//       for connection types + families that are enabled.
-	err = m.Load(config.Sections())
+	err = m.Load(SectionsFromConfig(config))
 	if err != nil {
 		return nil, err
 	}
@@ -279,4 +277,19 @@ func (t *Tracer) timeoutForConn(c *ConnTuple) int64 {
 		return t.config.TCPConnTimeout.Nanoseconds()
 	}
 	return t.config.UDPConnTimeout.Nanoseconds()
+}
+
+// SectionsFromConfig returns a map of string -> gobpf.SectionParams used to configure the way we load the BPF program (bpf map sizes)
+func SectionsFromConfig(c *Config) map[string]bpflib.SectionParams {
+	return map[string]bpflib.SectionParams{
+		connMap.sectionName(): {
+			// MapMaxEntries: c.MaxTrackedConnections
+		},
+		tcpStatsMap.sectionName(): {
+			// MapMaxEntries: c.MaxTrackedConnections
+		},
+		tcpCloseEventMap.sectionName(): {
+			// MapMaxEntries: runtime.NumCPUs()
+		},
+	}
 }

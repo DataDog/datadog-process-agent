@@ -2,8 +2,6 @@ package ebpf
 
 import (
 	"time"
-
-	bpflib "github.com/iovisor/gobpf/elf"
 )
 
 // Config stores all flags used by the eBPF tracer
@@ -41,21 +39,6 @@ func NewDefaultConfig() *Config {
 		UDPConnTimeout:        30 * time.Second,
 		TCPConnTimeout:        10 * time.Minute,
 		MaxTrackedConnections: 65536,
-	}
-}
-
-// Sections returns a map of string -> gobpf.SectionParams used to configure the way we load the BPF program
-func (c *Config) Sections() map[string]bpflib.SectionParams {
-	return map[string]bpflib.SectionParams{
-		connMap.sectionName(): {
-			// MapMaxEntries: c.MaxTrackedConnections
-		},
-		tcpStatsMap.sectionName(): {
-			// MapMaxEntries: c.MaxTrackedConnections
-		},
-		tcpCloseEventMap.sectionName(): {
-			// MapMaxEntries: runtime.NumCPUs()
-		},
 	}
 }
 
