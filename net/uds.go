@@ -40,22 +40,15 @@ func NewUDSListener(cfg *config.AgentConfig) (*UDSListener, error) {
 	fileInfo, err := os.Stat(cfg.NetworkTracerSocketPath)
 	// Socket file already exists
 	if err == nil {
-		log.Info("Socket exists")
 		// Confirm that it's a UNIX socket
 		if fileInfo.Mode()&os.ModeSocket == 0 {
 			// return nil, fmt.Errorf("uds: cannot reuse %s socket path: path already exists and it is not a UNIX socket", cfg.NetworkTracerSocketPath)
 			err = os.Remove(cfg.NetworkTracerSocketPath)
 			if err != nil {
 				return nil, fmt.Errorf("uds: cannot remove stale UNIX socket: %v", err)
-			} else {
-				log.Info("Socket successfully removed.")
-			}
-		} else {
-			log.Info("Confirmed that this is a UNIX Socket")
+			} 
 		}
-	} else {
-		log.Errorf("Socket file did not exist %s", err)
-	}
+	} 
 
 	listener := &UDSListener{
 		conn:       conn,
