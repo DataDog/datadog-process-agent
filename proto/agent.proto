@@ -333,6 +333,13 @@ enum ConnectionFamily {
 	v6 = 1;
 }
 
+enum ConnectionDirection {
+	unspecified = 0;
+	incoming = 1;
+	outgoing = 2;
+	local = 3;
+}
+
 message Connection {
 	int32 pid = 1;
 	// 2, 3, & 4 are deprecated
@@ -352,6 +359,7 @@ message Connection {
 	uint64 lastBytesSent = 16;
 	uint64 lastBytesReceived = 17;
 	uint32 lastRetransmits = 18;
+    	ConnectionDirection direction = 19;
 }
 
 message Addr {

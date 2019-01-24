@@ -1,5 +1,6 @@
 dd-process-agent
 vendor/
+vendor.orig/
 
 tracer-ebpf.o
 .DS_Store
@@ -13,3 +14,5 @@ cmd/agent/windows_resources/*.bin
 # file generated at build time by message compiler
 process-agent-msg.h
 process-agent
+.vagrant/
+Vagrantfile

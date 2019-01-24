@@ -101,4 +101,7 @@ typedef struct {
     __u8 padding;
 } tracer_status_t;
 
+#define PORT_LISTENING 1
+#define PORT_CLOSED 0
+
 #endif

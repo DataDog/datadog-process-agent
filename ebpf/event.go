@@ -8,9 +8,7 @@ import (
 	"unsafe"
 )
 
-/*
-#include "c/tracer-ebpf.h"
-*/
+// #include "c/tracer-ebpf.h"
 import "C"
 
 /* tcp_conn_t
@@ -116,4 +114,8 @@ func decodeRawTCPConn(data []byte) ConnectionStats {
 	tst := TCPStats(ct.tcp_stats)
 
 	return connStats(&tup, &cst, &tst)
+}
+
+func isPortClosed(state uint8) bool {
+	return state == C.PORT_CLOSED
 }

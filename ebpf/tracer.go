@@ -5,17 +5,13 @@ package ebpf
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"time"
 	"unsafe"
 
 	log "github.com/cihub/seelog"
 	bpflib "github.com/iovisor/gobpf/elf"
 )
-
-/*
-#include "c/tracer-ebpf.h"
-*/
-import "C"
 
 var (
 	// Feature versions sourced from: https://github.com/iovisor/bcc/blob/master/docs/kernel-versions.md
@@ -32,7 +28,9 @@ type Tracer struct {
 	perfMap *bpflib.PerfMap
 	config  *Config
 	// State handler
-	state NetworkState
+	state          NetworkState
+	portMapping    *PortMapping
+	localAddresses map[string]struct{}
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -88,10 +86,19 @@ func NewTracer(config *Config) (*Tracer, error) {
 		return nil, fmt.Errorf("failed to init module: error guessing offsets: %v", err)
 	}
 
+	portMapping := NewPortMapping(config.ProcRoot, config)
+	if err := portMapping.ReadInitialState(); err != nil {
+		return nil, fmt.Errorf("failed to read initial pid->port mapping: %s", err)
+	}
+
+	localAddresses := readLocalAddresses()
+
 	tr := &Tracer{
-		m:      m,
-		config: config,
-		state:  NewDefaultNetworkState(),
+		m:              m,
+		config:         config,
+		state:          NewDefaultNetworkState(),
+		portMapping:    portMapping,
+		localAddresses: localAddresses,
 	}
 
 	tr.perfMap, err = tr.initPerfPolling()
@@ -175,6 +182,11 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", tcpStatsMap, err)
 	}
 
+	portMp, err := t.getMap(portBindingsMap)
+	if err != nil {
+		return nil, err
+	}
+
 	latestTime, ok, err := t.getLatestTimestamp()
 	if err != nil {
 		return nil, err
@@ -182,6 +194,11 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 
 	if !ok { // if no timestamps have been captured, there can be no packets
 		return nil, nil
+	}
+
+	closedPortBindings, err := t.populatePortMapping(portMp)
+	if err != nil {
+		return nil, err
 	}
 
 	// Iterate through all key-value pairs in map
@@ -195,13 +212,23 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 		} else if stats.isExpired(latestTime, t.timeoutForConn(nextKey)) {
 			expired = append(expired, nextKey.copy())
 		} else {
-			active = append(active, connStats(nextKey, stats, t.getTCPStats(tcpMp, nextKey)))
+			conn := connStats(nextKey, stats, t.getTCPStats(tcpMp, nextKey))
+
+			conn.Direction = t.determineConnectionDirection(&conn)
+
+			active = append(active, conn)
 		}
 		key = nextKey
 	}
 
 	// Remove expired entries
 	t.removeEntries(mp, tcpMp, expired)
+
+	for _, key := range closedPortBindings {
+		t.portMapping.RemoveMapping(key)
+
+		_ = t.m.DeleteElement(portMp, unsafe.Pointer(&key))
+	}
 
 	return active, nil
 }
@@ -216,7 +243,7 @@ func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
 		// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
 		entries[i].pid = 0
 		// We can ignore the error for this map since it will not always contain the entry
-		t.m.DeleteElement(tcpMp, unsafe.Pointer(entries[i]))
+		_ = t.m.DeleteElement(tcpMp, unsafe.Pointer(entries[i]))
 	}
 }
 
@@ -279,4 +306,83 @@ func (t *Tracer) timeoutForConn(c *ConnTuple) int64 {
 		return t.config.TCPConnTimeout.Nanoseconds()
 	}
 	return t.config.UDPConnTimeout.Nanoseconds()
+}
+
+// populatePortMapping reads the entire portBinding bpf map and populates the local port/address map.  A list of
+// closed ports will be returned
+func (t *Tracer) populatePortMapping(mp *bpflib.Map) ([]uint16, error) {
+	var key, nextKey uint16
+	var state uint8
+
+	closedPortBindings := make([]uint16, 0)
+
+	for {
+		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(&key), unsafe.Pointer(&nextKey), unsafe.Pointer(&state))
+		if !hasNext {
+			break
+		}
+
+		port := nextKey
+
+		t.portMapping.AddMapping(port)
+
+		if isPortClosed(state) {
+			closedPortBindings = append(closedPortBindings, port)
+		}
+
+		key = nextKey
+	}
+
+	return closedPortBindings, nil
+}
+
+func (t *Tracer) determineConnectionDirection(conn *ConnectionStats) ConnectionDirection {
+	sourceLocal := t.isLocalAddress(conn.Source)
+	destLocal := t.isLocalAddress(conn.Dest)
+
+	if sourceLocal && destLocal {
+		return LOCAL
+	}
+
+	if sourceLocal && t.portMapping.IsListening(conn.SPort) {
+		return INCOMING
+	}
+
+	return OUTGOING
+}
+
+func (t *Tracer) isLocalAddress(address string) bool {
+	_, ok := t.localAddresses[address]
+	return ok
+}
+
+func readLocalAddresses() map[string]struct{} {
+	addresses := make(map[string]struct{}, 0)
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		log.Errorf("error reading network interfaces: %s", err)
+		return addresses
+	}
+
+	for _, intf := range interfaces {
+		addrs, err := intf.Addrs()
+
+		if err != nil {
+			log.Errorf("error reading interface %s addresses", intf.Name, err)
+			continue
+		}
+
+		for _, addr := range addrs {
+			switch v := addr.(type) {
+			case *net.IPNet:
+				addresses[v.IP.String()] = struct{}{}
+			case *net.IPAddr:
+				addresses[v.IP.String()] = struct{}{}
+			}
+		}
+
+	}
+
+	return addresses
 }

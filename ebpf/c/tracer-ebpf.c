@@ -118,6 +118,20 @@ struct bpf_map_def SEC("maps/udp_recv_sock") udp_recv_sock = {
     .namespace = "",
 };
 
+/* This maps tracks listening ports. Entries are added to the map via tracing the inet_csk_accept syscall.  The
+ * key in the map is the port and the value is a flag that indicates if the port is listening or not.
+ * When the socket is destroyed (via tcp_v4_destroy_sock), we set the value to be "port closed" to indicate that the
+ * port is no longer being listened on.  We leave the data in place for the userspace side to read and clean up
+ */
+struct bpf_map_def SEC("maps/port_bindings") port_bindings = {
+    .type = BPF_MAP_TYPE_HASH,
+    .key_size = sizeof(__u16),
+    .value_size = sizeof(__u8),
+    .max_entries = 65536,
+    .pinning = 0,
+    .namespace = "",
+};
+
 /* http://stackoverflow.com/questions/1001307/detecting-endianness-programmatically-in-a-c-program */
 __attribute__((always_inline))
 static bool is_big_endian(void) {
@@ -391,16 +405,28 @@ static int read_conn_tuple(conn_tuple_t* tuple, tracer_status_t* status, struct 
     if (family == CONN_V4) {
         bpf_probe_read(&saddr_l, sizeof(u32), ((char*)skp) + status->offset_saddr);
         bpf_probe_read(&daddr_l, sizeof(u32), ((char*)skp) + status->offset_daddr);
+
+        if (!saddr_l || !daddr_l) {
+            return 0;
+        }
     } else {
         bpf_probe_read(&saddr_h, sizeof(saddr_h), ((char*)skp) + status->offset_daddr_ipv6 + 2 * sizeof(u64));
         bpf_probe_read(&saddr_l, sizeof(saddr_l), ((char*)skp) + status->offset_daddr_ipv6 + 3 * sizeof(u64));
         bpf_probe_read(&daddr_h, sizeof(daddr_h), ((char*)skp) + status->offset_daddr_ipv6);
         bpf_probe_read(&daddr_l, sizeof(daddr_l), ((char*)skp) + status->offset_daddr_ipv6 + sizeof(u64));
+
+        if (!(saddr_h || saddr_l) || !(daddr_h || daddr_l)) {
+            return 0;
+        }
     }
 
     // Retrieve ports
     bpf_probe_read(&sport, sizeof(sport), ((char*)skp) + status->offset_sport);
     bpf_probe_read(&dport, sizeof(dport), ((char*)skp) + status->offset_dport);
+
+    if (sport == 0 || dport == 0) {
+        return 0;
+    }
 
     // Retrieve network namespace id
     bpf_probe_read(&skc_net, sizeof(void*), ((char*)skp) + status->offset_netns);
@@ -418,13 +444,13 @@ static int read_conn_tuple(conn_tuple_t* tuple, tracer_status_t* status, struct 
     // Check if we can map IPv6 to IPv4
     if (family == CONN_V6 && is_ipv4_mapped_ipv6(saddr_h, saddr_l, daddr_h, daddr_l)) {
         tuple->metadata |= CONN_V4;
+
+        tuple->saddr_h = 0;
+        tuple->daddr_h = 0;
+        tuple->saddr_l = (u32)(saddr_l >> 32);
+        tuple->daddr_l = (u32)(daddr_l >> 32);
     } else {
         tuple->metadata |= family;
-    }
-
-    // if addresses or ports are 0, ignore
-    if (!(saddr_h || saddr_l) || !(daddr_h || daddr_l) || sport == 0 || dport == 0) {
-        return 0;
     }
 
     return 1;
@@ -794,6 +820,72 @@ int kprobe__tcp_retransmit_skb(struct pt_regs* ctx) {
     }
 
     return handle_retransmit(sk, status);
+}
+
+SEC("kretprobe/inet_csk_accept")
+int kretprobe__inet_csk_accept(struct pt_regs* ctx) {
+    struct sock* newsk = (struct sock*)PT_REGS_RC(ctx);
+
+    if (newsk == NULL) {
+        return 0;
+    }
+
+    u64 zero = 0;
+    tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
+    if (status == NULL || status->state != TRACER_STATE_READY) {
+        return 0;
+    }
+
+    __u16 lport = 0;
+
+    bpf_probe_read(&lport, sizeof(lport), ((char*)newsk) + status->offset_dport + sizeof(lport));
+
+    if (lport == 0) {
+        return 0;
+    }
+
+    __u8* val = bpf_map_lookup_elem(&port_bindings, &lport);
+
+    if (val == NULL) {
+        __u8 state = PORT_LISTENING;
+
+        bpf_map_update_elem(&port_bindings, &lport, &state, BPF_ANY);
+    }
+
+    return 0;
+}
+
+SEC("kprobe/tcp_v4_destroy_sock")
+int kprobe__tcp_v4_destroy_sock(struct pt_regs* ctx) {
+    struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
+
+    if (sk == NULL) {
+        return 0;
+    }
+
+    u64 zero = 0;
+    tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
+    if (status == NULL || status->state != TRACER_STATE_READY) {
+        return 0;
+    }
+
+    __u16 lport = 0;
+
+    bpf_probe_read(&lport, sizeof(lport), ((char*)sk) + status->offset_dport + sizeof(lport));
+
+    if (lport == 0) {
+        return 0;
+    }
+
+    __u8* val = bpf_map_lookup_elem(&port_bindings, &lport);
+
+    if (val != NULL) {
+        __u8 state = PORT_CLOSED;
+
+        bpf_map_update_elem(&port_bindings, &lport, &state, BPF_ANY);
+    }
+
+    return 0;
 }
 
 // This number will be interpreted by gobpf-elf-loader to set the current running kernel version
