@@ -83,14 +83,14 @@ type AgentConfig struct {
 	StatsdPort         int
 
 	// Network collection configuration
-	EnableNetworkTracing         bool
-	EnableLocalNetworkTracer     bool // To have the network tracer embedded in the process-agent
-	DisableTCPTracing            bool
-	DisableUDPTracing            bool
-	DisableIPv6Tracing           bool
-	NetworkTracerSocketPath      string
-	NetworkTracerLogFile         string
-	NetworkMaxTrackedConnections uint
+	EnableNetworkTracing     bool
+	EnableLocalNetworkTracer bool // To have the network tracer embedded in the process-agent
+	DisableTCPTracing        bool
+	DisableUDPTracing        bool
+	DisableIPv6Tracing       bool
+	NetworkTracerSocketPath  string
+	NetworkTracerLogFile     string
+	MaxTrackedConnections    uint
 
 	// Check config
 	EnabledChecks  []string

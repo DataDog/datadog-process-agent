@@ -33,7 +33,7 @@ func TracerConfigFromConfig(cfg *AgentConfig) *ebpf.Config {
 		log.Info("network tracer TCP tracing disabled by configuration")
 	}
 
-	tracerConfig.MaxTrackedConnections = cfg.NetworkMaxTrackedConnections
+	tracerConfig.MaxTrackedConnections = cfg.MaxTrackedConnections
 	tracerConfig.ProcRoot = getProcRoot()
 
 	return tracerConfig

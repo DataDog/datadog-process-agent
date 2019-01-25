@@ -253,7 +253,7 @@ func mergeNetworkYamlConfig(agentConf *AgentConfig, networkConf *YamlAgentConfig
 
 	if mtc := networkConf.Network.MaxTrackedConnections; mtc > 0 {
 		if mtc <= maxMaxTrackedConnections {
-			agentConf.NetworkMaxTrackedConnections = mtc
+			agentConf.MaxTrackedConnections = mtc
 		} else {
 			log.Warnf("Overriding the configured max tracked connections limit because it exceeds maximum 65536, got: %v", mtc)
 		}
