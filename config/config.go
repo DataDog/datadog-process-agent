@@ -195,7 +195,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 			"rtprocess":   2 * time.Second,
 			"container":   10 * time.Second,
 			"rtcontainer": 2 * time.Second,
-			"connections": 10 * time.Second,
+			"connections": 30 * time.Second,
 		},
 
 		// Docker

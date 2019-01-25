@@ -150,8 +150,9 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 
 	cxs := make([]*model.Connection, 0, len(conns))
 	for _, conn := range conns {
+		// default creation time to ensure network connections from short-lived processes are not dropped
 		if _, ok := createTimeForPID[conn.Pid]; !ok {
-			continue
+			createTimeForPID[conn.Pid] = 0
 		}
 
 		cxs = append(cxs, &model.Connection{

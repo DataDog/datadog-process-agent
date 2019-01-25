@@ -18,6 +18,7 @@ type UDSListener struct {
 
 // NewUDSListener returns an idle UDSListener
 func NewUDSListener(cfg *config.AgentConfig) (*UDSListener, error) {
+
 	if len(cfg.NetworkTracerSocketPath) == 0 {
 		return nil, fmt.Errorf("uds: empty socket path provided")
 	}
@@ -34,6 +35,19 @@ func NewUDSListener(cfg *config.AgentConfig) (*UDSListener, error) {
 
 	if err := os.Chmod(cfg.NetworkTracerSocketPath, 0722); err != nil {
 		return nil, fmt.Errorf("can't set the socket at write only: %s", err)
+	}
+
+	fileInfo, err := os.Stat(cfg.NetworkTracerSocketPath)
+	// Socket file already exists
+	if err == nil {
+		// Confirm that it's a UNIX socket
+		if fileInfo.Mode()&os.ModeSocket == 0 {
+			// return nil, fmt.Errorf("uds: cannot reuse %s socket path: path already exists and it is not a UNIX socket", cfg.NetworkTracerSocketPath)
+			err = os.Remove(cfg.NetworkTracerSocketPath)
+			if err != nil {
+				return nil, fmt.Errorf("uds: cannot remove stale UNIX socket: %v", err)
+			}
+		}
 	}
 
 	listener := &UDSListener{
