@@ -50,7 +50,7 @@ struct bpf_map_def SEC("maps/conn_stats") conn_stats = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(conn_tuple_t),
     .value_size = sizeof(conn_stats_ts_t),
-    .max_entries = 65536,
+    .max_entries = 0, // This will get overridden at runtime using max_tracked_connections
     .pinning = 0,
     .namespace = "",
 };
@@ -62,7 +62,7 @@ struct bpf_map_def SEC("maps/tcp_stats") tcp_stats = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(conn_tuple_t),
     .value_size = sizeof(tcp_stats_t),
-    .max_entries = 65536,
+    .max_entries = 0, // This will get overridden at runtime using max_tracked_connections
     .pinning = 0,
     .namespace = "",
 };
@@ -74,7 +74,7 @@ struct bpf_map_def SEC("maps/tcp_close_events") tcp_close_event = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(__u32),
     .value_size = sizeof(__u32),
-    .max_entries = 1024, // TODO retrieve the number of CPUs for the current host and use this as max_entries
+    .max_entries = 0, // This will get overridden at runtime using the number of CPUs of the current host
     .pinning = 0,
     .namespace = "",
 };
@@ -114,6 +114,20 @@ struct bpf_map_def SEC("maps/udp_recv_sock") udp_recv_sock = {
     .key_size = sizeof(__u64),
     .value_size = sizeof(void*),
     .max_entries = 1024,
+    .pinning = 0,
+    .namespace = "",
+};
+
+/* This maps tracks listening ports. Entries are added to the map via tracing the inet_csk_accept syscall.  The
+ * key in the map is the port and the value is a flag that indicates if the port is listening or not.
+ * When the socket is destroyed (via tcp_v4_destroy_sock), we set the value to be "port closed" to indicate that the
+ * port is no longer being listened on.  We leave the data in place for the userspace side to read and clean up
+ */
+struct bpf_map_def SEC("maps/port_bindings") port_bindings = {
+    .type = BPF_MAP_TYPE_HASH,
+    .key_size = sizeof(__u16),
+    .value_size = sizeof(__u8),
+    .max_entries = 0, // This will get overridden at runtime using max_tracked_connections
     .pinning = 0,
     .namespace = "",
 };
@@ -391,16 +405,28 @@ static int read_conn_tuple(conn_tuple_t* tuple, tracer_status_t* status, struct 
     if (family == CONN_V4) {
         bpf_probe_read(&saddr_l, sizeof(u32), ((char*)skp) + status->offset_saddr);
         bpf_probe_read(&daddr_l, sizeof(u32), ((char*)skp) + status->offset_daddr);
+
+        if (!saddr_l || !daddr_l) {
+            return 0;
+        }
     } else {
         bpf_probe_read(&saddr_h, sizeof(saddr_h), ((char*)skp) + status->offset_daddr_ipv6 + 2 * sizeof(u64));
         bpf_probe_read(&saddr_l, sizeof(saddr_l), ((char*)skp) + status->offset_daddr_ipv6 + 3 * sizeof(u64));
         bpf_probe_read(&daddr_h, sizeof(daddr_h), ((char*)skp) + status->offset_daddr_ipv6);
         bpf_probe_read(&daddr_l, sizeof(daddr_l), ((char*)skp) + status->offset_daddr_ipv6 + sizeof(u64));
+
+        if (!(saddr_h || saddr_l) || !(daddr_h || daddr_l)) {
+            return 0;
+        }
     }
 
     // Retrieve ports
     bpf_probe_read(&sport, sizeof(sport), ((char*)skp) + status->offset_sport);
     bpf_probe_read(&dport, sizeof(dport), ((char*)skp) + status->offset_dport);
+
+    if (sport == 0 || dport == 0) {
+        return 0;
+    }
 
     // Retrieve network namespace id
     bpf_probe_read(&skc_net, sizeof(void*), ((char*)skp) + status->offset_netns);
@@ -418,13 +444,13 @@ static int read_conn_tuple(conn_tuple_t* tuple, tracer_status_t* status, struct 
     // Check if we can map IPv6 to IPv4
     if (family == CONN_V6 && is_ipv4_mapped_ipv6(saddr_h, saddr_l, daddr_h, daddr_l)) {
         tuple->metadata |= CONN_V4;
+
+        tuple->saddr_h = 0;
+        tuple->daddr_h = 0;
+        tuple->saddr_l = (u32)(saddr_l >> 32);
+        tuple->daddr_l = (u32)(daddr_l >> 32);
     } else {
         tuple->metadata |= family;
-    }
-
-    // if addresses or ports are 0, ignore
-    if (!(saddr_h || saddr_l) || !(daddr_h || daddr_l) || sport == 0 || dport == 0) {
-        return 0;
     }
 
     return 1;
@@ -451,19 +477,16 @@ static void update_conn_stats(
     t.sport = ntohs(t.sport); // Making ports human-readable
     t.dport = ntohs(t.dport);
 
+    // initialize-if-no-exist the connection stat, and load it
+    conn_stats_ts_t empty = {};
+    bpf_map_update_elem(&conn_stats, &t, &empty, BPF_NOEXIST);
     val = bpf_map_lookup_elem(&conn_stats, &t);
+
     // If already in our map, increment size in-place
     if (val != NULL) {
-        (*val).sent_bytes += sent_bytes;
-        (*val).recv_bytes += recv_bytes;
-        (*val).timestamp = ts;
-    } else { // Otherwise add the key, value to the map
-        conn_stats_ts_t s = {
-            .sent_bytes = sent_bytes,
-            .recv_bytes = recv_bytes,
-            .timestamp = ts,
-        };
-        bpf_map_update_elem(&conn_stats, &t, &s, BPF_ANY);
+        __sync_fetch_and_add(&val->sent_bytes, sent_bytes);
+        __sync_fetch_and_add(&val->recv_bytes, recv_bytes);
+        val->timestamp = ts;
     }
 }
 
@@ -484,15 +507,12 @@ static void update_tcp_stats(
     t.sport = ntohs(t.sport); // Making ports human-readable
     t.dport = ntohs(t.dport);
 
+    // initialize-if-no-exist the connetion state, and load it
+    tcp_stats_t empty = {};
+    bpf_map_update_elem(&tcp_stats, &t, &empty, BPF_NOEXIST);
     val = bpf_map_lookup_elem(&tcp_stats, &t);
-    // If already in our map, increment size in-place
     if (val != NULL) {
-        (*val).retransmits += retransmits;
-    } else { // Otherwise add the key, value to the map
-        tcp_stats_t s = {
-            .retransmits = retransmits,
-        };
-        bpf_map_update_elem(&tcp_stats, &t, &s, BPF_ANY);
+        __sync_fetch_and_add(&val->retransmits, retransmits);
     }
 }
 
@@ -800,6 +820,72 @@ int kprobe__tcp_retransmit_skb(struct pt_regs* ctx) {
     }
 
     return handle_retransmit(sk, status);
+}
+
+SEC("kretprobe/inet_csk_accept")
+int kretprobe__inet_csk_accept(struct pt_regs* ctx) {
+    struct sock* newsk = (struct sock*)PT_REGS_RC(ctx);
+
+    if (newsk == NULL) {
+        return 0;
+    }
+
+    u64 zero = 0;
+    tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
+    if (status == NULL || status->state != TRACER_STATE_READY) {
+        return 0;
+    }
+
+    __u16 lport = 0;
+
+    bpf_probe_read(&lport, sizeof(lport), ((char*)newsk) + status->offset_dport + sizeof(lport));
+
+    if (lport == 0) {
+        return 0;
+    }
+
+    __u8* val = bpf_map_lookup_elem(&port_bindings, &lport);
+
+    if (val == NULL) {
+        __u8 state = PORT_LISTENING;
+
+        bpf_map_update_elem(&port_bindings, &lport, &state, BPF_ANY);
+    }
+
+    return 0;
+}
+
+SEC("kprobe/tcp_v4_destroy_sock")
+int kprobe__tcp_v4_destroy_sock(struct pt_regs* ctx) {
+    struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
+
+    if (sk == NULL) {
+        return 0;
+    }
+
+    u64 zero = 0;
+    tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
+    if (status == NULL || status->state != TRACER_STATE_READY) {
+        return 0;
+    }
+
+    __u16 lport = 0;
+
+    bpf_probe_read(&lport, sizeof(lport), ((char*)sk) + status->offset_dport + sizeof(lport));
+
+    if (lport == 0) {
+        return 0;
+    }
+
+    __u8* val = bpf_map_lookup_elem(&port_bindings, &lport);
+
+    if (val != NULL) {
+        __u8 state = PORT_CLOSED;
+
+        bpf_map_update_elem(&port_bindings, &lport, &state, BPF_ANY);
+    }
+
+    return 0;
 }
 
 // This number will be interpreted by gobpf-elf-loader to set the current running kernel version

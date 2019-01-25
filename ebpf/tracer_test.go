@@ -9,9 +9,11 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"net/url"
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -37,40 +39,104 @@ func TestTCPSendAndReceive(t *testing.T) {
 	}
 	defer tr.Stop()
 
-	// Create TCP Server which sends back serverMessageSize bytes
+	// Create TCP Server which, for every line, sends back a message with size=serverMessageSize
 	server := NewTCPServer(func(c net.Conn) {
 		r := bufio.NewReader(c)
-		r.ReadBytes(byte('\n'))
-		c.Write(genPayload(serverMessageSize))
+		for {
+			_, err := r.ReadBytes(byte('\n'))
+			c.Write(genPayload(serverMessageSize))
+			if err != nil { // indicates that EOF has been reached,
+				break
+			}
+		}
 		c.Close()
 	})
 	doneChan := make(chan struct{})
 	server.Run(doneChan)
 
-	// Connect to server
 	c, err := net.DialTimeout("tcp", server.address, 50*time.Millisecond)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()
 
-	// Write clientMessageSize to server, and read response
-	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
-		t.Fatal(err)
+	// Connect to server 10 times
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Write clientMessageSize to server, and read response
+			if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
+				t.Fatal(err)
+			}
+
+			r := bufio.NewReader(c)
+			r.ReadBytes(byte('\n'))
+		}()
 	}
-	r := bufio.NewReader(c)
-	r.ReadBytes(byte('\n'))
+
+	wg.Wait()
 
 	// Iterate through active connections until we find connection created above, and confirm send + recv counts
 	connections := getConnections(t, tr)
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
+	assert.Equal(t, 10*clientMessageSize, int(conn.MonotonicSentBytes))
+	assert.Equal(t, 10*serverMessageSize, int(conn.MonotonicRecvBytes))
+	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
+	assert.Equal(t, os.Getpid(), int(conn.Pid))
+	assert.Equal(t, addrPort(server.address), int(conn.DPort))
+	assert.Equal(t, LOCAL, conn.Direction)
+
+	doneChan <- struct{}{}
+}
+
+func TestPreexistingConnectionDirection(t *testing.T) {
+	// Start the client and server before we enable the network tracer to test that the tracer picks
+	// up the pre-existing connection
+	doneChan := make(chan struct{})
+
+	server := NewTCPServer(func(c net.Conn) {
+		r := bufio.NewReader(c)
+		_, _ = r.ReadBytes(byte('\n'))
+		_, _ = c.Write(genPayload(serverMessageSize))
+		_ = c.Close()
+	})
+	server.Run(doneChan)
+
+	c, err := net.DialTimeout("tcp", server.address, 50*time.Millisecond)
+	require.NoError(t, err)
+	defer func() { _ = c.Close() }()
+
+	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
+		t.Fatal(err)
+	}
+
+	// Enable BPF-based network tracer
+	tr, err := NewTracer(NewDefaultConfig())
+	require.NoError(t, err)
+	defer tr.Stop()
+
+	// Write more data so that the tracer will notice the connection
+	_, err = c.Write(genPayload(clientMessageSize))
+	require.NoError(t, err)
+
+	r := bufio.NewReader(c)
+	_, _ = r.ReadBytes(byte('\n'))
+
+	connections := getConnections(t, tr)
+
+	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
+	require.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
+	assert.Equal(t, LOCAL, conn.Direction)
 
 	doneChan <- struct{}{}
 }
@@ -253,7 +319,7 @@ func TestTCPShortlived(t *testing.T) {
 
 	// Confirm that we can retrieve the shortlived connection
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
-	assert.True(t, ok)
+	require.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
@@ -279,11 +345,8 @@ func TestTCPOverIPv6(t *testing.T) {
 	}
 	defer tr.Stop()
 
-	ln, err := net.Listen("tcp6", net.IPv6loopback.String())
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	ln, err := net.Listen("tcp6", ":0")
+	require.NoError(t, err)
 
 	doneChan := make(chan struct{})
 	go func(done chan struct{}) {
@@ -306,10 +369,8 @@ func TestTCPOverIPv6(t *testing.T) {
 	}()
 
 	// Connect to server
-	c, err := net.DialTimeout("tcp6", net.IPv6loopback.String(), 50*time.Millisecond)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, err := net.DialTimeout("tcp6", ln.Addr().String(), 50*time.Millisecond)
+	require.NoError(t, err)
 
 	// Write clientMessageSize to server, and read response
 	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
@@ -327,6 +388,7 @@ func TestTCPOverIPv6(t *testing.T) {
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, ln.Addr().(*net.TCPAddr).Port, int(conn.DPort))
+	assert.Equal(t, LOCAL, conn.Direction)
 
 	doneChan <- struct{}{}
 
@@ -497,26 +559,22 @@ func TestTooSmallBPFMap(t *testing.T) {
 	connections := getConnections(t, tr)
 	// we should only have one connection returned
 	assert.Len(t, connections.Conns, 1)
-
-	// Confirm that we could only find the first connection created above
-	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
-	assert.True(t, ok)
-	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
-	assert.Equal(t, os.Getpid(), int(conn.Pid))
-	assert.Equal(t, addrPort(server.address), int(conn.DPort))
-
 	doneChan <- struct{}{}
 }
 
 func findConnection(l, r net.Addr, c *Connections) (*ConnectionStats, bool) {
 	for _, conn := range c.Conns {
-		localAddr := fmt.Sprintf("%s:%d", conn.Source, conn.SPort)
-		remoteAddr := fmt.Sprintf("%s:%d", conn.Dest, conn.DPort)
-		if localAddr == l.String() && remoteAddr == r.String() {
+		if addrMatches(l, conn.Source, conn.SPort) && addrMatches(r, conn.Dest, conn.DPort) {
 			return &conn, true
 		}
 	}
 	return nil, false
+}
+
+func addrMatches(addr net.Addr, host string, port uint16) bool {
+	addrUrl := url.URL{Scheme: addr.Network(), Host: addr.String()}
+
+	return addrUrl.Hostname() == host && addrUrl.Port() == strconv.Itoa(int(port))
 }
 
 func runBenchtests(b *testing.B, payloads []int, prefix string, f func(p int) func(*testing.B)) {

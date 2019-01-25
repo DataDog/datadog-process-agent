@@ -150,8 +150,9 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 
 	cxs := make([]*model.Connection, 0, len(conns))
 	for _, conn := range conns {
+		// default creation time to ensure network connections from short-lived processes are not dropped
 		if _, ok := createTimeForPID[conn.Pid]; !ok {
-			continue
+			createTimeForPID[conn.Pid] = 0
 		}
 
 		cxs = append(cxs, &model.Connection{
@@ -173,6 +174,7 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 			LastBytesSent:      conn.LastSentBytes,
 			LastBytesReceived:  conn.LastRecvBytes,
 			LastRetransmits:    conn.LastRetransmits,
+			Direction:          formatDirection(conn.Direction),
 		})
 	}
 	c.prevCheckConns = conns
@@ -198,6 +200,19 @@ func formatType(f ebpf.ConnectionType) model.ConnectionType {
 		return model.ConnectionType_udp
 	default:
 		return -1
+	}
+}
+
+func formatDirection(d ebpf.ConnectionDirection) model.ConnectionDirection {
+	switch d {
+	case ebpf.INCOMING:
+		return model.ConnectionDirection_incoming
+	case ebpf.OUTGOING:
+		return model.ConnectionDirection_outgoing
+	case ebpf.LOCAL:
+		return model.ConnectionDirection_local
+	default:
+		return model.ConnectionDirection_unspecified
 	}
 }
 

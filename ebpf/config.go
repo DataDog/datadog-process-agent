@@ -28,6 +28,9 @@ type Config struct {
 
 	// MaxTrackedConnections specifies the maximum number of connections we can track, this will be the size of the BPF maps
 	MaxTrackedConnections uint
+
+	// ProcRoot is the root path to the proc filesystem
+	ProcRoot string
 }
 
 // NewDefaultConfig enables traffic collection for all connection types
@@ -39,6 +42,7 @@ func NewDefaultConfig() *Config {
 		UDPConnTimeout:        30 * time.Second,
 		TCPConnTimeout:        10 * time.Minute,
 		MaxTrackedConnections: 65536,
+		ProcRoot:              "/proc",
 	}
 }
 
@@ -56,6 +60,8 @@ func (c *Config) EnabledKProbes() map[KProbeName]struct{} {
 		enabled[TCPCleanupRBuf] = struct{}{}
 		enabled[TCPClose] = struct{}{}
 		enabled[TCPRetransmit] = struct{}{}
+		enabled[InetCskAcceptReturn] = struct{}{}
+		enabled[TCPv4DestroySock] = struct{}{}
 	}
 
 	if c.CollectUDPConns {

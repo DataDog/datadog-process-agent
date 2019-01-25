@@ -16,7 +16,7 @@ def os
 desc "Setup dependencies"
 task :deps do
   system("go get -u github.com/golang/dep/cmd/dep")
-  system("go get -u github.com/mailru/easyjson")
+  system("go get -u github.com/mailru/easyjson/...")
   system("go get -u golang.org/x/lint/golint")
   system("dep ensure -v -vendor-only")
 end
@@ -159,14 +159,14 @@ namespace "ebpf" do
   DOCKER_IMAGE='datadog/tracer-bpf-builder'
 
   desc "Run tests for eBPF code"
-  task :test do
+  task :test => 'ebpf:build-only' do
     tags = ''
     if ENV["SKIP_BPF_TESTS"] != "true" then
       tags = 'linux_bpf'
     else
       puts "Skipping BPF tests"
     end
-      sh "go list ./... | grep -v vendor | sudo -E PATH=#{ENV['PATH']} GOCACHE=off xargs go test -tags #{tags}"
+      sh "go list ./... | grep -v vendor | sudo -E PATH=#{ENV['PATH']} xargs go test -v -tags #{tags}"
   end
 
   desc "Format ebpf code"
@@ -190,7 +190,7 @@ namespace "ebpf" do
     end
   end
 
-  desc "Generate and instal eBPF program via gobindata"
+  desc "Generate and install eBPF program via gobindata"
   task :build => ['ebpf:fmt', 'ebpf:image', 'ebpf:build-only']
 
   desc "Build only the eBPF object (do not rebuild the docker image builder)"
