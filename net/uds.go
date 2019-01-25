@@ -46,9 +46,9 @@ func NewUDSListener(cfg *config.AgentConfig) (*UDSListener, error) {
 			err = os.Remove(cfg.NetworkTracerSocketPath)
 			if err != nil {
 				return nil, fmt.Errorf("uds: cannot remove stale UNIX socket: %v", err)
-			} 
+			}
 		}
-	} 
+	}
 
 	listener := &UDSListener{
 		conn:       conn,
