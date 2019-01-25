@@ -5,6 +5,7 @@ package ebpf
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"time"
 	"unsafe"
 
@@ -283,13 +284,13 @@ func (t *Tracer) timeoutForConn(c *ConnTuple) int64 {
 func SectionsFromConfig(c *Config) map[string]bpflib.SectionParams {
 	return map[string]bpflib.SectionParams{
 		connMap.sectionName(): {
-			// MapMaxEntries: c.MaxTrackedConnections
+			MapMaxEntries: int(c.MaxTrackedConnections),
 		},
 		tcpStatsMap.sectionName(): {
-			// MapMaxEntries: c.MaxTrackedConnections
+			MapMaxEntries: int(c.MaxTrackedConnections),
 		},
 		tcpCloseEventMap.sectionName(): {
-			// MapMaxEntries: runtime.NumCPUs()
+			MapMaxEntries: runtime.NumCPU(),
 		},
 	}
 }

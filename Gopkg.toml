@@ -12,7 +12,7 @@
 
 [[constraint]]
   name = "github.com/iovisor/gobpf"
-  revision = "3b07770c6d5e2bd37e582ecd49460e6ef094f257"
+  revision = "98ebf56442afb10e1b43145127de3c1777ed7e95"
 
 [[constraint]]
   name = "github.com/mailru/easyjson"
