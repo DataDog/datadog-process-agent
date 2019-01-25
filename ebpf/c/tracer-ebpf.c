@@ -477,19 +477,16 @@ static void update_conn_stats(
     t.sport = ntohs(t.sport); // Making ports human-readable
     t.dport = ntohs(t.dport);
 
+    // initialize-if-no-exist the connection stat, and load it
+    conn_stats_ts_t empty = {};
+    bpf_map_update_elem(&conn_stats, &t, &empty, BPF_NOEXIST);
     val = bpf_map_lookup_elem(&conn_stats, &t);
+
     // If already in our map, increment size in-place
     if (val != NULL) {
-        (*val).sent_bytes += sent_bytes;
-        (*val).recv_bytes += recv_bytes;
-        (*val).timestamp = ts;
-    } else { // Otherwise add the key, value to the map
-        conn_stats_ts_t s = {
-            .sent_bytes = sent_bytes,
-            .recv_bytes = recv_bytes,
-            .timestamp = ts,
-        };
-        bpf_map_update_elem(&conn_stats, &t, &s, BPF_ANY);
+        __sync_fetch_and_add(&val->sent_bytes, sent_bytes);
+        __sync_fetch_and_add(&val->recv_bytes, recv_bytes);
+        val->timestamp = ts;
     }
 }
 
@@ -510,15 +507,12 @@ static void update_tcp_stats(
     t.sport = ntohs(t.sport); // Making ports human-readable
     t.dport = ntohs(t.dport);
 
+    // initialize-if-no-exist the connetion state, and load it
+    tcp_stats_t empty = {};
+    bpf_map_update_elem(&tcp_stats, &t, &empty, BPF_NOEXIST);
     val = bpf_map_lookup_elem(&tcp_stats, &t);
-    // If already in our map, increment size in-place
     if (val != NULL) {
-        (*val).retransmits += retransmits;
-    } else { // Otherwise add the key, value to the map
-        tcp_stats_t s = {
-            .retransmits = retransmits,
-        };
-        bpf_map_update_elem(&tcp_stats, &t, &s, BPF_ANY);
+        __sync_fetch_and_add(&val->retransmits, retransmits);
     }
 }
 

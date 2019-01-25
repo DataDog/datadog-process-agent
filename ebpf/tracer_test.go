@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"io"
 	"math/rand"
 	"net"
@@ -14,6 +13,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -38,37 +39,53 @@ func TestTCPSendAndReceive(t *testing.T) {
 	}
 	defer tr.Stop()
 
-	// Create TCP Server which sends back serverMessageSize bytes
+	// Create TCP Server which, for every line, sends back a message with size=serverMessageSize
 	server := NewTCPServer(func(c net.Conn) {
 		r := bufio.NewReader(c)
-		r.ReadBytes(byte('\n'))
-		c.Write(genPayload(serverMessageSize))
+		for {
+			_, err := r.ReadBytes(byte('\n'))
+			c.Write(genPayload(serverMessageSize))
+			if err != nil { // indicates that EOF has been reached,
+				break
+			}
+		}
 		c.Close()
 	})
 	doneChan := make(chan struct{})
 	server.Run(doneChan)
 
-	// Connect to server
 	c, err := net.DialTimeout("tcp", server.address, 50*time.Millisecond)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer c.Close()
 
-	// Write clientMessageSize to server, and read response
-	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
-		t.Fatal(err)
+	// Connect to server 10 times
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Write clientMessageSize to server, and read response
+			if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
+				t.Fatal(err)
+			}
+
+			r := bufio.NewReader(c)
+			r.ReadBytes(byte('\n'))
+		}()
 	}
-	r := bufio.NewReader(c)
-	r.ReadBytes(byte('\n'))
+
+	wg.Wait()
 
 	// Iterate through active connections until we find connection created above, and confirm send + recv counts
 	connections := getConnections(t, tr)
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	assert.True(t, ok)
-	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
-	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
+	assert.Equal(t, 10*clientMessageSize, int(conn.MonotonicSentBytes))
+	assert.Equal(t, 10*serverMessageSize, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
@@ -302,7 +319,7 @@ func TestTCPShortlived(t *testing.T) {
 
 	// Confirm that we can retrieve the shortlived connection
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
-	assert.True(t, ok)
+	require.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
