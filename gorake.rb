@@ -24,8 +24,7 @@ def go_build(program, opts={})
   goversion = `go version`.strip
   agentversion = ENV["AGENT_VERSION"] || ENV["PROCESS_AGENT_VERSION"] || "0.99.0"
 
-  # NOTE: This value is currently hardcoded and needs to be manually incremented during release
-  winversion = "6.8.0".split(".")
+  winversion = get_latest_tag()
 
   vars = {}
   vars["#{dd}.Version"] = agentversion
@@ -85,6 +84,11 @@ def go_build(program, opts={})
   end
 end
 
+def get_latest_tag()
+  `git tag --merged HEAD --sort=-taggerdate`.split("\n").select do |t|
+      t.split(".").size == 3
+  end.first
+end
 
 def go_lint(path)
   out = `golint #{path}/*.go`

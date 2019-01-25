@@ -59,6 +59,11 @@ sudo usermod -aG docker vagrant
 sudo service docker start
 EOD
 
+# clang setup
+cat <<EOD | vagrant ssh
+sudo apt-get install -y clang-format
+EOD
+
 # necessary to get group membership to be respected
 vagrant reload
 

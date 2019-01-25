@@ -165,6 +165,8 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.L
 			out.MonotonicRetransmits = uint32(in.Uint32())
 		case "last_retransmits":
 			out.LastRetransmits = uint32(in.Uint32())
+		case "direction":
+			out.Direction = ConnectionDirection(in.Uint8())
 		default:
 			in.SkipRecursive()
 		}
@@ -308,6 +310,16 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 			out.RawString(prefix)
 		}
 		out.Uint32(uint32(in.LastRetransmits))
+	}
+	{
+		const prefix string = ",\"direction\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint8(uint8(in.Direction))
 	}
 	out.RawByte('}')
 }
