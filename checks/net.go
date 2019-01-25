@@ -151,7 +151,7 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 	cxs := make([]*model.Connection, 0, len(conns))
 	for _, conn := range conns {
 		if _, ok := createTimeForPID[conn.Pid]; !ok {
-			createTimeForPID[conn.Pid] =  0;
+			createTimeForPID[conn.Pid] =  0
 		}
 
 		cxs = append(cxs, &model.Connection{
