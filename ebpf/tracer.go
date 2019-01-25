@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"fmt"
 	"net"
-	"runtime"
 	"time"
 	"unsafe"
 
@@ -399,7 +398,7 @@ func SectionsFromConfig(c *Config) map[string]bpflib.SectionParams {
 			MapMaxEntries: int(c.MaxTrackedConnections),
 		},
 		tcpCloseEventMap.sectionName(): {
-			MapMaxEntries: runtime.NumCPU(),
+			MapMaxEntries: getNumCPU(),
 		},
 	}
 }
