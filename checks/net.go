@@ -148,11 +148,19 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 	// Process create-times required to construct unique process hash keys on the backend
 	createTimeForPID := Process.createTimesforPIDs(connectionPIDs(conns))
 
+
 	cxs := make([]*model.Connection, 0, len(conns))
 	for _, conn := range conns {
-		if _, ok := createTimeForPID[conn.Pid]; !ok {
-			createTimeForPID[conn.Pid] =  0
+		b, err := conn.ByteKey(c.buf)
+		if err != nil {
+			log.Debugf("failed to create connection byte key: %s", err)
+			continue
 		}
+
+		// default creation time to ensure network connections from short-lived processes are not dropped 
+		if _, ok := createTimeForPID[conn.Pid]; !ok {
+			createTimeForPID[conn.Pid] = 0;
+		} 
 
 		cxs = append(cxs, &model.Connection{
 			Pid:           int32(conn.Pid),
@@ -179,6 +187,7 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 	c.prevCheckConns = conns
 	return cxs
 }
+
 
 func formatFamily(f ebpf.ConnectionFamily) model.ConnectionFamily {
 	switch f {
