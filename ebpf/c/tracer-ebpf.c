@@ -74,7 +74,7 @@ struct bpf_map_def SEC("maps/tcp_close_events") tcp_close_event = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(__u32),
     .value_size = sizeof(__u32),
-    .max_entries = 0, // This will get overridden at runtime using the number of CPUs of the current host
+    .max_entries = 0, // This will get overridden at runtime
     .pinning = 0,
     .namespace = "",
 };

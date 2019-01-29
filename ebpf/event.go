@@ -10,7 +10,6 @@ import (
 
 /*
 #include "c/tracer-ebpf.h"
-#include "sys/sysinfo.h"
 */
 import "C"
 
@@ -122,8 +121,4 @@ func decodeRawTCPConn(data []byte) ConnectionStats {
 
 func isPortClosed(state uint8) bool {
 	return state == C.PORT_CLOSED
-}
-
-func getNumCPU() int {
-	return int(C.get_nprocs())
 }

@@ -398,7 +398,7 @@ func SectionsFromConfig(c *Config) map[string]bpflib.SectionParams {
 			MapMaxEntries: int(c.MaxTrackedConnections),
 		},
 		tcpCloseEventMap.sectionName(): {
-			MapMaxEntries: getNumCPU(),
+			MapMaxEntries: 1024,
 		},
 	}
 }
