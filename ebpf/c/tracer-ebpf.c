@@ -50,7 +50,7 @@ struct bpf_map_def SEC("maps/conn_stats") conn_stats = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(conn_tuple_t),
     .value_size = sizeof(conn_stats_ts_t),
-    .max_entries = 65536,
+    .max_entries = 0, // This will get overridden at runtime using max_tracked_connections
     .pinning = 0,
     .namespace = "",
 };
@@ -62,7 +62,7 @@ struct bpf_map_def SEC("maps/tcp_stats") tcp_stats = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(conn_tuple_t),
     .value_size = sizeof(tcp_stats_t),
-    .max_entries = 65536,
+    .max_entries = 0, // This will get overridden at runtime using max_tracked_connections
     .pinning = 0,
     .namespace = "",
 };
@@ -74,7 +74,7 @@ struct bpf_map_def SEC("maps/tcp_close_events") tcp_close_event = {
     .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
     .key_size = sizeof(__u32),
     .value_size = sizeof(__u32),
-    .max_entries = 1024, // TODO retrieve the number of CPUs for the current host and use this as max_entries
+    .max_entries = 0, // This will get overridden at runtime
     .pinning = 0,
     .namespace = "",
 };
@@ -127,7 +127,7 @@ struct bpf_map_def SEC("maps/port_bindings") port_bindings = {
     .type = BPF_MAP_TYPE_HASH,
     .key_size = sizeof(__u16),
     .value_size = sizeof(__u8),
-    .max_entries = 65536,
+    .max_entries = 0, // This will get overridden at runtime using max_tracked_connections
     .pinning = 0,
     .namespace = "",
 };
@@ -527,7 +527,7 @@ static void cleanup_tcp_conn(
 
     // Will hold the full connection data to send through the perf buffer
     tcp_conn_t t = {
-        .tup = (conn_tuple_t){
+        .tup = (conn_tuple_t) {
             .pid = 0,
         },
     };

@@ -383,7 +383,7 @@
   revision = "6633656539c1639d9d78127b7d47c622b5d7b6dc"
 
 [[projects]]
-  digest = "1:ec4e79082b19b134e6d42d0947c0ebf73feb28fd8b9e15e744854efc73e9fa17"
+  digest = "1:1aa0d09d686e3261044994ddeeecc873f8e0e9597785ba6273a7aaf31f5159d4"
   name = "github.com/iovisor/gobpf"
   packages = [
     "elf",
@@ -391,7 +391,7 @@
     "pkg/cpuonline",
   ]
   pruneopts = ""
-  revision = "3b07770c6d5e2bd37e582ecd49460e6ef094f257"
+  revision = "98ebf56442afb10e1b43145127de3c1777ed7e95"
 
 [[projects]]
   digest = "1:6f49eae0c1e5dab1dafafee34b207aeb7a42303105960944828c2079b92fc88e"

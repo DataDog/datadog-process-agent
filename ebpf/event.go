@@ -8,7 +8,9 @@ import (
 	"unsafe"
 )
 
-// #include "c/tracer-ebpf.h"
+/*
+#include "c/tracer-ebpf.h"
+*/
 import "C"
 
 /* tcp_conn_t
@@ -62,10 +64,11 @@ func (cs *ConnStatsWithTimestamp) isExpired(latestTime int64, timeout int64) boo
 }
 
 func connStats(t *ConnTuple, s *ConnStatsWithTimestamp, tcpStats *TCPStats) ConnectionStats {
-	family := connFamily(uint(t.metadata))
+	metadata := uint(t.metadata)
+	family := connFamily(metadata)
 	return ConnectionStats{
 		Pid:                  uint32(t.pid),
-		Type:                 connType(uint(t.metadata)),
+		Type:                 connType(metadata),
 		Family:               family,
 		Source:               ipString(uint64(t.saddr_h), uint64(t.saddr_l), family),
 		Dest:                 ipString(uint64(t.daddr_h), uint64(t.daddr_l), family),

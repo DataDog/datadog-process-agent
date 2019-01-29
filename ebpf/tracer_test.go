@@ -522,6 +522,46 @@ func TestUDPDisabled(t *testing.T) {
 	doneChan <- struct{}{}
 }
 
+func TestTooSmallBPFMap(t *testing.T) {
+	// Enable BPF-based network tracer with BPF maps size = 1
+	config := NewDefaultConfig()
+	config.MaxTrackedConnections = 1
+
+	tr, err := NewTracer(config)
+	require.NoError(t, err)
+	defer tr.Stop()
+
+	// Create TCP Server which sends back serverMessageSize bytes
+	server := NewTCPServer(func(c net.Conn) {
+		r := bufio.NewReader(c)
+		r.ReadBytes(byte('\n'))
+		c.Write(genPayload(serverMessageSize))
+		c.Close()
+	})
+	doneChan := make(chan struct{})
+	server.Run(doneChan)
+
+	// Connect to server two times
+	// Write clientMessageSize to server
+	c, err := net.DialTimeout("tcp", server.address, 50*time.Millisecond)
+	require.NoError(t, err)
+	defer c.Close()
+	_, err = c.Write(genPayload(clientMessageSize))
+	require.NoError(t, err)
+
+	// Second time
+	c2, err := net.DialTimeout("tcp", server.address, 50*time.Millisecond)
+	require.NoError(t, err)
+	defer c2.Close()
+	_, err = c2.Write(genPayload(clientMessageSize))
+	require.NoError(t, err)
+
+	connections := getConnections(t, tr)
+	// we should only have one connection returned
+	assert.Len(t, connections.Conns, 1)
+	doneChan <- struct{}{}
+}
+
 func findConnection(l, r net.Addr, c *Connections) (*ConnectionStats, bool) {
 	for _, conn := range c.Conns {
 		if addrMatches(l, conn.Source, conn.SPort) && addrMatches(r, conn.Dest, conn.DPort) {

@@ -1,13 +1,14 @@
 package config
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-process-agent/ebpf"
 	"github.com/DataDog/datadog-process-agent/util"
 	log "github.com/cihub/seelog"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 )
 
 // TracerConfigFromConfig returns a valid tracer-bpf config sourced from our agent config
@@ -32,6 +33,7 @@ func TracerConfigFromConfig(cfg *AgentConfig) *ebpf.Config {
 		log.Info("network tracer TCP tracing disabled by configuration")
 	}
 
+	tracerConfig.MaxTrackedConnections = cfg.MaxTrackedConnections
 	tracerConfig.ProcRoot = getProcRoot()
 
 	return tracerConfig

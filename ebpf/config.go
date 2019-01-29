@@ -1,6 +1,8 @@
 package ebpf
 
-import "time"
+import (
+	"time"
+)
 
 // Config stores all flags used by the eBPF tracer
 type Config struct {
@@ -24,6 +26,9 @@ type Config struct {
 	// tcp_close is not intercepted for some reason.
 	TCPConnTimeout time.Duration
 
+	// MaxTrackedConnections specifies the maximum number of connections we can track, this will be the size of the BPF maps
+	MaxTrackedConnections uint
+
 	// ProcRoot is the root path to the proc filesystem
 	ProcRoot string
 }
@@ -31,12 +36,13 @@ type Config struct {
 // NewDefaultConfig enables traffic collection for all connection types
 func NewDefaultConfig() *Config {
 	return &Config{
-		CollectTCPConns:  true,
-		CollectUDPConns:  true,
-		CollectIPv6Conns: true,
-		UDPConnTimeout:   30 * time.Second,
-		TCPConnTimeout:   10 * time.Minute,
-		ProcRoot:         "/proc",
+		CollectTCPConns:       true,
+		CollectUDPConns:       true,
+		CollectIPv6Conns:      true,
+		UDPConnTimeout:        30 * time.Second,
+		TCPConnTimeout:        10 * time.Minute,
+		MaxTrackedConnections: 65536,
+		ProcRoot:              "/proc",
 	}
 }
 

@@ -64,9 +64,7 @@ func NewTracer(config *Config) (*Tracer, error) {
 		return nil, err
 	}
 
-	// TODO: This currently loads all defined BPF maps in the ELF file. we should load only the maps
-	//       for connection types + families that are enabled.
-	err = m.Load(nil)
+	err = m.Load(SectionsFromConfig(config))
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +182,7 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 
 	portMp, err := t.getMap(portBindingsMap)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", portBindingsMap, err)
 	}
 
 	latestTime, ok, err := t.getLatestTimestamp()
@@ -385,4 +383,22 @@ func readLocalAddresses() map[string]struct{} {
 	}
 
 	return addresses
+}
+
+// SectionsFromConfig returns a map of string -> gobpf.SectionParams used to configure the way we load the BPF program (bpf map sizes)
+func SectionsFromConfig(c *Config) map[string]bpflib.SectionParams {
+	return map[string]bpflib.SectionParams{
+		connMap.sectionName(): {
+			MapMaxEntries: int(c.MaxTrackedConnections),
+		},
+		tcpStatsMap.sectionName(): {
+			MapMaxEntries: int(c.MaxTrackedConnections),
+		},
+		portBindingsMap.sectionName(): {
+			MapMaxEntries: int(c.MaxTrackedConnections),
+		},
+		tcpCloseEventMap.sectionName(): {
+			MapMaxEntries: 1024,
+		},
+	}
 }
