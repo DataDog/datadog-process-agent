@@ -49,7 +49,7 @@ func CurrentKernelVersion() (uint32, error) {
 func IsTracerSupportedByOS() (bool, error) {
 	currentKernelCode, err := bpflib.CurrentKernelVersion()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("could not get kernel version: %s", err)
 	}
 
 	if currentKernelCode < minRequiredKernelCode {
@@ -59,14 +59,14 @@ func IsTracerSupportedByOS() (bool, error) {
 }
 
 func NewTracer(config *Config) (*Tracer, error) {
-	m, err := loadBPFModule()
+	m, err := readBPFModule()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not read bpf module: %s", err)
 	}
 
 	err = m.Load(SectionsFromConfig(config))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not load bpf module: %s", err)
 	}
 
 	// Use the config to determine what kernel probes should be enabled
@@ -74,7 +74,7 @@ func NewTracer(config *Config) (*Tracer, error) {
 	for k := range m.IterKprobes() {
 		if _, ok := enabledProbes[KProbeName(k.Name)]; ok {
 			if err = m.EnableKprobe(k.Name, maxActive); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("could not enable kprobe(%s): %s", k.Name, err)
 			}
 		}
 	}
@@ -163,7 +163,7 @@ func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
 func (t *Tracer) updateState() error {
 	conns, err := t.getConnections()
 	if err != nil {
-		return err
+		return fmt.Errorf("error retrieving connections: %s", err)
 	}
 	t.state.StoreConnections(conns)
 	return nil
@@ -187,7 +187,7 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 
 	latestTime, ok, err := t.getLatestTimestamp()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error retrieving latest timestamp: %s", err)
 	}
 
 	if !ok { // if no timestamps have been captured, there can be no packets
@@ -196,7 +196,7 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 
 	closedPortBindings, err := t.populatePortMapping(portMp)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error populating port mapping: %s", err)
 	}
 
 	// Iterate through all key-value pairs in map
@@ -266,7 +266,7 @@ func (t *Tracer) getTCPStats(mp *bpflib.Map, tuple *ConnTuple) *TCPStats {
 func (t *Tracer) getLatestTimestamp() (int64, bool, error) {
 	tsMp, err := t.getMap(latestTimestampMap)
 	if err != nil {
-		return 0, false, err
+		return 0, false, fmt.Errorf("error retrieving latest timestamp map: %s", err)
 	}
 
 	var latestTime int64
@@ -286,7 +286,7 @@ func (t *Tracer) getMap(name bpfMapName) (*bpflib.Map, error) {
 	return mp, nil
 }
 
-func loadBPFModule() (*bpflib.Module, error) {
+func readBPFModule() (*bpflib.Module, error) {
 	buf, err := Asset("tracer-ebpf.o")
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find asset: %s", err)
