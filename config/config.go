@@ -189,6 +189,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		DisableIPv6Tracing:       false,
 		NetworkTracerSocketPath:  defaultNetworkTracerSocketPath,
 		NetworkTracerLogFile:     defaultNetworkLogFilePath,
+		MaxTrackedConnections:    maxMaxTrackedConnections,
 
 		// Check config
 		EnabledChecks: containerChecks,
