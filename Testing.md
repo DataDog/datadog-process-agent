@@ -35,20 +35,25 @@ Pre-requisites:
 
 Make sure to change in the `conf-dev.yaml` the address of the StackState backend to `192.168.56.1`.
 
-There is `Vagrantfile` setup that creates 2 Ubuntu Xenial64 vms:
+There is `Vagrantfile` setup that creates 2 Ubuntu Xenial64 vms and 1 Windows 2016 Server:
 
 ```
 $ vagrant up
 
 # in one terminal:
 $ vagrant ssh process-agent-test
-$ cd /opt/stackstate-process-agent
+$ cd $GOPATH/src/github.com/StackVista/stackstate-process-agent
 $ sudo ./process-agent -config conf-dev.yaml
 
 # in another terminal:
 $ vagrant ssh process-agent-clean
-$ cd /opt/stackstate-process-agent
+$ cd $GOPATH/src/github.com/StackVista/stackstate-process-agent
 $ sudo ./process-agent -config conf-dev.yaml
+
+# in another terminal:
+$ vagrant ssh process-agent-win
+> cd %GOPATH%/src/github.com/StackVista/stackstate-process-agent
+> process-agent -config conf-dev.yaml
 ```
 
 For instance now we can expect a network connection between the 2 VMs:

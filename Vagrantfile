@@ -36,4 +36,17 @@ Vagrant.configure("2") do |config|
     end
   end
 
+  config.vm.define "process-agent-win" do |agent1|
+    agent1.vm.box = "gusztavvargadr/w16s"
+    agent1.vm.hostname = 'process-agent-win'
+
+    agent1.vm.network :private_network, ip: "192.168.56.103"
+
+    config.vm.provision "shell", path: "bootstrap.ps1"
+
+    agent1.vm.provider :virtualbox do |v|
+      v.customize ["modifyvm", :id, "--name", "process-agent-win"]
+    end
+  end
+
 end

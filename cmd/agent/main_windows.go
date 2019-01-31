@@ -33,10 +33,6 @@ var winopts struct {
 	stopService      bool
 }
 
-func init() {
-	fmt.Printf("main_windows.init()")
-}
-
 type myservice struct{}
 
 func (m *myservice) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
@@ -133,7 +129,7 @@ func main() {
 		fmt.Printf("failed to determine if we are running in an interactive session: %v", err)
 	}
 	if !isIntSess {
-		runService(false)
+		runService(true)
 		return
 	}
 	// sigh.  Go doesn't have boolean xor operator.  The options are mutually exclusive,

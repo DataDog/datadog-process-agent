@@ -59,9 +59,11 @@ gofmt -l $REPLACE_MODE -r '"Path to dd-agent config" -> "Path to stackstate-agen
 gofmt -l $REPLACE_MODE -r '"Path to datadog.yaml config" -> "Path to stackstate.yaml config"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"/etc/dd-agent/datadog.conf" -> "/etc/stackstate-agent/stackstate.conf"' $REPLACE_SCOPE
 
-
-
-
+# windows changes
+gofmt -l $REPLACE_MODE -r '"datadog-process-agent" -> "stackstate-process-agent"' $REPLACE_SCOPE
+gofmt -l $REPLACE_MODE -r '"c:\\programdata\\datadog\\datadog.yaml" -> "c:\\programdata\\stackstate\\stackstate.yaml"' $REPLACE_SCOPE
+gofmt -l $REPLACE_MODE -r '"c:\\programdata\\datadog\\datadog.conf" -> "c:\\programdata\\stackstate\\stackstate.conf"' $REPLACE_SCOPE
+gofmt -l $REPLACE_MODE -r '"c:\\programdata\\datadog\\conf.d" -> "c:\\programdata\\stackstate\\conf.d"' $REPLACE_SCOPE
 
 echo "Checking replacements..."
 

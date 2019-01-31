@@ -90,6 +90,7 @@ sudo cp /usr/lib/go-1.10/bin/go /usr/bin/go
 export GOPATH="/opt/stackstate-go"
 echo "GOPATH=\$GOPATH" >> ~/.profile
 echo "PATH=\$PATH:\$GOPATH/bin" >> ~/.profile
+echo "DEPNOLOCK=1" >> ~/.profile
 
 source ~/.profile
 
