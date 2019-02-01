@@ -79,6 +79,6 @@ pre_release_windows:
     - build_windows
   script:
     - call rake windows-versioned-artifact
-    - aws.exe s3 cp . s3://stackstate-process-agent-2-test --recursive --exclude "*" --include "*.exe" --acl public-read
+    - aws.exe s3 cp . s3://stackstate-process-agent-2-test/%CI_COMMIT_REF_NAME% --recursive --exclude "*" --include "*.exe" --acl public-read
   tags:
     - sts_windows
