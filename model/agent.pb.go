@@ -875,8 +875,9 @@ func (m *Connection) GetRaddr() *Addr {
 
 type Addr struct {
 	// 1 is deprecated
-	Ip          string `protobuf:"bytes,2,opt,name=ip,proto3" json:"ip,omitempty"`
-	Port        int32  `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
+	Ip   string `protobuf:"bytes,2,opt,name=ip,proto3" json:"ip,omitempty"`
+	Port int32  `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
+	// 4 is deprecated
 	ContainerId string `protobuf:"bytes,5,opt,name=containerId,proto3" json:"containerId,omitempty"`
 	HostId      int32  `protobuf:"varint,6,opt,name=hostId,proto3" json:"hostId,omitempty"`
 }
