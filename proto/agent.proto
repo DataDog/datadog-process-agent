@@ -363,12 +363,12 @@ message Connection {
 }
 
 message Addr {
-	// post-resolution field; deprecated in favor of hostId
-	Host host = 1  [deprecated = true];
+	// 1 is deprecated
 	string ip = 2;
-	int32 port = 3;
-	string hostId = 4; // post-resolution field
+	int32  port = 3;
+    // 4 is deprecated
 	string containerId = 5; // post-resolution field
+	int32  hostId = 6;      // post-resolution field
 }
 
 message MemoryStat {
