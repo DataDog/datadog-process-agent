@@ -116,12 +116,13 @@ message CollectorStatus {
 }
 
 message Process {
+	reserved 6;
+
 	uint32 key = 1;
 	int32 pid = 2;
 	Host host = 3;
 	Command command = 4;
 	ProcessUser user = 5;
-	// 6 is deprecated
 	MemoryStat memory = 7;
 	CPUStat cpu = 8;
 	int64 createTime = 9;
@@ -185,13 +186,14 @@ message ContainerAddr {
 }
 
 message Container {
+	reserved 7;
+
 	string type = 1;
 	string id = 2;
 	string name = 3; // DEPRECATED - left in place to support previous versions
 	string image = 4; // DEPRECATED - left in place to support previous versions
 	float  cpuLimit = 5;
 	uint64 memoryLimit = 6;
-	// 7 is removed, do not use.
 	ContainerState state = 8;
 	ContainerHealth health = 9;
 	int64 created = 10;
@@ -301,10 +303,11 @@ message ContainerMetadata {
 }
 
 message SystemInfo {
+	reserved 4;
+
 	string uuid = 1;
 	OSInfo os = 2;
 	repeated CPUInfo cpus = 3;
-	// 4 is deprecated
 	int64 totalMemory = 5;
 }
 
@@ -341,11 +344,11 @@ enum ConnectionDirection {
 }
 
 message Connection {
+	reserved 2, 3, 4, 7, 8, 9;
+
 	int32 pid = 1;
-	// 2, 3, & 4 are deprecated
 	Addr laddr = 5; // Local address
 	Addr raddr = 6; // Remote address
-	// 7, 8 & 9 are deprecated
 	ConnectionFamily family = 10;
 	ConnectionType type = 11;
 	int64 pidCreateTime = 12;
@@ -359,16 +362,16 @@ message Connection {
 	uint64 lastBytesSent = 16;
 	uint64 lastBytesReceived = 17;
 	uint32 lastRetransmits = 18;
-    	ConnectionDirection direction = 19;
+	ConnectionDirection direction = 19;
 }
 
 message Addr {
-	// post-resolution field; deprecated in favor of hostId
-	Host host = 1  [deprecated = true];
+	reserved 1, 4;
+
 	string ip = 2;
-	int32 port = 3;
-	string hostId = 4; // post-resolution field
+	int32  port = 3;
 	string containerId = 5; // post-resolution field
+	int32  hostId = 6;      // post-resolution field
 }
 
 message MemoryStat {
