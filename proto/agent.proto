@@ -38,11 +38,11 @@ message CollectorProc {
 }
 
 message CollectorConnections {
-	string hostName = 2;
-	repeated Connection connections = 3;
+	reserved 1, 4;
 
-	// Post-resolved field
-	Host host = 4;
+	string hostName = 2;
+	int32 hostId = 9; // Post-resolution field.
+	repeated Connection connections = 3;
 
 	// Message batching metadata
 	int32 groupId = 5;
