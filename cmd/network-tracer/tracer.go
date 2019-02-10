@@ -13,6 +13,8 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/ebpf"
 	"github.com/DataDog/datadog-process-agent/net"
+
+	_ "net/http/pprof"
 )
 
 // ErrTracerUnsupported is the unsupported error prefix, for error-class matching from callers
@@ -67,8 +69,7 @@ func (nt *NetworkTracer) Run() {
 		var clientID string
 		if rawCID := req.URL.Query().Get("client_id"); rawCID != "" {
 			clientID = rawCID
-		} else {
-			// This is the default client ID
+		} else { // This is the default client ID
 			clientID = ebpf.DEBUGCLIENT
 		}
 
@@ -87,7 +88,7 @@ func (nt *NetworkTracer) Run() {
 		}
 
 		w.Write(buf)
-		log.Debugf("/connections: %d connections, %d bytes", len(cs.Conns), len(buf))
+		log.Tracef("/connections: %d connections, %d bytes", len(cs.Conns), len(buf))
 	})
 
 	http.Serve(nt.conn.GetListener(), nil)
