@@ -54,8 +54,8 @@ func TestRemoveDuplicates(t *testing.T) {
 		MonotonicRetransmits: 1,
 	}
 
-	conns := []ConnectionStats{conn1, conn1}
-	closedConns := []ConnectionStats{}
+	conns := []ConnectionStats{conn1}
+	closedConns := []ConnectionStats{conn1}
 	assert.Equal(t, 1, len(removeDuplicates(conns, closedConns)))
 
 	// conn1 and conn3 are duplicates
@@ -64,7 +64,8 @@ func TestRemoveDuplicates(t *testing.T) {
 	assert.Equal(t, 1, len(removeDuplicates(conns, closedConns)))
 	assert.Equal(t, conn3, removeDuplicates(conns, closedConns)[0])
 
-	conns = []ConnectionStats{conn1, conn1, conn1, conn2, conn2, conn2, conn3, conn3, conn3}
+	conns = []ConnectionStats{}
+	closedConns = []ConnectionStats{conn1, conn1, conn1, conn2, conn2, conn2, conn3, conn3, conn3}
 	assert.Equal(t, 2, len(removeDuplicates(conns, closedConns)))
 }
 
