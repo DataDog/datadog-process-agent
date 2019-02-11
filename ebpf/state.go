@@ -197,7 +197,7 @@ func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 		// First check if we have an override stored
 		// If we do aggregate it and delete the override
 		if override, ok := client.overrideConnections[key]; ok {
-			aggregateConnAndStat(&c, override)
+			aggregateConnAndStat(&c, &override)
 			delete(client.overrideConnections, key)
 		}
 
@@ -256,21 +256,23 @@ func (ns *networkState) getConnections(id string) []ConnectionStats {
 
 		// If we have an override for this conn for this client, aggregate the conn
 		if override, ok := client.overrideConnections[key]; ok {
-			aggregateConnAndStat(conn, override)
+			aggregateConnAndStat(conn, &override)
 		}
 
-		prev := client.stats[key]
-		client.stats[key].lastSent = conn.MonotonicSentBytes - prev.totalSent
-		client.stats[key].lastRecv = conn.MonotonicRecvBytes - prev.totalRecv
-		client.stats[key].lastRetransmits = conn.MonotonicRetransmits - prev.totalRetransmits
+		// Update stats
+		stats := client.stats[key]
 
-		conn.LastSentBytes = prev.lastSent
-		conn.LastRecvBytes = prev.lastRecv
-		conn.LastRetransmits = prev.lastRetransmits
+		stats.lastSent = conn.MonotonicSentBytes - stats.totalSent
+		stats.lastRecv = conn.MonotonicRecvBytes - stats.totalRecv
+		stats.lastRetransmits = conn.MonotonicRetransmits - stats.totalRetransmits
 
-		client.stats[key].totalSent = conn.MonotonicSentBytes
-		client.stats[key].totalRecv = conn.MonotonicRecvBytes
-		client.stats[key].totalRetransmits = conn.MonotonicRetransmits
+		conn.LastSentBytes = stats.lastSent
+		conn.LastRecvBytes = stats.lastRecv
+		conn.LastRetransmits = stats.lastRetransmits
+
+		stats.totalSent = conn.MonotonicSentBytes
+		stats.totalRecv = conn.MonotonicRecvBytes
+		stats.totalRetransmits = conn.MonotonicRetransmits
 
 		conns = append(conns, *conn)
 	}
@@ -296,13 +298,13 @@ func (ns *networkState) removeExpiredClients(now time.Time) {
 }
 
 // aggregateConnectionAndStats aggregates s into c
-func aggregateConnAndStat(c1 *ConnectionStats, s sentRecvStats) {
-	c1.LastSentBytes += s.lastSent
-	c1.MonotonicSentBytes += s.totalSent
-	c1.LastRecvBytes += s.lastRecv
-	c1.MonotonicRecvBytes += s.totalRecv
-	c1.LastRetransmits += s.lastRetransmits
-	c1.MonotonicRetransmits += s.totalRetransmits
+func aggregateConnAndStat(cs *ConnectionStats, stats *sentRecvStats) {
+	cs.LastSentBytes += stats.lastSent
+	cs.MonotonicSentBytes += stats.totalSent
+	cs.LastRecvBytes += stats.lastRecv
+	cs.MonotonicRecvBytes += stats.totalRecv
+	cs.LastRetransmits += stats.lastRetransmits
+	cs.MonotonicRetransmits += stats.totalRetransmits
 }
 
 // aggregateStats returns an aggregation of two stats
