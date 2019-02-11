@@ -55,6 +55,9 @@ type networkState struct {
 	clients     map[string]*client
 	connections map[string]*ConnectionStats
 
+	// Shared buffer
+	buf *bytes.Buffer
+
 	cleanInterval time.Duration
 	clientExpiry  time.Duration
 }
@@ -71,6 +74,7 @@ func NewNetworkState(cleanInterval time.Duration, clientExpiry time.Duration) Ne
 		connections:   map[string]*ConnectionStats{},
 		cleanInterval: cleanInterval,
 		clientExpiry:  clientExpiry,
+		buf:           &bytes.Buffer{},
 	}
 
 	// Start tracking expiry time for clients
@@ -122,33 +126,29 @@ func (ns *networkState) StoreConnections(conns []ConnectionStats) {
 	// Flush the previous map
 	ns.connections = map[string]*ConnectionStats{}
 
-	buf := &bytes.Buffer{}
 	for _, c := range conns {
-		rawKey, err := c.ByteKey(buf)
+		key, err := c.ByteKey(ns.buf)
 		if err != nil {
 			log.Errorf("%s", err)
 			continue
 		}
-		key := string(rawKey)
 
-		// copy to get pointer to struct
-		c2 := c
-		ns.connections[key] = &c2
+		ns.connections[string(key)] = &c
 
 		// Check if some clients don't have the same connection still stored as closed
 		// if they do remove it from the closed connections and store in the override connections
 		// For later aggregation
-		for id := range ns.clients {
-			if prev, ok := ns.clients[id].closedConnections[key]; ok {
+		for _, client := range ns.clients {
+			if prev, ok := client.closedConnections[string(key)]; ok {
 				// Entry is already here, add the old connection to override connections
 				// For later aggregation
 				newOverride := statsFromConn(*prev)
-				if override, ok := ns.clients[id].overrideConnections[key]; ok {
+				if override, ok := client.overrideConnections[string(key)]; ok {
 					// If we already have an override aggregate the two overrides
 					newOverride = aggregateStats(override, newOverride)
 				}
-				ns.clients[id].overrideConnections[key] = newOverride
-				delete(ns.clients[id].closedConnections, key)
+				client.overrideConnections[string(key)] = newOverride
+				delete(client.closedConnections, string(key))
 			}
 		}
 	}
@@ -159,55 +159,53 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 	ns.Lock()
 	defer ns.Unlock()
 
-	rawKey, err := conn.ByteKey(&bytes.Buffer{})
+	key, err := conn.ByteKey(ns.buf)
 	if err != nil {
 		log.Errorf("%s", err)
 		return
 	}
-	key := string(rawKey)
 
-	for id := range ns.clients {
-		if prev, ok := ns.clients[id].closedConnections[key]; ok {
+	for _, client := range ns.clients {
+		if prev, ok := client.closedConnections[string(key)]; ok {
 			// Entry is already here, add the old connection to override connections
 			// For later aggregation
 			newOverride := statsFromConn(*prev)
-			if override, ok := ns.clients[id].overrideConnections[key]; ok {
+			if override, ok := client.overrideConnections[string(key)]; ok {
 				// If we already have an override aggregate the two overrides
 				newOverride = aggregateStats(override, newOverride)
 			}
-			ns.clients[id].overrideConnections[key] = newOverride
+			client.overrideConnections[string(key)] = newOverride
 		}
 
 		// We only store the pointer to the connection, when it will be cleared for each client it will get GCed
-		ns.clients[id].closedConnections[key] = &conn
+		client.closedConnections[string(key)] = &conn
 	}
 }
 
 // closedConns returns the closed connections for the given client and takes care of updating last fetch
 // the provided client is supposed to exist
 func (ns *networkState) closedConns(clientID string) []ConnectionStats {
-	conns := []ConnectionStats{}
-
 	ns.Lock()
 	defer ns.Unlock()
 
-	for key, conn := range ns.clients[clientID].closedConnections {
-		// We dereference to avoid modifying the underlying connection
-		// since it's shared with other clients
+	client := ns.clients[clientID]
+	conns := make([]ConnectionStats, 0, len(client.closedConnections))
+
+	for key, conn := range client.closedConnections {
 		c := *conn
 
 		// First check if we have an override stored
 		// If we do aggregate it and delete the override
-		if override, ok := ns.clients[clientID].overrideConnections[key]; ok {
+		if override, ok := client.overrideConnections[key]; ok {
 			aggregateConnAndStat(&c, override)
-			delete(ns.clients[clientID].overrideConnections, key)
+			delete(client.overrideConnections, key)
 		}
 
 		// Total defaults to 0 if it's not stored
 		prev := sentRecvStats{}
-		if _, ok := ns.clients[clientID].stats[key]; ok {
-			prev = *ns.clients[clientID].stats[key]
-			delete(ns.clients[clientID].stats, key)
+		if _, ok := client.stats[key]; ok {
+			prev = *client.stats[key]
+			delete(client.stats, key)
 		}
 
 		// Update last stats
@@ -218,7 +216,7 @@ func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 	}
 
 	// Flush closed connections for this client
-	ns.clients[clientID].closedConnections = map[string]*ConnectionStats{}
+	client.closedConnections = map[string]*ConnectionStats{}
 	return conns
 }
 
@@ -245,39 +243,36 @@ func (ns *networkState) getConnections(id string) []ConnectionStats {
 	defer ns.Unlock()
 
 	// Update client's last fetch time
-	ns.clients[id].lastFetch = time.Now()
+	client := ns.clients[id]
+	client.lastFetch = time.Now()
 
 	conns := make([]ConnectionStats, 0, len(ns.connections))
 
 	// Update send/recv bytes stats
 	for key, conn := range ns.connections {
-		// We dereference to avoid modifying the underlying connection
-		// since it's shared with other clients
-		c := *conn
-
-		if _, old := ns.clients[id].stats[key]; !old {
-			ns.clients[id].stats[key] = &sentRecvStats{}
+		if _, ok := client.stats[key]; !ok {
+			client.stats[key] = &sentRecvStats{}
 		}
 
 		// If we have an override for this conn for this client, aggregate the conn
-		if override, ok := ns.clients[id].overrideConnections[key]; ok {
-			aggregateConnAndStat(&c, override)
+		if override, ok := client.overrideConnections[key]; ok {
+			aggregateConnAndStat(conn, override)
 		}
 
-		prev := ns.clients[id].stats[key]
-		ns.clients[id].stats[key].lastSent = c.MonotonicSentBytes - prev.totalSent
-		ns.clients[id].stats[key].lastRecv = c.MonotonicRecvBytes - prev.totalRecv
-		ns.clients[id].stats[key].lastRetransmits = c.MonotonicRetransmits - prev.totalRetransmits
+		prev := client.stats[key]
+		client.stats[key].lastSent = conn.MonotonicSentBytes - prev.totalSent
+		client.stats[key].lastRecv = conn.MonotonicRecvBytes - prev.totalRecv
+		client.stats[key].lastRetransmits = conn.MonotonicRetransmits - prev.totalRetransmits
 
-		c.LastSentBytes = prev.lastSent
-		c.LastRecvBytes = prev.lastRecv
-		c.LastRetransmits = prev.lastRetransmits
+		conn.LastSentBytes = prev.lastSent
+		conn.LastRecvBytes = prev.lastRecv
+		conn.LastRetransmits = prev.lastRetransmits
 
-		ns.clients[id].stats[key].totalSent = c.MonotonicSentBytes
-		ns.clients[id].stats[key].totalRecv = c.MonotonicRecvBytes
-		ns.clients[id].stats[key].totalRetransmits = c.MonotonicRetransmits
+		client.stats[key].totalSent = conn.MonotonicSentBytes
+		client.stats[key].totalRecv = conn.MonotonicRecvBytes
+		client.stats[key].totalRetransmits = conn.MonotonicRetransmits
 
-		conns = append(conns, c)
+		conns = append(conns, *conn)
 	}
 
 	return conns
@@ -298,16 +293,6 @@ func (ns *networkState) removeExpiredClients(now time.Time) {
 			delete(ns.clients, id)
 		}
 	}
-}
-
-// aggregateConnections aggregates c2 into c1, they should have the same key
-func aggregateConnections(c1 *ConnectionStats, c2 ConnectionStats) {
-	c1.LastSentBytes += c2.LastSentBytes
-	c1.MonotonicSentBytes += c2.MonotonicSentBytes
-	c1.LastRecvBytes += c2.LastRecvBytes
-	c1.MonotonicRecvBytes += c2.MonotonicRecvBytes
-	c1.LastRetransmits += c2.LastRetransmits
-	c1.MonotonicRetransmits += c2.MonotonicRetransmits
 }
 
 // aggregateConnectionAndStats aggregates s into c
