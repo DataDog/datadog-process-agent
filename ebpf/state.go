@@ -103,13 +103,13 @@ func (ns *networkState) getClients() []string {
 // If the client is not registered yet, we register it and return the connections we have in the global state
 // Otherwise we return both the connections with last stats and the closed connections for this client
 func (ns *networkState) Connections(id string) []ConnectionStats {
-	// First time we see this client, use global state
-	if old := ns.newClient(id); !old {
+	// If its the first time we've seen this client, use global state as connection set
+	if ok := ns.newClient(id); !ok {
 		ns.Lock()
 		defer ns.Unlock()
 		conns := make([]ConnectionStats, 0, len(ns.connections))
-		for _, conn := range ns.connections {
-			conns = append(conns, *conn)
+		for _, c := range ns.connections {
+			conns = append(conns, *c)
 		}
 		return conns
 	}
