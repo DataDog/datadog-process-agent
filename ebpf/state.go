@@ -25,6 +25,7 @@ type NetworkState interface {
 	StoreConnections(conns []ConnectionStats)      // Store new connections in state
 	StoreClosedConnection(conn ConnectionStats)    // Store a new closed connection
 	RemoveClient(clientID string)                  // Stop tracking stateful data for the given client
+	RemoveDuplicates(conns []ConnectionStats, closedConns []ConnectionStats) []ConnectionStats
 }
 
 type sentRecvStats struct {
@@ -114,7 +115,7 @@ func (ns *networkState) Connections(id string) []ConnectionStats {
 		return conns
 	}
 
-	return removeDuplicates(ns.getConnections(id), ns.closedConns(id))
+	return ns.RemoveDuplicates(ns.getConnections(id), ns.closedConns(id))
 }
 
 // StoreConnections stores the provided list of connections in the global state
@@ -201,22 +202,23 @@ func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 			delete(client.overrideConnections, key)
 		}
 
-		// Total defaults to 0 if it's not stored
-		prev := sentRecvStats{}
-		if _, ok := client.stats[key]; ok {
-			prev = *client.stats[key]
+		if stats, ok := client.stats[key]; ok {
+			c.LastSentBytes = stats.lastSent + c.MonotonicSentBytes - stats.totalSent
+			c.LastRecvBytes = stats.lastRecv + c.MonotonicRecvBytes - stats.totalRecv
+			c.LastRetransmits = stats.lastRetransmits + c.MonotonicRetransmits - stats.totalRetransmits
 			delete(client.stats, key)
+		} else {
+			c.LastSentBytes = c.MonotonicSentBytes
+			c.LastRecvBytes = c.MonotonicRecvBytes
+			c.LastRetransmits = c.MonotonicRetransmits
 		}
 
-		// Update last stats
-		c.LastSentBytes = prev.lastSent + c.MonotonicSentBytes - prev.totalSent
-		c.LastRecvBytes = prev.lastRecv + c.MonotonicRecvBytes - prev.totalRecv
-		c.LastRetransmits = prev.lastRetransmits + c.MonotonicRetransmits - prev.totalRetransmits
 		conns = append(conns, c)
 	}
 
 	// Flush closed connections for this client
 	client.closedConnections = map[string]*ConnectionStats{}
+
 	return conns
 }
 
@@ -330,17 +332,19 @@ func statsFromConn(conn ConnectionStats) sentRecvStats {
 	}
 }
 
-// removeDuplicates takes a list of opened connections and a list of closed connections and returns a list of connections without duplicates
+// RemoveDuplicates takes a list of opened connections and a list of closed connections and returns a list of connections without duplicates
 // giving priority to closed connections
-func removeDuplicates(conns []ConnectionStats, closedConns []ConnectionStats) []ConnectionStats {
+func (ns *networkState) RemoveDuplicates(conns []ConnectionStats, closedConns []ConnectionStats) []ConnectionStats {
+	ns.Lock()
+	defer ns.Unlock()
+
 	connections := make([]ConnectionStats, 0)
 
 	seen := map[string]struct{}{}
-	buf := &bytes.Buffer{}
 
 	// Start with the closed connections
 	for _, c := range closedConns {
-		key, err := c.ByteKey(buf)
+		key, err := c.ByteKey(ns.buf)
 		if err != nil {
 			log.Errorf("%s", err)
 			continue
@@ -353,7 +357,7 @@ func removeDuplicates(conns []ConnectionStats, closedConns []ConnectionStats) []
 	}
 
 	for _, c := range conns {
-		key, err := c.ByteKey(buf)
+		key, err := c.ByteKey(ns.buf)
 		if err != nil {
 			log.Errorf("%s", err)
 			continue

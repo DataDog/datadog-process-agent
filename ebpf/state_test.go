@@ -55,22 +55,26 @@ func TestRemoveDuplicates(t *testing.T) {
 		MonotonicRetransmits: 1,
 	}
 
+	ns := NewDefaultNetworkState()
+
 	conns := []ConnectionStats{conn1}
 	closedConns := []ConnectionStats{conn1}
-	assert.Equal(t, 1, len(removeDuplicates(conns, closedConns)))
+	assert.Equal(t, 1, len(ns.RemoveDuplicates(conns, closedConns)))
 
 	// conn1 and conn3 are duplicates
 	conns = []ConnectionStats{conn1}
 	closedConns = []ConnectionStats{conn3}
-	assert.Equal(t, 1, len(removeDuplicates(conns, closedConns)))
-	assert.Equal(t, conn3, removeDuplicates(conns, closedConns)[0])
+	assert.Equal(t, 1, len(ns.RemoveDuplicates(conns, closedConns)))
+	assert.Equal(t, conn3, ns.RemoveDuplicates(conns, closedConns)[0])
 
 	conns = []ConnectionStats{}
 	closedConns = []ConnectionStats{conn1, conn1, conn1, conn2, conn2, conn2, conn3, conn3, conn3}
-	assert.Equal(t, 2, len(removeDuplicates(conns, closedConns)))
+	assert.Equal(t, 2, len(ns.RemoveDuplicates(conns, closedConns)))
 }
 
 func BenchmarkRemoveDuplicates(b *testing.B) {
+	ns := NewDefaultNetworkState()
+
 	conn1 := ConnectionStats{
 		Pid:                  123,
 		Type:                 TCP,
@@ -117,7 +121,7 @@ func BenchmarkRemoveDuplicates(b *testing.B) {
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
-		removeDuplicates(conns, closedConns)
+		ns.RemoveDuplicates(conns, closedConns)
 	}
 }
 func BenchmarkStoreConnection(b *testing.B) {
