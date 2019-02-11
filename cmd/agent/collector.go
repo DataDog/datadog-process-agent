@@ -74,8 +74,7 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 
 func (l *Collector) runCheck(c checks.Check) {
 	var runCounter int32
-	rc, ok := l.runCounters.Load(c.Name())
-	if ok {
+	if rc, ok := l.runCounters.Load(c.Name()); ok {
 		runCounter = rc.(int32)
 		runCounter++
 	} else {
