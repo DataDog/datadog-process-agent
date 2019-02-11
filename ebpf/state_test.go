@@ -121,6 +121,7 @@ func BenchmarkRemoveDuplicates(b *testing.B) {
 	}
 }
 func BenchmarkStoreConnection(b *testing.B) {
+	conns := generateRandConnections(30000)
 	for _, bench := range []struct {
 		connCount int
 	}{
@@ -145,13 +146,14 @@ func BenchmarkStoreConnection(b *testing.B) {
 			b.ReportAllocs()
 
 			for n := 0; n < b.N; n++ {
-				ns.StoreConnections(generateRandConnections(bench.connCount))
+				ns.StoreConnections(conns[:bench.connCount])
 			}
 		})
 	}
 }
 
 func BenchmarkStoreClosedConnection(b *testing.B) {
+	conns := generateRandConnections(30000)
 	for _, bench := range []struct {
 		connCount int
 	}{
@@ -176,7 +178,7 @@ func BenchmarkStoreClosedConnection(b *testing.B) {
 			b.ReportAllocs()
 
 			for n := 0; n < b.N; n++ {
-				for _, c := range generateRandConnections(bench.connCount) {
+				for _, c := range conns[:bench.connCount] {
 					ns.StoreClosedConnection(c)
 				}
 			}
@@ -185,6 +187,9 @@ func BenchmarkStoreClosedConnection(b *testing.B) {
 }
 
 func BenchmarkConnectionsGet(b *testing.B) {
+	conns := generateRandConnections(30000)
+	closed := generateRandConnections(30000)
+
 	for _, bench := range []struct {
 		connCount   int
 		closedCount int
@@ -243,8 +248,8 @@ func BenchmarkConnectionsGet(b *testing.B) {
 
 			ns.Connections(DEBUGCLIENT) // Initial fetch to set up client
 
-			ns.StoreConnections(generateRandConnections(bench.connCount))
-			for _, c := range generateRandConnections(bench.closedCount) {
+			ns.StoreConnections(conns[:bench.connCount])
+			for _, c := range closed[:bench.closedCount] {
 				ns.StoreClosedConnection(c)
 			}
 
