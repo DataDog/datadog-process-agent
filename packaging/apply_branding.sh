@@ -51,8 +51,7 @@ gofmt -l $REPLACE_MODE -r '"dd_agent_py" -> "sts_agent_py"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"dd_agent_py_env" -> "sts_agent_py_env"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"ddconfig" -> "stsconfig"' $REPLACE_SCOPE
 
-#  console changes
-
+# console changes
 gofmt -l $REPLACE_MODE -r '"/etc/datadog-agent/datadog.yaml" -> "/etc/stackstate-agent/stackstate.yaml"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"/opt/datadog-agent/bin/agent/agent" -> "/opt/stackstate-agent/bin/agent/agent"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"Path to dd-agent config" -> "Path to stackstate-agent config"' $REPLACE_SCOPE
@@ -64,6 +63,9 @@ gofmt -l $REPLACE_MODE -r '"datadog-process-agent" -> "stackstate-process-agent"
 gofmt -l $REPLACE_MODE -r '"c:\\programdata\\datadog\\datadog.yaml" -> "c:\\programdata\\stackstate\\stackstate.yaml"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"c:\\programdata\\datadog\\datadog.conf" -> "c:\\programdata\\stackstate\\stackstate.conf"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"c:\\programdata\\datadog\\conf.d" -> "c:\\programdata\\stackstate\\conf.d"' $REPLACE_SCOPE
+gofmt -l $REPLACE_MODE -r '"c:\\programdata\\datadog\\logs\\process-agent.log" -> "c:\\programdata\\stackstate\\logs\\process-agent.log"' $REPLACE_SCOPE
+gofmt -l $REPLACE_MODE -r '"c:\\Program Files\\Datadog\\Datadog Agent\\embedded\\agent.exe" -> "c:\\Program Files\\StackState\\StackState Agent\\embedded\\agent.exe"' $REPLACE_SCOPE
+sed -i 's/DataDog/StackState/g' ../cmd/agent/main_windows.go
 
 echo "Checking replacements..."
 
