@@ -68,6 +68,57 @@ func TestRemoveDuplicates(t *testing.T) {
 	assert.Equal(t, 2, len(removeDuplicates(conns, closedConns)))
 }
 
+func BenchmarkRemoveDuplicates(b *testing.B) {
+	conn1 := ConnectionStats{
+		Pid:                  123,
+		Type:                 TCP,
+		Family:               AFINET,
+		Source:               "localhost",
+		Dest:                 "localhost",
+		SPort:                31890,
+		DPort:                80,
+		MonotonicSentBytes:   12345,
+		MonotonicRecvBytes:   6789,
+		MonotonicRetransmits: 2,
+	}
+
+	conn2 := ConnectionStats{
+		Pid:                  123,
+		Type:                 TCP,
+		Family:               AFINET6,
+		Source:               "localhost",
+		Dest:                 "localhost",
+		SPort:                31890,
+		DPort:                80,
+		MonotonicSentBytes:   12345,
+		MonotonicRecvBytes:   6789,
+		MonotonicRetransmits: 2,
+	}
+
+	conn3 := ConnectionStats{
+		Pid:                  123,
+		Type:                 TCP,
+		Family:               AFINET,
+		Source:               "localhost",
+		Dest:                 "localhost",
+		SPort:                31890,
+		DPort:                80,
+		MonotonicSentBytes:   0,
+		MonotonicRecvBytes:   123,
+		MonotonicRetransmits: 1,
+	}
+
+	conns := []ConnectionStats{conn3}
+	closedConns := []ConnectionStats{conn1, conn1, conn1, conn2, conn2, conn2, conn3, conn3, conn3}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for n := 0; n < b.N; n++ {
+		removeDuplicates(conns, closedConns)
+	}
+}
+
 func TestRetrieveClosedConnection(t *testing.T) {
 	conn := ConnectionStats{
 		Pid:                  123,

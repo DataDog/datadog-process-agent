@@ -346,23 +346,35 @@ func statsFromConn(conn ConnectionStats) sentRecvStats {
 // removeDuplicates takes a list of opened connections and a list of closed connections and returns a list of connections without duplicates
 // giving priority to closed connections
 func removeDuplicates(conns []ConnectionStats, closedConns []ConnectionStats) []ConnectionStats {
-	connections := []ConnectionStats{}
+	connections := make([]ConnectionStats, 0)
 
 	seen := map[string]struct{}{}
 	buf := &bytes.Buffer{}
 
 	// Start with the closed connections
-	for _, c := range append(closedConns, conns...) {
-		rawKey, err := c.ByteKey(buf)
+	for _, c := range closedConns {
+		key, err := c.ByteKey(buf)
 		if err != nil {
 			log.Errorf("%s", err)
 			continue
 		}
-		key := string(rawKey)
 
-		if _, ok := seen[key]; !ok {
+		if _, ok := seen[string(key)]; !ok {
 			connections = append(connections, c)
-			seen[key] = struct{}{}
+			seen[string(key)] = struct{}{}
+		}
+	}
+
+	for _, c := range conns {
+		key, err := c.ByteKey(buf)
+		if err != nil {
+			log.Errorf("%s", err)
+			continue
+		}
+
+		if _, ok := seen[string(key)]; !ok {
+			// Note: We don't need to add to `seen` conn's list is all unique (by virtue of using the BPF map key)
+			connections = append(connections, c)
 		}
 	}
 
