@@ -4,6 +4,7 @@ package ebpf
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"sync"
 	"testing"
@@ -117,6 +118,143 @@ func BenchmarkRemoveDuplicates(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		removeDuplicates(conns, closedConns)
+	}
+}
+func BenchmarkStoreConnection(b *testing.B) {
+	for _, bench := range []struct {
+		connCount int
+	}{
+		{
+			connCount: 100,
+		},
+		{
+			connCount: 1000,
+		},
+		{
+			connCount: 10000,
+		},
+		{
+			connCount: 30000,
+		},
+	} {
+		b.Run(fmt.Sprintf("StoreConnection-%d", bench.connCount), func(b *testing.B) {
+			ns := NewDefaultNetworkState()
+			ns.Connections(DEBUGCLIENT) // Initial fetch to set up client
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			for n := 0; n < b.N; n++ {
+				ns.StoreConnections(generateRandConnections(bench.connCount))
+			}
+		})
+	}
+}
+
+func BenchmarkStoreClosedConnection(b *testing.B) {
+	for _, bench := range []struct {
+		connCount int
+	}{
+		{
+			connCount: 100,
+		},
+		{
+			connCount: 1000,
+		},
+		{
+			connCount: 10000,
+		},
+		{
+			connCount: 30000,
+		},
+	} {
+		b.Run(fmt.Sprintf("StoreClosedConnection-%d", bench.connCount), func(b *testing.B) {
+			ns := NewDefaultNetworkState()
+			ns.Connections(DEBUGCLIENT) // Initial fetch to set up client
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			for n := 0; n < b.N; n++ {
+				for _, c := range generateRandConnections(bench.connCount) {
+					ns.StoreClosedConnection(c)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkConnectionsGet(b *testing.B) {
+	for _, bench := range []struct {
+		connCount   int
+		closedCount int
+	}{
+		{
+			connCount:   100,
+			closedCount: 0,
+		},
+		{
+			connCount:   100,
+			closedCount: 50,
+		},
+		{
+			connCount:   100,
+			closedCount: 100,
+		},
+		{
+			connCount:   1000,
+			closedCount: 0,
+		},
+		{
+			connCount:   1000,
+			closedCount: 500,
+		},
+		{
+			connCount:   1000,
+			closedCount: 1000,
+		},
+		{
+			connCount:   10000,
+			closedCount: 0,
+		},
+		{
+			connCount:   10000,
+			closedCount: 5000,
+		},
+		{
+			connCount:   10000,
+			closedCount: 10000,
+		},
+		{
+			connCount:   30000,
+			closedCount: 0,
+		},
+		{
+			connCount:   30000,
+			closedCount: 15000,
+		},
+		{
+			connCount:   30000,
+			closedCount: 30000,
+		},
+	} {
+		b.Run(fmt.Sprintf("ConnectionsGet-%d-%d", bench.connCount, bench.closedCount), func(b *testing.B) {
+			ns := NewDefaultNetworkState()
+
+			ns.Connections(DEBUGCLIENT) // Initial fetch to set up client
+
+			ns.StoreConnections(generateRandConnections(bench.connCount))
+			for _, c := range generateRandConnections(bench.closedCount) {
+				ns.StoreClosedConnection(c)
+			}
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			for n := 0; n < b.N; n++ {
+				ns.Connections(DEBUGCLIENT)
+			}
+		})
 	}
 }
 
@@ -796,4 +934,23 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		assert.Equal(t, 5, int(conns[0].MonotonicSentBytes))
 		assert.Equal(t, 5, int(conns[0].LastSentBytes))
 	})
+}
+
+func generateRandConnections(n int) []ConnectionStats {
+	cs := make([]ConnectionStats, 0, n)
+	for i := 0; i < n; i++ {
+		cs = append(cs, ConnectionStats{
+			Pid:                  123,
+			Type:                 TCP,
+			Family:               AFINET,
+			Source:               "localhost",
+			Dest:                 "localhost",
+			SPort:                uint16(rand.Intn(math.MaxUint16)),
+			DPort:                uint16(rand.Intn(math.MaxUint16)),
+			MonotonicRecvBytes:   rand.Uint64(),
+			MonotonicSentBytes:   rand.Uint64(),
+			MonotonicRetransmits: rand.Uint32(),
+		})
+	}
+	return cs
 }
