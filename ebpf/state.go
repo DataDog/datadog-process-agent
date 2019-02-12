@@ -137,14 +137,14 @@ func (ns *networkState) StoreConnections(conns []ConnectionStats) {
 	// Flush the previous map
 	ns.connections = map[string]*ConnectionStats{}
 
-	for _, c := range conns {
+	for i, c := range conns {
 		key, err := c.ByteKey(ns.buf)
 		if err != nil {
 			log.Errorf("%s", err)
 			continue
 		}
 
-		ns.connections[string(key)] = &c
+		ns.connections[string(key)] = &conns[i]
 
 		// Check if some clients don't have the same connection still stored as closed
 		// if they do remove it from the closed connections and store in the override connections
