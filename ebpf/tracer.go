@@ -153,20 +153,12 @@ func (t *Tracer) Stop() {
 }
 
 func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
-	if err := t.updateState(); err != nil {
-		return nil, fmt.Errorf("error updating network-tracer state: %s", err)
-	}
-
-	return &Connections{Conns: t.state.Connections(clientID)}, nil
-}
-
-func (t *Tracer) updateState() error {
-	conns, err := t.getConnections()
+	latestConns, err := t.getConnections()
 	if err != nil {
-		return fmt.Errorf("error retrieving connections: %s", err)
+		return nil, fmt.Errorf("error retrieving connections: %s", err)
 	}
-	t.state.StoreConnections(conns)
-	return nil
+
+	return &Connections{Conns: t.state.Connections(clientID, latestConns)}, nil
 }
 
 func (t *Tracer) getConnections() ([]ConnectionStats, error) {

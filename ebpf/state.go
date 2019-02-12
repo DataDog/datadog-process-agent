@@ -21,11 +21,8 @@ const (
 // - closed connections
 // - sent and received bytes per connection
 type NetworkState interface {
-	// Connections returns the list of connections for the given client
-	Connections(clientID string) []ConnectionStats
-
-	// StoreConnections stores new active connections
-	StoreConnections(conns []ConnectionStats)
+	// Connections returns the list of connections for the given client when provided the latest set of active connections
+	Connections(clientID string, latestConns []ConnectionStats) []ConnectionStats
 
 	// StoreClosedConnection stores a new closed connection
 	StoreClosedConnection(conn ConnectionStats)
@@ -61,12 +58,9 @@ type client struct {
 
 type networkState struct {
 	sync.Mutex
+	buf *bytes.Buffer // Shared buffer
 
-	clients     map[string]*client
-	connections map[string]*ConnectionStats
-
-	// Shared buffer
-	buf *bytes.Buffer
+	clients map[string]*client
 
 	cleanInterval time.Duration
 	clientExpiry  time.Duration
@@ -81,7 +75,6 @@ func NewDefaultNetworkState() NetworkState {
 func NewNetworkState(cleanInterval time.Duration, clientExpiry time.Duration) NetworkState {
 	ns := &networkState{
 		clients:       map[string]*client{},
-		connections:   map[string]*ConnectionStats{},
 		cleanInterval: cleanInterval,
 		clientExpiry:  clientExpiry,
 		buf:           &bytes.Buffer{},
@@ -112,31 +105,27 @@ func (ns *networkState) getClients() []string {
 // Connections returns the connections for the given client
 // If the client is not registered yet, we register it and return the connections we have in the global state
 // Otherwise we return both the connections with last stats and the closed connections for this client
-func (ns *networkState) Connections(id string) []ConnectionStats {
+func (ns *networkState) Connections(id string, latestConns []ConnectionStats) []ConnectionStats {
 	ns.Lock()
 	defer ns.Unlock()
+
+	connsByKey := ns.updateActiveConnections(latestConns)
 
 	// If its the first time we've seen this client, use global state as connection set
 	if ok := ns.newClient(id); !ok {
-		conns := make([]ConnectionStats, 0, len(ns.connections))
-		for _, c := range ns.connections {
-			conns = append(conns, *c)
-		}
-		return conns
+		return latestConns
 	}
 
-	return ns.RemoveDuplicates(ns.getConnections(id), ns.closedConns(id))
+	// Update connections with relevant up-to-date stats for client
+	ns.updateConnectionsForClient(id, connsByKey)
+
+	return ns.RemoveDuplicates(connsByKey, ns.closedConns(id))
 }
 
-// StoreConnections stores the provided list of connections in the global state
-func (ns *networkState) StoreConnections(conns []ConnectionStats) {
-	// Update connections
-	ns.Lock()
-	defer ns.Unlock()
-
-	// Flush the previous map
-	ns.connections = map[string]*ConnectionStats{}
-
+// updateActiveConnections processes new active connections, updating internal state and returning a map of
+// connections by key.
+func (ns *networkState) updateActiveConnections(conns []ConnectionStats) map[string]*ConnectionStats {
+	connsByKey := make(map[string]*ConnectionStats, len(conns))
 	for i, c := range conns {
 		key, err := c.ByteKey(ns.buf)
 		if err != nil {
@@ -144,7 +133,7 @@ func (ns *networkState) StoreConnections(conns []ConnectionStats) {
 			continue
 		}
 
-		ns.connections[string(key)] = &conns[i]
+		connsByKey[string(key)] = &conns[i]
 
 		// Check if some clients don't have the same connection still stored as closed
 		// if they do remove it from the closed connections and store in the override connections
@@ -163,6 +152,7 @@ func (ns *networkState) StoreConnections(conns []ConnectionStats) {
 			}
 		}
 	}
+	return connsByKey
 }
 
 // StoreClosedConnection stores the given connection for every client
@@ -210,9 +200,9 @@ func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 		}
 
 		if stats, ok := client.stats[key]; ok {
-			c.LastSentBytes = stats.lastSent + c.MonotonicSentBytes - stats.totalSent
-			c.LastRecvBytes = stats.lastRecv + c.MonotonicRecvBytes - stats.totalRecv
-			c.LastRetransmits = stats.lastRetransmits + c.MonotonicRetransmits - stats.totalRetransmits
+			c.LastSentBytes = c.MonotonicSentBytes - stats.totalSent
+			c.LastRecvBytes = c.MonotonicRecvBytes - stats.totalRecv
+			c.LastRetransmits = c.MonotonicRetransmits - stats.totalRetransmits
 			delete(client.stats, key)
 		} else {
 			c.LastSentBytes = c.MonotonicSentBytes
@@ -244,14 +234,14 @@ func (ns *networkState) newClient(clientID string) bool {
 	return false
 }
 
-// getConnections return the connections and takes care of updating their last stats
-func (ns *networkState) getConnections(id string) map[string]*ConnectionStats {
+// updateConnectionsForClient return the connections and takes care of updating their last stats
+func (ns *networkState) updateConnectionsForClient(id string, connsByKey map[string]*ConnectionStats) {
 	// Update client's last fetch time
 	client := ns.clients[id]
 	client.lastFetch = time.Now()
 
 	// Update send/recv bytes stats
-	for key, conn := range ns.connections {
+	for key, conn := range connsByKey {
 		stats, ok := client.stats[key]
 		if !ok {
 			stats = &sentRecvStats{}
@@ -275,8 +265,6 @@ func (ns *networkState) getConnections(id string) map[string]*ConnectionStats {
 		stats.totalRecv = conn.MonotonicRecvBytes
 		stats.totalRetransmits = conn.MonotonicRetransmits
 	}
-
-	return ns.connections
 }
 
 func (ns *networkState) RemoveClient(clientID string) {
