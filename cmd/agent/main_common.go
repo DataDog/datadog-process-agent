@@ -98,10 +98,10 @@ func runAgent(exit chan bool) {
 	}
 
 	agentConf, err := config.NewIfExists(opts.ddConfigPath)
-	if err != nil {
-		log.Criticalf("Error reading sts-agent config: %s", err)
-		os.Exit(1)
-	}
+	//if err != nil {
+	//	log.Criticalf("Error reading sts-agent config: %s", err)
+	//	os.Exit(1)
+	//}
 
 	yamlConf, err := config.NewYamlIfExists(opts.configPath)
 	if err != nil {

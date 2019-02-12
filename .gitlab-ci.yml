@@ -63,6 +63,7 @@ build_windows:
   script:
     - cd %GOPATH%\src\github.com\StackVista\stackstate-process-agent
     - call rake deps
+    - cd packaging && bash -c "./apply_branding.sh" && cd ..
     - call .gitlab-scripts/windows_build.cmd
   after_script:
     - copy %GOPATH%\src\github.com\StackVista\stackstate-process-agent\process-agent.exe
