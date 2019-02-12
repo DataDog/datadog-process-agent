@@ -3,6 +3,7 @@
 package ebpf
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/rand"
@@ -56,18 +57,19 @@ func TestRemoveDuplicates(t *testing.T) {
 	}
 
 	ns := NewDefaultNetworkState()
+	k1, _ := conn1.ByteKey(&bytes.Buffer{})
 
-	conns := []ConnectionStats{conn1}
+	conns := map[string]*ConnectionStats{string(k1): &conn1}
 	closedConns := []ConnectionStats{conn1}
 	assert.Equal(t, 1, len(ns.RemoveDuplicates(conns, closedConns)))
 
 	// conn1 and conn3 are duplicates
-	conns = []ConnectionStats{conn1}
+	conns = map[string]*ConnectionStats{string(k1): &conn1}
 	closedConns = []ConnectionStats{conn3}
 	assert.Equal(t, 1, len(ns.RemoveDuplicates(conns, closedConns)))
 	assert.Equal(t, conn3, ns.RemoveDuplicates(conns, closedConns)[0])
 
-	conns = []ConnectionStats{}
+	conns = map[string]*ConnectionStats{}
 	closedConns = []ConnectionStats{conn1, conn1, conn1, conn2, conn2, conn2, conn3, conn3, conn3}
 	assert.Equal(t, 2, len(ns.RemoveDuplicates(conns, closedConns)))
 }
@@ -114,7 +116,8 @@ func BenchmarkRemoveDuplicates(b *testing.B) {
 		MonotonicRetransmits: 1,
 	}
 
-	conns := []ConnectionStats{conn3}
+	k1, _ := conn1.ByteKey(&bytes.Buffer{})
+	conns := map[string]*ConnectionStats{string(k1): &conn1}
 	closedConns := []ConnectionStats{conn1, conn1, conn1, conn2, conn2, conn2, conn3, conn3, conn3}
 
 	b.ResetTimer()

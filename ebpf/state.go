@@ -25,7 +25,7 @@ type NetworkState interface {
 	StoreConnections(conns []ConnectionStats)      // Store new connections in state
 	StoreClosedConnection(conn ConnectionStats)    // Store a new closed connection
 	RemoveClient(clientID string)                  // Stop tracking stateful data for the given client
-	RemoveDuplicates(conns []ConnectionStats, closedConns []ConnectionStats) []ConnectionStats
+	RemoveDuplicates(conns map[string]*ConnectionStats, closedConns []ConnectionStats) []ConnectionStats
 }
 
 type sentRecvStats struct {
@@ -104,10 +104,11 @@ func (ns *networkState) getClients() []string {
 // If the client is not registered yet, we register it and return the connections we have in the global state
 // Otherwise we return both the connections with last stats and the closed connections for this client
 func (ns *networkState) Connections(id string) []ConnectionStats {
+	ns.Lock()
+	defer ns.Unlock()
+
 	// If its the first time we've seen this client, use global state as connection set
 	if ok := ns.newClient(id); !ok {
-		ns.Lock()
-		defer ns.Unlock()
 		conns := make([]ConnectionStats, 0, len(ns.connections))
 		for _, c := range ns.connections {
 			conns = append(conns, *c)
@@ -186,9 +187,6 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 // closedConns returns the closed connections for the given client and takes care of updating last fetch
 // the provided client is supposed to exist
 func (ns *networkState) closedConns(clientID string) []ConnectionStats {
-	ns.Lock()
-	defer ns.Unlock()
-
 	client := ns.clients[clientID]
 	conns := make([]ConnectionStats, 0, len(client.closedConnections))
 
@@ -224,8 +222,6 @@ func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 
 // newClient creates a new client and returns true if the given client already exists
 func (ns *networkState) newClient(clientID string) bool {
-	ns.Lock()
-	defer ns.Unlock()
 	if _, ok := ns.clients[clientID]; ok {
 		return true
 	}
@@ -240,29 +236,23 @@ func (ns *networkState) newClient(clientID string) bool {
 }
 
 // getConnections return the connections and takes care of updating their last stats
-func (ns *networkState) getConnections(id string) []ConnectionStats {
-	ns.Lock()
-	defer ns.Unlock()
-
+func (ns *networkState) getConnections(id string) map[string]*ConnectionStats {
 	// Update client's last fetch time
 	client := ns.clients[id]
 	client.lastFetch = time.Now()
 
-	conns := make([]ConnectionStats, 0, len(ns.connections))
-
 	// Update send/recv bytes stats
 	for key, conn := range ns.connections {
-		if _, ok := client.stats[key]; !ok {
-			client.stats[key] = &sentRecvStats{}
+		stats, ok := client.stats[key]
+		if !ok {
+			stats = &sentRecvStats{}
+			client.stats[key] = stats
 		}
 
 		// If we have an override for this conn for this client, aggregate the conn
 		if override, ok := client.overrideConnections[key]; ok {
 			aggregateConnAndStat(conn, &override)
 		}
-
-		// Update stats
-		stats := client.stats[key]
 
 		stats.lastSent = conn.MonotonicSentBytes - stats.totalSent
 		stats.lastRecv = conn.MonotonicRecvBytes - stats.totalRecv
@@ -275,11 +265,9 @@ func (ns *networkState) getConnections(id string) []ConnectionStats {
 		stats.totalSent = conn.MonotonicSentBytes
 		stats.totalRecv = conn.MonotonicRecvBytes
 		stats.totalRetransmits = conn.MonotonicRetransmits
-
-		conns = append(conns, *conn)
 	}
 
-	return conns
+	return ns.connections
 }
 
 func (ns *networkState) RemoveClient(clientID string) {
@@ -334,10 +322,7 @@ func statsFromConn(conn ConnectionStats) sentRecvStats {
 
 // RemoveDuplicates takes a list of opened connections and a list of closed connections and returns a list of connections without duplicates
 // giving priority to closed connections
-func (ns *networkState) RemoveDuplicates(conns []ConnectionStats, closedConns []ConnectionStats) []ConnectionStats {
-	ns.Lock()
-	defer ns.Unlock()
-
+func (ns *networkState) RemoveDuplicates(conns map[string]*ConnectionStats, closedConns []ConnectionStats) []ConnectionStats {
 	connections := make([]ConnectionStats, 0)
 
 	seen := map[string]struct{}{}
@@ -356,16 +341,10 @@ func (ns *networkState) RemoveDuplicates(conns []ConnectionStats, closedConns []
 		}
 	}
 
-	for _, c := range conns {
-		key, err := c.ByteKey(ns.buf)
-		if err != nil {
-			log.Errorf("%s", err)
-			continue
-		}
-
-		if _, ok := seen[string(key)]; !ok {
+	for key, c := range conns {
+		if _, ok := seen[key]; !ok {
 			// Note: We don't need to add to `seen` conn's list is all unique (by virtue of using the BPF map key)
-			connections = append(connections, c)
+			connections = append(connections, *c)
 		}
 	}
 
