@@ -12,9 +12,9 @@ var _ NetworkState = &networkState{}
 
 const (
 	// DEBUGCLIENT is the ClientID for debugging
-	DEBUGCLIENT          = "-1"
-	defaultClientExpiry  = 2 * time.Minute
-	defaultCleanInterval = 30 * time.Second
+	DEBUGCLIENT           = "-1"
+	defaultExpiry         = 2 * time.Minute
+	defaultClientInterval = 30 * time.Second
 )
 
 // NetworkState takes care of handling the logic for:
@@ -43,6 +43,8 @@ type sentRecvStats struct {
 
 	totalRetransmits uint32
 	lastRetransmits  uint32
+
+	lastUpdate time.Time
 }
 
 type client struct {
@@ -62,28 +64,32 @@ type networkState struct {
 
 	clients map[string]*client
 
-	cleanInterval time.Duration
-	clientExpiry  time.Duration
+	clientInterval time.Duration
+	expiry         time.Duration
 }
 
 // NewDefaultNetworkState creates a new network state with default settings
 func NewDefaultNetworkState() NetworkState {
-	return NewNetworkState(defaultCleanInterval, defaultClientExpiry)
+	return NewNetworkState(defaultClientInterval, defaultExpiry)
 }
 
 // NewNetworkState creates a new network state
-func NewNetworkState(cleanInterval time.Duration, clientExpiry time.Duration) NetworkState {
+func NewNetworkState(clientInterval time.Duration, expiry time.Duration) NetworkState {
 	ns := &networkState{
-		clients:       map[string]*client{},
-		cleanInterval: cleanInterval,
-		clientExpiry:  clientExpiry,
-		buf:           &bytes.Buffer{},
+		clients:        map[string]*client{},
+		clientInterval: clientInterval,
+		expiry:         expiry,
+		buf:            &bytes.Buffer{},
 	}
 
 	// Start tracking expiry time for clients
 	go func() {
-		for now := range time.NewTicker(ns.cleanInterval).C {
-			ns.removeExpiredClients(now)
+		count := uint64(0)
+		for now := range time.NewTicker(ns.clientInterval).C {
+			// Every 10 ticks, lets also check for any outdated stats objects to remove
+			count++
+			removeExpiredStats := count%10 == 0
+			ns.removeExpiredClients(now, removeExpiredStats)
 		}
 	}()
 
@@ -126,6 +132,8 @@ func (ns *networkState) Connections(id string, latestConns []ConnectionStats) []
 // connections by key.
 func (ns *networkState) updateActiveConnections(conns []ConnectionStats) map[string]*ConnectionStats {
 	connsByKey := make(map[string]*ConnectionStats, len(conns))
+	now := time.Now()
+
 	for i, c := range conns {
 		key, err := c.ByteKey(ns.buf)
 		if err != nil {
@@ -142,10 +150,10 @@ func (ns *networkState) updateActiveConnections(conns []ConnectionStats) map[str
 			if prev, ok := client.closedConnections[string(key)]; ok {
 				// Entry is already here, add the old connection to override connections
 				// For later aggregation
-				newOverride := statsFromConn(*prev)
+				newOverride := statsFromConn(*prev, now)
 				if override, ok := client.overrideConnections[string(key)]; ok {
 					// If we already have an override aggregate the two overrides
-					newOverride = aggregateStats(override, newOverride)
+					newOverride = aggregateStats(override, newOverride, now)
 				}
 				client.overrideConnections[string(key)] = newOverride
 				delete(client.closedConnections, string(key))
@@ -160,6 +168,7 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 	ns.Lock()
 	defer ns.Unlock()
 
+	now := time.Now()
 	key, err := conn.ByteKey(ns.buf)
 	if err != nil {
 		log.Errorf("%s", err)
@@ -170,10 +179,10 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 		if prev, ok := client.closedConnections[string(key)]; ok {
 			// Entry is already here, add the old connection to override connections
 			// For later aggregation
-			newOverride := statsFromConn(*prev)
+			newOverride := statsFromConn(*prev, now)
 			if override, ok := client.overrideConnections[string(key)]; ok {
 				// If we already have an override aggregate the two overrides
-				newOverride = aggregateStats(override, newOverride)
+				newOverride = aggregateStats(override, newOverride, now)
 			}
 			client.overrideConnections[string(key)] = newOverride
 		}
@@ -235,13 +244,13 @@ func (ns *networkState) newClient(clientID string) bool {
 }
 
 // updateConnectionsForClient return the connections and takes care of updating their last stats
-func (ns *networkState) updateConnectionsForClient(id string, connsByKey map[string]*ConnectionStats) {
-	// Update client's last fetch time
+func (ns *networkState) updateConnectionsForClient(id string, connByKey map[string]*ConnectionStats) {
+	now := time.Now()
 	client := ns.clients[id]
-	client.lastFetch = time.Now()
+	client.lastFetch = now
 
 	// Update send/recv bytes stats
-	for key, conn := range connsByKey {
+	for key, conn := range connByKey {
 		stats, ok := client.stats[key]
 		if !ok {
 			stats = &sentRecvStats{}
@@ -264,6 +273,8 @@ func (ns *networkState) updateConnectionsForClient(id string, connsByKey map[str
 		stats.totalSent = conn.MonotonicSentBytes
 		stats.totalRecv = conn.MonotonicRecvBytes
 		stats.totalRetransmits = conn.MonotonicRetransmits
+
+		stats.lastUpdate = now
 	}
 }
 
@@ -273,15 +284,53 @@ func (ns *networkState) RemoveClient(clientID string) {
 	delete(ns.clients, clientID)
 }
 
-func (ns *networkState) removeExpiredClients(now time.Time) {
+func (ns *networkState) removeExpiredClients(now time.Time, removeExpiredStats bool) {
 	ns.Lock()
 	defer ns.Unlock()
 
+	deletedStats := 0
 	for id, c := range ns.clients {
-		if c.lastFetch.Add(ns.clientExpiry).Before(now) {
+		if c.lastFetch.Add(ns.expiry).Before(now) {
 			delete(ns.clients, id)
+		} else if removeExpiredStats { // Look for inactive stats objects and remove them
+			deletedStats += ns.removeExpiredStats(c, now)
 		}
 	}
+
+	if deletedStats > 0 {
+		log.Infof("removed %d expired stats objects in %d", deletedStats, time.Now().Sub(now))
+	}
+}
+
+func (ns *networkState) removeExpiredStats(c *client, now time.Time) int {
+	expired, removed := make([]string, 0), 0
+
+	// Expired stats
+	for key, s := range c.stats {
+		if s.lastUpdate.Add(ns.expiry).Before(now) {
+			expired = append(expired, key)
+			removed++
+		}
+	}
+
+	for _, key := range expired {
+		delete(c.stats, key)
+	}
+
+	// Expired stat overrides
+	expired = expired[:0]
+	for key, s := range c.overrideConnections {
+		if s.lastUpdate.Add(ns.expiry).Before(now) {
+			expired = append(expired, key)
+			removed++
+		}
+	}
+
+	for _, key := range expired {
+		delete(c.overrideConnections, key)
+	}
+
+	return removed
 }
 
 // aggregateConnectionAndStats aggregates s into c
@@ -295,7 +344,7 @@ func aggregateConnAndStat(cs *ConnectionStats, stats *sentRecvStats) {
 }
 
 // aggregateStats returns an aggregation of two stats
-func aggregateStats(s1, s2 sentRecvStats) sentRecvStats {
+func aggregateStats(s1, s2 sentRecvStats, now time.Time) sentRecvStats {
 	return sentRecvStats{
 		lastSent:         s1.lastSent + s2.lastSent,
 		lastRecv:         s1.lastRecv + s2.lastRecv,
@@ -303,10 +352,11 @@ func aggregateStats(s1, s2 sentRecvStats) sentRecvStats {
 		totalSent:        s1.totalSent + s2.totalSent,
 		totalRecv:        s1.totalRecv + s2.totalRecv,
 		totalRetransmits: s1.totalRetransmits + s2.totalRetransmits,
+		lastUpdate:       now,
 	}
 }
 
-func statsFromConn(conn ConnectionStats) sentRecvStats {
+func statsFromConn(conn ConnectionStats, now time.Time) sentRecvStats {
 	return sentRecvStats{
 		lastSent:         conn.LastSentBytes,
 		lastRecv:         conn.LastRecvBytes,
@@ -314,18 +364,19 @@ func statsFromConn(conn ConnectionStats) sentRecvStats {
 		totalSent:        conn.MonotonicSentBytes,
 		totalRecv:        conn.MonotonicRecvBytes,
 		totalRetransmits: conn.MonotonicRetransmits,
+		lastUpdate:       now,
 	}
 }
 
 // RemoveDuplicates takes a list of opened connections and a list of closed connections and returns a list of connections without duplicates
 // giving priority to closed connections
-func (ns *networkState) RemoveDuplicates(conns map[string]*ConnectionStats, closedConns []ConnectionStats) []ConnectionStats {
+func (ns *networkState) RemoveDuplicates(latest map[string]*ConnectionStats, closed []ConnectionStats) []ConnectionStats {
 	connections := make([]ConnectionStats, 0)
 
 	seen := map[string]struct{}{}
 
 	// Start with the closed connections
-	for _, c := range closedConns {
+	for _, c := range closed {
 		key, err := c.ByteKey(ns.buf)
 		if err != nil {
 			log.Errorf("%s", err)
@@ -338,7 +389,7 @@ func (ns *networkState) RemoveDuplicates(conns map[string]*ConnectionStats, clos
 		}
 	}
 
-	for key, c := range conns {
+	for key, c := range latest {
 		if _, ok := seen[key]; !ok {
 			// Note: We don't need to add to `seen` conn's list is all unique (by virtue of using the BPF map key)
 			connections = append(connections, *c)
