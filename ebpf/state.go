@@ -21,11 +21,20 @@ const (
 // - closed connections
 // - sent and received bytes per connection
 type NetworkState interface {
-	Connections(clientID string) []ConnectionStats // Returns the list of connections for the given client
-	StoreConnections(conns []ConnectionStats)      // Store new connections in state
-	StoreClosedConnection(conn ConnectionStats)    // Store a new closed connection
-	RemoveClient(clientID string)                  // Stop tracking stateful data for the given client
-	RemoveDuplicates(conns map[string]*ConnectionStats, closedConns []ConnectionStats) []ConnectionStats
+	// Connections returns the list of connections for the given client
+	Connections(clientID string) []ConnectionStats
+
+	// StoreConnections stores new active connections
+	StoreConnections(conns []ConnectionStats)
+
+	// StoreClosedConnection stores a new closed connection
+	StoreClosedConnection(conn ConnectionStats)
+
+	// RemoveClient stops tracking stateful data for a given client
+	RemoveClient(clientID string)
+
+	// RemoveDuplicates removes duplicate connections from active and closed sets of connections, preferring closed.
+	RemoveDuplicates(active map[string]*ConnectionStats, closed []ConnectionStats) []ConnectionStats
 }
 
 type sentRecvStats struct {
