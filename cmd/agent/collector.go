@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,12 +27,13 @@ type checkPayload struct {
 
 // Collector will collect metrics from the local system and ship to the backend.
 type Collector struct {
-	send          chan checkPayload
-	rtIntervalCh  chan time.Duration
-	cfg           *config.AgentConfig
-	httpClient    http.Client
-	groupID       int32
-	runCounter    int32
+	send         chan checkPayload
+	rtIntervalCh chan time.Duration
+	cfg          *config.AgentConfig
+	httpClient   http.Client
+	groupID      int32
+	// counters for each type of check
+	runCounters   sync.Map
 	enabledChecks []checks.Check
 
 	// Controls the real-time interval, can change live.
@@ -71,7 +73,12 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 }
 
 func (l *Collector) runCheck(c checks.Check) {
-	runCounter := atomic.AddInt32(&l.runCounter, 1)
+	runCounter := int32(1)
+	if rc, ok := l.runCounters.Load(c.Name()); ok {
+		runCounter = rc.(int32) + 1
+	}
+	l.runCounters.Store(c.Name(), runCounter)
+
 	s := time.Now()
 	// update the last collected timestamp for info
 	updateLastCollectTime(time.Now())
@@ -86,11 +93,11 @@ func (l *Collector) runCheck(c checks.Check) {
 			d := time.Since(s)
 			switch {
 			case runCounter < 5:
-				log.Infof("Finished check #%d in %s", runCounter, d)
+				log.Infof("Finished %s check #%d in %s", c.Name(), runCounter, d)
 			case runCounter == 5:
-				log.Infof("Finished check #%d in %s. First 5 check runs finished, next runs will be logged every 20 runs.", runCounter, d)
+				log.Infof("Finished %s check #%d in %s. First 5 check runs finished, next runs will be logged every 20 runs.", c.Name(), runCounter, d)
 			case runCounter%20 == 0:
-				log.Infof("Finish check #%d in %s", runCounter, d)
+				log.Infof("Finish %s check #%d in %s", c.Name(), runCounter, d)
 			}
 		}
 	}
