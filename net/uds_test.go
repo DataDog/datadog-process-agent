@@ -15,22 +15,27 @@ import (
 
 var cfg = config.AgentConfig{}
 
-func testFileExistsNewUDSListener(t *testing.T, socketPath string) {
-	// _, err := os.Create(socketPath)
-	// require.NoError(t, err)
-	defer os.Remove(socketPath)
-	assert.NotEmpty(t, socketPath)
-	s, err := NewUDSListener(&config.AgentConfig{NetworkTracerSocketPath: socketPath})
+func testSocketExistsNewUDSListener(t *testing.T, socketPath string) {
+	// Pre-create a socket
+	addr, err := net.ResolveUnixAddr("unix", socketPath)
+	assert.NoError(t, err)
+	_, err = net.Listen("unix", addr.Name)
+	assert.NoError(t, err)
+
+	// Create a new socket using UDSListener
+	l, err := NewUDSListener(&config.AgentConfig{NetworkTracerSocketPath: socketPath})
 	require.NoError(t, err)
-	defer s.Stop()
+
+	l.Stop()
 }
 
-func testSocketExistsNewUDSListener(t *testing.T, socketPath string) {
-	addr, err := net.ResolveUnixAddr("unix", socketPath)
-	assert.Nil(t, err)
-	_, err = net.Listen("unix", addr.Name)
-	assert.Nil(t, err)
-	// testWorkingNewUDSListener(t, socketPath)
+func testSocketExistsAsRegularFileNewUDSListener(t *testing.T, socketPath string) {
+	// Pre-create a file
+	f, err := os.OpenFile(socketPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	assert.NoError(t, err)
+	defer f.Close()
+
+	// Create a new socket using UDSListener
 	_, err = NewUDSListener(&config.AgentConfig{NetworkTracerSocketPath: socketPath})
 	require.Error(t, err)
 }
@@ -49,16 +54,18 @@ func testWorkingNewUDSListener(t *testing.T, socketPath string) {
 }
 
 func TestNewUDSListener(t *testing.T) {
-	t.Run("fail_file_exists", func(tt *testing.T) {
-		dir, _ := ioutil.TempDir("", "dd-test-")
-		defer os.RemoveAll(dir) // clean up after
-		testFileExistsNewUDSListener(tt, dir+"/net.sock")
-	})
-	t.Run("socket_exists", func(tt *testing.T) {
+	t.Run("socket_exists_but_is_successfully_removed", func(tt *testing.T) {
 		dir, _ := ioutil.TempDir("", "dd-test-")
 		defer os.RemoveAll(dir) // clean up after
 		testSocketExistsNewUDSListener(tt, dir+"/net.sock")
 	})
+
+	t.Run("non_socket_exists_and_fails_to_be_removed", func(tt *testing.T) {
+		dir, _ := ioutil.TempDir("", "dd-test-")
+		defer os.RemoveAll(dir) // clean up after
+		testSocketExistsAsRegularFileNewUDSListener(tt, dir+"/net.sock")
+	})
+
 	t.Run("working", func(tt *testing.T) {
 		dir, _ := ioutil.TempDir("", "dd-test-")
 		defer os.RemoveAll(dir) // clean up after
