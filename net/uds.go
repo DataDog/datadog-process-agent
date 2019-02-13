@@ -28,6 +28,19 @@ func NewUDSListener(cfg *config.AgentConfig) (*UDSListener, error) {
 		return nil, fmt.Errorf("uds: can't ResolveUnixAddr: %v", err)
 	}
 
+	// Check to see if there's a pre-existing network tracer socket.
+	fileInfo, err := os.Stat(cfg.NetworkTracerSocketPath)
+	if err == nil { // No error means the socket file already exists
+		// If it's not a UNIX socket, then this is a problem.
+		if fileInfo.Mode()&os.ModeSocket == 0 {
+			return nil, fmt.Errorf("uds: cannot reuse %s socket path: path already exists and it is not a UNIX socket", cfg.NetworkTracerSocketPath)
+		}
+		// Attempt to remove the pre-existing socket
+		if err = os.Remove(cfg.NetworkTracerSocketPath); err != nil {
+			return nil, fmt.Errorf("uds: cannot remove stale UNIX socket: %v", err)
+		}
+	}
+
 	conn, err := net.Listen("unix", addr.Name)
 	if err != nil {
 		return nil, fmt.Errorf("can't listen: %s", err)
@@ -35,19 +48,6 @@ func NewUDSListener(cfg *config.AgentConfig) (*UDSListener, error) {
 
 	if err := os.Chmod(cfg.NetworkTracerSocketPath, 0722); err != nil {
 		return nil, fmt.Errorf("can't set the socket at write only: %s", err)
-	}
-
-	fileInfo, err := os.Stat(cfg.NetworkTracerSocketPath)
-	// Socket file already exists
-	if err == nil {
-		// Confirm that it's a UNIX socket
-		if fileInfo.Mode()&os.ModeSocket == 0 {
-			// return nil, fmt.Errorf("uds: cannot reuse %s socket path: path already exists and it is not a UNIX socket", cfg.NetworkTracerSocketPath)
-			err = os.Remove(cfg.NetworkTracerSocketPath)
-			if err != nil {
-				return nil, fmt.Errorf("uds: cannot remove stale UNIX socket: %v", err)
-			}
-		}
 	}
 
 	listener := &UDSListener{
