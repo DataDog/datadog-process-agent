@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,8 +14,6 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/ebpf"
 	"github.com/DataDog/datadog-process-agent/net"
-
-	_ "net/http/pprof"
 )
 
 // ErrTracerUnsupported is the unsupported error prefix, for error-class matching from callers
@@ -89,6 +88,24 @@ func (nt *NetworkTracer) Run() {
 
 		w.Write(buf)
 		log.Tracef("/connections: %d connections, %d bytes", len(cs.Conns), len(buf))
+	})
+
+	http.HandleFunc("/stats", func(w http.ResponseWriter, req *http.Request) {
+		stats, err := nt.tracer.GetStats()
+		if err != nil {
+			log.Errorf("unable to retrieve tracer stats: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+
+		buf, err := json.Marshal(stats)
+		if err != nil {
+			log.Errorf("unable to marshal stats into JSON: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+
+		w.Write(buf)
 	})
 
 	http.Serve(nt.conn.GetListener(), nil)

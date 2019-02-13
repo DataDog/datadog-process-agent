@@ -299,6 +299,14 @@ func (t *Tracer) timeoutForConn(c *ConnTuple) int64 {
 	return t.config.UDPConnTimeout.Nanoseconds()
 }
 
+// GetStats returns a map of statistics about the current tracer's internal state
+func (t *Tracer) GetStats() (map[string]interface{}, error) {
+	if t.state == nil {
+		return nil, fmt.Errorf("internal state not yet initialized")
+	}
+	return t.state.GetStats(), nil
+}
+
 // populatePortMapping reads the entire portBinding bpf map and populates the local port/address map.  A list of
 // closed ports will be returned
 func (t *Tracer) populatePortMapping(mp *bpflib.Map) ([]uint16, error) {

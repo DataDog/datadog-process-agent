@@ -32,6 +32,9 @@ type NetworkState interface {
 
 	// RemoveDuplicates removes duplicate connections from active and closed sets of connections, preferring closed.
 	RemoveDuplicates(active map[string]*ConnectionStats, closed []ConnectionStats) []ConnectionStats
+
+	// GetStats returns a map of statistics about the current network state
+	GetStats() map[string]interface{}
 }
 
 type sentRecvStats struct {
@@ -397,4 +400,25 @@ func (ns *networkState) RemoveDuplicates(latest map[string]*ConnectionStats, clo
 	}
 
 	return connections
+}
+
+// GetStats returns a map of statistics about the current network state
+func (ns *networkState) GetStats() map[string]interface{} {
+	ns.Lock()
+	defer ns.Unlock()
+
+	clientInfo := map[string]interface{}{}
+	for id, c := range ns.clients {
+		clientInfo[id] = map[string]int{
+			"stats":              len(c.stats),
+			"override_stats":     len(c.overrideConnections),
+			"closed_connections": len(c.closedConnections),
+			"last_fetch":         int(c.lastFetch.Unix()),
+		}
+	}
+
+	return map[string]interface{}{
+		"clients":      clientInfo,
+		"current_time": time.Now(),
+	}
 }
