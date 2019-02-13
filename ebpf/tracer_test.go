@@ -83,7 +83,7 @@ func TestTCPSendAndReceive(t *testing.T) {
 	connections := getConnections(t, tr)
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
-	assert.True(t, ok)
+	require.True(t, ok)
 	assert.Equal(t, 10*clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.Equal(t, 10*serverMessageSize, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
@@ -142,10 +142,9 @@ func TestPreexistingConnectionDirection(t *testing.T) {
 }
 
 func TestTCPRemoveEntries(t *testing.T) {
-	tr, err := NewTracer(&Config{
-		CollectTCPConns: true,
-		TCPConnTimeout:  100 * time.Millisecond,
-	})
+	config := NewDefaultConfig()
+	config.TCPConnTimeout = 100 * time.Millisecond
+	tr, err := NewTracer(config)
 
 	if err != nil {
 		t.Fatal(err)
@@ -212,7 +211,7 @@ func TestTCPRemoveEntries(t *testing.T) {
 	assert.NotNil(t, err)
 
 	conn, ok := findConnection(c2.LocalAddr(), c2.RemoteAddr(), connections)
-	assert.True(t, ok)
+	require.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
@@ -266,7 +265,7 @@ func TestTCPRetransmit(t *testing.T) {
 	connections := getConnections(t, tr)
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
-	assert.True(t, ok)
+	require.True(t, ok)
 	assert.Equal(t, 100*clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.True(t, int(conn.MonotonicRetransmits) > 0)
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
@@ -382,7 +381,7 @@ func TestTCPOverIPv6(t *testing.T) {
 	connections := getConnections(t, tr)
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
-	assert.True(t, ok)
+	require.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
@@ -432,7 +431,7 @@ func TestTCPCollectionDisabled(t *testing.T) {
 
 	// Confirm that we could not find connection created above
 	_, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
-	assert.False(t, ok)
+	require.False(t, ok)
 
 	doneChan <- struct{}{}
 }
@@ -471,7 +470,7 @@ func TestUDPSendAndReceive(t *testing.T) {
 	connections := getConnections(t, tr)
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
-	assert.True(t, ok)
+	require.True(t, ok)
 	assert.Equal(t, clientMessageSize, int(conn.MonotonicSentBytes))
 	assert.Equal(t, serverMessageSize, int(conn.MonotonicRecvBytes))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
@@ -517,7 +516,7 @@ func TestUDPDisabled(t *testing.T) {
 	connections := getConnections(t, tr)
 
 	_, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
-	assert.False(t, ok)
+	require.False(t, ok)
 
 	doneChan <- struct{}{}
 }

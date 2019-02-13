@@ -153,20 +153,12 @@ func (t *Tracer) Stop() {
 }
 
 func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
-	if err := t.updateState(); err != nil {
-		return nil, fmt.Errorf("error updating network-tracer state: %s", err)
-	}
-
-	return &Connections{Conns: t.state.Connections(clientID)}, nil
-}
-
-func (t *Tracer) updateState() error {
-	conns, err := t.getConnections()
+	latestConns, err := t.getConnections()
 	if err != nil {
-		return fmt.Errorf("error retrieving connections: %s", err)
+		return nil, fmt.Errorf("error retrieving connections: %s", err)
 	}
-	t.state.StoreConnections(conns)
-	return nil
+
+	return &Connections{Conns: t.state.Connections(clientID, latestConns)}, nil
 }
 
 func (t *Tracer) getConnections() ([]ConnectionStats, error) {
@@ -235,7 +227,8 @@ func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
 	for i := range entries {
 		err := t.m.DeleteElement(mp, unsafe.Pointer(entries[i]))
 		if err != nil {
-			log.Errorf("error when removing entry from connections bpf map: %s", err)
+			// It's possible some other process deleted this entry already (e.g. tcp_close)
+			log.Warnf("failed to remove entry from connections map: %s", err)
 		}
 
 		// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
@@ -304,6 +297,14 @@ func (t *Tracer) timeoutForConn(c *ConnTuple) int64 {
 		return t.config.TCPConnTimeout.Nanoseconds()
 	}
 	return t.config.UDPConnTimeout.Nanoseconds()
+}
+
+// GetStats returns a map of statistics about the current tracer's internal state
+func (t *Tracer) GetStats() (map[string]interface{}, error) {
+	if t.state == nil {
+		return nil, fmt.Errorf("internal state not yet initialized")
+	}
+	return t.state.GetStats(), nil
 }
 
 // populatePortMapping reads the entire portBinding bpf map and populates the local port/address map.  A list of

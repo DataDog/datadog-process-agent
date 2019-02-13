@@ -27,3 +27,8 @@ func (t *Tracer) Stop() {}
 func (t *Tracer) GetActiveConnections(_ string) (*Connections, error) {
 	return nil, ErrNotImplemented
 }
+
+// GetStats returns a map of statistics about the current tracer's internal state
+func (t *Tracer) GetStats() (map[string]interface{}, error) {
+	return nil, ErrNotImplemented
+}

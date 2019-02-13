@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -67,8 +68,7 @@ func (nt *NetworkTracer) Run() {
 		var clientID string
 		if rawCID := req.URL.Query().Get("client_id"); rawCID != "" {
 			clientID = rawCID
-		} else {
-			// This is the default client ID
+		} else { // This is the default client ID
 			clientID = ebpf.DEBUGCLIENT
 		}
 
@@ -87,7 +87,25 @@ func (nt *NetworkTracer) Run() {
 		}
 
 		w.Write(buf)
-		log.Debugf("/connections: %d connections, %d bytes", len(cs.Conns), len(buf))
+		log.Tracef("/connections: %d connections, %d bytes", len(cs.Conns), len(buf))
+	})
+
+	http.HandleFunc("/stats", func(w http.ResponseWriter, req *http.Request) {
+		stats, err := nt.tracer.GetStats()
+		if err != nil {
+			log.Errorf("unable to retrieve tracer stats: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+
+		buf, err := json.Marshal(stats)
+		if err != nil {
+			log.Errorf("unable to marshal stats into JSON: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+
+		w.Write(buf)
 	})
 
 	http.Serve(nt.conn.GetListener(), nil)
