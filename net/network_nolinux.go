@@ -18,7 +18,7 @@ func GetRemoteNetworkTracerUtil() (*RemoteNetTracerUtil, error) {
 }
 
 // GetConnections is only implemented on linux
-func (r *RemoteNetTracerUtil) GetConnections() ([]ebpf.ConnectionStats, error) {
+func (r *RemoteNetTracerUtil) GetConnections(clientID string) ([]ebpf.ConnectionStats, error) {
 	return nil, ebpf.ErrNotImplemented
 }
 
