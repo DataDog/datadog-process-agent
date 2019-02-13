@@ -139,7 +139,7 @@ func (c *ConnectionsCheck) getConnections() ([]ebpf.ConnectionStats, error) {
 		return nil, ErrTracerStillNotInitialized
 	}
 
-	return tu.GetConnections()
+	return tu.GetConnections(c.tracerClientID)
 }
 
 // Connections are split up into a chunks of at most 100 connections per message to
