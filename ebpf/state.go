@@ -137,7 +137,7 @@ func (ns *networkState) updateActiveConnections(conns []ConnectionStats) map[str
 	for i, c := range conns {
 		key, err := c.ByteKey(ns.buf)
 		if err != nil {
-			log.Errorf("%s", err)
+			log.Warn("failed to create byte key: %s", err)
 			continue
 		}
 
@@ -171,7 +171,7 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 	now := time.Now()
 	key, err := conn.ByteKey(ns.buf)
 	if err != nil {
-		log.Errorf("%s", err)
+		log.Warn("failed to create byte key: %s", err)
 		return
 	}
 
@@ -298,7 +298,7 @@ func (ns *networkState) removeExpiredClients(now time.Time, removeExpiredStats b
 	}
 
 	if deletedStats > 0 {
-		log.Infof("removed %d expired stats objects in %d", deletedStats, time.Now().Sub(now))
+		log.Debugf("removed %d expired stats objects in %d", deletedStats, time.Now().Sub(now))
 	}
 }
 
@@ -379,7 +379,7 @@ func (ns *networkState) RemoveDuplicates(latest map[string]*ConnectionStats, clo
 	for _, c := range closed {
 		key, err := c.ByteKey(ns.buf)
 		if err != nil {
-			log.Errorf("%s", err)
+			log.Warn("failed to create byte key: %s", err)
 			continue
 		}
 
