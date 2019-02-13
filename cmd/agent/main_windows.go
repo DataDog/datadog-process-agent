@@ -129,7 +129,7 @@ func main() {
 		fmt.Printf("failed to determine if we are running in an interactive session: %v", err)
 	}
 	if !isIntSess {
-		runService(true)
+		runService(false)
 		return
 	}
 	// sigh.  Go doesn't have boolean xor operator.  The options are mutually exclusive,
