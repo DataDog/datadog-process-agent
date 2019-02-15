@@ -21,9 +21,9 @@ func TestNetworkConnectionBatching(t *testing.T) {
 		makeConnection(4),
 	}
 
-	Process.lastCidForPid = map[int32]string{}
+	Process.lastCtrIdsForPids = map[int32]string{}
 	for _, proc := range p {
-		Process.lastCidForPid[proc.Pid] = fmt.Sprintf("%d", proc.Pid)
+		Process.lastCtrIdsForPids[proc.Pid] = fmt.Sprintf("%d", proc.Pid)
 	}
 
 	cfg := config.NewDefaultAgentConfig()
