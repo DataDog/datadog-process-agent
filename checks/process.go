@@ -30,7 +30,7 @@ type ProcessCheck struct {
 	lastCPUTime   cpu.TimesStat
 	lastProcs     map[int32]*process.FilledProcess
 	lastCtrRates  map[string]util.ContainerRateMetrics
-	lastCidforPid map[int32]string
+	lastCidForPid map[int32]string
 	lastRun       time.Time
 }
 
@@ -75,7 +75,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		p.lastProcs = procs
 		p.lastCPUTime = cpuTimes[0]
 		p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
-		p.lastCidforPid = cidForPid(ctrList)
+		p.lastCidForPid = cidForPid(ctrList)
 		p.lastRun = time.Now()
 		return nil, nil
 	}
@@ -91,7 +91,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
 	p.lastCPUTime = cpuTimes[0]
 	p.lastRun = time.Now()
-	p.lastCidforPid = cidForPid(ctrList)
+	p.lastCidForPid = cidForPid(ctrList)
 
 	statsd.Client.Gauge("datadog.process.containers.host_count", float64(totalContainers), []string{}, 1)
 	statsd.Client.Gauge("datadog.process.processes.host_count", float64(totalProcs), []string{}, 1)
@@ -316,14 +316,14 @@ func skipProcess(
 	return false
 }
 
-// ctrForPid uses lastCidforPid and filter down only the pid -> cid that we need
+// ctrForPid uses lastCidForPid and filter down only the pid -> cid that we need
 func (p *ProcessCheck) ctrForPid(pids []int32) map[int32]string {
 	p.Lock()
 	defer p.Unlock()
 
 	ctrByPid := make(map[int32]string)
 	for _, pid := range pids {
-		if cid, ok := p.lastCidforPid[pid]; ok {
+		if cid, ok := p.lastCidForPid[pid]; ok {
 			ctrByPid[pid] = cid
 		}
 	}
