@@ -26,12 +26,12 @@ var Process = &ProcessCheck{}
 type ProcessCheck struct {
 	sync.Mutex
 
-	sysInfo      *model.SystemInfo
-	lastCPUTime  cpu.TimesStat
-	lastProcs    map[int32]*process.FilledProcess
-	lastCtrRates map[string]util.ContainerRateMetrics
-	lastCidByPid map[int32]string
-	lastRun      time.Time
+	sysInfo       *model.SystemInfo
+	lastCPUTime   cpu.TimesStat
+	lastProcs     map[int32]*process.FilledProcess
+	lastCtrRates  map[string]util.ContainerRateMetrics
+	lastCidforPid map[int32]string
+	lastRun       time.Time
 }
 
 // Init initializes the singleton ProcessCheck.
@@ -75,7 +75,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		p.lastProcs = procs
 		p.lastCPUTime = cpuTimes[0]
 		p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
-		p.lastCidByPid = cidByPid(ctrList)
+		p.lastCidforPid = cidForPid(ctrList)
 		p.lastRun = time.Now()
 		return nil, nil
 	}
@@ -91,7 +91,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
 	p.lastCPUTime = cpuTimes[0]
 	p.lastRun = time.Now()
-	p.lastCidByPid = cidByPid(ctrList)
+	p.lastCidforPid = cidForPid(ctrList)
 
 	statsd.Client.Gauge("datadog.process.containers.host_count", float64(totalContainers), []string{}, 1)
 	statsd.Client.Gauge("datadog.process.processes.host_count", float64(totalProcs), []string{}, 1)
@@ -171,14 +171,14 @@ func chunkProcesses(procs []*model.Process, size int) [][]*model.Process {
 	return chunks
 }
 
-func cidByPid(ctrList []*containers.Container) map[int32]string {
-	cidByPid := make(map[int32]string, len(ctrList))
+func cidForPid(ctrList []*containers.Container) map[int32]string {
+	cidForPid := make(map[int32]string, len(ctrList))
 	for _, c := range ctrList {
 		for _, p := range c.Pids {
-			cidByPid[p] = c.ID
+			cidForPid[p] = c.ID
 		}
 	}
-	return cidByPid
+	return cidForPid
 }
 
 // fmtProcesses goes through each process, converts them to process object and group them by containers
@@ -190,7 +190,7 @@ func fmtProcesses(
 	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
 ) map[string][]*model.Process {
-	cidByPid := cidByPid(ctrList)
+	cidForPid := cidForPid(ctrList)
 
 	procsByCtr := make(map[string][]*model.Process)
 
@@ -214,7 +214,7 @@ func fmtProcesses(
 			IoStat:                 formatIO(fp, lastProcs[fp.Pid].IOStat, lastRun),
 			VoluntaryCtxSwitches:   uint64(fp.CtxSwitches.Voluntary),
 			InvoluntaryCtxSwitches: uint64(fp.CtxSwitches.Involuntary),
-			ContainerId:            cidByPid[fp.Pid],
+			ContainerId:            cidForPid[fp.Pid],
 		}
 		_, ok := procsByCtr[proc.ContainerId]
 		if !ok {
@@ -316,14 +316,14 @@ func skipProcess(
 	return false
 }
 
-// ctrForPid uses lastCidByPid and filter down only the pid -> cid that we need
+// ctrForPid uses lastCidforPid and filter down only the pid -> cid that we need
 func (p *ProcessCheck) ctrForPid(pids []int32) map[int32]string {
 	p.Lock()
 	defer p.Unlock()
 
 	ctrByPid := make(map[int32]string)
 	for _, pid := range pids {
-		if cid, ok := p.lastCidByPid[pid]; ok {
+		if cid, ok := p.lastCidforPid[pid]; ok {
 			ctrByPid[pid] = cid
 		}
 	}
