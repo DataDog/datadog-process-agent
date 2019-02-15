@@ -30,6 +30,7 @@ type ProcessCheck struct {
 	lastCPUTime  cpu.TimesStat
 	lastProcs    map[int32]*process.FilledProcess
 	lastCtrRates map[string]util.ContainerRateMetrics
+	lastCidByPid map[int32]string
 	lastRun      time.Time
 }
 
@@ -74,6 +75,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		p.lastProcs = procs
 		p.lastCPUTime = cpuTimes[0]
 		p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
+		p.lastCidByPid = cidByPid(ctrList)
 		p.lastRun = time.Now()
 		return nil, nil
 	}
@@ -89,6 +91,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 	p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
 	p.lastCPUTime = cpuTimes[0]
 	p.lastRun = time.Now()
+	p.lastCidByPid = cidByPid(ctrList)
 
 	statsd.Client.Gauge("datadog.process.containers.host_count", float64(totalContainers), []string{}, 1)
 	statsd.Client.Gauge("datadog.process.processes.host_count", float64(totalProcs), []string{}, 1)
@@ -168,6 +171,16 @@ func chunkProcesses(procs []*model.Process, size int) [][]*model.Process {
 	return chunks
 }
 
+func cidByPid(ctrList []*containers.Container) map[int32]string {
+	cidByPid := make(map[int32]string, len(ctrList))
+	for _, c := range ctrList {
+		for _, p := range c.Pids {
+			cidByPid[p] = c.ID
+		}
+	}
+	return cidByPid
+}
+
 // fmtProcesses goes through each process, converts them to process object and group them by containers
 // non-container processes would be in a single group with key as empty string ""
 func fmtProcesses(
@@ -177,12 +190,7 @@ func fmtProcesses(
 	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
 ) map[string][]*model.Process {
-	cidByPid := make(map[int32]string, len(ctrList))
-	for _, c := range ctrList {
-		for _, p := range c.Pids {
-			cidByPid[p] = c.ID
-		}
-	}
+	cidByPid := cidByPid(ctrList)
 
 	procsByCtr := make(map[string][]*model.Process)
 
@@ -306,6 +314,20 @@ func skipProcess(
 		return true
 	}
 	return false
+}
+
+// ctrByPid uses lastCidByPid and filter down only the pids -> cid that we need
+func (p *ProcessCheck) ctrByPid(pids []uint32) map[int32]string {
+	p.Lock()
+	defer p.Unlock()
+
+	ctrByPid := make(map[string][]uint32)
+	for _, pid := range pids {
+		if cid, ok := p.lastCidByPid[int32(pid)]; ok {
+			ctrByPid[cid] = append(ctrByPid[cid], pid)
+		}
+	}
+	return ctrByPid
 }
 
 func (p *ProcessCheck) createTimesforPIDs(pids []uint32) map[uint32]int64 {
