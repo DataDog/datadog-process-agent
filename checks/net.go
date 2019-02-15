@@ -222,13 +222,13 @@ func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Conne
 
 	for len(cxs) > 0 {
 		batchSize := min(cfg.MaxConnsPerMessage, len(cxs))
-		ctrForPid := Process.ctrForPid(connectionPIDs(cxs[:batchSize]))
+		ctrIdsForPids := Process.filterCtrIdsByPids(connectionPIDs(cxs[:batchSize]))
 		batches = append(batches, &model.CollectorConnections{
 			HostName:        cfg.HostName,
 			Connections:     cxs[:batchSize],
 			GroupId:         groupID,
 			GroupSize:       groupSize,
-			ContainerForPid: ctrForPid,
+			ContainerForPid: ctrIdsForPids,
 		})
 		cxs = cxs[batchSize:]
 	}
