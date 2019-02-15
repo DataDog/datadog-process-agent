@@ -146,7 +146,7 @@ func (c *ConnectionsCheck) getConnections() ([]ebpf.ConnectionStats, error) {
 // limit the message size on intake.
 func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastConns map[string]ebpf.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
 	// Process create-times required to construct unique process hash keys on the backend
-	createTimeForPID := Process.createTimesforPIDs(connectionPIDs(conns))
+	createTimeForPID := Process.createTimesforPIDs(connectionStatsPIDs(conns))
 
 	cxs := make([]*model.Connection, 0, len(conns))
 	for _, conn := range conns {
@@ -222,13 +222,13 @@ func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Conne
 
 	for len(cxs) > 0 {
 		batchSize := min(cfg.MaxConnsPerMessage, len(cxs))
-		ctrByPid := Process.ctrByPid(connectionPIDs(cxs[:batchSize]))
+		ctrForPid := Process.ctrForPid(connectionPIDs(cxs[:batchSize]))
 		batches = append(batches, &model.CollectorConnections{
-			HostName:    cfg.HostName,
-			Connections: cxs[:batchSize],
-			GroupId:     groupID,
-			GroupSize:   groupSize,
-			CidByPid:    ctrByPid,
+			HostName:        cfg.HostName,
+			Connections:     cxs[:batchSize],
+			GroupId:         groupID,
+			GroupSize:       groupSize,
+			ContainerForPid: ctrForPid,
 		})
 		cxs = cxs[batchSize:]
 	}
@@ -250,13 +250,26 @@ func groupSize(total, maxBatchSize int) int32 {
 	return int32(groupSize)
 }
 
-func connectionPIDs(conns []ebpf.ConnectionStats) []uint32 {
+func connectionStatsPIDs(conns []ebpf.ConnectionStats) []uint32 {
 	ps := make(map[uint32]struct{}) // Map used to represent a set
 	for _, c := range conns {
 		ps[c.Pid] = struct{}{}
 	}
 
 	pids := make([]uint32, 0, len(ps))
+	for pid := range ps {
+		pids = append(pids, pid)
+	}
+	return pids
+}
+
+func connectionPIDs(conns []*model.Connection) []int32 {
+	ps := make(map[int32]struct{})
+	for _, c := range conns {
+		ps[c.Pid] = struct{}{}
+	}
+
+	pids := make([]int32, 0, len(ps))
 	for pid := range ps {
 		pids = append(pids, pid)
 	}

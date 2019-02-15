@@ -316,15 +316,15 @@ func skipProcess(
 	return false
 }
 
-// ctrByPid uses lastCidByPid and filter down only the pids -> cid that we need
-func (p *ProcessCheck) ctrByPid(pids []uint32) map[int32]string {
+// ctrForPid uses lastCidByPid and filter down only the pid -> cid that we need
+func (p *ProcessCheck) ctrForPid(pids []int32) map[int32]string {
 	p.Lock()
 	defer p.Unlock()
 
-	ctrByPid := make(map[string][]uint32)
+	ctrByPid := make(map[int32]string)
 	for _, pid := range pids {
-		if cid, ok := p.lastCidByPid[int32(pid)]; ok {
-			ctrByPid[cid] = append(ctrByPid[cid], pid)
+		if cid, ok := p.lastCidByPid[pid]; ok {
+			ctrByPid[pid] = cid
 		}
 	}
 	return ctrByPid
