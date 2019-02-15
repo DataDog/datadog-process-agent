@@ -58,7 +58,7 @@ message CollectorConnections {
 	map<string, ContainerMetadata> resolvedContainers = 8;
 
 	// mapping of processes running in each container
-	map<int32, string> cidByPid = 10;
+	map<int32, string> containerForPid = 10;
 }
 
 message CollectorRealTime {
