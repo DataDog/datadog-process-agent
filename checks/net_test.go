@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/DataDog/datadog-process-agent/config"
@@ -18,6 +19,11 @@ func TestNetworkConnectionBatching(t *testing.T) {
 		makeConnection(2),
 		makeConnection(3),
 		makeConnection(4),
+	}
+
+	Process.lastCtrIDForPID = map[int32]string{}
+	for _, proc := range p {
+		Process.lastCtrIDForPID[proc.Pid] = fmt.Sprintf("%d", proc.Pid)
 	}
 
 	cfg := config.NewDefaultAgentConfig()
@@ -68,6 +74,13 @@ func TestNetworkConnectionBatching(t *testing.T) {
 			connections := c.(*model.CollectorConnections)
 			total += len(connections.Connections)
 			assert.Equal(t, int32(tc.expectedChunks), connections.GroupSize, "group size test %d", i)
+
+			// make sure we could get container and pid mapping for connections
+			assert.Equal(t, len(connections.Connections), len(connections.ContainerForPid))
+			for _, conn := range connections.Connections {
+				assert.Contains(t, connections.ContainerForPid, conn.Pid)
+				assert.Equal(t, fmt.Sprintf("%d", conn.Pid), connections.ContainerForPid[conn.Pid])
+			}
 		}
 		assert.Equal(t, tc.expectedTotal, total, "total test %d", i)
 	}

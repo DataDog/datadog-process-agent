@@ -56,6 +56,9 @@ message CollectorConnections {
 	// post-resolution field: all of the containers referenced in `connections` keyed by
 	// containerId
 	map<string, ContainerMetadata> resolvedContainers = 8;
+
+	// mapping of processes running in each container
+	map<int32, string> containerForPid = 10;
 }
 
 message CollectorRealTime {
