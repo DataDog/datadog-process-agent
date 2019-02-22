@@ -382,31 +382,20 @@ func overrideStatsForConnection(conn ConnectionStats, now time.Time) overrideSta
 // RemoveDuplicates takes a list of opened connections and a list of closed connections and returns a list of connections without duplicates
 // giving priority to closed connections
 func (ns *networkState) RemoveDuplicates(latest map[string]*ConnectionStats, closed []ConnectionStats) []ConnectionStats {
-	connections := make([]ConnectionStats, 0)
-
-	seen := map[string]struct{}{}
-
-	// Start with the closed connections
+	// Add all closed connections to `latest` map, overwriting existing entries on conflict
 	for _, c := range closed {
 		key, err := c.ByteKey(ns.buf)
 		if err != nil {
 			log.Warn("failed to create byte key: %s", err)
 			continue
 		}
-
-		if _, ok := seen[string(key)]; !ok {
-			connections = append(connections, c)
-			seen[string(key)] = struct{}{}
-		}
+		latest[string(key)] = &c
 	}
 
-	for key, c := range latest {
-		if _, ok := seen[key]; !ok {
-			// Note: We don't need to add to `seen` conn's list is all unique (by virtue of using the BPF map key)
-			connections = append(connections, *c)
-		}
+	connections := make([]ConnectionStats, 0, len(latest))
+	for _, c := range latest {
+		connections = append(connections, *c)
 	}
-
 	return connections
 }
 
