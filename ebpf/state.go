@@ -37,7 +37,7 @@ type NetworkState interface {
 	GetStats() map[string]interface{}
 }
 
-type sentRecvStats struct {
+type overrideStats struct {
 	totalSent uint64
 	lastSent  uint64
 
@@ -50,6 +50,14 @@ type sentRecvStats struct {
 	lastUpdate time.Time
 }
 
+type stats struct {
+	totalSent        uint64
+	totalRecv        uint64
+	totalRetransmits uint32
+
+	lastUpdate time.Time
+}
+
 type client struct {
 	lastFetch time.Time
 	// We only store the pointer to the connection for each client
@@ -57,8 +65,8 @@ type client struct {
 	// However this restrict us from modifying the underlying connection (otherwise it
 	// will be modified for each client
 	closedConnections   map[string]*ConnectionStats
-	overrideConnections map[string]sentRecvStats
-	stats               map[string]*sentRecvStats
+	overrideConnections map[string]overrideStats
+	stats               map[string]*stats
 }
 
 type networkState struct {
@@ -125,7 +133,7 @@ func (ns *networkState) Connections(id string, latestConns []ConnectionStats) []
 		return latestConns
 	}
 
-	// Update connections with relevant up-to-date stats for client
+	// Update active connections with relevant up-to-date stats for client
 	ns.updateConnectionsForClient(id, connsByKey)
 
 	return ns.RemoveDuplicates(connsByKey, ns.closedConns(id))
@@ -146,19 +154,17 @@ func (ns *networkState) updateActiveConnections(conns []ConnectionStats) map[str
 
 		connsByKey[string(key)] = &conns[i]
 
-		// Check if some clients don't have the same connection still stored as closed
-		// if they do remove it from the closed connections and store in the override connections
-		// For later aggregation
+		// If any clients have this connection stored as recently-closed, then remove it from the closed connections
+		// and store as stats override for better tracking.
 		for _, client := range ns.clients {
 			if prev, ok := client.closedConnections[string(key)]; ok {
+				override := overrideStatsForConnection(*prev, now)
 				// Entry is already here, add the old connection to override connections
-				// For later aggregation
-				newOverride := statsFromConn(*prev, now)
-				if override, ok := client.overrideConnections[string(key)]; ok {
-					// If we already have an override aggregate the two overrides
-					newOverride = aggregateStats(override, newOverride, now)
+				if existing, ok := client.overrideConnections[string(key)]; ok {
+					// If we already have an override, aggregate the two overrides
+					override = combineOverrides(override, existing, now)
 				}
-				client.overrideConnections[string(key)] = newOverride
+				client.overrideConnections[string(key)] = override
 				delete(client.closedConnections, string(key))
 			}
 		}
@@ -182,10 +188,10 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 		if prev, ok := client.closedConnections[string(key)]; ok {
 			// Entry is already here, add the old connection to override connections
 			// For later aggregation
-			newOverride := statsFromConn(*prev, now)
+			newOverride := overrideStatsForConnection(*prev, now)
 			if override, ok := client.overrideConnections[string(key)]; ok {
 				// If we already have an override aggregate the two overrides
-				newOverride = aggregateStats(override, newOverride, now)
+				newOverride = combineOverrides(override, newOverride, now)
 			}
 			client.overrideConnections[string(key)] = newOverride
 		}
@@ -207,11 +213,12 @@ func (ns *networkState) closedConns(clientID string) []ConnectionStats {
 		// First check if we have an override stored
 		// If we do aggregate it and delete the override
 		if override, ok := client.overrideConnections[key]; ok {
-			aggregateConnAndStat(&c, &override)
+			aggregateConnWithOverride(&c, &override)
 			delete(client.overrideConnections, key)
 		}
 
 		if stats, ok := client.stats[key]; ok {
+			// TODO: Or is the underflow here?
 			c.LastSentBytes = c.MonotonicSentBytes - stats.totalSent
 			c.LastRecvBytes = c.MonotonicRecvBytes - stats.totalRecv
 			c.LastRetransmits = c.MonotonicRetransmits - stats.totalRetransmits
@@ -239,9 +246,9 @@ func (ns *networkState) newClient(clientID string) bool {
 
 	ns.clients[clientID] = &client{
 		lastFetch:           time.Now(),
-		stats:               map[string]*sentRecvStats{},
+		stats:               map[string]*stats{},
 		closedConnections:   map[string]*ConnectionStats{},
-		overrideConnections: map[string]sentRecvStats{},
+		overrideConnections: map[string]overrideStats{},
 	}
 	return false
 }
@@ -254,30 +261,31 @@ func (ns *networkState) updateConnectionsForClient(id string, connByKey map[stri
 
 	// Update send/recv bytes stats
 	for key, conn := range connByKey {
-		stats, ok := client.stats[key]
+		st, ok := client.stats[key]
 		if !ok {
-			stats = &sentRecvStats{}
-			client.stats[key] = stats
+			st = &stats{}
+			client.stats[key] = st
 		}
 
 		// If we have an override for this conn for this client, aggregate the conn
 		if override, ok := client.overrideConnections[key]; ok {
-			aggregateConnAndStat(conn, &override)
+			aggregateConnWithOverride(conn, &override)
+			// TODO: Should we delete from overrides here?
+			// TODO: Why don't we just update stats instead of creating override object
 		}
 
-		stats.lastSent = conn.MonotonicSentBytes - stats.totalSent
-		stats.lastRecv = conn.MonotonicRecvBytes - stats.totalRecv
-		stats.lastRetransmits = conn.MonotonicRetransmits - stats.totalRetransmits
+		// TODO: This is likely where the uint64 underflow is happening, stats.totalSent is bigger than the
+		//       current connections monotonic counter
+		// TODO: Possibly not even set the last* counters here
+		conn.LastSentBytes = conn.MonotonicSentBytes - st.totalSent
+		conn.LastRecvBytes = conn.MonotonicRecvBytes - st.totalRecv
+		conn.LastRetransmits = conn.MonotonicRetransmits - st.totalRetransmits
 
-		conn.LastSentBytes = stats.lastSent
-		conn.LastRecvBytes = stats.lastRecv
-		conn.LastRetransmits = stats.lastRetransmits
+		st.totalSent = conn.MonotonicSentBytes
+		st.totalRecv = conn.MonotonicRecvBytes
+		st.totalRetransmits = conn.MonotonicRetransmits
 
-		stats.totalSent = conn.MonotonicSentBytes
-		stats.totalRecv = conn.MonotonicRecvBytes
-		stats.totalRetransmits = conn.MonotonicRetransmits
-
-		stats.lastUpdate = now
+		st.lastUpdate = now
 	}
 }
 
@@ -337,18 +345,18 @@ func (ns *networkState) removeExpiredStats(c *client, now time.Time) int {
 }
 
 // aggregateConnectionAndStats aggregates s into c
-func aggregateConnAndStat(cs *ConnectionStats, stats *sentRecvStats) {
-	cs.LastSentBytes += stats.lastSent
-	cs.MonotonicSentBytes += stats.totalSent
-	cs.LastRecvBytes += stats.lastRecv
-	cs.MonotonicRecvBytes += stats.totalRecv
-	cs.LastRetransmits += stats.lastRetransmits
-	cs.MonotonicRetransmits += stats.totalRetransmits
+func aggregateConnWithOverride(cs *ConnectionStats, overrideStats *overrideStats) {
+	cs.LastSentBytes += overrideStats.lastSent
+	cs.MonotonicSentBytes += overrideStats.totalSent
+	cs.LastRecvBytes += overrideStats.lastRecv
+	cs.MonotonicRecvBytes += overrideStats.totalRecv
+	cs.LastRetransmits += overrideStats.lastRetransmits
+	cs.MonotonicRetransmits += overrideStats.totalRetransmits
 }
 
-// aggregateStats returns an aggregation of two stats
-func aggregateStats(s1, s2 sentRecvStats, now time.Time) sentRecvStats {
-	return sentRecvStats{
+// combineOverrides returns an aggregation of two stats
+func combineOverrides(s1, s2 overrideStats, now time.Time) overrideStats {
+	return overrideStats{
 		lastSent:         s1.lastSent + s2.lastSent,
 		lastRecv:         s1.lastRecv + s2.lastRecv,
 		lastRetransmits:  s1.lastRetransmits + s2.lastRetransmits,
@@ -359,8 +367,8 @@ func aggregateStats(s1, s2 sentRecvStats, now time.Time) sentRecvStats {
 	}
 }
 
-func statsFromConn(conn ConnectionStats, now time.Time) sentRecvStats {
-	return sentRecvStats{
+func overrideStatsForConnection(conn ConnectionStats, now time.Time) overrideStats {
+	return overrideStats{
 		lastSent:         conn.LastSentBytes,
 		lastRecv:         conn.LastRecvBytes,
 		lastRetransmits:  conn.LastRetransmits,
