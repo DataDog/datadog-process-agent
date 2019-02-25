@@ -527,7 +527,7 @@ static void cleanup_tcp_conn(
 
     // Will hold the full connection data to send through the perf buffer
     tcp_conn_t t = {
-        .tup = (conn_tuple_t) {
+        .tup = (conn_tuple_t){
             .pid = 0,
         },
     };
@@ -551,11 +551,14 @@ static void cleanup_tcp_conn(
     // Delete this connection from our stats map
     bpf_map_delete_elem(&conn_stats, &(t.tup));
 
-    if (tst != NULL)
+    if (tst != NULL) {
         t.tcp_stats = *tst;
+    }
 
-    if (cst != NULL)
+    if (cst != NULL) {
+        cst->timestamp = bpf_ktime_get_ns();
         t.conn_stats = *cst;
+    }
 
     // Send the connection data to the perf buffer
     bpf_perf_event_output(ctx, &tcp_close_event, cpu, &t, sizeof(t));

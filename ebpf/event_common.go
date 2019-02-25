@@ -79,6 +79,8 @@ type ConnectionStats struct {
 	SPort  uint16 `json:"sport"`
 	DPort  uint16 `json:"dport"`
 
+	Direction ConnectionDirection `json:"direction"`
+
 	MonotonicSentBytes uint64 `json:"monotonic_sent_bytes"`
 	LastSentBytes      uint64 `json:"last_sent_bytes"`
 
@@ -88,7 +90,8 @@ type ConnectionStats struct {
 	MonotonicRetransmits uint32 `json:"monotonic_retransmits"`
 	LastRetransmits      uint32 `json:"last_retransmits"`
 
-	Direction ConnectionDirection `json:"direction"`
+	// Last time the stats for this connection were updated
+	LastUpdateEpoch uint64 `json:"last_update_epoch"`
 }
 
 func (c ConnectionStats) String() string {
