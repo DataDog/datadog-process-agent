@@ -3,7 +3,6 @@
 package ebpf
 
 import (
-	"bytes"
 	"fmt"
 	"math"
 	"math/rand"
@@ -11,122 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/stretchr/testify/assert"
 )
-
-func TestRemoveDuplicates(t *testing.T) {
-	conn1 := ConnectionStats{
-		Pid:                  123,
-		Type:                 TCP,
-		Family:               AFINET,
-		Source:               "localhost",
-		Dest:                 "localhost",
-		SPort:                31890,
-		DPort:                80,
-		MonotonicSentBytes:   12345,
-		MonotonicRecvBytes:   6789,
-		MonotonicRetransmits: 2,
-	}
-
-	// Different family
-	conn2 := ConnectionStats{
-		Pid:                  123,
-		Type:                 TCP,
-		Family:               AFINET6,
-		Source:               "localhost",
-		Dest:                 "localhost",
-		SPort:                31890,
-		DPort:                80,
-		MonotonicSentBytes:   12345,
-		MonotonicRecvBytes:   6789,
-		MonotonicRetransmits: 2,
-	}
-
-	// Same as conn1 but with different stats
-	conn3 := ConnectionStats{
-		Pid:                  123,
-		Type:                 TCP,
-		Family:               AFINET,
-		Source:               "localhost",
-		Dest:                 "localhost",
-		SPort:                31890,
-		DPort:                80,
-		MonotonicSentBytes:   0,
-		MonotonicRecvBytes:   123,
-		MonotonicRetransmits: 1,
-	}
-
-	ns := NewDefaultNetworkState()
-	k1, _ := conn1.ByteKey(&bytes.Buffer{})
-
-	conns := map[string]*ConnectionStats{string(k1): &conn1}
-	closedConns := []ConnectionStats{conn1}
-	assert.Equal(t, 1, len(ns.RemoveDuplicates(conns, closedConns)))
-
-	// conn1 and conn3 are duplicates
-	conns = map[string]*ConnectionStats{string(k1): &conn1}
-	closedConns = []ConnectionStats{conn3}
-	assert.Equal(t, 1, len(ns.RemoveDuplicates(conns, closedConns)))
-	assert.Equal(t, conn3, ns.RemoveDuplicates(conns, closedConns)[0])
-
-	conns = map[string]*ConnectionStats{}
-	closedConns = []ConnectionStats{conn1, conn1, conn1, conn2, conn2, conn2, conn3, conn3, conn3}
-	assert.Equal(t, 2, len(ns.RemoveDuplicates(conns, closedConns)))
-}
-
-func BenchmarkRemoveDuplicates(b *testing.B) {
-	ns := NewDefaultNetworkState()
-
-	conn1 := ConnectionStats{
-		Pid:                  123,
-		Type:                 TCP,
-		Family:               AFINET,
-		Source:               "localhost",
-		Dest:                 "localhost",
-		SPort:                31890,
-		DPort:                80,
-		MonotonicSentBytes:   12345,
-		MonotonicRecvBytes:   6789,
-		MonotonicRetransmits: 2,
-	}
-
-	conn2 := ConnectionStats{
-		Pid:                  123,
-		Type:                 TCP,
-		Family:               AFINET6,
-		Source:               "localhost",
-		Dest:                 "localhost",
-		SPort:                31890,
-		DPort:                80,
-		MonotonicSentBytes:   12345,
-		MonotonicRecvBytes:   6789,
-		MonotonicRetransmits: 2,
-	}
-
-	conn3 := ConnectionStats{
-		Pid:                  123,
-		Type:                 TCP,
-		Family:               AFINET,
-		Source:               "localhost",
-		Dest:                 "localhost",
-		SPort:                31890,
-		DPort:                80,
-		MonotonicSentBytes:   0,
-		MonotonicRecvBytes:   123,
-		MonotonicRetransmits: 1,
-	}
-
-	k1, _ := conn1.ByteKey(&bytes.Buffer{})
-	conns := map[string]*ConnectionStats{string(k1): &conn1}
-	closedConns := []ConnectionStats{conn1, conn1, conn1, conn2, conn2, conn2, conn3, conn3, conn3}
-
-	b.ResetTimer()
-	b.ReportAllocs()
-
-	for n := 0; n < b.N; n++ {
-		ns.RemoveDuplicates(conns, closedConns)
-	}
-}
 
 func BenchmarkStoreClosedConnection(b *testing.B) {
 	conns := generateRandConnections(30000)
@@ -567,6 +454,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 
 		conn2 := conn
 		conn2.MonotonicSentBytes = 5
+		conn2.LastUpdateEpoch++
 		// Store the connection another time
 		state.StoreClosedConnection(conn2)
 
@@ -589,8 +477,8 @@ func TestSameKeyEdgeCases(t *testing.T) {
 
 		// c0: Nothing
 		// c1: Monotonic: 5 bytes, Last seen: 5 bytes
-		// c2: Monotonic: 9 bytes, Last seen: 4 bytes
-		// c3: Monotonic: 11 bytes, Last seen: 2 bytes
+		// c2: Monotonic: 6 bytes, Last seen: 4 bytes
+		// c3: Monotonic: 3 bytes, Last seen: 2 bytes
 
 		state := NewDefaultNetworkState()
 
@@ -603,38 +491,41 @@ func TestSameKeyEdgeCases(t *testing.T) {
 
 		conn2 := conn
 		conn2.MonotonicSentBytes = 2
+		conn2.LastUpdateEpoch++
 		// Store the connection as an opened connection
 		cs := []ConnectionStats{conn2}
 
 		// Second get, we should have monotonic and last stats = 5
 		conns = state.Connections(client, cs)
-		assert.Equal(t, 1, len(conns))
+		require.Equal(t, 1, len(conns))
 		assert.Equal(t, 5, int(conns[0].MonotonicSentBytes))
 		assert.Equal(t, 5, int(conns[0].LastSentBytes))
 
 		// Store the connection as closed
 		conn2.MonotonicSentBytes += 3
+		conn2.LastUpdateEpoch++
 		state.StoreClosedConnection(conn2)
 
 		// Store the connection again
-		conn3 := conn
+		conn3 := conn2
 		conn3.MonotonicSentBytes = 1
+		conn3.LastUpdateEpoch++
 		cs = []ConnectionStats{conn3}
 
-		// Third get, we should have monotonic = 9 and last stats = 4
+		// Third get, we should have monotonic = 6 and last stats = 4
 		conns = state.Connections(client, cs)
 		assert.Equal(t, 1, len(conns))
-		assert.Equal(t, 9, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 6, int(conns[0].MonotonicSentBytes))
 		assert.Equal(t, 4, int(conns[0].LastSentBytes))
 
 		// Store the connection as closed
 		conn3.MonotonicSentBytes += 2
 		state.StoreClosedConnection(conn3)
 
-		// 4th get, we should have monotonic = 11 and last stats = 2
+		// 4th get, we should have monotonic = 3 and last stats = 2
 		conns = state.Connections(client, []ConnectionStats{})
 		assert.Equal(t, 1, len(conns))
-		assert.Equal(t, 11, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 3, int(conns[0].MonotonicSentBytes))
 		assert.Equal(t, 2, int(conns[0].LastSentBytes))
 	})
 
@@ -699,13 +590,13 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		// We expect:
 		// c0: Nothing
 		// d0: Nothing
-		// d1: Monotonic 3 bytes, Last seen: 3 bytes (this connection started after closed + collect, so we reset monotonic)
+		// d1: Monotonic: 3 bytes, Last seen: 3 bytes (this connection started after closed + collect, so we reset monotonic)
 		// c1: Monotonic: 5 bytes, Last seen: 5 bytes
 		// d2: Monotonic: 3 bytes, Last seen 3 bytes
-		// c2: Monotonic: 9 bytes, Last seen: 4 bytes
+		// c2: Monotonic: 6 bytes, Last seen: 4 bytes
 		// d3: Monotonic: 7 bytes, Last seen 4 bytes
-		// c3: Monotonic: 11 bytes, Last seen: 2 bytes
-		// d4: Monotonic: 8 bytes, Last seen: 1 bytes
+		// c3: Monotonic: 3 bytes, Last seen: 2 bytes
+		// d4: Monotonic: 3 bytes, Last seen: 1 bytes
 
 		clientD := "d"
 
@@ -731,6 +622,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		// Store the connection as an opened connection
 		conn2 := conn
 		conn2.MonotonicSentBytes = 2
+		conn2.LastUpdateEpoch++
 		cs := []ConnectionStats{conn2}
 
 		// Second get, for client c we should have monotonic and last stats = 5
@@ -741,6 +633,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 
 		// Store the connection as an opened connection
 		conn2.MonotonicSentBytes += 1
+		conn2.LastUpdateEpoch++
 		cs = []ConnectionStats{conn2}
 
 		// Third get, for client d we should have monotonic = 3 and last stats = 3
@@ -751,21 +644,24 @@ func TestSameKeyEdgeCases(t *testing.T) {
 
 		// Store the connection as closed
 		conn2.MonotonicSentBytes += 2
+		conn2.LastUpdateEpoch++
 		state.StoreClosedConnection(conn2)
 
 		// Store the connection again
-		conn3 := conn
+		conn3 := conn2
 		conn3.MonotonicSentBytes = 1
+		conn3.LastUpdateEpoch++
 		cs = []ConnectionStats{conn3}
 
-		// Third get, for client c, we should have monotonic = 9 and last stats = 4
+		// Third get, for client c, we should have monotonic = 6 and last stats = 4
 		conns = state.Connections(client, cs)
 		assert.Equal(t, 1, len(conns))
-		assert.Equal(t, 9, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 6, int(conns[0].MonotonicSentBytes))
 		assert.Equal(t, 4, int(conns[0].LastSentBytes))
 
 		// Store the connection again
 		conn3.MonotonicSentBytes += 1
+		conn3.LastUpdateEpoch++
 		cs = []ConnectionStats{conn3}
 
 		// 4th get, for client d, we should have monotonic = 7 and last stats = 4
@@ -776,18 +672,19 @@ func TestSameKeyEdgeCases(t *testing.T) {
 
 		// Store the connection as closed
 		conn3.MonotonicSentBytes += 1
+		conn3.LastUpdateEpoch++
 		state.StoreClosedConnection(conn3)
 
-		// 4th get, for client c we should have monotonic = 11 and last stats = 2
+		// 4th get, for client c we should have monotonic = 3 and last stats = 2
 		conns = state.Connections(client, []ConnectionStats{})
 		assert.Equal(t, 1, len(conns))
-		assert.Equal(t, 11, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 3, int(conns[0].MonotonicSentBytes))
 		assert.Equal(t, 2, int(conns[0].LastSentBytes))
 
-		// 5th get, for client d we should have monotonic = 8 and last stats = 1
+		// 5th get, for client d we should have monotonic = 3 and last stats = 1
 		conns = state.Connections(clientD, []ConnectionStats{})
 		assert.Equal(t, 1, len(conns))
-		assert.Equal(t, 8, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 3, int(conns[0].MonotonicSentBytes))
 		assert.Equal(t, 1, int(conns[0].LastSentBytes))
 	})
 
@@ -846,6 +743,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 
 		// Store the connection
 		conn.MonotonicSentBytes = 2
+		conn.LastUpdateEpoch++
 		cs := []ConnectionStats{conn}
 
 		// Second get for client e we should have monotonic and last stats = 2
@@ -856,6 +754,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 
 		// Store the connection as closed
 		conn.MonotonicSentBytes += 1
+		conn.LastUpdateEpoch++
 		state.StoreClosedConnection(conn)
 
 		// Second get for client d we should have monotonic and last stats = 3
@@ -873,6 +772,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		// Store the connection as an opened connection
 		conn2 := conn
 		conn2.MonotonicSentBytes = 2
+		conn2.LastUpdateEpoch++
 		cs = []ConnectionStats{conn2}
 
 		// Second get, for client c we should have monotonic and last stats = 5
@@ -883,6 +783,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 
 		// Store the connection as an opened connection
 		conn2.MonotonicSentBytes += 1
+		conn2.LastUpdateEpoch++
 		cs = []ConnectionStats{conn2}
 
 		// Third get, for client d we should have monotonic = 3 and last stats = 3
@@ -893,6 +794,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 
 		// Store the connection as closed
 		conn2.MonotonicSentBytes += 2
+		conn2.LastUpdateEpoch++
 		state.StoreClosedConnection(conn2)
 
 		// 4th get, for client e we should have monotonic = 5 and last stats = 5
