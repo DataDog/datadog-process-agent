@@ -180,7 +180,7 @@ func TestCleanupClient(t *testing.T) {
 
 	wait := 100 * time.Millisecond
 
-	state := NewNetworkState(defaultClientInterval, wait)
+	state := NewNetworkState(defaultClientInterval, wait, defaultMaxClosedConns, defaultMaxClientStats)
 	clients := state.(*networkState).getClients()
 	assert.Equal(t, 0, len(clients))
 

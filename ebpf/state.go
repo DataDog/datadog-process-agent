@@ -12,19 +12,14 @@ var _ NetworkState = &networkState{}
 
 const (
 	// DEBUGCLIENT is the ClientID for debugging
-	DEBUGCLIENT           = "-1"
+	DEBUGCLIENT = "-1"
+
+	// defaultMaxClosedConns & defaultMaxClientStats are the maximum number of objects that can be stored in-memory.
+	// With clients checking connection stats roughly every 30s, this gives us roughly 5000/s
+	defaultMaxClosedConns = 150000
+	defaultMaxClientStats = 150000
 	defaultExpiry         = 2 * time.Minute
 	defaultClientInterval = 30 * time.Second
-
-	// maxClientClosedConns is the maximum number of closed connections that can be stored in-memory.
-	// With clients checking connection stats roughly every 30s, this gives us roughly 5000/s
-	// TODO: Make this configurable
-	maxClientClosedConns = 150000
-
-	// maxClientStats is the maximum number of stats objects that can be stored in-memory.
-	// With clients checking connection stats roughly every 30s, this gives us roughly 5000/s
-	// TODO: Make this configurable
-	maxClientStats = 150000
 )
 
 // NetworkState takes care of handling the logic for:
@@ -45,10 +40,10 @@ type NetworkState interface {
 }
 
 type telemetry struct {
-	unorderedConns int
-	connsDropped   int
-	statsDropped   int
-	underflows     int
+	unorderedConns    int
+	closedConnDropped int
+	connDropped       int
+	underflows        int
 }
 
 type stats struct {
@@ -75,20 +70,24 @@ type networkState struct {
 
 	clientInterval time.Duration
 	expiry         time.Duration
+	maxClosedConns int
+	maxClientStats int
 }
 
 // NewDefaultNetworkState creates a new network state with default settings
 func NewDefaultNetworkState() NetworkState {
-	return NewNetworkState(defaultClientInterval, defaultExpiry)
+	return NewNetworkState(defaultClientInterval, defaultExpiry, defaultMaxClosedConns, defaultMaxClientStats)
 }
 
 // NewNetworkState creates a new network state
-func NewNetworkState(clientInterval time.Duration, expiry time.Duration) NetworkState {
+func NewNetworkState(clientInterval, expiry time.Duration, maxClosedConns, maxClientStats int) NetworkState {
 	ns := &networkState{
 		clients:        map[string]*client{},
 		telemetry:      telemetry{},
 		clientInterval: clientInterval,
 		expiry:         expiry,
+		maxClosedConns: maxClosedConns,
+		maxClientStats: maxClientStats,
 		buf:            &bytes.Buffer{},
 	}
 
@@ -176,8 +175,8 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 			conn.MonotonicSentBytes += prev.MonotonicSentBytes
 			conn.MonotonicRecvBytes += prev.MonotonicRecvBytes
 			conn.MonotonicRetransmits += prev.MonotonicRetransmits
-		} else if len(client.closedConnections) >= maxClientClosedConns {
-			ns.telemetry.connsDropped++
+		} else if len(client.closedConnections) >= ns.maxClosedConns {
+			ns.telemetry.closedConnDropped++
 			continue
 		}
 
@@ -214,6 +213,7 @@ func (ns *networkState) getConnections(id string, active map[string]*ConnectionS
 			// If we're seeing unexpected ordering, lets not combine these two connections.
 			if c.LastUpdateEpoch >= c2.LastUpdateEpoch {
 				ns.telemetry.unorderedConns++
+				// TODO: Should we `continue`?
 			} else {
 				c.MonotonicSentBytes += c2.MonotonicSentBytes
 				c.MonotonicRecvBytes += c2.MonotonicRecvBytes
@@ -221,6 +221,10 @@ func (ns *networkState) getConnections(id string, active map[string]*ConnectionS
 			}
 
 			if _, ok := client.stats[key]; !ok {
+				if len(client.stats) >= ns.maxClientStats {
+					ns.telemetry.connDropped++
+					continue
+				}
 				client.stats[key] = &stats{}
 			}
 
@@ -246,6 +250,10 @@ func (ns *networkState) getConnections(id string, active map[string]*ConnectionS
 		}
 
 		if _, ok := client.stats[key]; !ok {
+			if len(client.stats) >= ns.maxClientStats {
+				ns.telemetry.connDropped++
+				continue
+			}
 			client.stats[key] = &stats{}
 		}
 
@@ -308,11 +316,14 @@ func (ns *networkState) cleanupState(now time.Time, clearExpiredStats, flushStat
 	}
 
 	if flushStats {
-		log.Debugf("state telemetry: [%d unordered conns] [%d stats underflows] [%d counters dropped] [%d connections dropped]",
-			ns.telemetry.unorderedConns,
-			ns.telemetry.underflows,
-			ns.telemetry.connsDropped,
-			ns.telemetry.statsDropped)
+		// Only flush log line if any metric is non-zero
+		if ns.telemetry.unorderedConns > 0 || ns.telemetry.underflows > 0 || ns.telemetry.closedConnDropped > 0 || ns.telemetry.connDropped > 0 {
+			log.Debugf("state telemetry: [%d unordered conns] [%d stats underflows] [%d connections dropped due to stats] [%d closed connections dropped]",
+				ns.telemetry.unorderedConns,
+				ns.telemetry.underflows,
+				ns.telemetry.closedConnDropped,
+				ns.telemetry.connDropped)
+		}
 		ns.telemetry = telemetry{} // Reset counters
 	}
 }
@@ -348,10 +359,10 @@ func (ns *networkState) GetStats() map[string]interface{} {
 	return map[string]interface{}{
 		"clients": clientInfo,
 		"telemetry": map[string]int{
-			"underflows":      ns.telemetry.underflows,
-			"unordered_conns": ns.telemetry.unorderedConns,
-			"conns_dropped":   ns.telemetry.connsDropped,
-			"stats_dropped":   ns.telemetry.statsDropped,
+			"underflows":          ns.telemetry.underflows,
+			"unordered_conns":     ns.telemetry.unorderedConns,
+			"closed_conn_dropped": ns.telemetry.closedConnDropped,
+			"conn_dropped":        ns.telemetry.connDropped,
 		},
 		"current_time": time.Now(),
 	}
