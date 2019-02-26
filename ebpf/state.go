@@ -15,7 +15,16 @@ const (
 	DEBUGCLIENT           = "-1"
 	defaultExpiry         = 2 * time.Minute
 	defaultClientInterval = 30 * time.Second
-	maxClientClosedConns  = 150000 // 5000 connections closing a second
+
+	// maxClientClosedConns is the maximum number of closed connections that can be stored in-memory.
+	// With clients checking connection stats roughly every 30s, this gives us roughly 5000/s
+	// TODO: Make this configurable
+	maxClientClosedConns = 150000
+
+	// maxClientStats is the maximum number of stats objects that can be stored in-memory.
+	// With clients checking connection stats roughly every 30s, this gives us roughly 5000/s
+	// TODO: Make this configurable
+	maxClientStats = 150000
 )
 
 // NetworkState takes care of handling the logic for:
@@ -35,6 +44,13 @@ type NetworkState interface {
 	GetStats() map[string]interface{}
 }
 
+type telemetry struct {
+	unorderedConns int
+	connsDropped   int
+	statsDropped   int
+	underflows     int
+}
+
 type stats struct {
 	totalSent        uint64
 	totalRecv        uint64
@@ -45,10 +61,7 @@ type stats struct {
 
 type client struct {
 	lastFetch time.Time
-	// We only store the pointer to the connection for each client
-	// When it's cleaned up by all the clients the underlying connection will get GC'ed
-	// However this restrict us from modifying the underlying connection (otherwise it
-	// will be modified for each client
+
 	closedConnections map[string]ConnectionStats
 	stats             map[string]*stats
 }
@@ -57,7 +70,8 @@ type networkState struct {
 	sync.Mutex
 	buf *bytes.Buffer // Shared buffer
 
-	clients map[string]*client
+	clients   map[string]*client
+	telemetry telemetry
 
 	clientInterval time.Duration
 	expiry         time.Duration
@@ -72,19 +86,19 @@ func NewDefaultNetworkState() NetworkState {
 func NewNetworkState(clientInterval time.Duration, expiry time.Duration) NetworkState {
 	ns := &networkState{
 		clients:        map[string]*client{},
+		telemetry:      telemetry{},
 		clientInterval: clientInterval,
 		expiry:         expiry,
 		buf:            &bytes.Buffer{},
 	}
 
-	// Start tracking expiry time for clients
 	go func() {
 		count := uint64(0)
 		for now := range time.NewTicker(ns.clientInterval).C {
-			// Every 10 ticks, lets also check for any outdated stats objects to remove
 			count++
-			removeExpiredStats := count%10 == 0
-			ns.removeExpiredClients(now, removeExpiredStats)
+			// Every 10 ticks, lets check for any outdated stats objects to remove & flush telemetry
+			clearExpiredStats, flushTelemetry := count%10 == 0, count%10 == 0
+			ns.cleanupState(now, clearExpiredStats, flushTelemetry)
 		}
 	}()
 
@@ -155,7 +169,7 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 			// We received either the connections either out of order, or it's the same one we've already seen.
 			// Lets skip it for now.
 			if prev.LastUpdateEpoch >= conn.LastUpdateEpoch {
-				// TODO: Add log and/or metric for this, so we can see how often it happens
+				ns.telemetry.unorderedConns++
 				continue
 			}
 
@@ -163,7 +177,7 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 			conn.MonotonicRecvBytes += prev.MonotonicRecvBytes
 			conn.MonotonicRetransmits += prev.MonotonicRetransmits
 		} else if len(client.closedConnections) >= maxClientClosedConns {
-			// TODO: Add log and/or metric for this, so we can see how often it happens
+			ns.telemetry.connsDropped++
 			continue
 		}
 
@@ -185,7 +199,7 @@ func (ns *networkState) newClient(clientID string) bool {
 	return false
 }
 
-// getConnections return the connections and takes care of updating their last stats
+// getConnections return the connections and takes care of updating their last stat counters
 func (ns *networkState) getConnections(id string, active map[string]*ConnectionStats) []ConnectionStats {
 	now := time.Now()
 
@@ -197,9 +211,9 @@ func (ns *networkState) getConnections(id string, active map[string]*ConnectionS
 	// Closed connections
 	for key, c := range client.closedConnections {
 		if c2, ok := active[key]; ok { // This closed connection has become active again
+			// If we're seeing unexpected ordering, lets not combine these two connections.
 			if c.LastUpdateEpoch >= c2.LastUpdateEpoch {
-				// We're seeing unexpected ordering. Lets not combine these two connections
-				// TODO: Add logging/metrics
+				ns.telemetry.unorderedConns++
 			} else {
 				c.MonotonicSentBytes += c2.MonotonicSentBytes
 				c.MonotonicRecvBytes += c2.MonotonicRecvBytes
@@ -221,15 +235,14 @@ func (ns *networkState) getConnections(id string, active map[string]*ConnectionS
 	// Active connections
 	for key, c := range active {
 		if _, ok := client.closedConnections[key]; ok {
-			// TODO: This is hacky - explain why we do it (accurate counting across boundaries. Monotonic counters are wonky though.)
-			// Monotonic counters are the sum of all connections that cross our interval start + finish
+			// If this connection was both closed and reopened, update the counters to reflect only the active connection.
+			// The monotonic counters will be the sum of all connections that cross our interval start + finish.
 			if stats, ok := client.stats[key]; ok {
 				stats.totalRetransmits = c.MonotonicRetransmits
 				stats.totalSent = c.MonotonicSentBytes
 				stats.totalRecv = c.MonotonicRecvBytes
 			}
-			// We already processed this connection above, during the closed connection pass, so lets not do it again
-			continue
+			continue // We processed this connection during the closed connection pass, so lets not do it again.
 		}
 
 		if _, ok := client.stats[key]; !ok {
@@ -244,15 +257,18 @@ func (ns *networkState) getConnections(id string, active map[string]*ConnectionS
 	return conns
 }
 
-func (ns *networkState) updateConnWithStats(client *client, key string, c *ConnectionStats, removeStats bool, now time.Time) {
+func (ns *networkState) updateConnWithStats(client *client, key string, c *ConnectionStats, shouldRemoveStats bool, now time.Time) {
 	if st, ok := client.stats[key]; ok {
-		// TODO: This is likely where the uint64 underflow is happening, stats.totalSent is bigger than the
-		//       current connections monotonic counter
-		c.LastSentBytes = c.MonotonicSentBytes - st.totalSent
-		c.LastRecvBytes = c.MonotonicRecvBytes - st.totalRecv
-		c.LastRetransmits = c.MonotonicRetransmits - st.totalRetransmits
+		// Check for underflow
+		if c.MonotonicSentBytes < st.totalSent || c.MonotonicRecvBytes < st.totalRecv || c.MonotonicRetransmits < st.totalRetransmits {
+			ns.telemetry.underflows++
+		} else {
+			c.LastSentBytes = c.MonotonicSentBytes - st.totalSent
+			c.LastRecvBytes = c.MonotonicRecvBytes - st.totalRecv
+			c.LastRetransmits = c.MonotonicRetransmits - st.totalRetransmits
+		}
 
-		if removeStats {
+		if shouldRemoveStats {
 			delete(client.stats, key)
 		} else {
 			st.totalSent = c.MonotonicSentBytes
@@ -273,15 +289,16 @@ func (ns *networkState) RemoveClient(clientID string) {
 	delete(ns.clients, clientID)
 }
 
-func (ns *networkState) removeExpiredClients(now time.Time, removeExpiredStats bool) {
+func (ns *networkState) cleanupState(now time.Time, clearExpiredStats, flushStats bool) {
 	ns.Lock()
 	defer ns.Unlock()
 
+	// Remove expired clients + stats
 	deletedStats := 0
 	for id, c := range ns.clients {
 		if c.lastFetch.Add(ns.expiry).Before(now) {
 			delete(ns.clients, id)
-		} else if removeExpiredStats { // Look for inactive stats objects and remove them
+		} else if clearExpiredStats { // Look for inactive stats objects and remove them
 			deletedStats += ns.removeExpiredStats(c, now)
 		}
 	}
@@ -289,11 +306,19 @@ func (ns *networkState) removeExpiredClients(now time.Time, removeExpiredStats b
 	if deletedStats > 0 {
 		log.Debugf("removed %d expired stats objects in %d", deletedStats, time.Now().Sub(now))
 	}
+
+	if flushStats {
+		log.Debugf("state telemetry: [%d unordered conns] [%d stats underflows] [%d counters dropped] [%d connections dropped]",
+			ns.telemetry.unorderedConns,
+			ns.telemetry.underflows,
+			ns.telemetry.connsDropped,
+			ns.telemetry.statsDropped)
+		ns.telemetry = telemetry{} // Reset counters
+	}
 }
 
 func (ns *networkState) removeExpiredStats(c *client, now time.Time) int {
 	expired := make([]string, 0)
-
 	for key, s := range c.stats {
 		if s.lastUpdate.Add(ns.expiry).Before(now) {
 			expired = append(expired, key)
@@ -303,7 +328,6 @@ func (ns *networkState) removeExpiredStats(c *client, now time.Time) int {
 	for _, key := range expired {
 		delete(c.stats, key)
 	}
-
 	return len(expired)
 }
 
@@ -322,7 +346,13 @@ func (ns *networkState) GetStats() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"clients":      clientInfo,
+		"clients": clientInfo,
+		"telemetry": map[string]int{
+			"underflows":      ns.telemetry.underflows,
+			"unordered_conns": ns.telemetry.unorderedConns,
+			"conns_dropped":   ns.telemetry.connsDropped,
+			"stats_dropped":   ns.telemetry.statsDropped,
+		},
 		"current_time": time.Now(),
 	}
 }
