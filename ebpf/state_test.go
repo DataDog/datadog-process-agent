@@ -188,7 +188,7 @@ func TestCleanupClient(t *testing.T) {
 	assert.Equal(t, 0, len(conns))
 
 	// Should be a no op
-	state.(*networkState).removeExpiredClients(time.Now(), false)
+	state.(*networkState).cleanupState(time.Now(), false, false)
 
 	clients = state.(*networkState).getClients()
 	assert.Equal(t, 1, len(clients))
@@ -197,7 +197,7 @@ func TestCleanupClient(t *testing.T) {
 	time.Sleep(wait)
 
 	// Should delete the client 1
-	state.(*networkState).removeExpiredClients(time.Now(), false)
+	state.(*networkState).cleanupState(time.Now(), false, false)
 
 	clients = state.(*networkState).getClients()
 	assert.Equal(t, 0, len(clients))
