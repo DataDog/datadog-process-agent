@@ -129,7 +129,7 @@ func (ns *networkState) Connections(id string, latestConns []ConnectionStats) []
 	}
 
 	// Update all connections with relevant up-to-date stats for client
-	conns := ns.getConnections(id, ns.getConnsByKey(latestConns))
+	conns := ns.mergeConnections(id, getConnsByKey(latestConns, ns.buf))
 
 	// Flush closed connection map
 	ns.clients[id].closedConnections = map[string]ConnectionStats{}
@@ -138,10 +138,10 @@ func (ns *networkState) Connections(id string, latestConns []ConnectionStats) []
 }
 
 // getConnsByKey returns a mapping of byte-key -> connection for easier access + manipulation
-func (ns *networkState) getConnsByKey(conns []ConnectionStats) map[string]*ConnectionStats {
+func getConnsByKey(conns []ConnectionStats, buf *bytes.Buffer) map[string]*ConnectionStats {
 	connsByKey := make(map[string]*ConnectionStats, len(conns))
 	for i, c := range conns {
-		key, err := c.ByteKey(ns.buf)
+		key, err := c.ByteKey(buf)
 		if err != nil {
 			log.Warn("failed to create byte key: %s", err)
 			continue
@@ -198,8 +198,8 @@ func (ns *networkState) newClient(clientID string) bool {
 	return false
 }
 
-// getConnections return the connections and takes care of updating their last stat counters
-func (ns *networkState) getConnections(id string, active map[string]*ConnectionStats) []ConnectionStats {
+// mergeConnections return the connections and takes care of updating their last stat counters
+func (ns *networkState) mergeConnections(id string, active map[string]*ConnectionStats) []ConnectionStats {
 	now := time.Now()
 
 	client := ns.clients[id]
@@ -208,16 +208,16 @@ func (ns *networkState) getConnections(id string, active map[string]*ConnectionS
 	conns := make([]ConnectionStats, 0)
 
 	// Closed connections
-	for key, c := range client.closedConnections {
-		if c2, ok := active[key]; ok { // This closed connection has become active again
+	for key, closedConn := range client.closedConnections {
+		if activeConn, ok := active[key]; ok { // This closed connection has become active again
 			// If we're seeing unexpected ordering, lets not combine these two connections.
-			if c.LastUpdateEpoch >= c2.LastUpdateEpoch {
+			if closedConn.LastUpdateEpoch >= activeConn.LastUpdateEpoch {
 				ns.telemetry.unorderedConns++
 				// TODO: Should we `continue`?
 			} else {
-				c.MonotonicSentBytes += c2.MonotonicSentBytes
-				c.MonotonicRecvBytes += c2.MonotonicRecvBytes
-				c.MonotonicRetransmits += c2.MonotonicRetransmits
+				closedConn.MonotonicSentBytes += activeConn.MonotonicSentBytes
+				closedConn.MonotonicRecvBytes += activeConn.MonotonicRecvBytes
+				closedConn.MonotonicRetransmits += activeConn.MonotonicRetransmits
 			}
 
 			if _, ok := client.stats[key]; !ok {
@@ -228,12 +228,16 @@ func (ns *networkState) getConnections(id string, active map[string]*ConnectionS
 				client.stats[key] = &stats{}
 			}
 
-			ns.updateConnWithStats(client, key, &c, false, now)
-		} else { // Since connection is no longer active, lets just remove the stats object
-			ns.updateConnWithStats(client, key, &c, true, now)
+			ns.updateConnWithStats(client, key, &closedConn, now)
+		} else {
+			ns.updateConnWithStats(client, key, &closedConn, now)
+			// Since connection is no longer active, lets just remove the stats object afterwords
+			if _, ok := client.stats[key]; ok {
+				delete(client.stats, key)
+			}
 		}
 
-		conns = append(conns, c)
+		conns = append(conns, closedConn)
 	}
 
 	// Active connections
@@ -257,7 +261,7 @@ func (ns *networkState) getConnections(id string, active map[string]*ConnectionS
 			client.stats[key] = &stats{}
 		}
 
-		ns.updateConnWithStats(client, key, c, false, now)
+		ns.updateConnWithStats(client, key, c, now)
 
 		conns = append(conns, *c)
 	}
@@ -265,7 +269,7 @@ func (ns *networkState) getConnections(id string, active map[string]*ConnectionS
 	return conns
 }
 
-func (ns *networkState) updateConnWithStats(client *client, key string, c *ConnectionStats, shouldRemoveStats bool, now time.Time) {
+func (ns *networkState) updateConnWithStats(client *client, key string, c *ConnectionStats, now time.Time) {
 	if st, ok := client.stats[key]; ok {
 		// Check for underflow
 		if c.MonotonicSentBytes < st.totalSent || c.MonotonicRecvBytes < st.totalRecv || c.MonotonicRetransmits < st.totalRetransmits {
@@ -276,14 +280,11 @@ func (ns *networkState) updateConnWithStats(client *client, key string, c *Conne
 			c.LastRetransmits = c.MonotonicRetransmits - st.totalRetransmits
 		}
 
-		if shouldRemoveStats {
-			delete(client.stats, key)
-		} else {
-			st.totalSent = c.MonotonicSentBytes
-			st.totalRecv = c.MonotonicRecvBytes
-			st.totalRetransmits = c.MonotonicRetransmits
-			st.lastUpdate = now
-		}
+		// Update stats object with latest values
+		st.totalSent = c.MonotonicSentBytes
+		st.totalRecv = c.MonotonicRecvBytes
+		st.totalRetransmits = c.MonotonicRetransmits
+		st.lastUpdate = now
 	} else {
 		c.LastSentBytes = c.MonotonicSentBytes
 		c.LastRecvBytes = c.MonotonicRecvBytes
