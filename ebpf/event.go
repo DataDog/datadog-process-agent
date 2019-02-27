@@ -77,6 +77,7 @@ func connStats(t *ConnTuple, s *ConnStatsWithTimestamp, tcpStats *TCPStats) Conn
 		MonotonicSentBytes:   uint64(s.sent_bytes),
 		MonotonicRecvBytes:   uint64(s.recv_bytes),
 		MonotonicRetransmits: uint32(tcpStats.retransmits),
+		LastUpdateEpoch:      uint64(s.timestamp),
 	}
 }
 
