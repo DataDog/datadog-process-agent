@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -24,13 +25,17 @@ var (
 )
 
 type Tracer struct {
-	m       *bpflib.Module
-	perfMap *bpflib.PerfMap
-	config  *Config
-	// State handler
+	m *bpflib.Module
+
+	config *Config
+
 	state          NetworkState
 	portMapping    *PortMapping
 	localAddresses map[string]struct{}
+
+	perfMap      *bpflib.PerfMap
+	perfReceived uint64
+	perfLost     uint64
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -121,25 +126,27 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 
 	go func() {
 		// Stats about how much connections have been closed / lost
-		var closedCount, lostCount uint64
 		ticker := time.NewTicker(5 * time.Minute)
 
 		for {
 			select {
-			case c, ok := <-closedChannel:
+			case conn, ok := <-closedChannel:
 				if !ok {
 					return
 				}
-				closedCount++
-				t.state.StoreClosedConnection(decodeRawTCPConn(c))
-			case c, ok := <-lostChannel:
+				atomic.AddUint64(&t.perfReceived, 1)
+				t.state.StoreClosedConnection(decodeRawTCPConn(conn))
+			case lostCount, ok := <-lostChannel:
 				if !ok {
 					return
 				}
-				lostCount += c
+				atomic.AddUint64(&t.perfLost, lostCount)
 			case <-ticker.C:
-				log.Debugf("Connection stats: %d lost, %d closed", lostCount, closedCount)
-				closedCount, lostCount = 0, 0
+				recv := atomic.SwapUint64(&t.perfReceived, 0)
+				lost := atomic.SwapUint64(&t.perfLost, 0)
+				if lost > 0 {
+					log.Debugf("closed connection polling: %d received, %d lost", recv, lost)
+				}
 			}
 		}
 	}()
@@ -304,7 +311,7 @@ func (t *Tracer) GetStats() (map[string]interface{}, error) {
 	if t.state == nil {
 		return nil, fmt.Errorf("internal state not yet initialized")
 	}
-	return t.state.GetStats(), nil
+	return t.state.GetStats(atomic.LoadUint64(&t.perfLost), atomic.LoadUint64(&t.perfReceived)), nil
 }
 
 // populatePortMapping reads the entire portBinding bpf map and populates the local port/address map.  A list of
