@@ -15,9 +15,9 @@ const (
 	DEBUGCLIENT = "-1"
 
 	// defaultMaxClosedConns & defaultMaxClientStats are the maximum number of objects that can be stored in-memory.
-	// With clients checking connection stats roughly every 30s, this gives us roughly 2.5k + ~3k objects a second respectively.
-	defaultMaxClosedConns = 75000 // ~100 bytes per conn = 7.5MB
-	defaultMaxClientStats = 100000
+	// With clients checking connection stats roughly every 30s, this gives us roughly ~1.6k + ~2.5k objects a second respectively.
+	defaultMaxClosedConns = 50000 // ~100 bytes per conn = 5MB
+	defaultMaxClientStats = 75000
 	defaultExpiry         = 2 * time.Minute
 	defaultClientInterval = 30 * time.Second
 )
