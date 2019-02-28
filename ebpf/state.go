@@ -27,7 +27,7 @@ const (
 // - sent and received bytes per connection
 type NetworkState interface {
 	// Connections returns the list of connections for the given client when provided the latest set of active connections
-	Connections(clientID string, latestConns []ConnectionStats) []ConnectionStats
+	Connections(clientID string, latestTime uint64, latestConns []ConnectionStats) []ConnectionStats
 
 	// StoreClosedConnection stores a new closed connection
 	StoreClosedConnection(conn ConnectionStats)
@@ -51,7 +51,7 @@ type stats struct {
 	totalRecv        uint64
 	totalRetransmits uint32
 
-	lastUpdate time.Time
+	lastUpdateEpoch uint64
 }
 
 type client struct {
@@ -63,11 +63,14 @@ type client struct {
 
 type networkState struct {
 	sync.Mutex
-	buf *bytes.Buffer // Shared buffer
 
 	clients   map[string]*client
 	telemetry telemetry
 
+	buf             *bytes.Buffer // Shared buffer
+	latestTimeEpoch uint64
+
+	// Network state configuration
 	clientInterval time.Duration
 	expiry         time.Duration
 	maxClosedConns int
@@ -119,9 +122,12 @@ func (ns *networkState) getClients() []string {
 // Connections returns the connections for the given client
 // If the client is not registered yet, we register it and return the connections we have in the global state
 // Otherwise we return both the connections with last stats and the closed connections for this client
-func (ns *networkState) Connections(id string, latestConns []ConnectionStats) []ConnectionStats {
+func (ns *networkState) Connections(id string, latestTime uint64, latestConns []ConnectionStats) []ConnectionStats {
 	ns.Lock()
 	defer ns.Unlock()
+
+	// Update the latest known time
+	ns.latestTimeEpoch = latestTime
 
 	// If its the first time we've seen this client, use global state as connection set
 	if ok := ns.newClient(id); !ok {
@@ -284,7 +290,7 @@ func (ns *networkState) updateConnWithStats(client *client, key string, c *Conne
 		st.totalSent = c.MonotonicSentBytes
 		st.totalRecv = c.MonotonicRecvBytes
 		st.totalRetransmits = c.MonotonicRetransmits
-		st.lastUpdate = now
+		st.lastUpdateEpoch = c.LastUpdateEpoch
 	} else {
 		c.LastSentBytes = c.MonotonicSentBytes
 		c.LastRecvBytes = c.MonotonicRecvBytes
@@ -308,7 +314,7 @@ func (ns *networkState) cleanupState(now time.Time, clearExpiredStats, flushStat
 		if c.lastFetch.Add(ns.expiry).Before(now) {
 			delete(ns.clients, id)
 		} else if clearExpiredStats { // Look for inactive stats objects and remove them
-			deletedStats += ns.removeExpiredStats(c, now)
+			deletedStats += ns.removeExpiredStats(c, ns.latestTimeEpoch)
 		}
 	}
 
@@ -329,10 +335,10 @@ func (ns *networkState) cleanupState(now time.Time, clearExpiredStats, flushStat
 	}
 }
 
-func (ns *networkState) removeExpiredStats(c *client, now time.Time) int {
+func (ns *networkState) removeExpiredStats(c *client, latestTimeEpoch uint64) int {
 	expired := make([]string, 0)
 	for key, s := range c.stats {
-		if s.lastUpdate.Add(ns.expiry).Before(now) {
+		if latestTimeEpoch-s.lastUpdateEpoch > uint64(ns.expiry.Nanoseconds()) {
 			expired = append(expired, key)
 		}
 	}

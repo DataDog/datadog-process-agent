@@ -160,42 +160,42 @@ func (t *Tracer) Stop() {
 }
 
 func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
-	latestConns, err := t.getConnections()
+	latestConns, latestTime, err := t.getConnections()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving connections: %s", err)
 	}
 
-	return &Connections{Conns: t.state.Connections(clientID, latestConns)}, nil
+	return &Connections{Conns: t.state.Connections(clientID, latestTime, latestConns)}, nil
 }
 
-func (t *Tracer) getConnections() ([]ConnectionStats, error) {
+func (t *Tracer) getConnections() ([]ConnectionStats, uint64, error) {
 	mp, err := t.getMap(connMap)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", connMap, err)
+		return nil, 0, fmt.Errorf("error retrieving the bpf %s map: %s", connMap, err)
 	}
 
 	tcpMp, err := t.getMap(tcpStatsMap)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", tcpStatsMap, err)
+		return nil, 0, fmt.Errorf("error retrieving the bpf %s map: %s", tcpStatsMap, err)
 	}
 
 	portMp, err := t.getMap(portBindingsMap)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", portBindingsMap, err)
+		return nil, 0, fmt.Errorf("error retrieving the bpf %s map: %s", portBindingsMap, err)
 	}
 
 	latestTime, ok, err := t.getLatestTimestamp()
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving latest timestamp: %s", err)
+		return nil, 0, fmt.Errorf("error retrieving latest timestamp: %s", err)
 	}
 
 	if !ok { // if no timestamps have been captured, there can be no packets
-		return nil, nil
+		return nil, 0, nil
 	}
 
 	closedPortBindings, err := t.populatePortMapping(portMp)
 	if err != nil {
-		return nil, fmt.Errorf("error populating port mapping: %s", err)
+		return nil, 0, fmt.Errorf("error populating port mapping: %s", err)
 	}
 
 	// Iterate through all key-value pairs in map
@@ -227,7 +227,7 @@ func (t *Tracer) getConnections() ([]ConnectionStats, error) {
 		_ = t.m.DeleteElement(portMp, unsafe.Pointer(&key))
 	}
 
-	return active, nil
+	return active, latestTime, nil
 }
 
 func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
@@ -263,13 +263,13 @@ func (t *Tracer) getTCPStats(mp *bpflib.Map, tuple *ConnTuple) *TCPStats {
 // module.  if the eBFP module has not yet captured a timestamp (as will be the
 // case if the eBPF module has just started), the second return value will be
 // false.
-func (t *Tracer) getLatestTimestamp() (int64, bool, error) {
+func (t *Tracer) getLatestTimestamp() (uint64, bool, error) {
 	tsMp, err := t.getMap(latestTimestampMap)
 	if err != nil {
 		return 0, false, fmt.Errorf("error retrieving latest timestamp map: %s", err)
 	}
 
-	var latestTime int64
+	var latestTime uint64
 	if err := t.m.LookupElement(tsMp, unsafe.Pointer(&zero), unsafe.Pointer(&latestTime)); err != nil {
 		// If we can't find latest timestamp, there probably haven't been any messages yet
 		return 0, false, nil
@@ -299,11 +299,11 @@ func readBPFModule() (*bpflib.Module, error) {
 	return m, nil
 }
 
-func (t *Tracer) timeoutForConn(c *ConnTuple) int64 {
+func (t *Tracer) timeoutForConn(c *ConnTuple) uint64 {
 	if connType(uint(c.metadata)) == TCP {
-		return t.config.TCPConnTimeout.Nanoseconds()
+		return uint64(t.config.TCPConnTimeout.Nanoseconds())
 	}
-	return t.config.UDPConnTimeout.Nanoseconds()
+	return uint64(t.config.UDPConnTimeout.Nanoseconds())
 }
 
 // GetStats returns a map of statistics about the current tracer's internal state
