@@ -90,7 +90,7 @@ func (nt *NetworkTracer) Run() {
 		log.Tracef("/connections: %d connections, %d bytes", len(cs.Conns), len(buf))
 	})
 
-	http.HandleFunc("/stats", func(w http.ResponseWriter, req *http.Request) {
+	http.HandleFunc("/debug/stats", func(w http.ResponseWriter, req *http.Request) {
 		stats, err := nt.tracer.GetStats()
 		if err != nil {
 			log.Errorf("unable to retrieve tracer stats: %s", err)
