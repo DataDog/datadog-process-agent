@@ -72,6 +72,7 @@ type ConnectionStats struct {
 	Pid    uint32           `json:"pid"`
 	Type   ConnectionType   `json:"type"`
 	Family ConnectionFamily `json:"family"`
+	NetNS  uint32           `json:"net_ns"`
 
 	// Source & Dest represented as a string to handle both IPv4 & IPv6
 	Source string `json:"source"`

@@ -373,6 +373,7 @@ func (ns *networkState) GetStats(closedPollingLost, closedPollingReceived uint64
 			"closed_conn_polling_lost":     int(closedPollingLost),
 			"closed_conn_polling_received": int(closedPollingReceived),
 		},
-		"current_time": time.Now(),
+		"current_time":       time.Now().Unix(),
+		"latest_bpf_time_ns": ns.latestTimeEpoch,
 	}
 }
