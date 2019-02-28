@@ -14,6 +14,8 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	"github.com/DataDog/datadog-process-agent/config"
+
+	_ "net/http/pprof"
 )
 
 // Flag values
