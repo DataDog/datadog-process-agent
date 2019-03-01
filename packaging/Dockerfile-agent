@@ -34,4 +34,4 @@ RUN /setup_linux_headers.sh
 
 ENV GOPATH=/go
 ENV PATH=/go/bin:$PATH
-RUN gimme 1.10.1
+RUN gimme 1.11.2

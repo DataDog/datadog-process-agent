@@ -4,7 +4,7 @@ jobs:
     machine:
       docker_layer_caching: true
     environment:
-      - GODIST: "go1.10.1.linux-amd64.tar.gz"
+      - GODIST: "go1.11.2.linux-amd64.tar.gz"
       - GOPATH: /home/circleci/project/.go_workspace
       - BASH_ENV: /home/circleci/project/.bashrc
     steps:

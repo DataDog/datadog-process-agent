@@ -24,7 +24,7 @@ fi
 echo "Building network-tracer agent v$AGENT_VERSION to $FILENAME"
 
 # Expects gimme to be installed
-eval "$(gimme 1.10.1)"
+eval "$(gimme 1.11.2)"
 
 export GOPATH=$WORKSPACE/go
 export PATH=$PATH:$GOPATH/bin
