@@ -158,6 +158,7 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 		cxs = append(cxs, &model.Connection{
 			Pid:           int32(conn.Pid),
 			PidCreateTime: createTimeForPID[conn.Pid],
+			NetNS:         conn.NetNS,
 			Family:        formatFamily(conn.Family),
 			Type:          formatType(conn.Type),
 			Laddr: &model.Addr{

@@ -93,6 +93,8 @@ type YamlAgentConfig struct {
 		MaxConnsPerMessage int `yaml:"max_conns_per_message"`
 		// The maximum number of connections the tracer can track
 		MaxTrackedConnections uint `yaml:"max_tracked_connections"`
+		// Whether agent should expose profiling endpoints over the unix socket
+		EnableDebugProfiling bool `yaml:"debug_profiling_enabled"`
 	} `yaml:"network_tracer_config"`
 }
 
@@ -231,6 +233,7 @@ func mergeNetworkYamlConfig(agentConf *AgentConfig, networkConf *YamlAgentConfig
 	agentConf.DisableTCPTracing = networkConf.Network.DisableTCP
 	agentConf.DisableUDPTracing = networkConf.Network.DisableUDP
 	agentConf.DisableIPv6Tracing = networkConf.Network.DisableIPv6
+	agentConf.EnableDebugProfiling = networkConf.Network.EnableDebugProfiling
 
 	if networkConf.Network.NetworkTracingEnabled {
 		agentConf.EnabledChecks = append(agentConf.EnabledChecks, "connections")

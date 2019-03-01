@@ -366,6 +366,8 @@ message Connection {
 	uint64 lastBytesReceived = 17;
 	uint32 lastRetransmits = 18;
 	ConnectionDirection direction = 19;
+
+	uint32 netNS = 20; // Network namespace
 }
 
 message Addr {

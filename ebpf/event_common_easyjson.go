@@ -145,6 +145,8 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.L
 			out.Type = ConnectionType(in.Uint8())
 		case "family":
 			out.Family = ConnectionFamily(in.Uint8())
+		case "net_ns":
+			out.NetNS = uint32(in.Uint32())
 		case "source":
 			out.Source = string(in.String())
 		case "dest":
@@ -153,6 +155,8 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.L
 			out.SPort = uint16(in.Uint16())
 		case "dport":
 			out.DPort = uint16(in.Uint16())
+		case "direction":
+			out.Direction = ConnectionDirection(in.Uint8())
 		case "monotonic_sent_bytes":
 			out.MonotonicSentBytes = uint64(in.Uint64())
 		case "last_sent_bytes":
@@ -165,8 +169,8 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.L
 			out.MonotonicRetransmits = uint32(in.Uint32())
 		case "last_retransmits":
 			out.LastRetransmits = uint32(in.Uint32())
-		case "direction":
-			out.Direction = ConnectionDirection(in.Uint8())
+		case "last_update_epoch":
+			out.LastUpdateEpoch = uint64(in.Uint64())
 		default:
 			in.SkipRecursive()
 		}
@@ -212,6 +216,16 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		out.Uint8(uint8(in.Family))
 	}
 	{
+		const prefix string = ",\"net_ns\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint32(uint32(in.NetNS))
+	}
+	{
 		const prefix string = ",\"source\":"
 		if first {
 			first = false
@@ -250,6 +264,16 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 			out.RawString(prefix)
 		}
 		out.Uint16(uint16(in.DPort))
+	}
+	{
+		const prefix string = ",\"direction\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint8(uint8(in.Direction))
 	}
 	{
 		const prefix string = ",\"monotonic_sent_bytes\":"
@@ -312,14 +336,14 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		out.Uint32(uint32(in.LastRetransmits))
 	}
 	{
-		const prefix string = ",\"direction\":"
+		const prefix string = ",\"last_update_epoch\":"
 		if first {
 			first = false
 			out.RawString(prefix[1:])
 		} else {
 			out.RawString(prefix)
 		}
-		out.Uint8(uint8(in.Direction))
+		out.Uint64(uint64(in.LastUpdateEpoch))
 	}
 	out.RawByte('}')
 }

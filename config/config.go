@@ -85,6 +85,7 @@ type AgentConfig struct {
 	// Network collection configuration
 	EnableNetworkTracing     bool
 	EnableLocalNetworkTracer bool // To have the network tracer embedded in the process-agent
+	EnableDebugProfiling     bool
 	DisableTCPTracing        bool
 	DisableUDPTracing        bool
 	DisableIPv6Tracing       bool
