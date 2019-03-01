@@ -108,6 +108,17 @@ func (nt *NetworkTracer) Run() {
 		w.Write(buf)
 	})
 
+	// If profiling is disabled, then we should overwrite handlers for the pprof endpoints
+	// that were registered in init():
+	// https://github.com/golang/go/blob/5bd88b0/src/net/http/pprof/pprof.go#L72-L78
+	if !nt.cfg.EnableDebugProfiling {
+		http.HandleFunc("/debug/pprof/", http.NotFoundHandler().ServeHTTP)
+		http.HandleFunc("/debug/pprof/cmdline", http.NotFoundHandler().ServeHTTP)
+		http.HandleFunc("/debug/pprof/profile", http.NotFoundHandler().ServeHTTP)
+		http.HandleFunc("/debug/pprof/symbol", http.NotFoundHandler().ServeHTTP)
+		http.HandleFunc("/debug/pprof/trace", http.NotFoundHandler().ServeHTTP)
+	}
+
 	http.Serve(nt.conn.GetListener(), nil)
 }
 
