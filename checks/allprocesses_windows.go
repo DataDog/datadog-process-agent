@@ -68,7 +68,7 @@ func getProcessMemoryInfo(h windows.Handle, mem *process.PROCESS_MEMORY_COUNTERS
 	if r1 == 0 {
 		return e1
 	}
-	return
+	return nil
 }
 
 func getProcessHandleCount(h windows.Handle, count *uint32) (err error) {
