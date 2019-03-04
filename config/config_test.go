@@ -20,6 +20,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var originalConfig = config.Datadog
+
+func restoreGlobalConfig() {
+	config.Datadog = originalConfig
+}
+
 func TestBlacklist(t *testing.T) {
 	testBlacklist := []string{
 		"^getty",
@@ -251,11 +257,8 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 }
 
 func TestDDAgentConfigBothVersions(t *testing.T) {
-	origcfg := config.Datadog
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	defer func() {
-		config.Datadog = origcfg
-	}()
+	defer restoreGlobalConfig()
 
 	assert := assert.New(t)
 	// Check that providing process.* options in the dd-agent conf file works
@@ -285,11 +288,8 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 }
 
 func TestDDAgentConfigYamlOnly(t *testing.T) {
-	origcfg := config.Datadog
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	defer func() {
-		config.Datadog = origcfg
-	}()
+	defer restoreGlobalConfig()
 
 	assert := assert.New(t)
 
@@ -373,11 +373,8 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 }
 
 func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
-	origcfg := config.Datadog
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	defer func() {
-		config.Datadog = origcfg
-	}()
+	defer restoreGlobalConfig()
 
 	assert := assert.New(t)
 
@@ -557,7 +554,7 @@ func TestGetProxySettings(t *testing.T) {
 	s, err = getURL(f)
 	assert.NoError(err)
 
-	// user is url-encoded and decodes to original string
+	// user is url-encoded and decodes to originalConfig string
 	assert.Equal("http://l%C3%A9o@myhost:3129", s.String())
 	assert.Equal("léo", s.User.Username())
 
@@ -599,7 +596,7 @@ func TestGetProxySettings(t *testing.T) {
 	s, err = getURL(f)
 	assert.NoError(err)
 
-	// password is url-encoded and decodes to the original string
+	// password is url-encoded and decodes to the originalConfig string
 	assert.Equal("https://aaditya:%2F%3A%21%3F&=%40%C3%A9%C3%94%CE%B3%CE%BB%E1%BF%B6%CF%83%CF%83%CE%B1@myhost:3129", s.String())
 
 	pass, _ := s.User.Password()
@@ -607,11 +604,8 @@ func TestGetProxySettings(t *testing.T) {
 }
 
 func TestEnvSiteConfig(t *testing.T) {
-	origcfg := config.Datadog
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	defer func() {
-		config.Datadog = origcfg
-	}()
+	defer restoreGlobalConfig()
 
 	assert := assert.New(t)
 
@@ -629,6 +623,11 @@ func TestEnvSiteConfig(t *testing.T) {
 	agentConfig, err = NewAgentConfig(nil, &NetworkAgentConfig{}, "./testdata/TestEnvSiteConfig-3.yaml")
 	assert.NoError(err)
 	assert.Equal("burrito.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
+
+	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	os.Setenv("DD_PROCESS_AGENT_URL", "https://test.com")
+	agentConfig, err = NewAgentConfig(nil, &NetworkAgentConfig{}, "./testdata/TestEnvSiteConfig-3.yaml")
+	assert.Equal("test.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 }
 
 func TestIsAffirmative(t *testing.T) {

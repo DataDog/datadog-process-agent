@@ -160,6 +160,7 @@ func (a *AgentConfig) loadProcessYamlConfig(path string) error {
 		r, err := regexp.Compile(b)
 		if err != nil {
 			log.Warnf("Ignoring invalid blacklist pattern: %s", b)
+			continue
 		}
 		a.Blacklist = append(a.Blacklist, r)
 	}
