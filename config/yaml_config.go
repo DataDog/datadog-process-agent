@@ -45,11 +45,11 @@ func (a *AgentConfig) loadNetworkYamlConfig(path string) error {
 		a.EnableNetworkTracing = true
 	}
 
+	// The full path to the location of the unix socket where connections will be accessed
 	if socketPath := config.Datadog.GetString(key(netNS, "nettracer_socket")); socketPath != "" {
 		a.NetworkTracerSocketPath = socketPath
 	}
 
-	// The full path to the location of the unix socket where connections will be accessed
 	if logFile := config.Datadog.GetString(key(netNS, "log_file")); logFile != "" {
 		a.LogFile = logFile
 	}
