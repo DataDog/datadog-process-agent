@@ -38,7 +38,6 @@ func (c *ContainerCheck) RealTime() bool { return false }
 // Run runs the ContainerCheck to collect a list of running containers and the
 // stats for each container.
 func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
-
 	return nil, nil
 }
 
@@ -50,4 +49,8 @@ func chunkContainers(ctrList []*containers.Container, lastRates map[string]util.
 
 func fmtContainers(ctrList []*containers.Container, lastRates map[string]util.ContainerRateMetrics, lastRun time.Time) []*model.Container {
 	return make([]*model.Container, 0)
+}
+
+func calculateCtrPct(cur, prev, sys2, sys1 uint64, numCPU int, before time.Time) float32 {
+	return 0
 }
