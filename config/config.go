@@ -207,7 +207,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 		CollectDockerNetwork:   true,
 
 		// DataScrubber to hide command line sensitive words
-		Scrubber: NewDefaultDataScrubber(),
+		Scrubber:  NewDefaultDataScrubber(),
+		Blacklist: make([]*regexp.Regexp, 0),
 
 		// Windows process config
 		Windows: WindowsConfig{
@@ -241,7 +242,7 @@ func isRunningInKubernetes() bool {
 
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
-func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *YamlAgentConfig) (*AgentConfig, error) {
+func NewAgentConfig(agentIni *File, networkYaml *NetworkAgentConfig, yamlPath string) (*AgentConfig, error) {
 	var err error
 	cfg := NewDefaultAgentConfig()
 
@@ -361,8 +362,8 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 	}
 
 	// For Agents >= 6 we will have a YAML config file to use.
-	if agentYaml != nil {
-		if cfg, err = mergeYamlConfig(cfg, agentYaml); err != nil {
+	if util.PathExists(yamlPath) {
+		if err := cfg.loadProcessYamlConfig(yamlPath); err != nil {
 			return nil, err
 		}
 	}
@@ -415,7 +416,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 
 // NewNetworkAgentConfig returns a network-tracer specific AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
-func NewNetworkAgentConfig(networkYaml *YamlAgentConfig) (*AgentConfig, error) {
+func NewNetworkAgentConfig(networkYaml *NetworkAgentConfig) (*AgentConfig, error) {
 	cfg := NewDefaultAgentConfig()
 	var err error
 

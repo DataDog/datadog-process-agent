@@ -140,8 +140,8 @@ func versionString() string {
 }
 
 func parseConfig() *config.AgentConfig {
-	yamlConf, err := config.NewYamlIfExists(opts.configPath) // --yamlConfig
-	if err != nil {                                          // Will return nil if no Yaml file exists
+	yamlConf, err := config.NetworkConfigIfExists(opts.configPath) // --yamlConfig
+	if err != nil {                                                // Will return nil if no Yaml file exists
 		log.Criticalf("Error reading YAML formatted config: %s", err)
 		os.Exit(1)
 	}

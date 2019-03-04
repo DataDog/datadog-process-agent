@@ -9,10 +9,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/tagger"
+
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	log "github.com/cihub/seelog"
 
-	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/statsd"
@@ -103,29 +104,22 @@ func runAgent(exit chan bool) {
 		os.Exit(1)
 	}
 
-	yamlConf, err := config.NewYamlIfExists(opts.configPath)
-	if err != nil {
-		log.Criticalf("Error reading datadog.yaml: %s", err)
-		os.Exit(1)
-	} else if yamlConf != nil {
-		config.SetupDDAgentConfig(opts.configPath)
-	}
-
-	// Tagger must be initialized after agent config has been setup (via config.SetupDDAgentConfig)
-	tagger.Init()
-	defer tagger.Stop()
-
-	networkConf, err := config.NewYamlIfExists(opts.netConfigPath)
+	networkConf, err := config.NetworkConfigIfExists(opts.netConfigPath)
 	if err != nil {
 		log.Criticalf("Error reading network-tracer.yaml: %s", err)
 		os.Exit(1)
 	}
 
-	cfg, err := config.NewAgentConfig(agentConf, yamlConf, networkConf)
+	cfg, err := config.NewAgentConfig(agentConf, networkConf, opts.configPath)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)
 	}
+
+	// Tagger must be initialized after agent config has been setup
+	tagger.Init()
+	defer tagger.Stop()
+
 	err = initInfo(cfg)
 	if err != nil {
 		log.Criticalf("Error initializing info: %s", err)
@@ -138,7 +132,7 @@ func runAgent(exit chan bool) {
 
 	// Exit if agent is not enabled and we're not debugging a check.
 	if !cfg.Enabled && opts.check == "" {
-		if yamlConf != nil {
+		if util.PathExists(opts.configPath) {
 			log.Infof(agent6DisabledMessage)
 		} else {
 			log.Info(agent5DisabledMessage)
