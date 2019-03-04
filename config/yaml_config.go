@@ -9,100 +9,74 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	ddutil "github.com/DataDog/datadog-agent/pkg/util"
-	"github.com/DataDog/datadog-process-agent/util"
 	log "github.com/cihub/seelog"
-	yaml "gopkg.in/yaml.v2"
 )
 
 const (
-	ns = "process_config"
+	ns    = "process_config"
+	netNS = "network_tracer_config"
 )
 
-// NetworkAgentConfig is a structure used for marshaling the network-tracer.yaml configuration
-// available in Agent versions >= 6
-type NetworkAgentConfig struct { // Network-tracing specific configuration
-	Network struct {
-		// A string indicating the enabled state of the network tracer.
-		NetworkTracingEnabled bool `yaml:"enabled"`
-		// The full path to the location of the unix socket where network traces will be accessed
-		UnixSocketPath string `yaml:"nettracer_socket"`
-		// The full path to the file where network-tracer logs will be written.
-		LogFile string `yaml:"log_file"`
-		// Whether agent should disable collection for TCP connection type
-		DisableTCP bool `yaml:"disable_tcp"`
-		// Whether agent should disable collection for UDP connection type
-		DisableUDP bool `yaml:"disable_udp"`
-		// Whether agent should disable collection for IPv6 connection type
-		DisableIPv6 bool `yaml:"disable_ipv6"`
-		// The maximum number of connections per message.
-		// Only change if the defaults are causing issues.
-		MaxConnsPerMessage int `yaml:"max_conns_per_message"`
-		// The maximum number of connections the tracer can track
-		MaxTrackedConnections uint `yaml:"max_tracked_connections"`
-		// Whether agent should expose profiling endpoints over the unix socket
-		EnableDebugProfiling bool `yaml:"debug_profiling_enabled"`
-	} `yaml:"network_tracer_config"`
+func key(pieces ...string) string {
+	return strings.Join(pieces, ".")
 }
 
-// NetworkConfigIfExists returns a new NetworkAgentConfig if the given configPath is exists.
-func NetworkConfigIfExists(path string) (*NetworkAgentConfig, error) {
-	var yamlConf NetworkAgentConfig
-
-	if util.PathExists(path) {
-		lines, err := util.ReadLines(path)
-		if err != nil {
-			return nil, fmt.Errorf("read error: %s", err)
-		}
-		if err = yaml.Unmarshal([]byte(strings.Join(lines, "\n")), &yamlConf); err != nil {
-			return nil, fmt.Errorf("parse error: %s", err)
-		}
-		return &yamlConf, nil
-	}
-	return nil, nil
-}
-
-func mergeNetworkYamlConfig(agentConf *AgentConfig, networkConf *NetworkAgentConfig) (*AgentConfig, error) {
-	agentConf.DisableTCPTracing = networkConf.Network.DisableTCP
-	agentConf.DisableUDPTracing = networkConf.Network.DisableUDP
-	agentConf.DisableIPv6Tracing = networkConf.Network.DisableIPv6
-	agentConf.EnableDebugProfiling = networkConf.Network.EnableDebugProfiling
-
-	if networkConf.Network.NetworkTracingEnabled {
-		agentConf.EnabledChecks = append(agentConf.EnabledChecks, "connections")
-		agentConf.EnableNetworkTracing = true
-	}
-	if socketPath := networkConf.Network.UnixSocketPath; socketPath != "" {
-		agentConf.NetworkTracerSocketPath = socketPath
-	}
-	if networkConf.Network.LogFile != "" {
-		agentConf.LogFile = networkConf.Network.LogFile
+// Network-specific configuration
+func (a *AgentConfig) loadNetworkYamlConfig(path string) error {
+	config.Datadog.AddConfigPath(path)
+	if strings.HasSuffix(path, ".yaml") { // If they set a config file directly, let's try to honor that
+		config.Datadog.SetConfigFile(path)
 	}
 
-	if mcpm := networkConf.Network.MaxConnsPerMessage; mcpm > 0 {
+	if err := config.Load(); err != nil {
+		return err
+	}
+
+	// Whether agent should disable collection for TCP, UDP, or IPv6 connection type respectively
+	a.DisableTCPTracing = config.Datadog.GetBool(key(netNS, "disable_tcp"))
+	a.DisableUDPTracing = config.Datadog.GetBool(key(netNS, "disable_udp"))
+	a.DisableIPv6Tracing = config.Datadog.GetBool(key(netNS, "disable_ipv6"))
+
+	// Whether agent should expose profiling endpoints over the unix socket
+	a.EnableDebugProfiling = config.Datadog.GetBool(key(netNS, "debug_profiling_enabled"))
+
+	if config.Datadog.GetBool(key(netNS, "enabled")) {
+		a.EnabledChecks = append(a.EnabledChecks, "connections")
+		a.EnableNetworkTracing = true
+	}
+
+	if socketPath := config.Datadog.GetString(key(netNS, "nettracer_socket")); socketPath != "" {
+		a.NetworkTracerSocketPath = socketPath
+	}
+
+	// The full path to the location of the unix socket where connections will be accessed
+	if logFile := config.Datadog.GetString(key(netNS, "log_file")); logFile != "" {
+		a.LogFile = logFile
+	}
+
+	// The maximum number of connections per message. Note: Only change if the defaults are causing issues.
+	if mcpm := config.Datadog.GetInt(key(netNS, "max_conns_per_message")); mcpm > 0 {
 		if mcpm <= maxConnsMessageBatch {
-			agentConf.MaxConnsPerMessage = mcpm
+			a.MaxConnsPerMessage = mcpm
 		} else {
 			log.Warn("Overriding the configured connections count per message limit because it exceeds maximum")
 		}
 	}
 
-	if mtc := networkConf.Network.MaxTrackedConnections; mtc > 0 {
+	// The maximum number of connections the tracer can track
+	if mtc := config.Datadog.GetInt64(key(netNS, "max_tracked_connections")); mtc > 0 {
 		if mtc <= maxMaxTrackedConnections {
-			agentConf.MaxTrackedConnections = mtc
+			a.MaxTrackedConnections = uint(mtc)
 		} else {
 			log.Warnf("Overriding the configured max tracked connections limit because it exceeds maximum 65536, got: %v", mtc)
 		}
 	}
 
 	// Pull additional parameters from the global config file.
-	agentConf.LogLevel = config.Datadog.GetString("log_level")
-	agentConf.StatsdPort = config.Datadog.GetInt("dogstatsd_port")
+	a.LogLevel = config.Datadog.GetString("log_level")
+	a.StatsdPort = config.Datadog.GetInt("dogstatsd_port")
 
-	return agentConf, nil
-}
-
-func key(pieces ...string) string {
-	return strings.Join(pieces, ".")
+	return nil
 }
 
 // Process-specific configuration

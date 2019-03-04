@@ -70,8 +70,12 @@ func main() {
 		}()
 	}
 
-	// Parsing INI and/or YAML config files
-	cfg := parseConfig()
+	// Parsing YAML config files
+	cfg, err := config.NewNetworkAgentConfig(opts.configPath)
+	if err != nil {
+		log.Criticalf("Failed to create agent config: %s", err)
+		os.Exit(1)
+	}
 
 	// Exit if network tracer is disabled
 	if !cfg.EnableNetworkTracing {
@@ -137,20 +141,4 @@ func versionString() string {
 	addString(&buf, "Build date: %s\n", BuildDate)
 	addString(&buf, "Go Version: %s\n", GoVersion)
 	return buf.String()
-}
-
-func parseConfig() *config.AgentConfig {
-	yamlConf, err := config.NetworkConfigIfExists(opts.configPath) // --yamlConfig
-	if err != nil {                                                // Will return nil if no Yaml file exists
-		log.Criticalf("Error reading YAML formatted config: %s", err)
-		os.Exit(1)
-	}
-
-	cfg, err := config.NewNetworkAgentConfig(yamlConf)
-	if err != nil {
-		log.Criticalf("Failed to create agent config: %s", err)
-		os.Exit(1)
-	}
-
-	return cfg
 }
