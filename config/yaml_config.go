@@ -183,12 +183,6 @@ func (a *AgentConfig) loadProcessYamlConfig(path string) error {
 		a.QueueSize = queueSize
 	}
 
-	// The maximum number of file descriptors to open when collecting net connections.
-	// Only change if you are running out of file descriptors from the Agent.
-	if maxProcFDs := config.Datadog.GetInt(key(ns, "max_proc_fds")); maxProcFDs > 0 {
-		a.MaxProcFDs = maxProcFDs
-	}
-
 	// The maximum number of processes, or containers per message. Note: Only change if the defaults are causing issues.
 	if maxPerMessage := config.Datadog.GetInt(key(ns, "max_per_message")); maxPerMessage > 0 {
 		if maxPerMessage <= maxPerMessage {
