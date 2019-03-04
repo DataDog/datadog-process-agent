@@ -34,12 +34,6 @@ var (
 
 	processChecks   = []string{"process", "rtprocess"}
 	containerChecks = []string{"container", "rtcontainer"}
-
-	// List of known Kubernetes images that we want to exclude by default.
-	defaultKubeBlacklist = []string{
-		"image:gcr.io/google_containers/pause.*",
-		"image:openshift/origin-pod",
-	}
 )
 
 type proxyFunc func(*http.Request) (*url.URL, error)
@@ -70,7 +64,6 @@ type AgentConfig struct {
 	QueueSize          int
 	Blacklist          []*regexp.Regexp
 	Scrubber           *DataScrubber
-	MaxProcFDs         int
 	MaxPerMessage      int
 	MaxConnsPerMessage int
 	AllowRealTime      bool
@@ -96,12 +89,6 @@ type AgentConfig struct {
 	// Check config
 	EnabledChecks  []string
 	CheckIntervals map[string]time.Duration
-
-	// Containers
-	ContainerBlacklist     []string
-	ContainerWhitelist     []string
-	CollectDockerNetwork   bool
-	ContainerCacheDuration time.Duration
 
 	// Internal store of a proxy used for generating the Transport
 	proxy proxyFunc
@@ -167,7 +154,6 @@ func NewDefaultAgentConfig() *AgentConfig {
 		LogLevel:           "info",
 		LogToConsole:       false,
 		QueueSize:          20,
-		MaxProcFDs:         200,
 		MaxPerMessage:      100,
 		MaxConnsPerMessage: 300,
 		AllowRealTime:      true,
@@ -202,10 +188,6 @@ func NewDefaultAgentConfig() *AgentConfig {
 			"connections": 30 * time.Second,
 		},
 
-		// Docker
-		ContainerCacheDuration: 10 * time.Second,
-		CollectDockerNetwork:   true,
-
 		// DataScrubber to hide command line sensitive words
 		Scrubber:  NewDefaultDataScrubber(),
 		Blacklist: make([]*regexp.Regexp, 0),
@@ -229,15 +211,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		}
 	}
 
-	if isRunningInKubernetes() {
-		ac.ContainerBlacklist = defaultKubeBlacklist
-	}
-
 	return ac
-}
-
-func isRunningInKubernetes() bool {
-	return os.Getenv("KUBERNETES_SERVICE_HOST") != ""
 }
 
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
@@ -310,7 +284,6 @@ func NewAgentConfig(agentIni *File, networkYaml *NetworkAgentConfig, yamlPath st
 		}
 
 		cfg.QueueSize = agentIni.GetIntDefault(ns, "queue_size", cfg.QueueSize)
-		cfg.MaxProcFDs = agentIni.GetIntDefault(ns, "max_proc_fds", cfg.MaxProcFDs)
 		cfg.AllowRealTime = agentIni.GetBool(ns, "allow_real_time", cfg.AllowRealTime)
 		cfg.LogFile = agentIni.GetDefault(ns, "log_file", cfg.LogFile)
 		cfg.DDAgentPy = agentIni.GetDefault(ns, "dd_agent_py", cfg.DDAgentPy)
@@ -349,12 +322,6 @@ func NewAgentConfig(agentIni *File, networkYaml *NetworkAgentConfig, yamlPath st
 				cfg.CheckIntervals[checkName] = interval
 			}
 		}
-
-		// Docker config
-		cfg.CollectDockerNetwork = agentIni.GetBool(ns, "collect_docker_network", cfg.CollectDockerNetwork)
-		cfg.ContainerBlacklist = agentIni.GetStrArrayDefault(ns, "container_blacklist", ",", cfg.ContainerBlacklist)
-		cfg.ContainerWhitelist = agentIni.GetStrArrayDefault(ns, "container_whitelist", ",", cfg.ContainerWhitelist)
-		cfg.ContainerCacheDuration = agentIni.GetDurationDefault(ns, "container_cache_duration", time.Second, 30*time.Second)
 
 		// windows args config
 		cfg.Windows.ArgsRefreshInterval = agentIni.GetIntDefault(ns, "windows_args_refresh_interval", cfg.Windows.ArgsRefreshInterval)
@@ -547,21 +514,6 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 
 	if v := os.Getenv("DD_BIND_HOST"); v != "" {
 		c.StatsdHost = v
-	}
-
-	// Docker config
-	if v := os.Getenv("DD_COLLECT_DOCKER_NETWORK"); v == "false" {
-		c.CollectDockerNetwork = false
-	}
-	if v := os.Getenv("DD_CONTAINER_BLACKLIST"); v != "" {
-		c.ContainerBlacklist = strings.Split(v, ",")
-	}
-	if v := os.Getenv("DD_CONTAINER_WHITELIST"); v != "" {
-		c.ContainerWhitelist = strings.Split(v, ",")
-	}
-	if v := os.Getenv("DD_CONTAINER_CACHE_DURATION"); v != "" {
-		durationS, _ := strconv.Atoi(v)
-		c.ContainerCacheDuration = time.Duration(durationS) * time.Second
 	}
 
 	// Used to override container source auto-detection.
