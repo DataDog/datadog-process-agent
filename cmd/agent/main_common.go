@@ -104,13 +104,7 @@ func runAgent(exit chan bool) {
 		os.Exit(1)
 	}
 
-	networkConf, err := config.NetworkConfigIfExists(opts.netConfigPath)
-	if err != nil {
-		log.Criticalf("Error reading network-tracer.yaml: %s", err)
-		os.Exit(1)
-	}
-
-	cfg, err := config.NewAgentConfig(agentConf, networkConf, opts.configPath)
+	cfg, err := config.NewAgentConfig(agentConf, opts.configPath, opts.netConfigPath)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)

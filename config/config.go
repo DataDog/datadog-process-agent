@@ -216,7 +216,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
-func NewAgentConfig(agentIni *File, networkYaml *NetworkAgentConfig, yamlPath string) (*AgentConfig, error) {
+func NewAgentConfig(agentIni *File, yamlPath, netYamlPath string) (*AgentConfig, error) {
 	var err error
 	cfg := NewDefaultAgentConfig()
 
@@ -335,8 +335,9 @@ func NewAgentConfig(agentIni *File, networkYaml *NetworkAgentConfig, yamlPath st
 		}
 	}
 
-	if networkYaml != nil {
-		if cfg, err = mergeNetworkYamlConfig(cfg, networkYaml); err != nil {
+	// For network tracing, there is an additional config file that is shared with the network-tracer
+	if util.PathExists(netYamlPath) {
+		if err = cfg.loadNetworkYamlConfig(netYamlPath); err != nil {
 			return nil, err
 		}
 	}
@@ -383,9 +384,8 @@ func NewAgentConfig(agentIni *File, networkYaml *NetworkAgentConfig, yamlPath st
 
 // NewNetworkAgentConfig returns a network-tracer specific AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
-func NewNetworkAgentConfig(networkYaml *NetworkAgentConfig) (*AgentConfig, error) {
+func NewNetworkAgentConfig(yamlPath string) (*AgentConfig, error) {
 	cfg := NewDefaultAgentConfig()
-	var err error
 
 	// When the network-tracer is enabled in a separate container, we need a way to also disable the network-tracer
 	// packaged in the main agent container (without disabling network collection on the process-agent).
@@ -396,9 +396,9 @@ func NewNetworkAgentConfig(networkYaml *NetworkAgentConfig) (*AgentConfig, error
 		return cfg, nil
 	}
 
-	if networkYaml != nil {
-		if cfg, err = mergeNetworkYamlConfig(cfg, networkYaml); err != nil {
-			return nil, fmt.Errorf("failed to parse config: %s", err)
+	if util.PathExists(yamlPath) {
+		if err := cfg.loadNetworkYamlConfig(yamlPath); err != nil {
+			return nil, err
 		}
 	}
 
