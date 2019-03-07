@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -141,6 +142,9 @@ func TestGetHostname(t *testing.T) {
 }
 
 func TestDDAgentMultiAPIKeys(t *testing.T) {
+	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	defer restoreGlobalConfig()
+
 	assert := assert.New(t)
 
 	// If no endpoint is given but api_keys are there, match the first api_key
@@ -173,6 +177,9 @@ func TestDDAgentMultiAPIKeys(t *testing.T) {
 }
 
 func TestDDAgentMultiEndpointsAndAPIKeys(t *testing.T) {
+	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	defer restoreGlobalConfig()
+
 	assert := assert.New(t)
 
 	agentConfig, err := NewAgentConfig("./testdata/TestDDAgentMultiEndpointsAndAPIKeys.ini", "", "")
@@ -186,6 +193,9 @@ func TestDDAgentMultiEndpointsAndAPIKeys(t *testing.T) {
 }
 
 func TestDefaultConfig(t *testing.T) {
+	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	defer restoreGlobalConfig()
+
 	assert := assert.New(t)
 	agentConfig := NewDefaultAgentConfig()
 
@@ -204,6 +214,9 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestDDAgentConfigWithNewOpts(t *testing.T) {
+	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	defer restoreGlobalConfig()
+
 	assert := assert.New(t)
 	// Check that providing process.* options in the dd-agent conf file works
 
@@ -399,161 +412,125 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.True(agentConfig.DisableIPv6Tracing)
 }
 
-func TestProxyEnv(t *testing.T) {
-	assert := assert.New(t)
-	for i, tc := range []struct {
-		host     string
-		port     int
-		user     string
-		pass     string
-		expected string
-	}{
-		{
-			"example.com",
-			1234,
-			"",
-			"",
-			"http://example.com:1234",
-		},
-		{
-			"https://example.com",
-			4567,
-			"foo",
-			"bar",
-			"https://foo:bar@example.com:4567",
-		},
-		{
-			"example.com",
-			0,
-			"foo",
-			"",
-			"http://foo@example.com:3128",
-		},
-	} {
-		os.Setenv("PROXY_HOST", tc.host)
-		if tc.port > 0 {
-			os.Setenv("PROXY_PORT", strconv.Itoa(tc.port))
-		} else {
-			os.Setenv("PROXY_PORT", "")
-		}
-		os.Setenv("PROXY_USER", tc.user)
-		os.Setenv("PROXY_PASSWORD", tc.pass)
-		pf, err := proxyFromEnv(nil)
-		assert.NoError(err, "proxy case %d had error", i)
-		u, err := pf(&http.Request{})
-		assert.NoError(err)
-		assert.Equal(tc.expected, u.String())
-	}
+func getRequest(assert *assert.Assertions, scheme string) *http.Request {
+	url, err := url.Parse(scheme + "://example.com")
+	assert.NoError(err)
+	return &http.Request{URL: url}
 }
 
-/*
-func getURL(f *ini.File) (*url.URL, error) {
-	conf := File{
-		f,
-		"some/path",
-	}
-	m, _ := conf.GetSection("Main")
-	pf, err := getProxySettings(m)
-	if err != nil {
-		return nil, err
-	}
-	return pf(&http.Request{})
-}
+func TestGetINIProxySettings(t *testing.T) {
+	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	defer restoreGlobalConfig()
 
-func TestGetProxySettings(t *testing.T) {
+	http, https := "http", "https"
+
 	assert := assert.New(t)
 
-	f, _ := ini.Load([]byte("[Main]\n\nproxy_host = myhost"))
-
-	s, err := getURL(f)
-	assert.NoError(err)
-	assert.Equal("http://myhost:3128", s.String())
-
-	f, _ = ini.Load([]byte("[Main]\n\nproxy_host = http://myhost"))
-
-	s, err = getURL(f)
-	assert.NoError(err)
-	assert.Equal("http://myhost:3128", s.String())
-
-	f, _ = ini.Load([]byte("[Main]\n\nproxy_host = https://myhost"))
-
-	s, err = getURL(f)
-	assert.NoError(err)
-	assert.Equal("https://myhost:3128", s.String())
-
-	// generic user name
-	f, _ = ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"proxy_host = https://myhost",
-		"proxy_port = 3129",
-		"proxy_user = aaditya",
-	}, "\n")))
-
-	s, err = getURL(f)
+	// No scheme on config with just proxy_host
+	c, err := NewAgentConfig("./testdata/TestGetINIProxySettings.ini", "", "")
 	assert.NoError(err)
 
-	assert.Equal("https://aaditya@myhost:3129", s.String())
+	assert.NotNil(c.Transport)
+	assert.NotNil(c.Transport.Proxy)
 
-	// special char in user name <3
-	f, _ = ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"proxy_host = myhost",
-		"proxy_port = 3129",
-		"proxy_user = léo",
-	}, "\n")))
+	url, err := c.Transport.Proxy(getRequest(assert, http))
+	assert.NoError(err)
+	assert.Equal("http://myhost", url.String())
 
-	s, err = getURL(f)
+	url, err = c.Transport.Proxy(getRequest(assert, https))
+	assert.NoError(err)
+	assert.Equal("http://myhost", url.String())
+
+	// HTTP scheme on config with just proxy_host
+	c, err = NewAgentConfig("./testdata/TestGetINIProxySettings-2.ini", "", "")
 	assert.NoError(err)
 
-	// user is url-encoded and decodes to originalConfig string
-	assert.Equal("http://l%C3%A9o@myhost:3129", s.String())
-	assert.Equal("léo", s.User.Username())
+	assert.NotNil(c.Transport)
+	assert.NotNil(c.Transport.Proxy)
 
-	// generic  user-pass
-	f, _ = ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"proxy_host = myhost",
-		"proxy_port = 3129",
-		"proxy_user = aaditya",
-		"proxy_password = password_12",
-	}, "\n")))
-
-	s, err = getURL(f)
+	url, err = c.Transport.Proxy(getRequest(assert, http))
 	assert.NoError(err)
-	assert.Equal("http://aaditya:password_12@myhost:3129", s.String())
+	assert.Equal("http://myhost", url.String())
 
-	// user-pass with schemed host
-	f, _ = ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"proxy_host = https://myhost",
-		"proxy_port = 3129",
-		"proxy_user = aaditya",
-		"proxy_password = password_12",
-	}, "\n")))
-
-	s, err = getURL(f)
+	url, err = c.Transport.Proxy(getRequest(assert, https))
 	assert.NoError(err)
-	assert.Equal("https://aaditya:password_12@myhost:3129", s.String())
+	assert.Equal("http://myhost", url.String())
 
-	// special characters in password
-	f, _ = ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"proxy_host = https://myhost",
-		"proxy_port = 3129",
-		"proxy_user = aaditya",
-		"proxy_password = /:!?&=@éÔγλῶσσα",
-	}, "\n")))
-
-	s, err = getURL(f)
+	// HTTPS scheme on config with just proxy_host
+	c, err = NewAgentConfig("./testdata/TestGetINIProxySettings-3.ini", "", "")
 	assert.NoError(err)
 
-	// password is url-encoded and decodes to the originalConfig string
-	assert.Equal("https://aaditya:%2F%3A%21%3F&=%40%C3%A9%C3%94%CE%B3%CE%BB%E1%BF%B6%CF%83%CF%83%CE%B1@myhost:3129", s.String())
+	assert.NotNil(c.Transport)
+	assert.NotNil(c.Transport.Proxy)
 
-	pass, _ := s.User.Password()
-	assert.Equal("/:!?&=@éÔγλῶσσα", pass)
+	url, err = c.Transport.Proxy(getRequest(assert, http))
+	assert.NoError(err)
+	assert.Equal("https://myhost", url.String())
+
+	url, err = c.Transport.Proxy(getRequest(assert, https))
+	assert.NoError(err)
+	assert.Equal("https://myhost", url.String())
+
+	// HTTPS scheme on config with username and port
+	c, err = NewAgentConfig("./testdata/TestGetINIProxySettings-4.ini", "", "")
+	assert.NoError(err)
+
+	assert.NotNil(c.Transport)
+	assert.NotNil(c.Transport.Proxy)
+
+	url, err = c.Transport.Proxy(getRequest(assert, http))
+	assert.NoError(err)
+	assert.Equal("https://aaditya@myhost:3129", url.String())
+
+	url, err = c.Transport.Proxy(getRequest(assert, https))
+	assert.NoError(err)
+	assert.Equal("https://aaditya@myhost:3129", url.String())
+
+	// HTTPS scheme on config with username (with special char) and port
+	c, err = NewAgentConfig("./testdata/TestGetINIProxySettings-5.ini", "", "")
+	assert.NoError(err)
+
+	assert.NotNil(c.Transport)
+	assert.NotNil(c.Transport.Proxy)
+
+	url, err = c.Transport.Proxy(getRequest(assert, http)) // HTTP
+	assert.NoError(err)
+	assert.Equal("https://l%C3%A9o@myhost:3129", url.String())
+
+	url, err = c.Transport.Proxy(getRequest(assert, https))
+	assert.NoError(err)
+	assert.Equal("https://l%C3%A9o@myhost:3129", url.String())
+
+	// HTTPS scheme on config with username, password, and port
+	c, err = NewAgentConfig("./testdata/TestGetINIProxySettings-6.ini", "", "")
+	assert.NoError(err)
+
+	assert.NotNil(c.Transport)
+	assert.NotNil(c.Transport.Proxy)
+
+	url, err = c.Transport.Proxy(getRequest(assert, http))
+	assert.NoError(err)
+	assert.Equal("https://aaditya:password_12@myhost:3129", url.String())
+
+	url, err = c.Transport.Proxy(getRequest(assert, https))
+	assert.NoError(err)
+	assert.Equal("https://aaditya:password_12@myhost:3129", url.String())
+
+	// HTTPS scheme on config with username, password (w/ special characters), and port
+	c, err = NewAgentConfig("./testdata/TestGetINIProxySettings-7.ini", "", "")
+	assert.NoError(err)
+
+	assert.NotNil(c.Transport)
+	assert.NotNil(c.Transport.Proxy)
+
+	url, err = c.Transport.Proxy(getRequest(assert, http))
+	assert.NoError(err)
+	assert.Equal("https://aaditya:%2F%3A%21%3F&=%40%C3%A9%C3%94%CE%B3%CE%BB%E1%BF%B6%CF%83%CF%83%CE%B1@myhost:3129", url.String())
+
+	url, err = c.Transport.Proxy(getRequest(assert, https))
+	assert.NoError(err)
+	assert.Equal("https://aaditya:%2F%3A%21%3F&=%40%C3%A9%C3%94%CE%B3%CE%BB%E1%BF%B6%CF%83%CF%83%CE%B1@myhost:3129", url.String())
 }
-*/
 
 func TestEnvSiteConfig(t *testing.T) {
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
@@ -601,4 +578,51 @@ func TestIsAffirmative(t *testing.T) {
 	value, err = isAffirmative("ok")
 	assert.Nil(t, err)
 	assert.False(t, value)
+}
+
+func TestProxyEnv(t *testing.T) {
+	assert := assert.New(t)
+	for i, tc := range []struct {
+		host     string
+		port     int
+		user     string
+		pass     string
+		expected string
+	}{
+		{
+			"example.com",
+			1234,
+			"",
+			"",
+			"http://example.com:1234",
+		},
+		{
+			"https://example.com",
+			4567,
+			"foo",
+			"bar",
+			"https://foo:bar@example.com:4567",
+		},
+		{
+			"example.com",
+			0,
+			"foo",
+			"",
+			"http://foo@example.com:3128",
+		},
+	} {
+		os.Setenv("PROXY_HOST", tc.host)
+		if tc.port > 0 {
+			os.Setenv("PROXY_PORT", strconv.Itoa(tc.port))
+		} else {
+			os.Setenv("PROXY_PORT", "")
+		}
+		os.Setenv("PROXY_USER", tc.user)
+		os.Setenv("PROXY_PASSWORD", tc.pass)
+		pf, err := proxyFromEnv(nil)
+		assert.NoError(err, "proxy case %d had error", i)
+		u, err := pf(&http.Request{})
+		assert.NoError(err)
+		assert.Equal(tc.expected, u.String())
+	}
 }

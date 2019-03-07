@@ -225,7 +225,28 @@ func (a *AgentConfig) loadProcessConfig(iniPath, yamlPath string) error {
 	// Pull additional parameters from the global config file.
 	a.LogLevel = config.Datadog.GetString("log_level")
 	a.StatsdPort = config.Datadog.GetInt("dogstatsd_port")
+
+	// Note: agent 6 + environment flag configured proxies are setup here
 	a.Transport = ddutil.CreateHTTPTransport()
+
+	// For agent 5, we need to build the proxy ourselves
+	if iniPath != "" {
+		p, isSet := &config.Proxy{NoProxy: []string{}}, false
+
+		if proxyHTTP := "proxy.http"; config.Datadog.IsSet(proxyHTTP) {
+			isSet = true
+			p.HTTP = config.Datadog.GetString(proxyHTTP)
+		}
+
+		if proxyHTTPS := "proxy.https"; config.Datadog.IsSet(proxyHTTPS) {
+			isSet = true
+			p.HTTPS = config.Datadog.GetString(proxyHTTPS)
+		}
+
+		if isSet {
+			a.Transport.Proxy = ddutil.GetProxyTransportFunc(p)
+		}
+	}
 
 	return nil
 }
