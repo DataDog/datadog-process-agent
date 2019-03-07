@@ -77,6 +77,9 @@ func (a *AgentConfig) loadNetworkYamlConfig(path string) error {
 	// Pull additional parameters from the global config file.
 	a.LogLevel = config.Datadog.GetString("log_level")
 	a.StatsdPort = config.Datadog.GetInt("dogstatsd_port")
+	if config.Datadog.IsSet("bind_host") {
+		a.StatsdHost = config.Datadog.GetString("bind_host")
+	}
 
 	return nil
 }
