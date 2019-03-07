@@ -219,11 +219,15 @@ func NewAgentConfig(iniPath, yamlPath, netYamlPath string) (*AgentConfig, error)
 	var err error
 	cfg := NewDefaultAgentConfig()
 
-	if util.PathExists(yamlPath) { // For Agents >= 6 we will have a YAML config file to use.
+	yamlExists, iniExists := util.PathExists(yamlPath), util.PathExists(iniPath)
+	if yamlExists { // For Agents >= 6 we will have a YAML config file to use.
+		if iniExists {
+			log.Infof("both YAML and INI configs detected, ignoring INI and proceeding with YAML")
+		}
 		if err := cfg.loadProcessConfig("", yamlPath); err != nil {
 			return nil, err
 		}
-	} else if util.PathExists(iniPath) { // For Agent 5, we will have an INI config file to use
+	} else if iniExists { // For Agent 5, we will have an INI config file to use
 		if err := cfg.loadProcessConfig(iniPath, ""); err != nil {
 			return nil, err
 		}
