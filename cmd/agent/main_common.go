@@ -98,13 +98,7 @@ func runAgent(exit chan bool) {
 		}()
 	}
 
-	agentConf, err := config.NewIfExists(opts.ddConfigPath)
-	if err != nil {
-		log.Criticalf("Error reading dd-agent config: %s", err)
-		os.Exit(1)
-	}
-
-	cfg, err := config.NewAgentConfig(agentConf, opts.configPath, opts.netConfigPath)
+	cfg, err := config.NewAgentConfig(opts.ddConfigPath, opts.configPath, opts.netConfigPath)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)

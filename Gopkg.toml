@@ -1,6 +1,6 @@
 [[constraint]]
   name = "github.com/DataDog/datadog-agent"
-  revision = "4aa90bd394b62b0d3e3f15703c6e459c1c477fbc"
+  revision = "87fcbdb53630c978b8561d2c2272b285123c3d42"
 
 [[constraint]]
   name = "github.com/DataDog/gopsutil"
@@ -8,7 +8,7 @@
 
 [[constraint]]
   name = "github.com/gogo/protobuf"
-  revision = "d76fbc1373015ced59b43ac267f28d546b955683"
+  version = "~1.0.0"
 
 [[constraint]]
   name = "github.com/iovisor/gobpf"

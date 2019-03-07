@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/config/legacy"
+
 	"github.com/DataDog/datadog-agent/pkg/config"
 	ddutil "github.com/DataDog/datadog-agent/pkg/util"
 	log "github.com/cihub/seelog"
@@ -80,14 +82,25 @@ func (a *AgentConfig) loadNetworkYamlConfig(path string) error {
 }
 
 // Process-specific configuration
-func (a *AgentConfig) loadProcessYamlConfig(path string) error {
-	config.Datadog.AddConfigPath(path)
-	if strings.HasSuffix(path, ".yaml") { // If they set a config file directly, let's try to honor that
-		config.Datadog.SetConfigFile(path)
-	}
+func (a *AgentConfig) loadProcessConfig(iniPath, yamlPath string) error {
+	if iniPath != "" { // Loading legacy agent 5 configuration (.conf)
+		iniConfig, err := legacy.GetAgentConfig(iniPath)
+		if err != nil {
+			return err
+		}
+		legacy.FromAgentConfig(iniConfig)
+	} else if yamlPath != "" { // Loading modern agent 6 configuration (.yaml)
+		config.Datadog.AddConfigPath(yamlPath)
+		// If they set a config file directly, let's try to honor that
+		if strings.HasSuffix(yamlPath, ".yaml") {
+			config.Datadog.SetConfigFile(yamlPath)
+		}
 
-	if err := config.Load(); err != nil {
-		return err
+		if err := config.Load(); err != nil {
+			return err
+		}
+	} else {
+		return nil
 	}
 
 	URL, err := url.Parse(config.GetMainEndpoint("https://process.", key(ns, "process_dd_url")))
@@ -118,6 +131,19 @@ func (a *AgentConfig) loadProcessYamlConfig(path string) error {
 	// The full path to the file where process-agent logs will be written.
 	if logFile := config.Datadog.GetString(key(ns, "log_file")); logFile != "" {
 		a.LogFile = logFile
+	}
+
+	// Enable real time mode
+	if realTimeMode := key(ns, "allow_real_time"); config.Datadog.IsSet(realTimeMode) {
+		a.AllowRealTime = config.Datadog.GetBool(realTimeMode)
+	}
+
+	// Agent 5 Python
+	if pyAgent := config.Datadog.GetString(key(ns, "dd_agent_py")); pyAgent != "" {
+		a.DDAgentPy = pyAgent
+	}
+	if pyEnv := config.Datadog.GetStringSlice(key(ns, "dd_agent_py_env")); len(pyEnv) > 0 {
+		a.DDAgentPyEnv = pyEnv
 	}
 
 	// The interval, in seconds, at which we will run each check. If you want consistent
