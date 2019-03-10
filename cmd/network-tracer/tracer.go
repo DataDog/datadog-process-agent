@@ -61,9 +61,19 @@ func CreateNetworkTracer(cfg *config.AgentConfig) (*NetworkTracer, error) {
 
 // Run makes available the HTTP endpoint for network collection
 func (nt *NetworkTracer) Run() {
-	http.HandleFunc("/status", func(w http.ResponseWriter, req *http.Request) {})
+	httpMux := http.DefaultServeMux
 
-	http.HandleFunc("/connections", func(w http.ResponseWriter, req *http.Request) {
+	// If profiling is disabled, then we should overwrite handlers for the pprof endpoints
+	// that were registered in init():
+	// https://github.com/golang/go/blob/5bd88b0/src/net/http/pprof/pprof.go#L72-L78
+	// We can only do this by creating a new HTTP Mux that does not have these endpoints handled
+	if !nt.cfg.EnableDebugProfiling {
+		httpMux = http.NewServeMux()
+	}
+
+	httpMux.HandleFunc("/status", func(w http.ResponseWriter, req *http.Request) {})
+
+	httpMux.HandleFunc("/connections", func(w http.ResponseWriter, req *http.Request) {
 		// We require to send a client_id to the network state
 		var clientID string
 		if rawCID := req.URL.Query().Get("client_id"); rawCID != "" {
@@ -90,7 +100,7 @@ func (nt *NetworkTracer) Run() {
 		log.Tracef("/connections: %d connections, %d bytes", len(cs.Conns), len(buf))
 	})
 
-	http.HandleFunc("/debug/stats", func(w http.ResponseWriter, req *http.Request) {
+	httpMux.HandleFunc("/debug/stats", func(w http.ResponseWriter, req *http.Request) {
 		stats, err := nt.tracer.GetStats()
 		if err != nil {
 			log.Errorf("unable to retrieve tracer stats: %s", err)
@@ -108,18 +118,7 @@ func (nt *NetworkTracer) Run() {
 		w.Write(buf)
 	})
 
-	// If profiling is disabled, then we should overwrite handlers for the pprof endpoints
-	// that were registered in init():
-	// https://github.com/golang/go/blob/5bd88b0/src/net/http/pprof/pprof.go#L72-L78
-	if !nt.cfg.EnableDebugProfiling {
-		http.HandleFunc("/debug/pprof/", http.NotFoundHandler().ServeHTTP)
-		http.HandleFunc("/debug/pprof/cmdline", http.NotFoundHandler().ServeHTTP)
-		http.HandleFunc("/debug/pprof/profile", http.NotFoundHandler().ServeHTTP)
-		http.HandleFunc("/debug/pprof/symbol", http.NotFoundHandler().ServeHTTP)
-		http.HandleFunc("/debug/pprof/trace", http.NotFoundHandler().ServeHTTP)
-	}
-
-	http.Serve(nt.conn.GetListener(), nil)
+	http.Serve(nt.conn.GetListener(), httpMux)
 }
 
 // Close will stop all network tracing activities
