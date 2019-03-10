@@ -15,6 +15,9 @@ type Config struct {
 	// CollectIPv6Conns specifics whether the tracer should capture traffic for IPv6 TCP/UDP connections
 	CollectIPv6Conns bool
 
+	// CollectLocalDNS specifies whether the tracer should capture traffic for local DNS calls
+	CollectLocalDNS bool
+
 	// UDPConnTimeout determines the length of traffic inactivity between two (IP, port)-pairs before declaring a UDP
 	// connection as inactive.
 	// Note: As UDP traffic is technically "connection-less", for tracking, we consider a UDP connection to be traffic
@@ -39,6 +42,7 @@ func NewDefaultConfig() *Config {
 		CollectTCPConns:       true,
 		CollectUDPConns:       true,
 		CollectIPv6Conns:      true,
+		CollectLocalDNS:       false,
 		UDPConnTimeout:        30 * time.Second,
 		TCPConnTimeout:        10 * time.Minute,
 		MaxTrackedConnections: 65536,

@@ -82,6 +82,7 @@ type AgentConfig struct {
 	DisableTCPTracing        bool
 	DisableUDPTracing        bool
 	DisableIPv6Tracing       bool
+	CollectLocalDNS          bool
 	NetworkTracerSocketPath  string
 	NetworkTracerLogFile     string
 	MaxTrackedConnections    uint

@@ -37,6 +37,8 @@ func (a *AgentConfig) loadNetworkYamlConfig(path string) error {
 	a.DisableUDPTracing = config.Datadog.GetBool(key(netNS, "disable_udp"))
 	a.DisableIPv6Tracing = config.Datadog.GetBool(key(netNS, "disable_ipv6"))
 
+	a.CollectLocalDNS = config.Datadog.GetBool(key(netNS, "collect_local_dns"))
+
 	// Whether agent should expose profiling endpoints over the unix socket
 	a.EnableDebugProfiling = config.Datadog.GetBool(key(netNS, "debug_profiling_enabled"))
 
