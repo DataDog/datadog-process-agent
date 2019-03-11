@@ -521,6 +521,72 @@ func TestUDPDisabled(t *testing.T) {
 	doneChan <- struct{}{}
 }
 
+func TestLocalDNSCollectionDisabled(t *testing.T) {
+	// Enable BPF-based network tracer with DNS disabled (by default)
+	config := NewDefaultConfig()
+
+	tr, err := NewTracer(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tr.Stop()
+
+	// Connect to local DNS
+	addr, err := net.ResolveUDPAddr("udp", "localhost:53")
+	assert.NoError(t, err)
+
+	cn, err := net.DialUDP("udp", nil, addr)
+	assert.NoError(t, err)
+	defer cn.Close()
+
+	// Write anything
+	_, err = cn.Write([]byte("test"))
+	assert.NoError(t, err)
+
+	// Iterate through active connections making sure there are no local DNS calls
+	for _, c := range getConnections(t, tr).Conns {
+		assert.False(t, isLocalDNS(c))
+	}
+}
+
+func TestLocalDNSCollectionEnabled(t *testing.T) {
+	// Enable BPF-based network tracer with DNS enabled
+	config := NewDefaultConfig()
+	config.CollectLocalDNS = true
+
+	tr, err := NewTracer(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tr.Stop()
+
+	// Connect to local DNS
+	addr, err := net.ResolveUDPAddr("udp", "localhost:53")
+	assert.NoError(t, err)
+
+	cn, err := net.DialUDP("udp", nil, addr)
+	assert.NoError(t, err)
+	defer cn.Close()
+
+	// Write anything
+	_, err = cn.Write([]byte("test"))
+	assert.NoError(t, err)
+
+	// Iterate through active connections making sure theres at least one connection
+	for _, c := range getConnections(t, tr).Conns {
+		if isLocalDNS(c) {
+			return
+		}
+	}
+
+	// We shouldn't get here if the test passes successfully
+	assert.Error(t, nil)
+}
+
+func isLocalDNS(c ConnectionStats) bool {
+	return c.Source == "127.0.0.1" && c.Dest == "127.0.0.1" && c.DPort == 53
+}
+
 func TestTooSmallBPFMap(t *testing.T) {
 	// Enable BPF-based network tracer with BPF maps size = 1
 	config := NewDefaultConfig()
