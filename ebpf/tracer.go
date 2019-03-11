@@ -33,9 +33,12 @@ type Tracer struct {
 	portMapping    *PortMapping
 	localAddresses map[string]struct{}
 
-	perfMap      *bpflib.PerfMap
+	perfMap *bpflib.PerfMap
+
+	// Telemetry
 	perfReceived uint64
 	perfLost     uint64
+	skippedConns uint64
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -135,7 +138,12 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 					return
 				}
 				atomic.AddUint64(&t.perfReceived, 1)
-				t.state.StoreClosedConnection(decodeRawTCPConn(conn))
+				cs := decodeRawTCPConn(conn)
+				if t.shouldSkipConnection(&cs, t.determineConnectionDirection(&cs)) {
+					atomic.AddUint64(&t.skippedConns, 1)
+				} else {
+					t.state.StoreClosedConnection(cs)
+				}
 			case lostCount, ok := <-lostChannel:
 				if !ok {
 					return
@@ -144,14 +152,22 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 			case <-ticker.C:
 				recv := atomic.SwapUint64(&t.perfReceived, 0)
 				lost := atomic.SwapUint64(&t.perfLost, 0)
+				skip := atomic.SwapUint64(&t.skippedConns, 0)
 				if lost > 0 {
-					log.Debugf("closed connection polling: %d received, %d lost", recv, lost)
+					log.Debugf("closed connection polling: %d received, %d lost, %d skipped", recv, lost, skip)
 				}
 			}
 		}
 	}()
 
 	return pm, nil
+}
+
+// shouldSkipConnection returns whether or not the tracer should ignore a given connection:
+//  • Local DNS (*:53) requests if configured (default: true)
+func (t *Tracer) shouldSkipConnection(conn *ConnectionStats, direction ConnectionDirection) bool {
+	isDNSConnection := conn.DPort == 53 || conn.SPort == 53
+	return !t.config.CollectLocalDNS && isDNSConnection && direction == LOCAL
 }
 
 func (t *Tracer) Stop() {
@@ -210,10 +226,13 @@ func (t *Tracer) getConnections() ([]ConnectionStats, uint64, error) {
 			expired = append(expired, nextKey.copy())
 		} else {
 			conn := connStats(nextKey, stats, t.getTCPStats(tcpMp, nextKey))
-
 			conn.Direction = t.determineConnectionDirection(&conn)
 
-			active = append(active, conn)
+			if t.shouldSkipConnection(&conn, conn.Direction) {
+				atomic.AddUint64(&t.skippedConns, 1)
+			} else {
+				active = append(active, conn)
+			}
 		}
 		key = nextKey
 	}
@@ -223,7 +242,6 @@ func (t *Tracer) getConnections() ([]ConnectionStats, uint64, error) {
 
 	for _, key := range closedPortBindings {
 		t.portMapping.RemoveMapping(key)
-
 		_ = t.m.DeleteElement(portMp, unsafe.Pointer(&key))
 	}
 
@@ -311,7 +329,11 @@ func (t *Tracer) GetStats() (map[string]interface{}, error) {
 	if t.state == nil {
 		return nil, fmt.Errorf("internal state not yet initialized")
 	}
-	return t.state.GetStats(atomic.LoadUint64(&t.perfLost), atomic.LoadUint64(&t.perfReceived)), nil
+
+	lost := atomic.LoadUint64(&t.perfLost)
+	received := atomic.LoadUint64(&t.perfReceived)
+	skipped := atomic.LoadUint64(&t.skippedConns)
+	return t.state.GetStats(lost, received, skipped), nil
 }
 
 // populatePortMapping reads the entire portBinding bpf map and populates the local port/address map.  A list of
