@@ -93,11 +93,14 @@ type ConnectionStats struct {
 
 	// Last time the stats for this connection were updated
 	LastUpdateEpoch uint64 `json:"last_update_epoch"`
+
+	// If this connection is the aggregation of multiple connections, this will be > 0
+	RollUpCount uint16 `json:"rollup_count"`
 }
 
 func (c ConnectionStats) String() string {
 	return fmt.Sprintf(
-		"[%s] [PID: %d] [%v:%d ⇄ %v:%d] (%s) %d bytes sent (+%d), %d bytes received (+%d), %d retransmits (+%d)",
+		"[%s, PID:%d] [%v:%d ⇄ %v:%d] (%s) %dB sent (+%d), %dB received (+%d), %d retransmits (+%d), rollup: %d",
 		c.Type,
 		c.Pid,
 		c.Source,
@@ -108,6 +111,7 @@ func (c ConnectionStats) String() string {
 		c.MonotonicSentBytes, c.LastSentBytes,
 		c.MonotonicRecvBytes, c.LastRecvBytes,
 		c.MonotonicRetransmits, c.LastRetransmits,
+		c.RollUpCount,
 	)
 }
 
@@ -132,4 +136,28 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 		return nil, err
 	}
 	return buffer.Bytes(), nil
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func applyFuncOnRange(cs []ConnectionStats, isSame func(a, b *ConnectionStats) bool, f func([]ConnectionStats)) {
+	curr := make([]ConnectionStats, 0)
+
+	for i, c := range cs {
+		if isSame(&cs[max(i-1, 0)], &c) {
+			curr = append(curr, c)
+		} else {
+			f(curr)
+			curr = []ConnectionStats{c}
+		}
+	}
+
+	if len(curr) > 0 {
+		f(curr)
+	}
 }
