@@ -280,7 +280,7 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 func commonPorts(m map[uint16]int) map[uint16]struct{} {
 	ports := make(map[uint16]struct{})
 	for p, count := range m {
-		if count > 100 { // TODO: Make configurable
+		if count > 25 { // TODO: Make configurable
 			ports[p] = struct{}{}
 		}
 	}
