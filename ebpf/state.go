@@ -142,7 +142,7 @@ func (ns *networkState) Connections(id string, latestTime uint64, latestConns []
 	// Flush closed connection map
 	ns.clients[id].closedConnections = map[string]ConnectionStats{}
 
-	return conns
+	return aggregateConnections(conns)
 }
 
 // getConnsByKey returns a mapping of byte-key -> connection for easier access + manipulation
