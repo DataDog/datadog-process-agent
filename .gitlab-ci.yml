@@ -7,7 +7,9 @@ stages:
 
 variables:
   SRC_PATH: /src/github.com/StackVista/stackstate-process-agent
+  STS_AWS_BUCKET: stackstate-process-agent-2-test
   STS_REPO_BRANCH_NAME: $CI_COMMIT_REF_NAME
+  CIRCLE_BRANCH: $CI_COMMIT_REF_NAME
   BASH_ENV: /root/.bashrc
 
 build_linux:
@@ -83,3 +85,25 @@ pre_release_windows:
     - aws.exe s3 cp . s3://stackstate-process-agent-2-test/%CI_COMMIT_REF_NAME% --recursive --exclude "*" --include "*.exe" --acl public-read
   tags:
     - sts_windows
+
+pre_release_linux:
+  stage: pre_release
+  image: stackstate/stackstate-agent-runner-circle:process-agent-go1_10_1-0.0.1
+  dependencies:
+    - build_linux
+  before_script:
+    - mkdir -p /go/src/github.com/StackVista
+    - ln -s $CI_PROJECT_DIR  /go/src/github.com/StackVista/stackstate-process-agent
+    - echo 'export IMPORT_PATH=$GOPATH/src/github.com/StackVista/stackstate-process-agent' >> $BASH_ENV
+    - git status -s
+    - echo "export PROCESS_AGENT_VERSION=$(packaging/version.sh)" >> $BASH_ENV
+    - echo "export EBPF=${EBPF:-true}" >> $BASH_ENV
+    - echo 'export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH' >> $BASH_ENV && source $BASH_ENV
+    - uname -a
+    - apt-get -y -q install s3cmd
+    - gem install --no-ri --no-rdoc fpm
+    - gem install --no-ri --no-rdoc deb-s3
+  script:
+    - ls -la $IMPORT_PATH
+    - ls -la $IMPORT_PATH/packaging
+    - cd $IMPORT_PATH/packaging && ./publish_staging_package.sh

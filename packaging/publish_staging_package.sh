@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ -z ${STS_AWS_BUCKET+x} ]; then
-	echo "Missing AGENT_S3_BUCKET in environment"
+	echo "Missing STS_AWS_BUCKET in environment"
 	exit 1;
 fi
 
