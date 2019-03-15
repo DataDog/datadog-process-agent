@@ -73,7 +73,7 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf(in *jlexer.Le
 					key := int32(in.Int32Str())
 					in.WantColon()
 					var v2 CommonPorts
-					easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in, &v2)
+					(v2).UnmarshalEasyJSON(in)
 					(out.CommonPortsByPID)[key] = v2
 					in.WantComma()
 				}
@@ -135,7 +135,7 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf(out *jwriter.
 				}
 				out.Int32Str(int32(v5Name))
 				out.RawByte(':')
-				easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out, v5Value)
+				(v5Value).MarshalEasyJSON(out)
 			}
 			out.RawByte('}')
 		}
@@ -166,130 +166,7 @@ func (v *Connections) UnmarshalJSON(data []byte) error {
 func (v *Connections) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf(l, v)
 }
-func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.Lexer, out *CommonPorts) {
-	isTopLevel := in.IsStart()
-	if in.IsNull() {
-		if isTopLevel {
-			in.Consumed()
-		}
-		in.Skip()
-		return
-	}
-	in.Delim('{')
-	for !in.IsDelim('}') {
-		key := in.UnsafeString()
-		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
-		switch key {
-		case "source_ports":
-			if in.IsNull() {
-				in.Skip()
-				out.SourcePorts = nil
-			} else {
-				in.Delim('[')
-				if out.SourcePorts == nil {
-					if !in.IsDelim(']') {
-						out.SourcePorts = make([]int32, 0, 16)
-					} else {
-						out.SourcePorts = []int32{}
-					}
-				} else {
-					out.SourcePorts = (out.SourcePorts)[:0]
-				}
-				for !in.IsDelim(']') {
-					var v6 int32
-					v6 = int32(in.Int32())
-					out.SourcePorts = append(out.SourcePorts, v6)
-					in.WantComma()
-				}
-				in.Delim(']')
-			}
-		case "dest_ports":
-			if in.IsNull() {
-				in.Skip()
-				out.DestPorts = nil
-			} else {
-				in.Delim('[')
-				if out.DestPorts == nil {
-					if !in.IsDelim(']') {
-						out.DestPorts = make([]int32, 0, 16)
-					} else {
-						out.DestPorts = []int32{}
-					}
-				} else {
-					out.DestPorts = (out.DestPorts)[:0]
-				}
-				for !in.IsDelim(']') {
-					var v7 int32
-					v7 = int32(in.Int32())
-					out.DestPorts = append(out.DestPorts, v7)
-					in.WantComma()
-				}
-				in.Delim(']')
-			}
-		default:
-			in.SkipRecursive()
-		}
-		in.WantComma()
-	}
-	in.Delim('}')
-	if isTopLevel {
-		in.Consumed()
-	}
-}
-func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter.Writer, in CommonPorts) {
-	out.RawByte('{')
-	first := true
-	_ = first
-	{
-		const prefix string = ",\"source_ports\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		if in.SourcePorts == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
-			out.RawString("null")
-		} else {
-			out.RawByte('[')
-			for v8, v9 := range in.SourcePorts {
-				if v8 > 0 {
-					out.RawByte(',')
-				}
-				out.Int32(int32(v9))
-			}
-			out.RawByte(']')
-		}
-	}
-	{
-		const prefix string = ",\"dest_ports\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		if in.DestPorts == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
-			out.RawString("null")
-		} else {
-			out.RawByte('[')
-			for v10, v11 := range in.DestPorts {
-				if v10 > 0 {
-					out.RawByte(',')
-				}
-				out.Int32(int32(v11))
-			}
-			out.RawByte(']')
-		}
-	}
-	out.RawByte('}')
-}
-func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf2(in *jlexer.Lexer, out *ConnectionStats) {
+func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.Lexer, out *ConnectionStats) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -352,7 +229,7 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf2(in *jlexer.L
 		in.Consumed()
 	}
 }
-func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf2(out *jwriter.Writer, in ConnectionStats) {
+func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter.Writer, in ConnectionStats) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -532,23 +409,170 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf2(out *jwriter
 // MarshalJSON supports json.Marshaler interface
 func (v ConnectionStats) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf2(&w, v)
+	easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v ConnectionStats) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf2(w, v)
+	easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *ConnectionStats) UnmarshalJSON(data []byte) error {
+	r := jlexer.Lexer{Data: data}
+	easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(&r, v)
+	return r.Error()
+}
+
+// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
+func (v *ConnectionStats) UnmarshalEasyJSON(l *jlexer.Lexer) {
+	easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(l, v)
+}
+func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf2(in *jlexer.Lexer, out *CommonPorts) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeString()
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "source_ports":
+			if in.IsNull() {
+				in.Skip()
+				out.SourcePorts = nil
+			} else {
+				in.Delim('[')
+				if out.SourcePorts == nil {
+					if !in.IsDelim(']') {
+						out.SourcePorts = make([]int32, 0, 16)
+					} else {
+						out.SourcePorts = []int32{}
+					}
+				} else {
+					out.SourcePorts = (out.SourcePorts)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v6 int32
+					v6 = int32(in.Int32())
+					out.SourcePorts = append(out.SourcePorts, v6)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
+		case "dest_ports":
+			if in.IsNull() {
+				in.Skip()
+				out.DestPorts = nil
+			} else {
+				in.Delim('[')
+				if out.DestPorts == nil {
+					if !in.IsDelim(']') {
+						out.DestPorts = make([]int32, 0, 16)
+					} else {
+						out.DestPorts = []int32{}
+					}
+				} else {
+					out.DestPorts = (out.DestPorts)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v7 int32
+					v7 = int32(in.Int32())
+					out.DestPorts = append(out.DestPorts, v7)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf2(out *jwriter.Writer, in CommonPorts) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	{
+		const prefix string = ",\"source_ports\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		if in.SourcePorts == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+			out.RawString("null")
+		} else {
+			out.RawByte('[')
+			for v8, v9 := range in.SourcePorts {
+				if v8 > 0 {
+					out.RawByte(',')
+				}
+				out.Int32(int32(v9))
+			}
+			out.RawByte(']')
+		}
+	}
+	{
+		const prefix string = ",\"dest_ports\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		if in.DestPorts == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+			out.RawString("null")
+		} else {
+			out.RawByte('[')
+			for v10, v11 := range in.DestPorts {
+				if v10 > 0 {
+					out.RawByte(',')
+				}
+				out.Int32(int32(v11))
+			}
+			out.RawByte(']')
+		}
+	}
+	out.RawByte('}')
+}
+
+// MarshalJSON supports json.Marshaler interface
+func (v CommonPorts) MarshalJSON() ([]byte, error) {
+	w := jwriter.Writer{}
+	easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf2(&w, v)
+	return w.Buffer.BuildBytes(), w.Error
+}
+
+// MarshalEasyJSON supports easyjson.Marshaler interface
+func (v CommonPorts) MarshalEasyJSON(w *jwriter.Writer) {
+	easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf2(w, v)
+}
+
+// UnmarshalJSON supports json.Unmarshaler interface
+func (v *CommonPorts) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
 	easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf2(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
-func (v *ConnectionStats) UnmarshalEasyJSON(l *jlexer.Lexer) {
+func (v *CommonPorts) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf2(l, v)
 }

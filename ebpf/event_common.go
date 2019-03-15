@@ -67,6 +67,9 @@ type Connections struct {
 	CommonPortsByPID map[int32]CommonPorts `json:"common_ports_by_pid"`
 }
 
+// CommonPorts capture lists of source + dest ports that are common across connections on a process
+// This aids in aggregating data across a number of connections into a single one.
+//easyjson:json
 type CommonPorts struct {
 	SourcePorts []int32 `json:"source_ports"`
 	DestPorts   []int32 `json:"dest_ports"`

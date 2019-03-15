@@ -194,7 +194,8 @@ func sortConnections(conns []ConnectionStats) []ConnectionStats {
 	return conns
 }
 
-// getCommonPortsByPID returns
+// getCommonPortsByPID returns a mapping of PID -> lists of source + dest ports that are common across connections
+// on this process. This data aids in aggregating data across a number of connections into a single one.
 func getCommonPortsByPID(conns []ConnectionStats, cfg *Config) map[int32]CommonPorts {
 	commonPortsByPID := make(map[int32]CommonPorts)
 

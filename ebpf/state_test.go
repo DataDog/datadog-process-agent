@@ -14,45 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO: Tests
-
-//func BenchmarkSortAndAggregateConnections(b *testing.B) {
-//	jsonFile, err := os.Open("./testdata/connections2.json")
-//	assert.NoError(b, err)
-//	defer jsonFile.Close()
-//
-//	buf, err := ioutil.ReadAll(jsonFile)
-//	assert.NoError(b, err)
-//
-//	connections := Connections{}
-//	err = connections.UnmarshalJSON(buf)
-//	assert.NoError(b, err)
-//
-//	b.ResetTimer()
-//	b.ReportAllocs()
-//
-//	for i := 0; i < b.N; i++ {
-//		getCommonPortsByPID(connections.Conns)
-//	}
-//}
-//
-//func TestSortAndAggregateConnections(t *testing.T) {
-//	jsonFile, err := os.Open("./testdata/connections2.json")
-//	assert.NoError(t, err)
-//	defer jsonFile.Close()
-//
-//	buf, err := ioutil.ReadAll(jsonFile)
-//	assert.NoError(t, err)
-//
-//	connections := Connections{}
-//	err = connections.UnmarshalJSON(buf)
-//	assert.NoError(t, err)
-//
-//	getCommonPortsByPID(connections.Conns)
-//
-//	//assert.Error(t, nil)
-//}
-
 func BenchmarkStoreClosedConnection(b *testing.B) {
 	conns := generateRandConnections(30000)
 	for _, bench := range []struct {
