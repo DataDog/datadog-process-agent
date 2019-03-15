@@ -73,7 +73,7 @@ func GetRemoteNetworkTracerUtil() (*RemoteNetTracerUtil, error) {
 }
 
 // GetConnections returns a set of active network connections, retrieved from the network tracer service
-func (r *RemoteNetTracerUtil) GetConnections() ([]ebpf.ConnectionStats, error) {
+func (r *RemoteNetTracerUtil) GetConnections() (*ebpf.Connections, error) {
 	// Otherwise, get it remotely (via unix socket), and parse from JSON
 	resp, err := r.httpClient.Get(connectionsURL)
 	if err != nil {
@@ -92,7 +92,7 @@ func (r *RemoteNetTracerUtil) GetConnections() ([]ebpf.ConnectionStats, error) {
 		return nil, err
 	}
 
-	return conn.Conns, nil
+	return conn, nil
 }
 
 // ShouldLogTracerUtilError will return whether or not errors sourced from the RemoteNetTracerUtil _should_ be logged, for less noisy logging.

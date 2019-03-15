@@ -63,7 +63,13 @@ const (
 // Connections wraps a collection of ConnectionStats
 //easyjson:json
 type Connections struct {
-	Conns []ConnectionStats `json:"connections"`
+	Conns            []ConnectionStats     `json:"connections"`
+	CommonPortsByPID map[int32]CommonPorts `json:"common_ports_by_pid"`
+}
+
+type CommonPorts struct {
+	SourcePorts []int32 `json:"source_ports"`
+	DestPorts   []int32 `json:"dest_ports"`
 }
 
 // ConnectionStats stores statistics for a single connection
@@ -152,7 +158,9 @@ func applyFuncOnRange(cs []ConnectionStats, isSame func(a, b *ConnectionStats) b
 		if isSame(&cs[max(i-1, 0)], &c) {
 			curr = append(curr, c)
 		} else {
-			f(curr)
+			if len(curr) > 0 {
+				f(curr)
+			}
 			curr = []ConnectionStats{c}
 		}
 	}

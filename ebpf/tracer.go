@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"sort"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -175,13 +177,76 @@ func (t *Tracer) Stop() {
 	t.perfMap.PollStop()
 }
 
+// sortConnections sorts a set of connections by (Process ID, Destination IP, Source IP), in that order
+func sortConnections(conns []ConnectionStats) []ConnectionStats {
+	sort.Slice(conns, func(i, j int) bool {
+		if conns[i].Pid < conns[j].Pid { // Sort first by PID
+			return true
+		} else if conns[i].Pid == conns[j].Pid { // Then by destination IP
+			if comp := strings.Compare(conns[i].Dest, conns[j].Dest); comp == -1 {
+				return true
+			} else if comp == 0 { // Then by source IP
+				return strings.Compare(conns[i].Source, conns[j].Source) == -1
+			}
+		}
+		return false
+	})
+	return conns
+}
+
+// getCommonPortsByPID returns
+func getCommonPortsByPID(conns []ConnectionStats, cfg *Config) map[int32]CommonPorts {
+	commonPortsByPID := make(map[int32]CommonPorts)
+
+	// Go over PID sub-ranges and find common source and/or destination ports
+	applyFuncOnRange(conns,
+		func(a, b *ConnectionStats) bool {
+			return a.Pid == b.Pid
+		},
+		func(pidRange []ConnectionStats) {
+			commonPorts := CommonPorts{
+				SourcePorts: []int32{},
+				DestPorts:   []int32{},
+			}
+
+			// Find common ports for this PID range
+			sPortCounts, dPortCounts := map[uint16]int{}, map[uint16]int{}
+			for _, c := range pidRange {
+				sPortCounts[c.SPort]++
+				// If this port is in `CommonPortConnCount` or more connections, then add to list of common source ports for pid.
+				if v := sPortCounts[c.SPort]; v == cfg.CommonPortConnCount {
+					commonPorts.SourcePorts = append(commonPorts.SourcePorts, int32(c.SPort))
+				}
+
+				dPortCounts[c.DPort]++
+				// If this port is in `CommonPortConnCount` or more connections, then add to list of common dest ports for pid.
+				if v := dPortCounts[c.DPort]; v == cfg.CommonPortConnCount {
+					commonPorts.DestPorts = append(commonPorts.DestPorts, int32(c.DPort))
+				}
+			}
+
+			if len(commonPorts.SourcePorts) > 0 || len(commonPorts.DestPorts) > 0 {
+				pid := int32(pidRange[0].Pid) // `pidRange` is guaranteed to be non-empty so this access is safe
+				commonPortsByPID[pid] = commonPorts
+			}
+		},
+	)
+
+	return commonPortsByPID
+}
+
 func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
 	latestConns, latestTime, err := t.getConnections()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving connections: %s", err)
 	}
 
-	return &Connections{Conns: t.state.Connections(clientID, latestTime, latestConns)}, nil
+	connections := sortConnections(t.state.Connections(clientID, latestTime, latestConns))
+
+	return &Connections{
+		Conns:            connections,
+		CommonPortsByPID: getCommonPortsByPID(connections, t.config),
+	}, nil
 }
 
 func (t *Tracer) getConnections() ([]ConnectionStats, uint64, error) {

@@ -2,8 +2,6 @@ package ebpf
 
 import (
 	"bytes"
-	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -142,7 +140,7 @@ func (ns *networkState) Connections(id string, latestTime uint64, latestConns []
 	// Flush closed connection map
 	ns.clients[id].closedConnections = map[string]ConnectionStats{}
 
-	return aggregateConnections(conns)
+	return conns
 }
 
 // getConnsByKey returns a mapping of byte-key -> connection for easier access + manipulation
@@ -275,102 +273,6 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 	}
 
 	return conns
-}
-
-func commonPorts(m map[uint16]int) map[uint16]struct{} {
-	ports := make(map[uint16]struct{})
-	for p, count := range m {
-		if count > 25 { // TODO: Make configurable
-			ports[p] = struct{}{}
-		}
-	}
-	return ports
-}
-
-func aggregateConnections(conns []ConnectionStats) []ConnectionStats {
-	aggrConns := make([]ConnectionStats, 0)
-
-	sort.Slice(conns, func(i, j int) bool {
-		if conns[i].Pid < conns[j].Pid { // Sort first by PID
-			return true
-		} else if conns[i].Pid == conns[j].Pid { // Then by destination IP
-			if comp := strings.Compare(conns[i].Dest, conns[j].Dest); comp == -1 {
-				return true
-			} else if comp == 0 { // Then by source IP
-				return strings.Compare(conns[i].Source, conns[j].Source) == -1
-			}
-		}
-		return false
-	})
-
-	// Go over PID sub-ranges
-	applyFuncOnRange(conns,
-		func(a, b *ConnectionStats) bool {
-			return a.Pid == b.Pid
-		},
-		func(pidRange []ConnectionStats) {
-			// Find common ports for this PID range
-			staticSource, staticDest := map[uint16]int{}, map[uint16]int{}
-			for _, c := range pidRange {
-				staticDest[c.DPort]++
-				staticSource[c.SPort]++
-			}
-			commonSource, commonDest := commonPorts(staticSource), commonPorts(staticDest)
-
-			// Go over IP sub-ranges and aggregate
-			applyFuncOnRange(pidRange,
-				func(a, b *ConnectionStats) bool {
-					return a.Source == b.Source && a.Dest == b.Dest
-				},
-				func(ipRange []ConnectionStats) {
-					aggrConns = append(aggrConns, aggIPRange(ipRange, commonSource, commonDest)...)
-				},
-			)
-		},
-	)
-
-	return aggrConns
-}
-
-func aggIPRange(conns []ConnectionStats, staticSources, staticDests map[uint16]struct{}) []ConnectionStats {
-	source, dest := map[uint16]int{}, map[uint16]int{}
-	aggrConns := make([]ConnectionStats, 0)
-
-	for _, c := range conns {
-		if _, ok := staticSources[c.SPort]; ok {
-			if idx, ok := source[c.SPort]; ok {
-				aggregate(aggrConns, idx, c)
-			} else {
-				c.DPort = 0
-				c.RollUpCount++
-				aggrConns = append(aggrConns, c)
-				source[c.SPort] = len(aggrConns) - 1
-			}
-		} else if _, ok := staticDests[c.DPort]; ok {
-			if idx, ok := dest[c.DPort]; ok {
-				aggregate(aggrConns, idx, c)
-			} else {
-				c.SPort = 0
-				c.RollUpCount++
-				aggrConns = append(aggrConns, c)
-				dest[c.DPort] = len(aggrConns) - 1
-			}
-		} else {
-			aggrConns = append(aggrConns, c)
-		}
-	}
-
-	return aggrConns
-}
-
-func aggregate(aggrConns []ConnectionStats, idx int, c ConnectionStats) {
-	aggrConns[idx].LastSentBytes += c.LastSentBytes
-	aggrConns[idx].LastRecvBytes += c.LastRecvBytes
-	aggrConns[idx].LastRetransmits += c.LastRetransmits
-	aggrConns[idx].MonotonicSentBytes += c.MonotonicSentBytes
-	aggrConns[idx].MonotonicRecvBytes += c.MonotonicRecvBytes
-	aggrConns[idx].MonotonicRetransmits += c.MonotonicRetransmits
-	aggrConns[idx].RollUpCount++
 }
 
 func (ns *networkState) updateConnWithStats(client *client, key string, c *ConnectionStats, now time.Time) {

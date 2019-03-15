@@ -1,7 +1,6 @@
 package checks
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -29,10 +28,7 @@ type ConnectionsCheck struct {
 	localTracer    *ebpf.Tracer
 	tracerClientID string
 
-	prevCheckConns []ebpf.ConnectionStats
-	prevCheckTime  time.Time
-
-	buf *bytes.Buffer // Internal buffer
+	hasRunBefore bool
 }
 
 // Init initializes a ConnectionsCheck instance.
@@ -64,8 +60,6 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		net.SetNetworkTracerSocketPath(cfg.NetworkTracerSocketPath)
 		net.GetRemoteNetworkTracerUtil()
 	}
-
-	c.buf = new(bytes.Buffer)
 
 	// Run the check one time on init to register the client on the network tracer
 	c.Run(cfg, 0)
@@ -102,33 +96,22 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 		return nil, err
 	}
 
-	if c.prevCheckConns == nil { // End check early if this is our first run.
-		c.prevCheckConns = conns
-		c.prevCheckTime = time.Now()
+	if c.hasRunBefore { // End check early if this is our first run.
+		c.hasRunBefore = true
 		return nil, nil
 	}
 
-	// Temporary map to help find matching connections from previous check
-	lastConnByKey := make(map[string]ebpf.ConnectionStats)
-	for _, conn := range c.prevCheckConns {
-		if b, err := conn.ByteKey(c.buf); err == nil {
-			lastConnByKey[string(b)] = conn
-		} else {
-			log.Debugf("failed to create connection byte key: %s", err)
-		}
-	}
-
 	log.Debugf("collected connections in %s", time.Since(start))
-	return batchConnections(cfg, groupID, c.formatConnections(conns, lastConnByKey, c.prevCheckTime)), nil
+	return batchConnections(cfg, groupID, c.formatConnections(conns.Conns), conns.CommonPortsByPID), nil
 }
 
-func (c *ConnectionsCheck) getConnections() ([]ebpf.ConnectionStats, error) {
+func (c *ConnectionsCheck) getConnections() (*ebpf.Connections, error) {
 	if c.useLocalTracer { // If local tracer is set up, use that
 		if c.localTracer == nil {
 			return nil, fmt.Errorf("using local network tracer, but no tracer was initialized")
 		}
 		cs, err := c.localTracer.GetActiveConnections(c.tracerClientID)
-		return cs.Conns, err
+		return cs, err
 	}
 
 	tu, err := net.GetRemoteNetworkTracerUtil()
@@ -144,7 +127,7 @@ func (c *ConnectionsCheck) getConnections() ([]ebpf.ConnectionStats, error) {
 
 // Connections are split up into a chunks of at most 100 connections per message to
 // limit the message size on intake.
-func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastConns map[string]ebpf.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
+func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats) []*model.Connection {
 	// Process create-times required to construct unique process hash keys on the backend
 	createTimeForPID := Process.createTimesforPIDs(connectionStatsPIDs(conns))
 
@@ -178,7 +161,6 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 			Direction:          formatDirection(conn.Direction),
 		})
 	}
-	c.prevCheckConns = conns
 	return cxs
 }
 
@@ -217,19 +199,37 @@ func formatDirection(d ebpf.ConnectionDirection) model.ConnectionDirection {
 	}
 }
 
-func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
+func batchConnections(
+	cfg *config.AgentConfig,
+	groupID int32,
+	cxs []*model.Connection,
+	commonPortsByPID map[int32]ebpf.CommonPorts,
+) []model.MessageBody {
 	groupSize := groupSize(len(cxs), cfg.MaxConnsPerMessage)
 	batches := make([]model.MessageBody, 0, groupSize)
 
 	for len(cxs) > 0 {
 		batchSize := min(cfg.MaxConnsPerMessage, len(cxs))
-		ctrIDForPID := Process.filterCtrIDsByPIDs(connectionPIDs(cxs[:batchSize]))
+		pids := connectionPIDs(cxs[:batchSize])
+
+		// Construct PID -> common port mapping for this batch
+		commonPortsForBatch := make(map[int32]*model.CommonPorts)
+		for _, pid := range pids {
+			if commonPorts, ok := commonPortsByPID[pid]; ok {
+				commonPortsForBatch[pid] = &model.CommonPorts{
+					SourcePorts: commonPorts.SourcePorts,
+					DestPorts:   commonPorts.DestPorts,
+				}
+			}
+		}
+
 		batches = append(batches, &model.CollectorConnections{
-			HostName:        cfg.HostName,
-			Connections:     cxs[:batchSize],
-			GroupId:         groupID,
-			GroupSize:       groupSize,
-			ContainerForPid: ctrIDForPID,
+			HostName:          cfg.HostName,
+			Connections:       cxs[:batchSize],
+			GroupId:           groupID,
+			GroupSize:         groupSize,
+			ContainerForPid:   Process.filterCtrIDsByPIDs(pids),
+			CommonPortsForPid: commonPortsForBatch,
 		})
 		cxs = cxs[batchSize:]
 	}

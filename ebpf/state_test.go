@@ -32,7 +32,7 @@ import (
 //	b.ReportAllocs()
 //
 //	for i := 0; i < b.N; i++ {
-//		aggregateConnections(connections.Conns)
+//		getCommonPortsByPID(connections.Conns)
 //	}
 //}
 //
@@ -48,7 +48,7 @@ import (
 //	err = connections.UnmarshalJSON(buf)
 //	assert.NoError(t, err)
 //
-//	aggregateConnections(connections.Conns)
+//	getCommonPortsByPID(connections.Conns)
 //
 //	//assert.Error(t, nil)
 //}

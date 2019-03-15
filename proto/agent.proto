@@ -57,8 +57,11 @@ message CollectorConnections {
 	// containerId
 	map<string, ContainerMetadata> resolvedContainers = 8;
 
-	// mapping of processes running in each container
+	// Mapping of process ID to the container ID that they're running within
 	map<int32, string> containerForPid = 10;
+
+	// Mapping of process ID to common source/destination ports across connections
+	map<int32, CommonPorts> commonPortsForPid = 11;
 }
 
 message CollectorRealTime {
@@ -377,6 +380,11 @@ message Addr {
 	int32  port = 3;
 	string containerId = 5; // post-resolution field
 	int32  hostId = 6;      // post-resolution field
+}
+
+message CommonPorts {
+	repeated int32 sourcePorts = 1;
+	repeated int32 destPorts = 2;
 }
 
 message MemoryStat {

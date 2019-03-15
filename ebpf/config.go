@@ -32,6 +32,11 @@ type Config struct {
 	// MaxTrackedConnections specifies the maximum number of connections we can track, this will be the size of the BPF maps
 	MaxTrackedConnections uint
 
+	// Number of connections with the same (source or destination) port for a specific PID before port is considered "common".
+	//
+	// Note: Increasing this may increase total number of connections stored.
+	CommonPortConnCount int
+
 	// ProcRoot is the root path to the proc filesystem
 	ProcRoot string
 }
@@ -43,6 +48,7 @@ func NewDefaultConfig() *Config {
 		CollectUDPConns:       true,
 		CollectIPv6Conns:      true,
 		CollectLocalDNS:       false,
+		CommonPortConnCount:   25,
 		UDPConnTimeout:        30 * time.Second,
 		TCPConnTimeout:        10 * time.Minute,
 		MaxTrackedConnections: 65536,
