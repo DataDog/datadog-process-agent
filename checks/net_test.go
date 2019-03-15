@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/DataDog/datadog-process-agent/ebpf"
+
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/stretchr/testify/assert"
@@ -66,7 +68,7 @@ func TestNetworkConnectionBatching(t *testing.T) {
 		},
 	} {
 		cfg.MaxConnsPerMessage = tc.maxSize
-		chunks := batchConnections(cfg, 0, tc.cur)
+		chunks := batchConnections(cfg, 0, tc.cur, map[int32]ebpf.CommonPorts{})
 
 		assert.Len(t, chunks, tc.expectedChunks, "len %d", i)
 		total := 0
