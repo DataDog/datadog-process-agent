@@ -139,7 +139,8 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 				}
 				atomic.AddUint64(&t.perfReceived, 1)
 				cs := decodeRawTCPConn(conn)
-				if t.shouldSkipConnection(&cs, t.determineConnectionDirection(&cs)) {
+				cs.Direction = t.determineConnectionDirection(&cs)
+				if t.shouldSkipConnection(&cs) {
 					atomic.AddUint64(&t.skippedConns, 1)
 				} else {
 					t.state.StoreClosedConnection(cs)
@@ -165,13 +166,13 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 
 // shouldSkipConnection returns whether or not the tracer should ignore a given connection:
 //  • Local DNS (*:53) requests if configured (default: true)
-func (t *Tracer) shouldSkipConnection(conn *ConnectionStats, direction ConnectionDirection) bool {
+func (t *Tracer) shouldSkipConnection(conn *ConnectionStats) bool {
 	isDNSConnection := conn.DPort == 53 || conn.SPort == 53
-	return !t.config.CollectLocalDNS && isDNSConnection && direction == LOCAL
+	return !t.config.CollectLocalDNS && isDNSConnection && conn.Direction == LOCAL
 }
 
 func (t *Tracer) Stop() {
-	t.m.Close()
+	_ = t.m.Close()
 	t.perfMap.PollStop()
 }
 
@@ -228,7 +229,7 @@ func (t *Tracer) getConnections() ([]ConnectionStats, uint64, error) {
 			conn := connStats(nextKey, stats, t.getTCPStats(tcpMp, nextKey))
 			conn.Direction = t.determineConnectionDirection(&conn)
 
-			if t.shouldSkipConnection(&conn, conn.Direction) {
+			if t.shouldSkipConnection(&conn) {
 				atomic.AddUint64(&t.skippedConns, 1)
 			} else {
 				active = append(active, conn)

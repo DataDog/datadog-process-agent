@@ -324,6 +324,7 @@ func TestTCPShortlived(t *testing.T) {
 	assert.Equal(t, 0, int(conn.MonotonicRetransmits))
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
+	assert.Equal(t, LOCAL, conn.Direction)
 
 	// Confirm that the connection has been cleaned up since the last get
 	connections = getConnections(t, tr)
