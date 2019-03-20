@@ -6,12 +6,13 @@ import (
 	"runtime"
 	"time"
 
+	log "github.com/cihub/seelog"
+
 	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/tagger/collectors"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
-	log "github.com/cihub/seelog"
-
 	"github.com/DataDog/datadog-agent/pkg/util/containers/metrics"
+
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
@@ -128,6 +129,8 @@ func fmtContainers(ctrList []*containers.Container, lastRates map[string]util.Co
 			NetSentPs:   calculateRate(ifStats.PacketsSent, lastCtr.NetworkSum.PacketsSent, lastRun),
 			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun),
 			NetSentBps:  calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun),
+			ThreadCount: float32(ctr.ThreadCount),
+			ThreadLimit: float32(ctr.ThreadLimit),
 			Addresses:   convertAddressList(ctr),
 			Started:     ctr.StartedAt,
 			Tags:        tags,
