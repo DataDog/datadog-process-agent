@@ -217,8 +217,8 @@ message Container {
 	bytes byteKey = 25;
 	repeated string tags = 26;
 	repeated ContainerAddr addresses = 27;
-	float threadCount = 28;
-	float threadLimit = 29;
+	uint64 threadCount = 28;
+	uint64 threadLimit = 29;
 }
 
 // Process state codes in http://wiki.preshweb.co.uk/doku.php?id=linux:psflags
@@ -297,8 +297,8 @@ message ContainerStat {
 	uint32 key = 17;
 	int64 started = 18;
 	bytes byteKey = 19;
-	float threadCount = 20;
-	float threadLimit = 21;
+	uint64 threadCount = 20;
+	uint64 threadLimit = 21;
 }
 
 // ContainerMetadata only holds enough information to identify a container in connection data
