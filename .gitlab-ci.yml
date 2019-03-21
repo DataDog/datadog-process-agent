@@ -1,56 +1,40 @@
 stages:
-#- tests
 - build
 - pre_release
-#- publish
-
 
 variables:
   SRC_PATH: /src/github.com/StackVista/stackstate-process-agent
   STS_AWS_BUCKET: stackstate-process-agent-2-test
   STS_REPO_BRANCH_NAME: $CI_COMMIT_REF_NAME
   CIRCLE_BRANCH: $CI_COMMIT_REF_NAME
-  BASH_ENV: /root/.bashrc
+  BUILD_ENV: /root/.bashrc
 
 build_linux:
-  image: stackstate/stackstate-agent-runner-circle:process-agent-go1_10_1-0.0.1
+  image: stackstate/stackstate-process-agent-runner-gitlab:centos6
   stage: build
   before_script:
     - mkdir -p /go/src/github.com/StackVista
     - ln -s $CI_PROJECT_DIR  /go/src/github.com/StackVista/stackstate-process-agent
-    # - curl -sL -o /usr/local/bin/gimme https://raw.githubusercontent.com/travis-ci/gimme/master/gimme
-    # - chmod +x /usr/local/bin/gimme
-    # - gimme 1.10.3
-    # - source ~/.gimme/envs/go1.10.3.env
   script:
-    - apt-get install -q -y ca-certificates
-    - touch $BASH_ENV
-    - echo 'export IMPORT_PATH=$GOPATH/src/github.com/StackVista/stackstate-process-agent' >> $BASH_ENV
+    - touch $BUILD_ENV
+    - echo 'export IMPORT_PATH=$GOPATH/src/github.com/StackVista/stackstate-process-agent' >> $BUILD_ENV
     - git status -s
-    - echo "export PROCESS_AGENT_VERSION=$(packaging/version.sh)" >> $BASH_ENV
-    - echo "export EBPF=${EBPF:-true}" >> $BASH_ENV
-    - echo 'export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH' >> $BASH_ENV && source $BASH_ENV
-    - uname -a
-#    - apt-get update && apt-get -y install linux-headers-$(uname -r) rsync rake
-    - apt-get update && apt-get -y install rsync rake
+    - echo "export PROCESS_AGENT_VERSION=$(packaging/version.sh)" >> $BUILD_ENV
+    - echo "export EBPF=${EBPF:-true}" >> $BUILD_ENV
+    - echo 'export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH' >> $BUILD_ENV && source $BUILD_ENV
     - rsync -azC --delete ./ $IMPORT_PATH
-    - curl https://glide.sh/get | sh
     - go get golang.org/x/tools/cmd/gorename
     - go get golang.org/x/tools/cmd/eg
     - go get golang.org/x/lint/golint
     - printenv
-    - go version
+    - cd $IMPORT_PATH/packaging && ./apply_branding.sh
+    - export CC=/opt/centos/devtoolset-1.1/root/usr/bin/gcc
     - cd $IMPORT_PATH && rake ci
-    - cd packaging && ./apply_branding.sh
-    - cd $IMPORT_PATH && rake build
-    - apt-get install -y -q rpm
-    - gem install --no-ri --no-rdoc fpm
-    - gem install --no-ri --no-rdoc deb-s3
     - cd $IMPORT_PATH/packaging && ./build_staging_package.sh
   artifacts:
     paths:
-        - $CI_PROJECT_DIR/process-agent
-        - $CI_PROJECT_DIR/packaging/debian/*.deb
+      - $CI_PROJECT_DIR/process-agent
+      - $CI_PROJECT_DIR/packaging/debian/*.deb
     expire_in: 2 week
 
 # Gitlab dedicated runner in a Windows VM
@@ -88,21 +72,17 @@ pre_release_windows:
 
 pre_release_linux:
   stage: pre_release
-  image: stackstate/stackstate-agent-runner-circle:process-agent-go1_10_1-0.0.1
+  image: stackstate/stackstate-process-agent-runner-gitlab:centos6
   dependencies:
     - build_linux
   before_script:
     - mkdir -p /go/src/github.com/StackVista
-    - ln -s $CI_PROJECT_DIR  /go/src/github.com/StackVista/stackstate-process-agent
-    - echo 'export IMPORT_PATH=$GOPATH/src/github.com/StackVista/stackstate-process-agent' >> $BASH_ENV
+    - ln -s $CI_PROJECT_DIR /go/src/github.com/StackVista/stackstate-process-agent
+    - echo 'export IMPORT_PATH=$GOPATH/src/github.com/StackVista/stackstate-process-agent' >> $BUILD_ENV
     - git status -s
-    - echo "export PROCESS_AGENT_VERSION=$(packaging/version.sh)" >> $BASH_ENV
-    - echo "export EBPF=${EBPF:-true}" >> $BASH_ENV
-    - echo 'export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH' >> $BASH_ENV && source $BASH_ENV
-    - uname -a
-    - apt-get -y -q install s3cmd
-    - gem install --no-ri --no-rdoc fpm
-    - gem install --no-ri --no-rdoc deb-s3
+    - echo "export PROCESS_AGENT_VERSION=$(packaging/version.sh)" >> $BUILD_ENV
+    - echo "export EBPF=${EBPF:-true}" >> $BUILD_ENV
+    - echo 'export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH' >> $BUILD_ENV && source $BUILD_ENV
   script:
     - ls -la $IMPORT_PATH
     - ls -la $IMPORT_PATH/packaging
