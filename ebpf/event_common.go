@@ -32,13 +32,13 @@ type ConnectionDirection uint8
 
 const (
 	// INCOMING represents connections inbound to the host
-	INCOMING ConnectionDirection = 0
+	INCOMING ConnectionDirection = 1
 
 	// OUTGOING represents outbound connections from the host
-	OUTGOING ConnectionDirection = 1
+	OUTGOING ConnectionDirection = 2
 
 	// LOCAL represents connections that don't leave the host
-	LOCAL ConnectionDirection = 2
+	LOCAL ConnectionDirection = 3
 )
 
 func (d ConnectionDirection) String() string {
