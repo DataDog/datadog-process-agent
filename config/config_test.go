@@ -73,17 +73,23 @@ func TestBlacklist(t *testing.T) {
 }
 
 func TestOnlyEnvConfig(t *testing.T) {
+	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	defer restoreGlobalConfig()
+
 	// setting an API Key should be enough to generate valid config
 	os.Setenv("DD_API_KEY", "apikey_from_env")
+	defer os.Unsetenv("DD_API_KEY")
 
 	agentConfig, _ := NewAgentConfig("", "")
 	assert.Equal(t, "apikey_from_env", agentConfig.APIEndpoints[0].APIKey)
-
-	os.Setenv("DD_API_KEY", "")
 }
 
 func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
+	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	defer restoreGlobalConfig()
+
 	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "*password*,consul_token,*api_key")
+	defer os.Unsetenv("DD_CUSTOM_SENSITIVE_WORDS")
 
 	agentConfig, _ := NewAgentConfig("", "")
 	assert.Equal(t, true, agentConfig.Scrubber.Enabled)
@@ -102,13 +108,16 @@ func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
 		cases[i].cmdline, _ = agentConfig.Scrubber.scrubCommand(cases[i].cmdline)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
-
-	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "")
 }
 
 func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
+	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	defer restoreGlobalConfig()
+
 	os.Setenv("DD_SCRUB_ARGS", "false")
 	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "*password*,consul_token,*api_key")
+	defer os.Unsetenv("DD_SCRUB_ARGS")
+	defer os.Unsetenv("DD_CUSTOM_SENSITIVE_WORDS")
 
 	agentConfig, _ := NewAgentConfig("", "")
 	assert.Equal(t, false, agentConfig.Scrubber.Enabled)
@@ -128,14 +137,11 @@ func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
 		cases[i].cmdline = agentConfig.Scrubber.ScrubProcessCommand(fp)
 		assert.Equal(t, cases[i].parsedCmdline, cases[i].cmdline)
 	}
-
-	os.Setenv("DD_SCRUB_ARGS", "")
-	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "")
 }
 
 func TestGetHostname(t *testing.T) {
 	cfg := NewDefaultAgentConfig()
-	h, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv)
+	h, err := getHostname(cfg.DDAgentBin)
 	assert.Nil(t, err)
 	assert.NotEqual(t, "", h)
 }
@@ -156,6 +162,8 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(os.Getenv("HOST_SYS"), "")
 	os.Setenv("DOCKER_DD_AGENT", "no")
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+
+	os.Unsetenv("DOCKER_DD_AGENT")
 }
 
 func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
@@ -271,6 +279,11 @@ func TestProxyEnv(t *testing.T) {
 		assert.NoError(err)
 		assert.Equal(tc.expected, u.String())
 	}
+
+	os.Unsetenv("PROXY_HOST")
+	os.Unsetenv("PROXY_PORT")
+	os.Unsetenv("PROXY_USER")
+	os.Unsetenv("PROXY_PASSWORD")
 }
 
 func TestEnvSiteConfig(t *testing.T) {
@@ -298,6 +311,8 @@ func TestEnvSiteConfig(t *testing.T) {
 	os.Setenv("DD_PROCESS_AGENT_URL", "https://test.com")
 	agentConfig, err = NewAgentConfig("./testdata/TestEnvSiteConfig-3.yaml", "")
 	assert.Equal("test.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
+
+	os.Unsetenv("DD_PROCESS_AGENT_URL")
 }
 
 func TestIsAffirmative(t *testing.T) {

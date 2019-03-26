@@ -15,7 +15,7 @@ import (
 
 	"github.com/DataDog/datadog-process-agent/util"
 
-	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/config"
 	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
 
 	log "github.com/cihub/seelog"
@@ -68,9 +68,7 @@ type AgentConfig struct {
 	AllowRealTime      bool
 	Transport          *http.Transport `json:"-"`
 	Logger             *LoggerConfig
-	DDAgentPy          string
 	DDAgentBin         string
-	DDAgentPyEnv       []string
 	StatsdHost         string
 	StatsdPort         int
 
@@ -164,10 +162,6 @@ func NewDefaultAgentConfig() *AgentConfig {
 		StatsdHost: "127.0.0.1",
 		StatsdPort: 8125,
 
-		// Path and environment for the dd-agent embedded python
-		DDAgentPy:    defaultDDAgentPy,
-		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
-
 		// Network collection configuration
 		EnableNetworkTracing:     false,
 		EnableLocalNetworkTracer: false,
@@ -202,7 +196,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 	// Set default values for proc/sys paths if unset.
 	// Don't set this is /host is not mounted to use context within container.
 	// Generally only applicable for container-only cases like Fargate.
-	if ddconfig.IsContainerized() && util.PathExists("/host") {
+	if config.IsContainerized() && util.PathExists("/host") {
 		if v := os.Getenv("HOST_PROC"); v == "" {
 			os.Setenv("HOST_PROC", "/host/proc")
 		}
@@ -222,20 +216,41 @@ func NewAgentConfig(yamlPath, netYamlPath string) (*AgentConfig, error) {
 
 	// For Agent 6 we will have a YAML config file to use.
 	if util.PathExists(yamlPath) {
-		if err := cfg.loadProcessYamlConfig(yamlPath); err != nil {
+		config.Datadog.AddConfigPath(yamlPath)
+		if strings.HasSuffix(yamlPath, ".yaml") { // If they set a config file directly, let's try to honor that
+			config.Datadog.SetConfigFile(yamlPath)
+		}
+
+		if err := config.Load(); err != nil {
 			return nil, err
 		}
+	}
+
+	if err := cfg.loadProcessYamlConfig(yamlPath); err != nil {
+		return nil, err
 	}
 
 	// For network tracing, there is an additional config file that is shared with the network-tracer
 	if util.PathExists(netYamlPath) {
-		if err = cfg.loadNetworkYamlConfig(netYamlPath); err != nil {
+		config.Datadog.AddConfigPath(netYamlPath)
+		if strings.HasSuffix(netYamlPath, ".yaml") { // If they set a config file directly, let's try to honor that
+			config.Datadog.SetConfigFile(netYamlPath)
+		}
+
+		if err := config.Load(); err != nil {
 			return nil, err
 		}
 	}
 
-	// Use environment to override any additional config.
-	cfg = mergeEnvironmentVariables(cfg)
+	if err = cfg.loadNetworkYamlConfig(netYamlPath); err != nil {
+		return nil, err
+	}
+
+	// TODO: Once proxies have been moved to common config util, remove this
+	if cfg.proxy, err = proxyFromEnv(cfg.proxy); err != nil {
+		log.Errorf("error parsing environment proxy settings, not using a proxy: %s", err)
+		cfg.proxy = nil
+	}
 
 	// Python-style log level has WARNING vs WARN
 	if strings.ToLower(cfg.LogLevel) == "warning" {
@@ -247,6 +262,11 @@ func NewAgentConfig(yamlPath, netYamlPath string) (*AgentConfig, error) {
 		return nil, err
 	}
 
+	if v := os.Getenv("DD_HOSTNAME"); v != "" {
+		log.Info("overriding hostname from env DD_HOSTNAME value")
+		cfg.HostName = v
+	}
+
 	if cfg.HostName == "" {
 		if ecsutil.IsFargateInstance() {
 			// Fargate tasks should have no concept of host names, so we're using the task ARN.
@@ -255,7 +275,7 @@ func NewAgentConfig(yamlPath, netYamlPath string) (*AgentConfig, error) {
 			} else {
 				log.Errorf("Failed to retrieve Fargate task metadata: %s", err)
 			}
-		} else if hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv); err == nil {
+		} else if hostname, err := getHostname(cfg.DDAgentBin); err == nil {
 			cfg.HostName = hostname
 		}
 	}
@@ -289,12 +309,19 @@ func NewNetworkAgentConfig(yamlPath string) (*AgentConfig, error) {
 	}
 
 	if util.PathExists(yamlPath) {
-		if err := cfg.loadNetworkYamlConfig(yamlPath); err != nil {
+		config.Datadog.AddConfigPath(yamlPath)
+		if strings.HasSuffix(yamlPath, ".yaml") { // If they set a config file directly, let's try to honor that
+			config.Datadog.SetConfigFile(yamlPath)
+		}
+
+		if err := config.Load(); err != nil {
 			return nil, err
 		}
 	}
 
-	cfg = mergeEnvironmentVariables(cfg)
+	if err := cfg.loadNetworkYamlConfig(yamlPath); err != nil {
+		return nil, err
+	}
 
 	// (Re)configure the logging from our configuration, with the network tracer logfile
 	if err := NewLoggerLevel(cfg.LogLevel, cfg.NetworkTracerLogFile, cfg.LogToConsole); err != nil {
@@ -304,138 +331,52 @@ func NewNetworkAgentConfig(yamlPath string) (*AgentConfig, error) {
 	return cfg, nil
 }
 
-// mergeEnvironmentVariables applies overrides from environment variables to the process agent configuration
-func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
-	var err error
-	if enabled, err := isAffirmative(os.Getenv("DD_PROCESS_AGENT_ENABLED")); enabled {
-		c.Enabled = true
-		c.EnabledChecks = processChecks
-	} else if !enabled && err == nil {
-		c.Enabled = false
-	}
+func loadEnvVariables() {
+	for envKey, cfgKey := range map[string]string{
+		"DD_PROCESS_AGENT_ENABLED":          "process_config.enabled",
+		"DD_PROCESS_AGENT_CONTAINER_SOURCE": "process_config.container_source",
+		"DD_SCRUB_ARGS":                     "process_config.scrub_args",
+		"DD_STRIP_PROCESS_ARGS":             "process_config.strip_proc_arguments",
+		"DD_PROCESS_AGENT_URL":              "process_config.process_dd_url",
 
-	if v := os.Getenv("DD_HOSTNAME"); v != "" {
-		log.Info("overriding hostname from env DD_HOSTNAME value")
-		c.HostName = v
+		// Note: this feature is in development and should not be used in production environments
+		"DD_NETWORK_TRACING_ENABLED":  "network_tracer_config.enabled",
+		"DD_NETTRACER_SOCKET":         "network_tracer_config.nettracer_socket",
+		"DD_DISABLE_TCP_TRACING":      "network_tracer_config.disable_tcp",
+		"DD_DISABLE_UDP_TRACING":      "network_tracer_config.disable_udp",
+		"DD_DISABLE_IPV6_TRACING":     "network_tracer_config.disable_ipv6",
+		"DD_COLLECT_LOCAL_DNS":        "network_tracer_config.collect_local_dns",
+		"DD_USE_LOCAL_NETWORK_TRACER": "network_tracer_config.use_local_network_tracer",
+		"DD_ENABLE_PROFILING":         "network_tracer_config.debug_profiling_enabled",
+
+		"DD_DOGSTATSD_PORT": "dogstatsd_port",
+		"DD_BIND_HOST":      "bind_host",
+		"HTTPS_PROXY":       "proxy.https",
+		"DD_PROXY_HTTPS":    "proxy.https",
+
+		"DD_LOGS_STDOUT":    "log_to_console",
+		"LOG_TO_CONSOLE":    "log_to_console",
+		"DD_LOG_TO_CONSOLE": "log_to_console",
+		"LOG_LEVEL":         "log_level", // Support LOG_LEVEL and DD_LOG_LEVEL but prefer DD_LOG_LEVEL
+		"DD_LOG_LEVEL":      "log_level",
+	} {
+		if v, ok := os.LookupEnv(envKey); ok {
+			config.Datadog.Set(cfgKey, v)
+		}
 	}
 
 	// Support API_KEY and DD_API_KEY but prefer DD_API_KEY.
-	var apiKey string
-	if v := os.Getenv("API_KEY"); v != "" {
-		apiKey = v
-		log.Info("overriding API key from env API_KEY value")
-	}
-	if v := os.Getenv("DD_API_KEY"); v != "" {
-		apiKey = v
+	if key, ddkey := os.Getenv("API_KEY"), os.Getenv("DD_API_KEY"); ddkey != "" {
 		log.Info("overriding API key from env DD_API_KEY value")
-	}
-	if apiKey != "" {
-		vals := strings.Split(apiKey, ",")
-		for i := range vals {
-			vals[i] = strings.TrimSpace(vals[i])
-		}
-		c.APIEndpoints[0].APIKey = vals[0]
-	}
-
-	// Support LOG_LEVEL and DD_LOG_LEVEL but prefer DD_LOG_LEVEL
-	if v := os.Getenv("LOG_LEVEL"); v != "" {
-		c.LogLevel = v
-	}
-	if v := os.Getenv("DD_LOG_LEVEL"); v != "" {
-		c.LogLevel = v
-	}
-
-	// Logging to console
-	if enabled, err := isAffirmative(os.Getenv("DD_LOGS_STDOUT")); err == nil {
-		c.LogToConsole = enabled
-	}
-	if enabled, err := isAffirmative(os.Getenv("LOG_TO_CONSOLE")); err == nil {
-		c.LogToConsole = enabled
-	}
-	if enabled, err := isAffirmative(os.Getenv("DD_LOG_TO_CONSOLE")); err == nil {
-		c.LogToConsole = enabled
-	}
-
-	if c.proxy, err = proxyFromEnv(c.proxy); err != nil {
-		log.Errorf("error parsing proxy settings, not using a proxy: %s", err)
-		c.proxy = nil
-	}
-
-	if v := os.Getenv("DD_PROCESS_AGENT_URL"); v != "" {
-		u, err := url.Parse(v)
-		if err != nil {
-			log.Warnf("DD_PROCESS_AGENT_URL is invalid: %s", err)
-		} else {
-			log.Infof("overriding API endpoint from env")
-			c.APIEndpoints[0].Endpoint = u
-		}
-		if site := os.Getenv("DD_SITE"); site != "" {
-			log.Infof("Using 'process_dd_url' (%s) and ignoring 'site' (%s)", v, site)
-		}
-	}
-
-	// Process Arguments Scrubbing
-	if enabled, err := isAffirmative(os.Getenv("DD_SCRUB_ARGS")); enabled {
-		c.Scrubber.Enabled = true
-	} else if !enabled && err == nil {
-		c.Scrubber.Enabled = false
+		config.Datadog.Set("api_key", strings.TrimSpace(strings.Split(ddkey, ",")[0]))
+	} else if key != "" {
+		log.Info("overriding API key from env API_KEY value")
+		config.Datadog.Set("api_key", strings.TrimSpace(strings.Split(key, ",")[0]))
 	}
 
 	if v := os.Getenv("DD_CUSTOM_SENSITIVE_WORDS"); v != "" {
-		c.Scrubber.AddCustomSensitiveWords(strings.Split(v, ","))
+		config.Datadog.Set("process_config.custom_sensitive_words", strings.Split(v, ","))
 	}
-	if ok, _ := isAffirmative(os.Getenv("DD_STRIP_PROCESS_ARGS")); ok {
-		c.Scrubber.StripAllArguments = true
-	}
-
-	if v := os.Getenv("DD_AGENT_PY"); v != "" {
-		c.DDAgentPy = v
-	}
-	if v := os.Getenv("DD_AGENT_PY_ENV"); v != "" {
-		c.DDAgentPyEnv = strings.Split(v, ",")
-	}
-
-	if v := os.Getenv("DD_DOGSTATSD_PORT"); v != "" {
-		port, err := strconv.Atoi(v)
-		if err != nil {
-			log.Info("Failed to parse DD_DOGSTATSD_PORT: it should be a port number")
-		} else {
-			c.StatsdPort = port
-		}
-	}
-
-	if v := os.Getenv("DD_BIND_HOST"); v != "" {
-		c.StatsdHost = v
-	}
-
-	// Used to override container source auto-detection.
-	// "docker", "ecs_fargate", "kubelet", etc
-	if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
-		util.SetContainerSource(v)
-	}
-
-	// Note: this feature is in development and should not be used in production environments
-	if ok, _ := isAffirmative(os.Getenv("DD_NETWORK_TRACING_ENABLED")); ok {
-		c.EnabledChecks = append(c.EnabledChecks, "connections")
-		c.EnableNetworkTracing = ok
-	}
-	if v := os.Getenv("DD_NETTRACER_SOCKET"); v != "" {
-		c.NetworkTracerSocketPath = v
-	}
-	if ok, _ := isAffirmative(os.Getenv("DD_USE_LOCAL_NETWORK_TRACER")); ok {
-		c.EnableLocalNetworkTracer = ok
-	}
-	if ok, _ := isAffirmative(os.Getenv("DD_DISABLE_TCP_TRACING")); ok {
-		c.DisableTCPTracing = ok
-	}
-	if ok, _ := isAffirmative(os.Getenv("DD_DISABLE_UDP_TRACING")); ok {
-		c.DisableUDPTracing = ok
-	}
-	if ok, _ := isAffirmative(os.Getenv("DD_DISABLE_IPV6_TRACING")); ok {
-		c.DisableIPv6Tracing = ok
-	}
-
-	return c
 }
 
 // IsBlacklisted returns a boolean indicating if the given command is blacklisted by our config.
@@ -459,21 +400,13 @@ func isAffirmative(value string) (bool, error) {
 
 // getHostname shells out to obtain the hostname used by the infra agent
 // falling back to os.Hostname() if it is unavailable
-func getHostname(ddAgentPy, ddAgentBin string, ddAgentEnv []string) (string, error) {
-	var cmd *exec.Cmd
-	// In Agent 6 we will have an Agent binary defined.
-	if ddAgentBin != "" {
-		cmd = exec.Command(ddAgentBin, "hostname")
-	} else {
-		getHostnameCmd := "from utils.hostname import get_hostname; print get_hostname()"
-		cmd = exec.Command(ddAgentPy, "-c", getHostnameCmd)
-	}
+func getHostname(ddAgentBin string) (string, error) {
+	cmd := exec.Command(ddAgentBin, "hostname")
 
 	// Copying all environment variables to child process
 	// Windows: Required, so the child process can load DLLs, etc.
 	// Linux:   Optional, but will make use of DD_HOSTNAME and DOCKER_DD_AGENT if they exist
-	osEnv := os.Environ()
-	cmd.Env = append(ddAgentEnv, osEnv...)
+	cmd.Env = os.Environ()
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

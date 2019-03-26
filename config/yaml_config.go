@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-process-agent/util"
+
 	"github.com/DataDog/datadog-agent/pkg/config"
 	ddutil "github.com/DataDog/datadog-agent/pkg/util"
 	log "github.com/cihub/seelog"
@@ -23,14 +25,9 @@ func key(pieces ...string) string {
 
 // Network-specific configuration
 func (a *AgentConfig) loadNetworkYamlConfig(path string) error {
-	config.Datadog.AddConfigPath(path)
-	if strings.HasSuffix(path, ".yaml") { // If they set a config file directly, let's try to honor that
-		config.Datadog.SetConfigFile(path)
-	}
+	loadEnvVariables()
 
-	if err := config.Load(); err != nil {
-		return err
-	}
+	a.EnableLocalNetworkTracer = config.Datadog.GetBool(key(netNS, "use_local_network_tracer"))
 
 	// Whether agent should disable collection for TCP, UDP, or IPv6 connection type respectively
 	a.DisableTCPTracing = config.Datadog.GetBool(key(netNS, "disable_tcp"))
@@ -83,22 +80,17 @@ func (a *AgentConfig) loadNetworkYamlConfig(path string) error {
 
 // Process-specific configuration
 func (a *AgentConfig) loadProcessYamlConfig(path string) error {
-	config.Datadog.AddConfigPath(path)
-	if strings.HasSuffix(path, ".yaml") { // If they set a config file directly, let's try to honor that
-		config.Datadog.SetConfigFile(path)
-	}
-
-	if err := config.Load(); err != nil {
-		return err
-	}
+	loadEnvVariables()
 
 	URL, err := url.Parse(config.GetMainEndpoint("https://process.", key(ns, "process_dd_url")))
 	if err != nil {
 		return fmt.Errorf("error parsing process_dd_url: %s", err)
 	}
 
-	a.APIEndpoints[0].APIKey = config.Datadog.GetString("api_key")
 	a.APIEndpoints[0].Endpoint = URL
+	if key := "api_key"; config.Datadog.IsSet(key) {
+		a.APIEndpoints[0].APIKey = config.Datadog.GetString(key)
+	}
 
 	// A string indicate the enabled state of the Agent.
 	// If "false" (the default) we will only collect containers.
@@ -132,13 +124,15 @@ func (a *AgentConfig) loadProcessYamlConfig(path string) error {
 	a.setCheckInterval(ns, "connections", "connections")
 
 	// A list of regex patterns that will exclude a process if matched.
-	for _, b := range config.Datadog.GetStringSlice(key(ns, "blacklist_patterns")) {
-		r, err := regexp.Compile(b)
-		if err != nil {
-			log.Warnf("Ignoring invalid blacklist pattern: %s", b)
-			continue
+	if k := key(ns, "blacklist_patterns"); config.Datadog.IsSet(k) {
+		for _, b := range config.Datadog.GetStringSlice(k) {
+			r, err := regexp.Compile(b)
+			if err != nil {
+				log.Warnf("Ignoring invalid blacklist pattern: %s", b)
+				continue
+			}
+			a.Blacklist = append(a.Blacklist, r)
 		}
-		a.Blacklist = append(a.Blacklist, r)
 	}
 
 	// Enable/Disable the DataScrubber to obfuscate process args
@@ -147,7 +141,9 @@ func (a *AgentConfig) loadProcessYamlConfig(path string) error {
 	}
 
 	// A custom word list to enhance the default one used by the DataScrubber
-	a.Scrubber.AddCustomSensitiveWords(config.Datadog.GetStringSlice(key(ns, "custom_sensitive_words")))
+	if k := key(ns, "custom_sensitive_words"); config.Datadog.IsSet(k) {
+		a.Scrubber.AddCustomSensitiveWords(config.Datadog.GetStringSlice(k))
+	}
 
 	// Strips all process arguments
 	if config.Datadog.GetBool(key(ns, "strip_proc_arguments")) {
@@ -185,22 +181,41 @@ func (a *AgentConfig) loadProcessYamlConfig(path string) error {
 	}
 
 	// Optional additional pairs of endpoint_url => []apiKeys to submit to other locations.
-	for endpointURL, apiKeys := range config.Datadog.GetStringMapStringSlice(key(ns, "additional_endpoints")) {
-		u, err := URL.Parse(endpointURL)
-		if err != nil {
-			return fmt.Errorf("invalid additional endpoint url '%s': %s", endpointURL, err)
-		}
-		for _, k := range apiKeys {
-			a.APIEndpoints = append(a.APIEndpoints, APIEndpoint{
-				APIKey:   k,
-				Endpoint: u,
-			})
+	if k := key(ns, "additional_endpoints"); config.Datadog.IsSet(k) {
+		for endpointURL, apiKeys := range config.Datadog.GetStringMapStringSlice(k) {
+			u, err := URL.Parse(endpointURL)
+			if err != nil {
+				return fmt.Errorf("invalid additional endpoint url '%s': %s", endpointURL, err)
+			}
+			for _, k := range apiKeys {
+				a.APIEndpoints = append(a.APIEndpoints, APIEndpoint{
+					APIKey:   k,
+					Endpoint: u,
+				})
+			}
 		}
 	}
 
+	// Used to override container source auto-detection.
+	// "docker", "ecs_fargate", "kubelet", etc
+	if containerSource := config.Datadog.GetString(key(ns, "container_source")); containerSource != "" {
+		util.SetContainerSource(containerSource)
+	}
+
 	// Pull additional parameters from the global config file.
-	a.LogLevel = config.Datadog.GetString("log_level")
-	a.StatsdPort = config.Datadog.GetInt("dogstatsd_port")
+	if level := config.Datadog.GetString("log_level"); level != "" {
+		a.LogLevel = level
+	}
+
+	if k := "dogstatsd_port"; config.Datadog.IsSet(k) {
+		a.StatsdPort = config.Datadog.GetInt(k)
+	}
+
+	if bindHost := config.Datadog.GetString(key(ns, "bind_host")); bindHost != "" {
+		a.StatsdHost = bindHost
+	}
+
+	// Build transport (w/ proxy if needed)
 	a.Transport = ddutil.CreateHTTPTransport()
 
 	return nil
