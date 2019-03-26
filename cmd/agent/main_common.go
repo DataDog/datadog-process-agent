@@ -22,7 +22,6 @@ import (
 
 var opts struct {
 	configPath    string
-	ddConfigPath  string
 	netConfigPath string
 	pidfilePath   string
 	debug         bool
@@ -64,12 +63,6 @@ func versionString() string {
 }
 
 const (
-	agent5DisabledMessage = `process-agent not enabled.
-Set env var DD_PROCESS_AGENT_ENABLED=true or add
-process_agent_enabled: true
-to your datadog.conf file.
-Exiting.`
-
 	agent6DisabledMessage = `process-agent not enabled.
 Set env var DD_PROCESS_AGENT_ENABLED=true or add
 process_config:
@@ -98,13 +91,7 @@ func runAgent(exit chan bool) {
 		}()
 	}
 
-	agentConf, err := config.NewIfExists(opts.ddConfigPath)
-	if err != nil {
-		log.Criticalf("Error reading dd-agent config: %s", err)
-		os.Exit(1)
-	}
-
-	cfg, err := config.NewAgentConfig(agentConf, opts.configPath, opts.netConfigPath)
+	cfg, err := config.NewAgentConfig(opts.configPath, opts.netConfigPath)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)
@@ -126,11 +113,7 @@ func runAgent(exit chan bool) {
 
 	// Exit if agent is not enabled and we're not debugging a check.
 	if !cfg.Enabled && opts.check == "" {
-		if util.PathExists(opts.configPath) {
-			log.Infof(agent6DisabledMessage)
-		} else {
-			log.Info(agent5DisabledMessage)
-		}
+		log.Infof(agent6DisabledMessage)
 
 		// a sleep is necessary to ensure that supervisor registers this process as "STARTED"
 		// If the exit is "too quick", we enter a BACKOFF->FATAL loop even though this is an expected exit
