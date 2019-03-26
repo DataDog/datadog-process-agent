@@ -161,7 +161,7 @@ func (a *AgentConfig) loadProcessYamlConfig(path string) error {
 
 	// The maximum number of processes, or containers per message. Note: Only change if the defaults are causing issues.
 	if maxPerMessage := config.Datadog.GetInt(key(ns, "max_per_message")); maxPerMessage > 0 {
-		if maxPerMessage <= maxPerMessage {
+		if maxPerMessage <= maxMessageBatch {
 			a.MaxPerMessage = maxPerMessage
 		} else {
 			log.Warn("Overriding the configured item count per message limit because it exceeds maximum")

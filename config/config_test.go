@@ -3,10 +3,8 @@ package config
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,7 +12,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/gopsutil/process"
-	"github.com/go-ini/ini"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -79,7 +76,7 @@ func TestOnlyEnvConfig(t *testing.T) {
 	// setting an API Key should be enough to generate valid config
 	os.Setenv("DD_API_KEY", "apikey_from_env")
 
-	agentConfig, _ := NewAgentConfig(nil, "", "")
+	agentConfig, _ := NewAgentConfig("", "")
 	assert.Equal(t, "apikey_from_env", agentConfig.APIEndpoints[0].APIKey)
 
 	os.Setenv("DD_API_KEY", "")
@@ -88,7 +85,7 @@ func TestOnlyEnvConfig(t *testing.T) {
 func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
 	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "*password*,consul_token,*api_key")
 
-	agentConfig, _ := NewAgentConfig(nil, "", "")
+	agentConfig, _ := NewAgentConfig("", "")
 	assert.Equal(t, true, agentConfig.Scrubber.Enabled)
 
 	cases := []struct {
@@ -113,7 +110,7 @@ func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
 	os.Setenv("DD_SCRUB_ARGS", "false")
 	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "*password*,consul_token,*api_key")
 
-	agentConfig, _ := NewAgentConfig(nil, "", "")
+	agentConfig, _ := NewAgentConfig("", "")
 	assert.Equal(t, false, agentConfig.Scrubber.Enabled)
 
 	cases := []struct {
@@ -136,78 +133,11 @@ func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
 	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "")
 }
 
-func TestConfigNewIfExists(t *testing.T) {
-	// The file does not exist: no error returned
-	conf, err := NewIfExists("/does-not-exist")
-	assert.Nil(t, err)
-	assert.Nil(t, conf)
-
-	// The file exists but cannot be read for another reason: an error is
-	// returned.
-	if runtime.GOOS != "windows" && os.Geteuid() != 0 {
-
-		// go doesn't honor the file permissions, so skip this test on Windows
-		// And if user is root it will have the right to read the file anyway
-
-		filename := "/tmp/process-agent-test-config.ini"
-		os.Remove(filename)
-		f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0200) // write only
-		assert.Nil(t, err)
-		f.Close()
-		conf, err = NewIfExists(filename)
-		assert.NotNil(t, err)
-		assert.Nil(t, conf)
-		os.Remove(filename)
-	}
-}
-
 func TestGetHostname(t *testing.T) {
 	cfg := NewDefaultAgentConfig()
 	h, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv)
 	assert.Nil(t, err)
 	assert.NotEqual(t, "", h)
-}
-
-func TestDDAgentMultiAPIKeys(t *testing.T) {
-	// if no endpoint is given but api_keys are there, match the first api_key
-	// with the default endpoint
-	assert := assert.New(t)
-	ddAgentConf, _ := ini.Load([]byte("[Main]\n\napi_key=foo,bar "))
-	configFile := &File{instance: ddAgentConf, Path: "whatever"}
-	agentConfig, err := NewAgentConfig(configFile, "", "")
-	assert.NoError(err)
-	assert.Equal(1, len(agentConfig.APIEndpoints))
-	assert.Equal("foo", agentConfig.APIEndpoints[0].APIKey)
-	assert.Equal("process.datadoghq.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
-
-	ddAgentConf, _ = ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"api_key=foo,bar",
-		"[process.config]",
-		"endpoint=https://process.datadoghq.com,https://process.datadoghq.eu",
-	}, "\n")))
-	configFile = &File{instance: ddAgentConf, Path: "whatever"}
-	agentConfig, err = NewAgentConfig(configFile, "", "")
-	assert.NoError(err)
-	assert.Equal(2, len(agentConfig.APIEndpoints))
-	assert.Equal("foo", agentConfig.APIEndpoints[0].APIKey)
-	assert.Equal("process.datadoghq.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
-	assert.Equal("bar", agentConfig.APIEndpoints[1].APIKey)
-	assert.Equal("process.datadoghq.eu", agentConfig.APIEndpoints[1].Endpoint.Hostname())
-
-	// if endpoint count is greater than api_key count, drop additional endpoints
-	ddAgentConf, _ = ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"api_key=foo",
-		"[process.config]",
-		"endpoint=https://process.datadoghq.com,https://process.datadoghq.eu",
-	}, "\n")))
-	configFile = &File{instance: ddAgentConf, Path: "whatever"}
-	agentConfig, err = NewAgentConfig(configFile, "", "")
-	assert.NoError(err)
-	assert.Equal(1, len(agentConfig.APIEndpoints))
-	assert.Equal("foo", agentConfig.APIEndpoints[0].APIKey)
-	assert.Equal("process.datadoghq.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 }
 
 func TestDefaultConfig(t *testing.T) {
@@ -228,156 +158,13 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 }
 
-func TestDDAgentConfigWithNewOpts(t *testing.T) {
-	assert := assert.New(t)
-	// Check that providing process.* options in the dd-agent conf file works
-	dd, _ := ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"hostname = thing",
-		"api_key = apikey_12",
-		"[process.config]",
-		"queue_size = 5",
-		"allow_real_time = false",
-		"windows_args_refresh_interval = 20",
-	}, "\n")))
-
-	conf := &File{instance: dd, Path: "whatever"}
-	agentConfig, err := NewAgentConfig(conf, "", "")
-	assert.NoError(err)
-
-	assert.Equal("apikey_12", agentConfig.APIEndpoints[0].APIKey)
-	assert.Equal(5, agentConfig.QueueSize)
-	assert.Equal(false, agentConfig.AllowRealTime)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
-	assert.Equal(20, agentConfig.Windows.ArgsRefreshInterval)
-	assert.Equal(true, agentConfig.Windows.AddNewArgs)
-	assert.Equal(true, agentConfig.Scrubber.Enabled)
-}
-
-func TestDDAgentConfigBothVersions(t *testing.T) {
-	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	defer restoreGlobalConfig()
-
-	assert := assert.New(t)
-	// Check that providing process.* options in the dd-agent conf file works
-	dd, _ := ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"hostname = thing",
-		"api_key = apikey_12",
-		"[process.config]",
-		"queue_size = 5",
-		"allow_real_time = false",
-		"windows_args_refresh_interval = 30",
-	}, "\n")))
-
-	conf := &File{instance: dd, Path: "whatever"}
-	agentConfig, err := NewAgentConfig(conf, "./testdata/TestDDAgentConfigBothVersions.yaml", "")
-	assert.NoError(err)
-
-	ep := agentConfig.APIEndpoints[0]
-	assert.Equal("apikey_20", ep.APIKey)
-	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
-	assert.Equal(10, agentConfig.QueueSize)
-	assert.Equal(false, agentConfig.AllowRealTime)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
-	assert.Equal(40, agentConfig.Windows.ArgsRefreshInterval)
-	assert.Equal(true, agentConfig.Windows.AddNewArgs)
-	assert.Equal(true, agentConfig.Scrubber.Enabled)
-}
-
-func TestDDAgentConfigYamlOnly(t *testing.T) {
-	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	defer restoreGlobalConfig()
-
-	assert := assert.New(t)
-
-	processDDURL := "http://my-process-app.datadoghq.com"
-	config.Datadog.Set("process_config.process_dd_url", processDDURL)
-
-	agentConfig, err := NewAgentConfig(nil, "./testdata/TestDDAgentConfigYamlOnly.yaml", "")
-	assert.NoError(err)
-
-	ep := agentConfig.APIEndpoints[0]
-	assert.Equal("apikey_20", ep.APIKey)
-	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
-	assert.Equal(10, agentConfig.QueueSize)
-	assert.Equal(true, agentConfig.AllowRealTime)
-	assert.Equal(true, agentConfig.Enabled)
-	assert.Equal(processChecks, agentConfig.EnabledChecks)
-	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
-	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
-	assert.Equal(100, agentConfig.Windows.ArgsRefreshInterval)
-	assert.Equal(false, agentConfig.Windows.AddNewArgs)
-	assert.Equal(false, agentConfig.Scrubber.Enabled)
-
-	agentConfig, err = NewAgentConfig(nil, "./testdata/TestDDAgentConfigYamlOnly-2.yaml", "")
-	assert.NoError(err)
-
-	ep = agentConfig.APIEndpoints[0]
-	assert.Equal("apikey_20", ep.APIKey)
-	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
-	assert.Equal(true, agentConfig.Enabled)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
-	assert.Equal(-1, agentConfig.Windows.ArgsRefreshInterval)
-	assert.Equal(true, agentConfig.Windows.AddNewArgs)
-	assert.Equal(true, agentConfig.Scrubber.Enabled)
-
-	agentConfig, err = NewAgentConfig(nil, "./testdata/TestDDAgentConfigYamlOnly-3.yaml", "")
-	assert.NoError(err)
-
-	ep = agentConfig.APIEndpoints[0]
-	assert.Equal("apikey_20", ep.APIKey)
-	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
-	assert.Equal(false, agentConfig.Enabled)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
-	assert.Equal(15, agentConfig.Windows.ArgsRefreshInterval)
-	assert.Equal(true, agentConfig.Windows.AddNewArgs)
-	assert.Equal(true, agentConfig.Scrubber.Enabled)
-
-	agentConfig, err = NewAgentConfig(nil, "./testdata/TestDDAgentConfigYamlOnly-4.yaml", "")
-	assert.NoError(err)
-
-	eps := agentConfig.APIEndpoints
-	assert.Len(agentConfig.APIEndpoints, 3)
-	assert.Equal("apikey_20", eps[0].APIKey)
-	assert.Equal("my-process-app.datadoghq.com", eps[0].Endpoint.Hostname())
-	assert.Equal("foo", eps[1].APIKey)
-	assert.Equal("process.datadoghq.eu", eps[1].Endpoint.Hostname())
-	assert.Equal("bar", eps[2].APIKey)
-	assert.Equal("process.datadoghq.eu", eps[2].Endpoint.Hostname())
-	assert.Equal(false, agentConfig.Enabled)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
-	assert.Equal(15, agentConfig.Windows.ArgsRefreshInterval)
-	assert.Equal(true, agentConfig.Windows.AddNewArgs)
-	assert.Equal(true, agentConfig.Scrubber.Enabled)
-
-	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	agentConfig, err = NewAgentConfig(nil, "./testdata/TestDDAgentConfigYamlOnly-5.yaml", "")
-	assert.NoError(err)
-
-	assert.Len(agentConfig.APIEndpoints, 1)
-	assert.Equal("apikey_20", agentConfig.APIEndpoints[0].APIKey)
-	assert.Equal("test-process.datadoghq.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
-	assert.Equal(true, agentConfig.Enabled)
-
-	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	agentConfig, err = NewAgentConfig(nil, "./testdata/TestDDAgentConfigYamlOnly-6.yaml", "")
-	assert.NoError(err)
-
-	assert.Len(agentConfig.APIEndpoints, 1)
-	assert.Equal("apikey_20", agentConfig.APIEndpoints[0].APIKey)
-	assert.Equal("process.datacathq.eu", agentConfig.APIEndpoints[0].Endpoint.Hostname())
-	assert.Equal(true, agentConfig.Enabled)
-}
-
-func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
+func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 	defer restoreGlobalConfig()
 
 	assert := assert.New(t)
 
 	agentConfig, err := NewAgentConfig(
-		nil,
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig.yaml",
 		"",
 	)
@@ -397,7 +184,6 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
 
 	agentConfig, err = NewAgentConfig(
-		nil,
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig.yaml",
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig-Net.yaml",
 	)
@@ -419,7 +205,6 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.False(agentConfig.DisableIPv6Tracing)
 
 	agentConfig, err = NewAgentConfig(
-		nil,
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig.yaml",
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig-Net-2.yaml",
 	)
@@ -488,113 +273,6 @@ func TestProxyEnv(t *testing.T) {
 	}
 }
 
-func getURL(f *ini.File) (*url.URL, error) {
-	conf := File{
-		f,
-		"some/path",
-	}
-	m, _ := conf.GetSection("Main")
-	pf, err := getProxySettings(m)
-	if err != nil {
-		return nil, err
-	}
-	return pf(&http.Request{})
-}
-
-func TestGetProxySettings(t *testing.T) {
-	assert := assert.New(t)
-
-	f, _ := ini.Load([]byte("[Main]\n\nproxy_host = myhost"))
-
-	s, err := getURL(f)
-	assert.NoError(err)
-	assert.Equal("http://myhost:3128", s.String())
-
-	f, _ = ini.Load([]byte("[Main]\n\nproxy_host = http://myhost"))
-
-	s, err = getURL(f)
-	assert.NoError(err)
-	assert.Equal("http://myhost:3128", s.String())
-
-	f, _ = ini.Load([]byte("[Main]\n\nproxy_host = https://myhost"))
-
-	s, err = getURL(f)
-	assert.NoError(err)
-	assert.Equal("https://myhost:3128", s.String())
-
-	// generic user name
-	f, _ = ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"proxy_host = https://myhost",
-		"proxy_port = 3129",
-		"proxy_user = aaditya",
-	}, "\n")))
-
-	s, err = getURL(f)
-	assert.NoError(err)
-
-	assert.Equal("https://aaditya@myhost:3129", s.String())
-
-	// special char in user name <3
-	f, _ = ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"proxy_host = myhost",
-		"proxy_port = 3129",
-		"proxy_user = léo",
-	}, "\n")))
-
-	s, err = getURL(f)
-	assert.NoError(err)
-
-	// user is url-encoded and decodes to originalConfig string
-	assert.Equal("http://l%C3%A9o@myhost:3129", s.String())
-	assert.Equal("léo", s.User.Username())
-
-	// generic  user-pass
-	f, _ = ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"proxy_host = myhost",
-		"proxy_port = 3129",
-		"proxy_user = aaditya",
-		"proxy_password = password_12",
-	}, "\n")))
-
-	s, err = getURL(f)
-	assert.NoError(err)
-	assert.Equal("http://aaditya:password_12@myhost:3129", s.String())
-
-	// user-pass with schemed host
-	f, _ = ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"proxy_host = https://myhost",
-		"proxy_port = 3129",
-		"proxy_user = aaditya",
-		"proxy_password = password_12",
-	}, "\n")))
-
-	s, err = getURL(f)
-	assert.NoError(err)
-	assert.Equal("https://aaditya:password_12@myhost:3129", s.String())
-
-	// special characters in password
-	f, _ = ini.Load([]byte(strings.Join([]string{
-		"[Main]",
-		"proxy_host = https://myhost",
-		"proxy_port = 3129",
-		"proxy_user = aaditya",
-		"proxy_password = /:!?&=@éÔγλῶσσα",
-	}, "\n")))
-
-	s, err = getURL(f)
-	assert.NoError(err)
-
-	// password is url-encoded and decodes to the originalConfig string
-	assert.Equal("https://aaditya:%2F%3A%21%3F&=%40%C3%A9%C3%94%CE%B3%CE%BB%E1%BF%B6%CF%83%CF%83%CE%B1@myhost:3129", s.String())
-
-	pass, _ := s.User.Password()
-	assert.Equal("/:!?&=@éÔγλῶσσα", pass)
-}
-
 func TestEnvSiteConfig(t *testing.T) {
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 	defer restoreGlobalConfig()
@@ -602,23 +280,23 @@ func TestEnvSiteConfig(t *testing.T) {
 	assert := assert.New(t)
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	agentConfig, err := NewAgentConfig(nil, "./testdata/TestEnvSiteConfig.yaml", "")
+	agentConfig, err := NewAgentConfig("./testdata/TestEnvSiteConfig.yaml", "")
 	assert.NoError(err)
 	assert.Equal("process.datadoghq.io", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	agentConfig, err = NewAgentConfig(nil, "./testdata/TestEnvSiteConfig-2.yaml", "")
+	agentConfig, err = NewAgentConfig("./testdata/TestEnvSiteConfig-2.yaml", "")
 	assert.NoError(err)
 	assert.Equal("process.datadoghq.eu", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	agentConfig, err = NewAgentConfig(nil, "./testdata/TestEnvSiteConfig-3.yaml", "")
+	agentConfig, err = NewAgentConfig("./testdata/TestEnvSiteConfig-3.yaml", "")
 	assert.NoError(err)
 	assert.Equal("burrito.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 	os.Setenv("DD_PROCESS_AGENT_URL", "https://test.com")
-	agentConfig, err = NewAgentConfig(nil, "./testdata/TestEnvSiteConfig-3.yaml", "")
+	agentConfig, err = NewAgentConfig("./testdata/TestEnvSiteConfig-3.yaml", "")
 	assert.Equal("test.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 }
 
