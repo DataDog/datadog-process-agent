@@ -129,7 +129,7 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 
 	go func() {
 		// Stats about how much connections have been closed / lost
-		ticker := time.NewTicker(5 * time.Minute)
+		ticker := time.NewTicker(5 * time.Second)
 
 		for {
 			select {
@@ -154,9 +154,7 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 				recv := atomic.SwapUint64(&t.perfReceived, 0)
 				lost := atomic.SwapUint64(&t.perfLost, 0)
 				skip := atomic.SwapUint64(&t.skippedConns, 0)
-				if lost > 0 {
-					log.Debugf("closed connection polling: %d received, %d lost, %d skipped", recv, lost, skip)
-				}
+				log.Warnf("closed connection polling: %d received, %d lost, %d skipped", recv, lost, skip)
 			}
 		}
 	}()

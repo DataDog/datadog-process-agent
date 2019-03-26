@@ -94,16 +94,6 @@ func NewNetworkState(clientInterval, expiry time.Duration, maxClosedConns, maxCl
 		buf:            &bytes.Buffer{},
 	}
 
-	go func() {
-		count := uint64(0)
-		for now := range time.NewTicker(ns.clientInterval).C {
-			count++
-			// Every 10 ticks, lets check for any outdated stats objects to remove & flush telemetry
-			clearExpiredStats, flushTelemetry := count%10 == 0, count%10 == 0
-			ns.cleanupState(now, clearExpiredStats, flushTelemetry)
-		}
-	}()
-
 	return ns
 }
 
@@ -159,35 +149,6 @@ func getConnsByKey(conns []ConnectionStats, buf *bytes.Buffer) map[string]*Conne
 
 // StoreClosedConnection stores the given connection for every client
 func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
-	ns.Lock()
-	defer ns.Unlock()
-
-	key, err := conn.ByteKey(ns.buf)
-	if err != nil {
-		log.Warn("failed to create byte key: %s", err)
-		return
-	}
-
-	for _, client := range ns.clients {
-		// If we've seen this closed connection already, lets combine the two
-		if prev, ok := client.closedConnections[string(key)]; ok {
-			// We received either the connections either out of order, or it's the same one we've already seen.
-			// Lets skip it for now.
-			if prev.LastUpdateEpoch >= conn.LastUpdateEpoch {
-				ns.telemetry.unorderedConns++
-				continue
-			}
-
-			conn.MonotonicSentBytes += prev.MonotonicSentBytes
-			conn.MonotonicRecvBytes += prev.MonotonicRecvBytes
-			conn.MonotonicRetransmits += prev.MonotonicRetransmits
-		} else if len(client.closedConnections) >= ns.maxClosedConns {
-			ns.telemetry.closedConnDropped++
-			continue
-		}
-
-		client.closedConnections[string(key)] = conn
-	}
 }
 
 // newClient creates a new client and returns true if the given client already exists
@@ -213,52 +174,8 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 
 	conns := make([]ConnectionStats, 0)
 
-	// Closed connections
-	for key, closedConn := range client.closedConnections {
-		if activeConn, ok := active[key]; ok { // This closed connection has become active again
-			// If we're seeing unexpected ordering, lets not combine these two connections.
-			if closedConn.LastUpdateEpoch >= activeConn.LastUpdateEpoch {
-				ns.telemetry.unorderedConns++
-				// TODO: Should we `continue`?
-			} else {
-				closedConn.MonotonicSentBytes += activeConn.MonotonicSentBytes
-				closedConn.MonotonicRecvBytes += activeConn.MonotonicRecvBytes
-				closedConn.MonotonicRetransmits += activeConn.MonotonicRetransmits
-			}
-
-			if _, ok := client.stats[key]; !ok {
-				if len(client.stats) >= ns.maxClientStats {
-					ns.telemetry.connDropped++
-					continue
-				}
-				client.stats[key] = &stats{}
-			}
-
-			ns.updateConnWithStats(client, key, &closedConn, now)
-		} else {
-			ns.updateConnWithStats(client, key, &closedConn, now)
-			// Since connection is no longer active, lets just remove the stats object afterwords
-			if _, ok := client.stats[key]; ok {
-				delete(client.stats, key)
-			}
-		}
-
-		conns = append(conns, closedConn)
-	}
-
 	// Active connections
 	for key, c := range active {
-		if _, ok := client.closedConnections[key]; ok {
-			// If this connection was both closed and reopened, update the counters to reflect only the active connection.
-			// The monotonic counters will be the sum of all connections that cross our interval start + finish.
-			if stats, ok := client.stats[key]; ok {
-				stats.totalRetransmits = c.MonotonicRetransmits
-				stats.totalSent = c.MonotonicSentBytes
-				stats.totalRecv = c.MonotonicRecvBytes
-			}
-			continue // We processed this connection during the closed connection pass, so lets not do it again.
-		}
-
 		if _, ok := client.stats[key]; !ok {
 			if len(client.stats) >= ns.maxClientStats {
 				ns.telemetry.connDropped++
@@ -279,6 +196,7 @@ func (ns *networkState) updateConnWithStats(client *client, key string, c *Conne
 	if st, ok := client.stats[key]; ok {
 		// Check for underflow
 		if c.MonotonicSentBytes < st.totalSent || c.MonotonicRecvBytes < st.totalRecv || c.MonotonicRetransmits < st.totalRetransmits {
+			log.Warnf("Underflow occured ! stats: %+v, conn: %v: %v", *st, *c)
 			ns.telemetry.underflows++
 		} else {
 			c.LastSentBytes = c.MonotonicSentBytes - st.totalSent
@@ -305,48 +223,10 @@ func (ns *networkState) RemoveClient(clientID string) {
 }
 
 func (ns *networkState) cleanupState(now time.Time, clearExpiredStats, flushStats bool) {
-	ns.Lock()
-	defer ns.Unlock()
-
-	// Remove expired clients + stats
-	deletedStats := 0
-	for id, c := range ns.clients {
-		if c.lastFetch.Add(ns.expiry).Before(now) {
-			delete(ns.clients, id)
-		} else if clearExpiredStats { // Look for inactive stats objects and remove them
-			deletedStats += ns.removeExpiredStats(c, ns.latestTimeEpoch)
-		}
-	}
-
-	if deletedStats > 0 {
-		log.Debugf("removed %d expired stats objects in %d", deletedStats, time.Now().Sub(now))
-	}
-
-	if flushStats {
-		// Only flush log line if any metric is non-zero
-		if ns.telemetry.unorderedConns > 0 || ns.telemetry.underflows > 0 || ns.telemetry.closedConnDropped > 0 || ns.telemetry.connDropped > 0 {
-			log.Debugf("state telemetry: [%d unordered conns] [%d stats underflows] [%d connections dropped due to stats] [%d closed connections dropped]",
-				ns.telemetry.unorderedConns,
-				ns.telemetry.underflows,
-				ns.telemetry.closedConnDropped,
-				ns.telemetry.connDropped)
-		}
-		ns.telemetry = telemetry{} // Reset counters
-	}
 }
 
 func (ns *networkState) removeExpiredStats(c *client, latestTimeEpoch uint64) int {
-	expired := make([]string, 0)
-	for key, s := range c.stats {
-		if latestTimeEpoch-s.lastUpdateEpoch > uint64(ns.expiry.Nanoseconds()) {
-			expired = append(expired, key)
-		}
-	}
-
-	for _, key := range expired {
-		delete(c.stats, key)
-	}
-	return len(expired)
+	return 0
 }
 
 // GetStats returns a map of statistics about the current network state
@@ -376,5 +256,6 @@ func (ns *networkState) GetStats(closedPollLost, closedPollReceived, tracerSkipp
 		},
 		"current_time":       time.Now().Unix(),
 		"latest_bpf_time_ns": ns.latestTimeEpoch,
+		"test":               1,
 	}
 }
