@@ -13,12 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-process-agent/util"
-
 	"github.com/DataDog/datadog-agent/pkg/config"
 	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
-
-	log "github.com/cihub/seelog"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-process-agent/util"
 )
 
 var (
@@ -226,7 +224,7 @@ func loadConfigIfExists(path string) error {
 
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
-func NewAgentConfig(yamlPath, netYamlPath string) (*AgentConfig, error) {
+func NewAgentConfig(loggerName config.LoggerName, yamlPath, netYamlPath string) (*AgentConfig, error) {
 	var err error
 	cfg := NewDefaultAgentConfig()
 
@@ -254,9 +252,7 @@ func NewAgentConfig(yamlPath, netYamlPath string) (*AgentConfig, error) {
 	}
 
 	// (Re)configure the logging from our configuration
-	if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile, cfg.LogToConsole); err != nil {
-		return nil, err
-	}
+	setupLogger(loggerName, cfg)
 
 	if v := os.Getenv("DD_HOSTNAME"); v != "" {
 		log.Info("overriding hostname from env DD_HOSTNAME value")
@@ -292,7 +288,7 @@ func NewAgentConfig(yamlPath, netYamlPath string) (*AgentConfig, error) {
 
 // NewNetworkAgentConfig returns a network-tracer specific AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
-func NewNetworkAgentConfig(yamlPath string) (*AgentConfig, error) {
+func NewNetworkAgentConfig(loggerName config.LoggerName, yamlPath string) (*AgentConfig, error) {
 	cfg := NewDefaultAgentConfig()
 
 	// When the network-tracer is enabled in a separate container, we need a way to also disable the network-tracer
@@ -309,10 +305,8 @@ func NewNetworkAgentConfig(yamlPath string) (*AgentConfig, error) {
 		return nil, err
 	}
 
-	// (Re)configure the logging from our configuration, with the network tracer logfile
-	if err := NewLoggerLevel(cfg.LogLevel, cfg.NetworkTracerLogFile, cfg.LogToConsole); err != nil {
-		return nil, fmt.Errorf("failed to setup network-tracer logger: %s", err)
-	}
+	// (Re)configure the logging from our configuration, with the network tracer log file + config options
+	setupLogger(loggerName, cfg)
 
 	return cfg, nil
 }
@@ -479,4 +473,28 @@ func constructProxy(host, scheme string, port int, user, password string) (proxy
 		return nil, err
 	}
 	return http.ProxyURL(u), nil
+}
+
+func SetupInitialLogger(loggerName config.LoggerName) error {
+	return config.SetupLogger(
+		loggerName,
+		"info",
+		"",
+		"",
+		false,
+		true, // logToConsole
+		false,
+	)
+}
+
+func setupLogger(loggerName config.LoggerName, cfg *AgentConfig) error {
+	return config.SetupLogger(
+		loggerName,
+		cfg.LogLevel,
+		cfg.LogFile,
+		config.GetSyslogURI(),
+		config.Datadog.GetBool("syslog_rfc"),
+		config.Datadog.GetBool("log_to_console"),
+		config.Datadog.GetBool("log_format_json"),
+	)
 }

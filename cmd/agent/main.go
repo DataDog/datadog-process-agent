@@ -6,8 +6,12 @@ import (
 	"flag"
 	_ "net/http/pprof"
 
+	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+
 	"github.com/DataDog/datadog-process-agent/config"
 )
+
+const loggerName ddconfig.LoggerName = "PROCESS"
 
 func main() {
 	ignore := ""
@@ -21,8 +25,8 @@ func main() {
 	flag.Parse()
 
 	// Set up a default config before parsing config so we log errors nicely.
-	// The default will be stdout since we can't assume any file is writeable.
-	if err := config.NewLoggerLevel("info", "", true); err != nil {
+	// The default will be stdout since we can't assume any file is writable.
+	if err := config.SetupInitialLogger(loggerName); err != nil {
 		panic(err)
 	}
 

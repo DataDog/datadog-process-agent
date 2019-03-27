@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-process-agent/util"
-
 	"github.com/DataDog/datadog-agent/pkg/config"
 	ddutil "github.com/DataDog/datadog-agent/pkg/util"
-	log "github.com/cihub/seelog"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
+
+	"github.com/DataDog/datadog-process-agent/util"
 )
 
 const (
