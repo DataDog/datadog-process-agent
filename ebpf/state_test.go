@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -826,6 +827,5 @@ func generateRandConnections(n int) []ConnectionStats {
 var latestTime uint64 = 0
 
 func latestEpochTime() uint64 {
-	latestTime++
-	return latestTime
+	return atomic.AddUint64(&latestTime, 1)
 }
