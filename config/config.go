@@ -234,6 +234,11 @@ func NewAgentConfig(loggerName config.LoggerName, yamlPath, netYamlPath string) 
 		return nil, err
 	}
 
+	// (Re)configure the logging from our configuration
+	if err := setupLogger(loggerName, cfg); err != nil {
+		log.Errorf("failed to setup configured logger: %s", err)
+	}
+
 	// For network tracing, there is an additional config file that is shared with the network-tracer
 	loadConfigIfExists(netYamlPath)
 	if err = cfg.loadNetworkYamlConfig(netYamlPath); err != nil {
@@ -250,9 +255,6 @@ func NewAgentConfig(loggerName config.LoggerName, yamlPath, netYamlPath string) 
 	if strings.ToLower(cfg.LogLevel) == "warning" {
 		cfg.LogLevel = "warn"
 	}
-
-	// (Re)configure the logging from our configuration
-	setupLogger(loggerName, cfg)
 
 	if v := os.Getenv("DD_HOSTNAME"); v != "" {
 		log.Info("overriding hostname from env DD_HOSTNAME value")
@@ -306,7 +308,9 @@ func NewNetworkAgentConfig(loggerName config.LoggerName, yamlPath string) (*Agen
 	}
 
 	// (Re)configure the logging from our configuration, with the network tracer log file + config options
-	setupLogger(loggerName, cfg)
+	if err := setupLogger(loggerName, cfg); err != nil {
+		log.Errorf("failed to setup configured logger: %s", err)
+	}
 
 	return cfg, nil
 }
@@ -475,6 +479,8 @@ func constructProxy(host, scheme string, port int, user, password string) (proxy
 	return http.ProxyURL(u), nil
 }
 
+// SetupInitialLogger will set up a default logger before parsing config so we log errors nicely.
+// The default will be stdout since we can't assume any file is writable.
 func SetupInitialLogger(loggerName config.LoggerName) error {
 	return config.SetupLogger(
 		loggerName,
