@@ -53,6 +53,12 @@ func CurrentKernelVersion() (uint32, error) {
 	return bpflib.CurrentKernelVersion()
 }
 
+func kernelCodeToString(code uint32) string {
+	// Kernel "a.b.c", the version number will be (a<<16 + b<<8 + c)
+	a, b, c := code>>16, code>>8&0xf, code&0xf
+	return fmt.Sprintf("%d.%d.%d", a, b, c)
+}
+
 // IsTracerSupportedByOS returns whether or not the current kernel version supports tracer functionality
 func IsTracerSupportedByOS() (bool, error) {
 	currentKernelCode, err := bpflib.CurrentKernelVersion()
@@ -61,7 +67,13 @@ func IsTracerSupportedByOS() (bool, error) {
 	}
 
 	if currentKernelCode < minRequiredKernelCode {
-		return false, fmt.Errorf("incompatible linux version. at least %d required, got %d", minRequiredKernelCode, currentKernelCode)
+		return false, fmt.Errorf(
+			"incompatible linux version. at least %s (%d) required, got %s (%d)",
+			kernelCodeToString(minRequiredKernelCode),
+			minRequiredKernelCode,
+			kernelCodeToString(currentKernelCode),
+			currentKernelCode,
+		)
 	}
 	return true, nil
 }
