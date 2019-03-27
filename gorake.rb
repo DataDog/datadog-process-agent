@@ -41,11 +41,18 @@ def go_build(program, opts={})
   cmd = opts[:cmd]
   cmd += ' -race' if opts[:race]
   if os != "windows"
-    tag_set = 'docker kubelet kubeapiserver' # Default tags for non-windows OSes (e.g. linux)
-    tag_set += ' linux_bpf' if opts[:bpf]    # Add BPF if ebpf exists
-    tag_set += ' netgo' if opts[:bpf] && opts[:static]
+    # Default tags for non-windows OSes (e.g. linux)
+    tag_set = 'docker kubelet kubeapiserver secrets'
+
+    # Add BPF tags if enabled
+    if opts[:bpf]
+	  tag_set += ' linux_bpf'
+	  tag_set += ' netgo' if opts[:static]
+    end
+
     cmd += " -tags \'#{tag_set}\'"
   end
+
   print "cmd"
 
   # NOTE: We currently have issues running eBPF components in statically linked binaries, so in the meantime,
