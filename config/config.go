@@ -208,6 +208,22 @@ func NewDefaultAgentConfig() *AgentConfig {
 	return ac
 }
 
+func loadConfigIfExists(path string) error {
+	if util.PathExists(path) {
+		config.Datadog.AddConfigPath(path)
+		if strings.HasSuffix(path, ".yaml") { // If they set a config file directly, let's try to honor that
+			config.Datadog.SetConfigFile(path)
+		}
+
+		if err := config.Load(); err != nil {
+			return err
+		}
+	} else {
+		log.Infof("no config exists at %s, ignoring...", path)
+	}
+	return nil
+}
+
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
 func NewAgentConfig(yamlPath, netYamlPath string) (*AgentConfig, error) {
@@ -215,33 +231,13 @@ func NewAgentConfig(yamlPath, netYamlPath string) (*AgentConfig, error) {
 	cfg := NewDefaultAgentConfig()
 
 	// For Agent 6 we will have a YAML config file to use.
-	if util.PathExists(yamlPath) {
-		config.Datadog.AddConfigPath(yamlPath)
-		if strings.HasSuffix(yamlPath, ".yaml") { // If they set a config file directly, let's try to honor that
-			config.Datadog.SetConfigFile(yamlPath)
-		}
-
-		if err := config.Load(); err != nil {
-			return nil, err
-		}
-	}
-
+	loadConfigIfExists(yamlPath)
 	if err := cfg.loadProcessYamlConfig(yamlPath); err != nil {
 		return nil, err
 	}
 
 	// For network tracing, there is an additional config file that is shared with the network-tracer
-	if util.PathExists(netYamlPath) {
-		config.Datadog.AddConfigPath(netYamlPath)
-		if strings.HasSuffix(netYamlPath, ".yaml") { // If they set a config file directly, let's try to honor that
-			config.Datadog.SetConfigFile(netYamlPath)
-		}
-
-		if err := config.Load(); err != nil {
-			return nil, err
-		}
-	}
-
+	loadConfigIfExists(netYamlPath)
 	if err = cfg.loadNetworkYamlConfig(netYamlPath); err != nil {
 		return nil, err
 	}
@@ -308,17 +304,7 @@ func NewNetworkAgentConfig(yamlPath string) (*AgentConfig, error) {
 		return cfg, nil
 	}
 
-	if util.PathExists(yamlPath) {
-		config.Datadog.AddConfigPath(yamlPath)
-		if strings.HasSuffix(yamlPath, ".yaml") { // If they set a config file directly, let's try to honor that
-			config.Datadog.SetConfigFile(yamlPath)
-		}
-
-		if err := config.Load(); err != nil {
-			return nil, err
-		}
-	}
-
+	loadConfigIfExists(yamlPath)
 	if err := cfg.loadNetworkYamlConfig(yamlPath); err != nil {
 		return nil, err
 	}
