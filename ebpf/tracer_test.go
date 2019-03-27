@@ -628,6 +628,34 @@ func TestTooSmallBPFMap(t *testing.T) {
 	doneChan <- struct{}{}
 }
 
+func TestIsExpired(t *testing.T) {
+	// 10mn
+	var timeout uint64 = 600000000000
+	for _, tc := range []struct {
+		stats      ConnStatsWithTimestamp
+		latestTime uint64
+		expected   bool
+	}{
+		{
+			ConnStatsWithTimestamp{timestamp: 101},
+			100,
+			false,
+		},
+		{
+			ConnStatsWithTimestamp{timestamp: 100},
+			101,
+			false,
+		},
+		{
+			ConnStatsWithTimestamp{timestamp: 100},
+			101 + timeout,
+			true,
+		},
+	} {
+		assert.Equal(t, tc.expected, tc.stats.isExpired(tc.latestTime, timeout))
+	}
+}
+
 func findConnection(l, r net.Addr, c *Connections) (*ConnectionStats, bool) {
 	for _, conn := range c.Conns {
 		if addrMatches(l, conn.Source, conn.SPort) && addrMatches(r, conn.Dest, conn.DPort) {
