@@ -65,7 +65,6 @@ type AgentConfig struct {
 	MaxConnsPerMessage int
 	AllowRealTime      bool
 	Transport          *http.Transport `json:"-"`
-	Logger             *LoggerConfig
 	DDAgentBin         string
 	StatsdHost         string
 	StatsdPort         int
