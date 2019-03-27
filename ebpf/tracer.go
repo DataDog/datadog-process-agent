@@ -184,6 +184,7 @@ func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
 }
 
 func (t *Tracer) getConnections() ([]ConnectionStats, uint64, error) {
+	log.Warn("get connections !")
 	mp, err := t.getMap(connMap)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error retrieving the bpf %s map: %s", connMap, err)
@@ -222,6 +223,20 @@ func (t *Tracer) getConnections() ([]ConnectionStats, uint64, error) {
 		if !hasNext {
 			break
 		} else if stats.isExpired(latestTime, t.timeoutForConn(nextKey)) {
+			timeout := t.timeoutForConn(nextKey)
+			delta := latestTime - uint64(stats.timestamp)
+			isExpired := delta > timeout
+			log.Warnf(
+				"expired conn: %+v, latestTime: %+v, stats: %+v, timeout: %+v, delta: %+v, expired: %+v, timestamp: %+v uint64timestamp: %+v",
+				nextKey.copy(),
+				latestTime,
+				*stats,
+				timeout,
+				delta,
+				isExpired,
+				stats.timestamp,
+				uint64(stats.timestamp),
+			)
 			expired = append(expired, nextKey.copy())
 		} else {
 			conn := connStats(nextKey, stats, t.getTCPStats(tcpMp, nextKey))
@@ -230,6 +245,7 @@ func (t *Tracer) getConnections() ([]ConnectionStats, uint64, error) {
 			if t.shouldSkipConnection(&conn) {
 				atomic.AddUint64(&t.skippedConns, 1)
 			} else {
+				log.Warnf("active conn %v", conn)
 				active = append(active, conn)
 			}
 		}

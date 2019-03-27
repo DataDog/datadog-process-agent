@@ -60,7 +60,7 @@ __u32 retransmits;
 type TCPStats C.tcp_stats_t
 
 func (cs *ConnStatsWithTimestamp) isExpired(latestTime uint64, timeout uint64) bool {
-	return latestTime-uint64(cs.timestamp) > timeout
+	return latestTime > timeout+uint64(cs.timestamp)
 }
 
 func connStats(t *ConnTuple, s *ConnStatsWithTimestamp, tcpStats *TCPStats) ConnectionStats {

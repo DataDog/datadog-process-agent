@@ -149,6 +149,7 @@ func getConnsByKey(conns []ConnectionStats, buf *bytes.Buffer) map[string]*Conne
 
 // StoreClosedConnection stores the given connection for every client
 func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
+	log.Warnf("closed connection: %v", conn)
 }
 
 // newClient creates a new client and returns true if the given client already exists
