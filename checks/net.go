@@ -1,7 +1,6 @@
 package checks
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -28,11 +27,6 @@ type ConnectionsCheck struct {
 	useLocalTracer bool
 	localTracer    *ebpf.Tracer
 	tracerClientID string
-
-	prevCheckConns []ebpf.ConnectionStats
-	prevCheckTime  time.Time
-
-	buf *bytes.Buffer // Internal buffer
 }
 
 // Init initializes a ConnectionsCheck instance.
@@ -64,8 +58,6 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		net.SetNetworkTracerSocketPath(cfg.NetworkTracerSocketPath)
 		net.GetRemoteNetworkTracerUtil()
 	}
-
-	c.buf = new(bytes.Buffer)
 
 	// Run the check one time on init to register the client on the network tracer
 	c.Run(cfg, 0)
@@ -102,24 +94,8 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.
 		return nil, err
 	}
 
-	if c.prevCheckConns == nil { // End check early if this is our first run.
-		c.prevCheckConns = conns
-		c.prevCheckTime = time.Now()
-		return nil, nil
-	}
-
-	// Temporary map to help find matching connections from previous check
-	lastConnByKey := make(map[string]ebpf.ConnectionStats)
-	for _, conn := range c.prevCheckConns {
-		if b, err := conn.ByteKey(c.buf); err == nil {
-			lastConnByKey[string(b)] = conn
-		} else {
-			log.Debugf("failed to create connection byte key: %s", err)
-		}
-	}
-
 	log.Debugf("collected connections in %s", time.Since(start))
-	return batchConnections(cfg, groupID, c.formatConnections(conns, lastConnByKey, c.prevCheckTime)), nil
+	return batchConnections(cfg, groupID, c.formatConnections(conns)), nil
 }
 
 func (c *ConnectionsCheck) getConnections() ([]ebpf.ConnectionStats, error) {
@@ -144,7 +120,7 @@ func (c *ConnectionsCheck) getConnections() ([]ebpf.ConnectionStats, error) {
 
 // Connections are split up into a chunks of at most 100 connections per message to
 // limit the message size on intake.
-func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastConns map[string]ebpf.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
+func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats) []*model.Connection {
 	// Process create-times required to construct unique process hash keys on the backend
 	createTimeForPID := Process.createTimesforPIDs(connectionStatsPIDs(conns))
 
@@ -178,7 +154,6 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats, lastC
 			Direction:          formatDirection(conn.Direction),
 		})
 	}
-	c.prevCheckConns = conns
 	return cxs
 }
 
