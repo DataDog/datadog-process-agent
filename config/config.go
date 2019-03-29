@@ -236,6 +236,7 @@ func NewAgentConfig(loggerName config.LoggerName, yamlPath, netYamlPath string) 
 	// (Re)configure the logging from our configuration
 	if err := setupLogger(loggerName, cfg.LogFile, cfg); err != nil {
 		log.Errorf("failed to setup configured logger: %s", err)
+		return nil, err
 	}
 
 	// For network tracing, there is an additional config file that is shared with the network-tracer
@@ -308,6 +309,7 @@ func NewNetworkAgentConfig(loggerName config.LoggerName, yamlPath string) (*Agen
 
 	// (Re)configure the logging from our configuration, with the network tracer log file + config options
 	if err := setupLogger(loggerName, cfg.NetworkTracerLogFile, cfg); err != nil {
+		return nil, err
 		log.Errorf("failed to setup configured logger: %s", err)
 	}
 
