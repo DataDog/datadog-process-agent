@@ -234,7 +234,7 @@ func NewAgentConfig(loggerName config.LoggerName, yamlPath, netYamlPath string) 
 	}
 
 	// (Re)configure the logging from our configuration
-	if err := setupLogger(loggerName, cfg); err != nil {
+	if err := setupLogger(loggerName, cfg.LogFile, cfg); err != nil {
 		log.Errorf("failed to setup configured logger: %s", err)
 	}
 
@@ -307,7 +307,7 @@ func NewNetworkAgentConfig(loggerName config.LoggerName, yamlPath string) (*Agen
 	}
 
 	// (Re)configure the logging from our configuration, with the network tracer log file + config options
-	if err := setupLogger(loggerName, cfg); err != nil {
+	if err := setupLogger(loggerName, cfg.NetworkTracerLogFile, cfg); err != nil {
 		log.Errorf("failed to setup configured logger: %s", err)
 	}
 
@@ -492,11 +492,11 @@ func SetupInitialLogger(loggerName config.LoggerName) error {
 	)
 }
 
-func setupLogger(loggerName config.LoggerName, cfg *AgentConfig) error {
+func setupLogger(loggerName config.LoggerName, logFile string, cfg *AgentConfig) error {
 	return config.SetupLogger(
 		loggerName,
 		cfg.LogLevel,
-		cfg.LogFile,
+		logFile,
 		config.GetSyslogURI(),
 		config.Datadog.GetBool("syslog_rfc"),
 		config.Datadog.GetBool("log_to_console"),
