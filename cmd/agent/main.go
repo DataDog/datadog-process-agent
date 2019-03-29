@@ -6,12 +6,8 @@ import (
 	"flag"
 	_ "net/http/pprof"
 
-	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
-
 	"github.com/DataDog/datadog-process-agent/config"
 )
-
-const loggerName ddconfig.LoggerName = "PROCESS"
 
 func main() {
 	ignore := ""
