@@ -18,13 +18,14 @@
   version = "4.8"
 
 [[projects]]
-  digest = "1:e652564973ef411db7a451fec1067860b9b1a2d366889430a95c7a6bd2095878"
+  digest = "1:95136447ef54cd19ebe469066214afb57849851c84f5a7f2c11750135c9ca5f5"
   name = "github.com/DataDog/datadog-agent"
   packages = [
     "cmd/agent/api/response",
     "pkg/api/security",
     "pkg/api/util",
     "pkg/autodiscovery/integration",
+    "pkg/clusteragent/api/v1",
     "pkg/clusteragent/clusterchecks/types",
     "pkg/clusteragent/custommetrics",
     "pkg/config",
@@ -64,7 +65,7 @@
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "da0a4272996993413082a1006d9a6979b08ab995"
+  revision = "8dba38c253880383d68d13669a64fb3c76f66152"
 
 [[projects]]
   digest = "1:7a91a175c283b21c6e99edc1b2fb82fe11eb5b42e7a28a2a67b17d9c28ad1855"
@@ -88,12 +89,11 @@
   revision = "c8f74f1344dd41bc49ec4d3c2377c526aaedfd20"
 
 [[projects]]
-  digest = "1:e9ca79fa28ff0fe0271b63d2d30f4118643746610cd0d75603c7b4255a44f161"
+  digest = "1:b22f5da83ac471bbbe2a5aa1f07c8029dc82bcbf6ff832516f035fc3a314d539"
   name = "github.com/DataDog/viper"
   packages = ["."]
   pruneopts = ""
-  revision = "23ced3bc6b3751855704445e48da2c53075ade86"
-  version = "v1.4.0"
+  revision = "v1.5.0"
 
 [[projects]]
   digest = "1:f3662169bf21f0406cdad064a592c5a052e8ba32f64a360d755544cd5a98dba8"
@@ -1008,7 +1008,6 @@
     "github.com/DataDog/gopsutil/process",
     "github.com/DataDog/zstd",
     "github.com/StackExchange/wmi",
-    "github.com/cihub/seelog",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
     "github.com/iovisor/gobpf/elf",
