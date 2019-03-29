@@ -162,9 +162,9 @@ namespace "ebpf" do
 
   desc "Run tests for eBPF code"
   task :test => 'ebpf:build-only' do
-    tags = ''
+    tags = 'secrets'
     if ENV["SKIP_BPF_TESTS"] != "true" then
-      tags = 'linux_bpf'
+      tags += ' linux_bpf'
     else
       puts "Skipping BPF tests"
     end
