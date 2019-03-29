@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -168,7 +169,10 @@ func TestDefaultConfig(t *testing.T) {
 	os.Unsetenv("DOCKER_DD_AGENT")
 }
 
-func setupSecretScript(script string) error {
+var secretScriptBuilder sync.Once
+
+func setupSecretScript() error {
+	script := "./testdata/secret"
 	goCmd, err := exec.LookPath("go")
 	if err != nil {
 		return fmt.Errorf("Couldn't find golang binary in path")
@@ -187,7 +191,7 @@ func setupSecretScript(script string) error {
 }
 
 func TestAgentConfigYamlEnc(t *testing.T) {
-	require.NoError(t, setupSecretScript("./testdata/secret"))
+	secretScriptBuilder.Do(func() { require.NoError(t, setupSecretScript()) })
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 	defer restoreGlobalConfig()
@@ -208,7 +212,7 @@ func TestAgentConfigYamlEnc(t *testing.T) {
 }
 
 func TestAgentConfigYamlEnc2(t *testing.T) {
-	require.NoError(t, setupSecretScript("./testdata/secret"))
+	secretScriptBuilder.Do(func() { require.NoError(t, setupSecretScript()) })
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 	defer restoreGlobalConfig()
