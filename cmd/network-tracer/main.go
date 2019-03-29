@@ -36,7 +36,7 @@ var (
 	BuildDate string
 )
 
-var loggerName = ddconfig.LoggerName("NETWORK")
+const loggerName = ddconfig.LoggerName("NETWORK")
 
 func main() {
 
