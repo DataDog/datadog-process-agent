@@ -216,15 +216,9 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 	// Closed connections
 	for key, closedConn := range client.closedConnections {
 		if activeConn, ok := active[key]; ok { // This closed connection has become active again
-			// If we're seeing unexpected ordering, lets not combine these two connections.
-			if closedConn.LastUpdateEpoch >= activeConn.LastUpdateEpoch {
-				ns.telemetry.unorderedConns++
-				// TODO: Should we `continue`?
-			} else {
-				closedConn.MonotonicSentBytes += activeConn.MonotonicSentBytes
-				closedConn.MonotonicRecvBytes += activeConn.MonotonicRecvBytes
-				closedConn.MonotonicRetransmits += activeConn.MonotonicRetransmits
-			}
+			closedConn.MonotonicSentBytes += activeConn.MonotonicSentBytes
+			closedConn.MonotonicRecvBytes += activeConn.MonotonicRecvBytes
+			closedConn.MonotonicRetransmits += activeConn.MonotonicRetransmits
 
 			if _, ok := client.stats[key]; !ok {
 				if len(client.stats) >= ns.maxClientStats {
@@ -248,7 +242,14 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 
 	// Active connections
 	for key, c := range active {
-		if _, ok := client.closedConnections[key]; ok {
+		if closed, ok := client.closedConnections[key]; ok {
+			// If this connection was closed while we were collecting active connections it means the active
+			// connection is no more up-to date and we already went through the closed connection so let's
+			// skip it and not update the stats counters
+			if closed.LastUpdateEpoch >= c.LastUpdateEpoch {
+				continue
+			}
+
 			// If this connection was both closed and reopened, update the counters to reflect only the active connection.
 			// The monotonic counters will be the sum of all connections that cross our interval start + finish.
 			if stats, ok := client.stats[key]; ok {
