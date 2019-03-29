@@ -39,9 +39,9 @@ func init() {
 	fmt.Printf("main_windows.init()")
 	pd, err := winutil.GetProgramDataDir()
 	if err == nil {
-		defaultConfigPath = filepath.Join(pd, "Datadog", "datadog.yaml")
-		defaultConfdPath = filepath.Join(pd, "Datadog", "conf.d")
-		defaultLogFilePath = filepath.Join(pd, "Datadog", "logs", "process.log")
+		defaultConfigPath = filepath.Join(pd, "datadog.yaml")
+		defaultConfdPath = filepath.Join(pd, "conf.d")
+		defaultLogFilePath = filepath.Join(pd, "logs", "process.log")
 	}
 }
 
