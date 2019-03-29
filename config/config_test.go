@@ -187,7 +187,12 @@ func setupSecretScript() error {
 	}
 
 	// Permissions required for the secret script
-	return os.Chmod(script, 0700)
+	err = os.Chmod(script, 0700)
+	if err != nil {
+		return err
+	}
+
+	return os.Chown(script, os.Geteuid(), os.Getgid())
 }
 
 func TestAgentConfigYamlEnc(t *testing.T) {
