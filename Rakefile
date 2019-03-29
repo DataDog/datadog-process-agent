@@ -55,9 +55,9 @@ end
 desc "Test Datadog Process agent"
 task :test do
   cmd = "go list ./... | grep -v vendor | xargs go test"
-  tags = ["secrets"]
+  tags = []
   if os != "windows"
-    tags.concat(["docker", "kubelet", "kubeapiserver"])
+    tags.concat(["secrets", "docker", "kubelet", "kubeapiserver"])
   end
   cmd += " -tags '#{tags.join(" ")}'"
   sh cmd

@@ -223,7 +223,7 @@ func TestAgentConfigYamlEnc2(t *testing.T) {
 	assert.NoError(err)
 
 	ep := agentConfig.APIEndpoints[0]
-	assert.Equal("secret_dangerous_key", ep.APIKey)
+	assert.Equal("secret_encrypted_key", ep.APIKey)
 	assert.Equal("secret_burrito.com", ep.Endpoint.String())
 }
 

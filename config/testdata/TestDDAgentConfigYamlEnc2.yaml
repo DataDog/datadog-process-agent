@@ -1,4 +1,4 @@
-api_key: "ENC[dangerous_key]"
+api_key: "ENC[encrypted_key]"
 
 process_config:
   enabled: 'true'
