@@ -392,18 +392,17 @@ func (cp *cachedProcess) fill(proc *Win32_Process) (err error) {
 	// defined in syscall
 	cp.procHandle, err = syscall.OpenProcess(0x1000, false, uint32(proc.ProcessID))
 	if err != nil {
-		log.Infof("Couldn't open process %v %v", proc.ProcessID, err)
+		log.Debugf("Couldn't open process %v %v", proc.ProcessID, err)
 		return err
 	}
 	cp.userName, err = getUsernameForProcess(cp.procHandle)
 	if err != nil {
-		log.Infof("Couldn't get process username %v %v", proc.ProcessID, err)
+		log.Debugf("Couldn't get process username %v %v", proc.ProcessID, err)
 	}
 	cp.executablePath = *proc.ExecutablePath
 	if len(cp.executablePath) == 0 {
 		// some system processes don't give us the executable path variable.  Just
 		// give the executable name
-
 		cp.executablePath = proc.Name
 		log.Debugf("Setting alternate executable path (name) %d %s", proc.ProcessID, cp.executablePath)
 	}
