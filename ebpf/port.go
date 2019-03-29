@@ -1,9 +1,10 @@
 package ebpf
 
 import (
-	log "github.com/cihub/seelog"
 	"path"
 	"time"
+
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // PortMapping tracks which ports a pid is listening on

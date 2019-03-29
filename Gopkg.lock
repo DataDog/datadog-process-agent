@@ -18,13 +18,14 @@
   version = "4.8"
 
 [[projects]]
-  digest = "1:92410d9ec52007f3f7715370526fb1ba370e3bee0bbadfd216ad93b104a350b3"
+  digest = "1:70d87bf6a9620cf8c52eb3e526ee6f545313bc6a411c1ee5da96d82d32baebe5"
   name = "github.com/DataDog/datadog-agent"
   packages = [
     "cmd/agent/api/response",
     "pkg/api/security",
     "pkg/api/util",
     "pkg/autodiscovery/integration",
+    "pkg/clusteragent/api/v1",
     "pkg/clusteragent/clusterchecks/types",
     "pkg/clusteragent/custommetrics",
     "pkg/config",
@@ -64,7 +65,7 @@
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "3dcf658ef167af17c79e6abdad764c85d14358a4"
+  revision = "368ec43865ecb0e057d307075df5610b71dffa7e"
 
 [[projects]]
   digest = "1:7a91a175c283b21c6e99edc1b2fb82fe11eb5b42e7a28a2a67b17d9c28ad1855"
@@ -1007,8 +1008,6 @@
     "github.com/DataDog/gopsutil/process",
     "github.com/DataDog/zstd",
     "github.com/StackExchange/wmi",
-    "github.com/cihub/seelog",
-    "github.com/go-ini/ini",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
     "github.com/iovisor/gobpf/elf",

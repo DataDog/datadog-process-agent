@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	log "github.com/cihub/seelog"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/mailru/easyjson"
 
 	"github.com/DataDog/datadog-process-agent/config"

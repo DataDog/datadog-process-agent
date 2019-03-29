@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/cihub/seelog"
-
+	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-process-agent/config"
 
 	_ "net/http/pprof"
@@ -36,7 +36,10 @@ var (
 	BuildDate string
 )
 
+const loggerName = ddconfig.LoggerName("NETWORK")
+
 func main() {
+
 	// Parse flags
 	flag.StringVar(&opts.configPath, "config", "/etc/datadog-agent/network-tracer.yaml", "Path to network-tracer config formatted as YAML")
 	flag.StringVar(&opts.pidFilePath, "pid", "", "Path to set pidfile for process")
@@ -44,8 +47,8 @@ func main() {
 	flag.Parse()
 
 	// Set up a default config before parsing config so we log errors nicely.
-	// The default will be stdout since we can't assume any file is writeable.
-	if err := config.NewLoggerLevel("info", "", true); err != nil {
+	// The default will be stdout since we can't assume any file is writable.
+	if err := config.SetupInitialLogger(loggerName); err != nil {
 		panic(err)
 	}
 	defer log.Flush()
@@ -71,7 +74,7 @@ func main() {
 	}
 
 	// Parsing YAML config files
-	cfg, err := config.NewNetworkAgentConfig(opts.configPath)
+	cfg, err := config.NewNetworkAgentConfig(loggerName, opts.configPath)
 	if err != nil {
 		log.Criticalf("Failed to create agent config: %s", err)
 		os.Exit(1)

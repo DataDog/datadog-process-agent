@@ -80,7 +80,7 @@ func TestOnlyEnvConfig(t *testing.T) {
 	os.Setenv("DD_API_KEY", "apikey_from_env")
 	defer os.Unsetenv("DD_API_KEY")
 
-	agentConfig, _ := NewAgentConfig("", "")
+	agentConfig, _ := NewAgentConfig("test", "", "")
 	assert.Equal(t, "apikey_from_env", agentConfig.APIEndpoints[0].APIKey)
 }
 
@@ -91,7 +91,7 @@ func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
 	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "*password*,consul_token,*api_key")
 	defer os.Unsetenv("DD_CUSTOM_SENSITIVE_WORDS")
 
-	agentConfig, _ := NewAgentConfig("", "")
+	agentConfig, _ := NewAgentConfig("test", "", "")
 	assert.Equal(t, true, agentConfig.Scrubber.Enabled)
 
 	cases := []struct {
@@ -119,7 +119,7 @@ func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
 	defer os.Unsetenv("DD_SCRUB_ARGS")
 	defer os.Unsetenv("DD_CUSTOM_SENSITIVE_WORDS")
 
-	agentConfig, _ := NewAgentConfig("", "")
+	agentConfig, _ := NewAgentConfig("test", "", "")
 	assert.Equal(t, false, agentConfig.Scrubber.Enabled)
 
 	cases := []struct {
@@ -173,6 +173,7 @@ func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert := assert.New(t)
 
 	agentConfig, err := NewAgentConfig(
+		"test",
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig.yaml",
 		"",
 	)
@@ -192,6 +193,7 @@ func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
 
 	agentConfig, err = NewAgentConfig(
+		"test",
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig.yaml",
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig-Net.yaml",
 	)
@@ -213,6 +215,7 @@ func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.False(agentConfig.DisableIPv6Tracing)
 
 	agentConfig, err = NewAgentConfig(
+		"test",
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig.yaml",
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig-Net-2.yaml",
 	)
@@ -293,23 +296,23 @@ func TestEnvSiteConfig(t *testing.T) {
 	assert := assert.New(t)
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	agentConfig, err := NewAgentConfig("./testdata/TestEnvSiteConfig.yaml", "")
+	agentConfig, err := NewAgentConfig("test", "./testdata/TestEnvSiteConfig.yaml", "")
 	assert.NoError(err)
 	assert.Equal("process.datadoghq.io", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	agentConfig, err = NewAgentConfig("./testdata/TestEnvSiteConfig-2.yaml", "")
+	agentConfig, err = NewAgentConfig("test", "./testdata/TestEnvSiteConfig-2.yaml", "")
 	assert.NoError(err)
 	assert.Equal("process.datadoghq.eu", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	agentConfig, err = NewAgentConfig("./testdata/TestEnvSiteConfig-3.yaml", "")
+	agentConfig, err = NewAgentConfig("test", "./testdata/TestEnvSiteConfig-3.yaml", "")
 	assert.NoError(err)
 	assert.Equal("burrito.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 	os.Setenv("DD_PROCESS_AGENT_URL", "https://test.com")
-	agentConfig, err = NewAgentConfig("./testdata/TestEnvSiteConfig-3.yaml", "")
+	agentConfig, err = NewAgentConfig("test", "./testdata/TestEnvSiteConfig-3.yaml", "")
 	assert.Equal("test.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
 	os.Unsetenv("DD_PROCESS_AGENT_URL")

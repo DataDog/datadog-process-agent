@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/gopsutil/process"
-	log "github.com/cihub/seelog"
 )
 
 var (

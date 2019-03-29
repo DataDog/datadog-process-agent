@@ -13,12 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-process-agent/util"
-
 	"github.com/DataDog/datadog-agent/pkg/config"
 	ecsutil "github.com/DataDog/datadog-agent/pkg/util/ecs"
-
-	log "github.com/cihub/seelog"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-process-agent/util"
 )
 
 var (
@@ -67,7 +65,6 @@ type AgentConfig struct {
 	MaxConnsPerMessage int
 	AllowRealTime      bool
 	Transport          *http.Transport `json:"-"`
-	Logger             *LoggerConfig
 	DDAgentBin         string
 	StatsdHost         string
 	StatsdPort         int
@@ -226,13 +223,19 @@ func loadConfigIfExists(path string) error {
 
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
-func NewAgentConfig(yamlPath, netYamlPath string) (*AgentConfig, error) {
+func NewAgentConfig(loggerName config.LoggerName, yamlPath, netYamlPath string) (*AgentConfig, error) {
 	var err error
 	cfg := NewDefaultAgentConfig()
 
 	// For Agent 6 we will have a YAML config file to use.
 	loadConfigIfExists(yamlPath)
 	if err := cfg.loadProcessYamlConfig(yamlPath); err != nil {
+		return nil, err
+	}
+
+	// (Re)configure the logging from our configuration
+	if err := setupLogger(loggerName, cfg.LogFile, cfg); err != nil {
+		log.Errorf("failed to setup configured logger: %s", err)
 		return nil, err
 	}
 
@@ -251,11 +254,6 @@ func NewAgentConfig(yamlPath, netYamlPath string) (*AgentConfig, error) {
 	// Python-style log level has WARNING vs WARN
 	if strings.ToLower(cfg.LogLevel) == "warning" {
 		cfg.LogLevel = "warn"
-	}
-
-	// (Re)configure the logging from our configuration
-	if err := NewLoggerLevel(cfg.LogLevel, cfg.LogFile, cfg.LogToConsole); err != nil {
-		return nil, err
 	}
 
 	if v := os.Getenv("DD_HOSTNAME"); v != "" {
@@ -292,7 +290,7 @@ func NewAgentConfig(yamlPath, netYamlPath string) (*AgentConfig, error) {
 
 // NewNetworkAgentConfig returns a network-tracer specific AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
-func NewNetworkAgentConfig(yamlPath string) (*AgentConfig, error) {
+func NewNetworkAgentConfig(loggerName config.LoggerName, yamlPath string) (*AgentConfig, error) {
 	cfg := NewDefaultAgentConfig()
 
 	// When the network-tracer is enabled in a separate container, we need a way to also disable the network-tracer
@@ -309,9 +307,10 @@ func NewNetworkAgentConfig(yamlPath string) (*AgentConfig, error) {
 		return nil, err
 	}
 
-	// (Re)configure the logging from our configuration, with the network tracer logfile
-	if err := NewLoggerLevel(cfg.LogLevel, cfg.NetworkTracerLogFile, cfg.LogToConsole); err != nil {
-		return nil, fmt.Errorf("failed to setup network-tracer logger: %s", err)
+	// (Re)configure the logging from our configuration, with the network tracer log file + config options
+	if err := setupLogger(loggerName, cfg.NetworkTracerLogFile, cfg); err != nil {
+		log.Errorf("failed to setup configured logger: %s", err)
+		return nil, err
 	}
 
 	return cfg, nil
@@ -479,4 +478,30 @@ func constructProxy(host, scheme string, port int, user, password string) (proxy
 		return nil, err
 	}
 	return http.ProxyURL(u), nil
+}
+
+// SetupInitialLogger will set up a default logger before parsing config so we log errors nicely.
+// The default will be stdout since we can't assume any file is writable.
+func SetupInitialLogger(loggerName config.LoggerName) error {
+	return config.SetupLogger(
+		loggerName,
+		"info",
+		"",
+		"",
+		false,
+		true, // logToConsole
+		false,
+	)
+}
+
+func setupLogger(loggerName config.LoggerName, logFile string, cfg *AgentConfig) error {
+	return config.SetupLogger(
+		loggerName,
+		cfg.LogLevel,
+		logFile,
+		config.GetSyslogURI(),
+		config.Datadog.GetBool("syslog_rfc"),
+		config.Datadog.GetBool("log_to_console"),
+		config.Datadog.GetBool("log_format_json"),
+	)
 }
