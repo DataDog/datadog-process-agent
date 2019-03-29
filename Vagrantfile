@@ -1,6 +1,6 @@
 Vagrant.configure("2") do |config|
 
-  vm_mem = ENV["MEM"] || 512
+  vm_mem = ENV["MEM"] || 2048
   processes_to_install = ENV["PROCESSES"] || ""
 
   config.vm.define "process-agent-test" do |agent1|

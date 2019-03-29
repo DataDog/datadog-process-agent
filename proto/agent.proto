@@ -126,6 +126,7 @@ message Process {
 	uint64 involuntaryCtxSwitches = 17;
 	bytes byteKey = 18;
 	bytes containerByteKey = 19;
+	repeated string tags = 20;
 }
 
 message Command {
@@ -246,6 +247,7 @@ message ProcessStat {
 	uint64 involuntaryCtxSwitches = 25;
 	bytes byteKey = 26;
 	bytes containerByteKey = 27;
+	repeated string tags = 28;
 }
 
 // ContainerStat is used for real-time container messages. It should only contain

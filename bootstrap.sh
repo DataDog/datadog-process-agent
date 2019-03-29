@@ -15,9 +15,8 @@ sudo add-apt-repository \
    stable"
 
 sudo add-apt-repository ppa:gophers/archive
-sudo add-apt-repository ppa:masterminds/glide
 
-sudo apt-get update && sudo apt-get install -y mercurial golang-1.10-go docker-ce glide
+sudo apt-get update && sudo apt-get install -y mercurial golang-1.10-go docker-ce go-dep
 
 # Install additional dependencies to test with the process agent
 arr=($@)
@@ -87,10 +86,9 @@ sudo rm -rf	protoc3/
 sudo cp /usr/lib/go-1.10/bin/go /usr/bin/go
 
 # Define GOPATH and add it to profile
-export GOPATH="/opt/stackstate-go"
-echo "GOPATH=\$GOPATH" >> ~/.profile
+echo "export GOPATH=/opt/stackstate-go" >> ~/.profile
 echo "PATH=\$PATH:\$GOPATH/bin" >> ~/.profile
-echo "DEPNOLOCK=1" >> ~/.profile
+echo "export DEPNOLOCK=1" >> ~/.profile
 
 source ~/.profile
 

@@ -17,6 +17,7 @@ desc "Setup dependencies"
 task :deps do
   system("go get -u github.com/golang/dep/cmd/dep")
   system("go get -u golang.org/x/lint/golint")
+  system("go get -u github.com/awalterschulze/goderive")
   system("dep ensure -v -vendor-only")
 end
 
@@ -37,6 +38,12 @@ task :build do
     :static => ENV['PROCESS_AGENT_STATIC'] == 'true',
     :bpf => true
   })
+end
+
+
+desc "Run goderive to generate necessary go code"
+task :derive do
+  sh "go generate ./..."
 end
 
 desc "Install Datadog Process agent"
@@ -118,7 +125,7 @@ task :protobuf do
 end
 
 desc "Datadog Process Agent CI script (fmt, vet, etc)"
-task :ci => [:deps, :fmt, :vet, :test, :lint, :build]
+task :ci => [:deps, :derive, :fmt, :vet, :test, :lint, :build]
 
 task :err do
   system("go get github.com/kisielk/errcheck")

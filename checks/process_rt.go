@@ -1,3 +1,5 @@
+//go:generate goderive .
+
 package checks
 
 import (
@@ -106,43 +108,75 @@ func fmtProcessStats(
 		}
 	}
 
-	chunked := make([][]*model.ProcessStat, 0)
-	chunk := make([]*model.ProcessStat, 0, cfg.MaxPerMessage)
+	// Take all process and format them to the model.Process type
+	commonProcesses := make([]*ProcessCommon, 0, cfg.MaxPerMessage)
+	processStatMap := make(map[int32]*model.ProcessStat, cfg.MaxPerMessage)
+	var totalCPUUsage float32
+	var totalMemUsage uint64
+	totalCPUUsage = 0.0
+	totalMemUsage = 0
 	for _, fp := range procs {
-		if skipProcess(cfg, fp, lastProcs) {
+		// Skipping any processes that didn't exist in the previous run.
+		// This means short-lived processes (<2s) will never be captured.
+		if _, ok := pidMissingInLastProcs(fp.Pid, lastProcs); ok {
 			continue
 		}
 
-		chunk = append(chunk, &model.ProcessStat{
+		// mapping to a common process type to do sorting
+		command := formatCommand(fp)
+		memory := formatMemory(fp)
+		cpu := formatCPU(fp, fp.CpuTime, lastProcs[fp.Pid].CpuTime, syst2, syst1)
+		ioStat := formatIO(fp, lastProcs[fp.Pid].IOStat, lastRun)
+		commonProcesses = append(commonProcesses, &ProcessCommon{
+			Pid:     fp.Pid,
+			Command: command,
+			Memory:  memory,
+			CPU:     cpu,
+			IOStat:  ioStat,
+		})
+
+		processStatMap[fp.Pid] = &model.ProcessStat{
 			Pid:                    fp.Pid,
 			CreateTime:             fp.CreateTime,
-			Memory:                 formatMemory(fp),
-			Cpu:                    formatCPU(fp, fp.CpuTime, lastProcs[fp.Pid].CpuTime, syst2, syst1),
+			Memory:                 memory,
+			Cpu:                    cpu,
 			Nice:                   fp.Nice,
 			Threads:                fp.NumThreads,
 			OpenFdCount:            fp.OpenFdCount,
 			ProcessState:           model.ProcessState(model.ProcessState_value[fp.Status]),
-			IoStat:                 formatIO(fp, lastProcs[fp.Pid].IOStat, lastRun),
+			IoStat:                 ioStat,
 			VoluntaryCtxSwitches:   uint64(fp.CtxSwitches.Voluntary),
 			InvoluntaryCtxSwitches: uint64(fp.CtxSwitches.Involuntary),
 			ContainerId:            cidByPid[fp.Pid],
-		})
-		if len(chunk) == cfg.MaxPerMessage {
-			chunked = append(chunked, chunk)
-			chunk = make([]*model.ProcessStat, 0, cfg.MaxPerMessage)
 		}
-	}
-	if len(chunk) > 0 {
-		chunked = append(chunked, chunk)
-	}
-	return chunked
-}
 
-func calculateRate(cur, prev uint64, before time.Time) float32 {
-	now := time.Now()
-	diff := now.Unix() - before.Unix()
-	if before.IsZero() || diff <= 0 || prev == 0 {
-		return 0
+		totalCPUUsage = totalCPUUsage + cpu.TotalPct
+		totalMemUsage = totalMemUsage + memory.Rss
 	}
-	return float32(cur-prev) / float32(diff)
+
+	// Process inclusions
+	inclusionProcessesChan := make(chan []*model.ProcessStat)
+	inclusionCommonProcesses := make([]*ProcessCommon, len(commonProcesses))
+	copy(inclusionCommonProcesses, commonProcesses)
+	defer close(inclusionProcessesChan)
+	go func() {
+		processes := make([]*model.ProcessStat, 0, cfg.MaxPerMessage)
+		processes = deriveFmapCommonProcessToProcessStat(mapProcessStat(processStatMap), getProcessInclusions(inclusionCommonProcesses, cfg, totalCPUUsage, totalMemUsage))
+		inclusionProcessesChan <- processes
+	}()
+
+	// Take the remainingProcesses of the process and strip all processes that should be skipped
+	allProcessesChan := make(chan []*model.ProcessStat)
+	allCommonProcesses := make([]*ProcessCommon, len(commonProcesses))
+	copy(allCommonProcesses, commonProcesses)
+	defer close(allProcessesChan)
+	go func() {
+		processes := make([]*model.ProcessStat, 0, cfg.MaxPerMessage)
+		processes = deriveFmapCommonProcessToProcessStat(mapProcessStat(processStatMap), deriveFilterBlacklistedProcesses(keepProcess(cfg), allCommonProcesses))
+		allProcessesChan <- processes
+	}()
+
+	// sort all, deduplicate and chunk
+	processes := append(<-inclusionProcessesChan, <-allProcessesChan...)
+	return chunkProcessStats(deriveUniqueProcessStats(deriveSortProcessStats(processes)), cfg.MaxPerMessage, make([][]*model.ProcessStat, 0))
 }

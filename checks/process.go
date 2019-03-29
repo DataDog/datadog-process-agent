@@ -1,3 +1,5 @@
+//go:generate goderive .
+
 package checks
 
 import (
@@ -125,140 +127,79 @@ func fmtProcesses(
 		}
 	}
 
-	chunked := make([][]*model.Process, 0)
-	chunk := make([]*model.Process, 0, cfg.MaxPerMessage)
+	// Take all process and format them to the model.Process type
+	commonProcesses := make([]*ProcessCommon, 0, cfg.MaxPerMessage)
+	processMap := make(map[int32]*model.Process, cfg.MaxPerMessage)
+	var totalCPUUsage float32
+	var totalMemUsage uint64
+	totalCPUUsage = 0.0
+	totalMemUsage = 0
 	for _, fp := range procs {
-		if skipProcess(cfg, fp, lastProcs) {
-			continue
-		}
-
 		// Hide blacklisted args if the Scrubber is enabled
 		fp.Cmdline = cfg.Scrubber.ScrubProcessCommand(fp)
 
-		chunk = append(chunk, &model.Process{
+		// Skipping any processes that didn't exist in the previous run.
+		// This means short-lived processes (<2s) will never be captured.
+		if _, ok := pidMissingInLastProcs(fp.Pid, lastProcs); ok {
+			continue
+		}
+
+		// mapping to a common process type to do sorting
+		command := formatCommand(fp)
+		memory := formatMemory(fp)
+		cpu := formatCPU(fp, fp.CpuTime, lastProcs[fp.Pid].CpuTime, syst2, syst1)
+		ioStat := formatIO(fp, lastProcs[fp.Pid].IOStat, lastRun)
+		commonProcesses = append(commonProcesses, &ProcessCommon{
+			Pid:     fp.Pid,
+			Command: command,
+			Memory:  memory,
+			CPU:     cpu,
+			IOStat:  ioStat,
+		})
+
+		processMap[fp.Pid] = &model.Process{
 			Pid:                    fp.Pid,
-			Command:                formatCommand(fp),
+			Command:                command,
 			User:                   formatUser(fp),
-			Memory:                 formatMemory(fp),
-			Cpu:                    formatCPU(fp, fp.CpuTime, lastProcs[fp.Pid].CpuTime, syst2, syst1),
+			Memory:                 memory,
+			Cpu:                    cpu,
 			CreateTime:             fp.CreateTime,
 			OpenFdCount:            fp.OpenFdCount,
 			State:                  model.ProcessState(model.ProcessState_value[fp.Status]),
-			IoStat:                 formatIO(fp, lastProcs[fp.Pid].IOStat, lastRun),
+			IoStat:                 ioStat,
 			VoluntaryCtxSwitches:   uint64(fp.CtxSwitches.Voluntary),
 			InvoluntaryCtxSwitches: uint64(fp.CtxSwitches.Involuntary),
 			ContainerId:            cidByPid[fp.Pid],
-		})
-		// STS: for now we disable chunking until we support chunked receiving. Otherwise ppid
-		// get separated
-		if len(chunk) == cfg.MaxPerMessage {
-			break
 		}
+
+		totalCPUUsage = totalCPUUsage + cpu.TotalPct
+		totalMemUsage = totalMemUsage + memory.Rss
 	}
-	if len(chunk) > 0 {
-		chunked = append(chunked, chunk)
-	}
+
+	// Process inclusions
+	inclusionProcessesChan := make(chan []*model.Process)
+	inclusionCommonProcesses := make([]*ProcessCommon, len(commonProcesses))
+	copy(inclusionCommonProcesses, commonProcesses)
+	defer close(inclusionProcessesChan)
+	go func() {
+		processes := make([]*model.Process, 0, cfg.MaxPerMessage)
+		processes = deriveFmapCommonProcessToProcess(mapProcess(processMap), getProcessInclusions(inclusionCommonProcesses, cfg, totalCPUUsage, totalMemUsage))
+		inclusionProcessesChan <- processes
+	}()
+
+	// Take the remainingProcesses of the process and strip all processes that should be skipped
+	allProcessesChan := make(chan []*model.Process)
+	allCommonProcesses := make([]*ProcessCommon, len(commonProcesses))
+	copy(allCommonProcesses, commonProcesses)
+	defer close(allProcessesChan)
+	go func() {
+		processes := make([]*model.Process, 0, cfg.MaxPerMessage)
+		processes = deriveFmapCommonProcessToProcess(mapProcess(processMap), deriveFilterBlacklistedProcesses(keepProcess(cfg), allCommonProcesses))
+		allProcessesChan <- processes
+	}()
+
+	// sort all, deduplicate and chunk
+	processes := append(<-inclusionProcessesChan, <-allProcessesChan...)
 	cfg.Scrubber.IncrementCacheAge()
-	return chunked
-}
-
-func formatCommand(fp *process.FilledProcess) *model.Command {
-	return &model.Command{
-		Args:   fp.Cmdline,
-		Cwd:    fp.Cwd,
-		Root:   "",    // TODO
-		OnDisk: false, // TODO
-		Ppid:   fp.Ppid,
-		Exe:    fp.Exe,
-	}
-}
-
-func formatIO(fp *process.FilledProcess, lastIO *process.IOCountersStat, before time.Time) *model.IOStat {
-	// This will be nill for Mac
-	if fp.IOStat == nil {
-		return &model.IOStat{}
-	}
-
-	diff := time.Now().Unix() - before.Unix()
-	if before.IsZero() || diff <= 0 {
-		return nil
-	}
-	// Reading 0 as a counter means the file could not be opened due to permissions. We distinguish this from a real 0 in rates.
-	var readRate float32
-	readRate = -1
-	if fp.IOStat.ReadCount != 0 {
-		readRate = calculateRate(fp.IOStat.ReadCount, lastIO.ReadCount, before)
-	}
-	var writeRate float32
-	writeRate = -1
-	if fp.IOStat.WriteCount != 0 {
-		writeRate = calculateRate(fp.IOStat.WriteCount, lastIO.WriteCount, before)
-	}
-	var readBytesRate float32
-	readBytesRate = -1
-	if fp.IOStat.ReadBytes != 0 {
-		readBytesRate = calculateRate(fp.IOStat.ReadBytes, lastIO.ReadBytes, before)
-	}
-	var writeBytesRate float32
-	writeBytesRate = -1
-	if fp.IOStat.WriteBytes != 0 {
-		writeBytesRate = calculateRate(fp.IOStat.WriteBytes, lastIO.WriteBytes, before)
-	}
-	return &model.IOStat{
-		ReadRate:       readRate,
-		WriteRate:      writeRate,
-		ReadBytesRate:  readBytesRate,
-		WriteBytesRate: writeBytesRate,
-	}
-}
-
-func formatMemory(fp *process.FilledProcess) *model.MemoryStat {
-	ms := &model.MemoryStat{
-		Rss:  fp.MemInfo.RSS,
-		Vms:  fp.MemInfo.VMS,
-		Swap: fp.MemInfo.Swap,
-	}
-
-	if fp.MemInfoEx != nil {
-		ms.Shared = fp.MemInfoEx.Shared
-		ms.Text = fp.MemInfoEx.Text
-		ms.Lib = fp.MemInfoEx.Lib
-		ms.Data = fp.MemInfoEx.Data
-		ms.Dirty = fp.MemInfoEx.Dirty
-	}
-	return ms
-}
-
-// skipProcess will skip a given process if it's blacklisted or hasn't existed
-// for multiple collections.
-func skipProcess(
-	cfg *config.AgentConfig,
-	fp *process.FilledProcess,
-	lastProcs map[int32]*process.FilledProcess,
-) bool {
-	if len(fp.Cmdline) == 0 {
-		return true
-	}
-	if config.IsBlacklisted(fp.Cmdline, cfg.Blacklist) {
-		return true
-	}
-	if _, ok := lastProcs[fp.Pid]; !ok {
-		// Skipping any processes that didn't exist in the previous run.
-		// This means short-lived processes (<2s) will never be captured.
-		return true
-	}
-	return false
-}
-
-func (p *ProcessCheck) createTimesforPIDs(pids []uint32) map[uint32]int64 {
-	p.Lock()
-	defer p.Unlock()
-
-	createTimeForPID := make(map[uint32]int64)
-	for _, pid := range pids {
-		if p, ok := p.lastProcs[int32(pid)]; ok {
-			createTimeForPID[pid] = p.CreateTime
-		}
-	}
-	return createTimeForPID
+	return chunkProcesses(deriveUniqueProcesses(deriveSortProcesses(processes)), cfg.MaxPerMessage, make([][]*model.Process, 0))
 }

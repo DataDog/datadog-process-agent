@@ -55,7 +55,7 @@
   version = "1.0.0"
 
 [[projects]]
-  digest = "1:a55206e3d697ddeaf77b8db9fed29079db5ec75e4a919a5cbe7c14feac7f96d8"
+  digest = "1:4eb5a7d274cc64b02f46f232e4ba0ac777ffde9d84e9fc08726e3cbf44f7d653"
   name = "github.com/StackVista/stackstate-agent"
   packages = [
     "cmd/agent/api/response",
@@ -190,7 +190,7 @@
   version = "v2.7.1"
 
 [[projects]]
-  digest = "1:577f411de1bb123e61cdebd59cb51124bb68b9e22b28a869829a30e8e8ce7ec6"
+  digest = "1:a60acfb78bd12ce7b2101f0cc0bca8cd83db6aa60bf1e6ddfd33e83013083ddf"
   name = "github.com/docker/docker"
   packages = [
     "api/types",

@@ -16,6 +16,62 @@ process_config:
     container: 8
     process: 5
     connections: 5
+  process_blacklist:
+    patterns:
+      # A list of regex patterns that will exclude a process if matched.
+      # Linux Specific patterns
+      # stress is used for molecule testing
+      - "stress"
+      - "^-bash"
+      - "^su$"
+      - "^/bin/bash"
+      - "^/lib/systemd/"
+      - "^pickup"
+      - "^/sbin/"
+      - "^qmgr"
+      - "^sshd:"
+      - "^/usr/bin/bash"
+      - "^/usr/bin/dbus-daemon"
+      - "^/usr/bin/vi(?:m|m.basic)?$"
+      - "^/usr/bin/tail"
+      - "^/usr/lib/systemd/"
+      - "^/usr/sbin/"
+      - "^\\(sd-pam\\)"
+      # Windows Specific patterns
+      - "cmd.exe"
+      - "conhost.exe"
+      - "DllHost.exe"
+      - "dwm.exe"
+      - "Explorer.EXE"
+      - "lsass.exe"
+      - "msdtc.exe"
+      - "SearchUI.exe"
+      - "sihost.exe"
+      - "smartscreen.exe"
+      - "svchost.exe"
+      - "taskhostw.exe"
+      - "tasklist.exe"
+      - "VBoxService.exe"
+      - "vim.exe"
+      - "wininit.exe"
+      - "winlogon.exe"
+      - "wlms.exe"
+      - "wmiprvse.exe"
+      # Should be ignored, but gets reported with an empty command line
+      #- "sppsvc.exe"
+      #- "services.exe"
+      #- "csrss.exe"
+      #- "wininit.exe"
+      #- "System"
+      #- "smss.exe"
+    # Process blacklist inclusions for top resource using processes
+    inclusions:
+      amount_top_cpu_pct_usage: 3
+      cpu_pct_usage_threshold: 20
+      amount_top_io_read_usage: 3
+      amount_top_io_write_usage: 3
+      amount_top_mem_usage: 3
+      mem_usage_threshold: 35
 network_tracer_config:
   network_tracing_enabled: 'true'
   initial_connections_from_proc: 'true'
