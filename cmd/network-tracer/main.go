@@ -39,7 +39,6 @@ var (
 const loggerName = ddconfig.LoggerName("NETWORK")
 
 func main() {
-
 	// Parse flags
 	flag.StringVar(&opts.configPath, "config", "/etc/datadog-agent/network-tracer.yaml", "Path to network-tracer config formatted as YAML")
 	flag.StringVar(&opts.pidFilePath, "pid", "", "Path to set pidfile for process")
