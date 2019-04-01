@@ -207,6 +207,7 @@ func TestAgentConfigYamlEnc(t *testing.T) {
 	assert := assert.New(t)
 
 	agentConfig, err := NewAgentConfig(
+		"test",
 		"./testdata/TestDDAgentConfigYamlEnc.yaml",
 		"",
 	)
@@ -226,6 +227,7 @@ func TestAgentConfigYamlEnc2(t *testing.T) {
 	config.Datadog.Set("secret_backend_output_max_size", 1024)
 	assert := assert.New(t)
 	agentConfig, err := NewAgentConfig(
+		"test",
 		"./testdata/TestDDAgentConfigYamlEnc2.yaml",
 		"",
 	)
