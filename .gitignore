@@ -16,3 +16,5 @@ process-agent-msg.h
 process-agent
 .vagrant/
 Vagrantfile
+
+config/testdata/secret

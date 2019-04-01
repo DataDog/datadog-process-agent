@@ -55,9 +55,11 @@ end
 desc "Test Datadog Process agent"
 task :test do
   cmd = "go list ./... | grep -v vendor | xargs go test"
+  tags = []
   if os != "windows"
-    cmd += " -tags 'docker kubelet kubeapiserver'"
+    tags.concat(["secrets", "docker", "kubelet", "kubeapiserver"])
   end
+  cmd += " -tags '#{tags.join(" ")}'"
   sh cmd
 end
 
@@ -160,9 +162,9 @@ namespace "ebpf" do
 
   desc "Run tests for eBPF code"
   task :test => 'ebpf:build-only' do
-    tags = ''
+    tags = 'secrets'
     if ENV["SKIP_BPF_TESTS"] != "true" then
-      tags = 'linux_bpf'
+      tags += ' linux_bpf'
     else
       puts "Skipping BPF tests"
     end
