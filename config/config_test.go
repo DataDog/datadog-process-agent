@@ -282,6 +282,7 @@ func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
 	assert.Equal("/var/my-location/network-tracer.log", agentConfig.NetworkTracerSocketPath)
 	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
+	assert.True(agentConfig.NetworkBPFDebug)
 	assert.False(agentConfig.DisableTCPTracing)
 	assert.False(agentConfig.DisableUDPTracing)
 	assert.False(agentConfig.DisableIPv6Tracing)
