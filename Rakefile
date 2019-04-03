@@ -156,7 +156,7 @@ namespace "ebpf" do
     end
   end
 
-  DEBUG=1
+  DEBUG= ENV['DEBUG'] == "true" ? 1 : 0
   DOCKER_FILE='packaging/Dockerfile-ebpf'
   DOCKER_IMAGE='datadog/tracer-bpf-builder'
 
@@ -212,7 +212,7 @@ namespace "ebpf" do
   end
 
   desc "Build and run dockerized `nettop` command for testing"
-  task :nettop => 'ebpf:build' do
+  task 'nettop-docker' => 'ebpf:build' do
     sh 'sudo docker build -t "ebpf-nettop" . -f packaging/Dockerfile-nettop'
     sh "sudo docker run \
       --net=host \
@@ -220,5 +220,11 @@ namespace "ebpf" do
       --privileged \
       -v /sys/kernel/debug:/sys/kernel/debug \
       ebpf-nettop"
+  end
+
+  desc "Build and run `nettop` command for testing"
+  task 'nettop' => 'ebpf:build-only' do
+    sh 'go build -tags "linux_bpf" -o nettop ./cmd/nettop/'
+    sh 'sudo ./nettop'
   end
 end
