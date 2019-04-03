@@ -303,6 +303,7 @@ func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(100, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(false, agentConfig.Windows.AddNewArgs)
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
+	assert.False(agentConfig.NetworkBPFDebug)
 	assert.Equal("/var/my-location/network-tracer.log", agentConfig.NetworkTracerSocketPath)
 	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
 	assert.True(agentConfig.DisableTCPTracing)
