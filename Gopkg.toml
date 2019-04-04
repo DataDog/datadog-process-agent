@@ -4,7 +4,7 @@
 
 [[constraint]]
   name = "github.com/DataDog/gopsutil"
-  revision = "c8f74f1344dd41bc49ec4d3c2377c526aaedfd20"
+  revision = "58eb2107101004f9509f75f469df86d9b5f56f44"
 
 [[constraint]]
   name = "github.com/gogo/protobuf"
