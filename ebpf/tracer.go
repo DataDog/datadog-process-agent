@@ -79,7 +79,7 @@ func IsTracerSupportedByOS() (bool, error) {
 }
 
 func NewTracer(config *Config) (*Tracer, error) {
-	m, err := readBPFModule()
+	m, err := readBPFModule(config.BPFDebug)
 	if err != nil {
 		return nil, fmt.Errorf("could not read bpf module: %s", err)
 	}
@@ -317,8 +317,13 @@ func (t *Tracer) getMap(name bpfMapName) (*bpflib.Map, error) {
 	return mp, nil
 }
 
-func readBPFModule() (*bpflib.Module, error) {
-	buf, err := Asset("tracer-ebpf.o")
+func readBPFModule(debug bool) (*bpflib.Module, error) {
+	file := "tracer-ebpf.o"
+	if debug {
+		file = "tracer-ebpf-debug.o"
+	}
+
+	buf, err := Asset(file)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find asset: %s", err)
 	}

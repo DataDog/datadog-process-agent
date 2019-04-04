@@ -16,5 +16,6 @@ process-agent-msg.h
 process-agent
 .vagrant/
 Vagrantfile
+nettop
 
 config/testdata/secret

@@ -34,12 +34,11 @@ func TracerConfigFromConfig(cfg *AgentConfig) *ebpf.Config {
 		log.Info("network tracer TCP tracing disabled by configuration")
 	}
 
-	if cfg.CollectLocalDNS {
-		tracerConfig.CollectLocalDNS = true
-	}
+	tracerConfig.CollectLocalDNS = cfg.CollectLocalDNS
 
 	tracerConfig.MaxTrackedConnections = cfg.MaxTrackedConnections
 	tracerConfig.ProcRoot = getProcRoot()
+	tracerConfig.BPFDebug = cfg.NetworkBPFDebug
 
 	return tracerConfig
 }

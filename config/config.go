@@ -80,6 +80,7 @@ type AgentConfig struct {
 	NetworkTracerSocketPath  string
 	NetworkTracerLogFile     string
 	MaxTrackedConnections    uint
+	NetworkBPFDebug          bool
 
 	// Check config
 	EnabledChecks  []string
