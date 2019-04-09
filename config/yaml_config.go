@@ -94,17 +94,19 @@ func (a *AgentConfig) loadProcessYamlConfig(path string) error {
 		a.APIEndpoints[0].APIKey = config.Datadog.GetString(key)
 	}
 
-	// A string indicate the enabled state of the Agent.
-	// If "false" (the default) we will only collect containers.
-	// If "true" we will collect containers and processes.
-	// If "disabled" the agent will be disabled altogether and won't start.
-	enabled := config.Datadog.GetString(key(ns, "enabled"))
-	if ok, err := isAffirmative(enabled); ok {
-		a.Enabled, a.EnabledChecks = true, processChecks
-	} else if enabled == "disabled" {
-		a.Enabled = false
-	} else if !ok && err == nil {
-		a.Enabled, a.EnabledChecks = true, containerChecks
+	if k := key(ns, "enabled"); config.Datadog.IsSet(k) {
+		// A string indicate the enabled state of the Agent.
+		// If "false" (the default) we will only collect containers.
+		// If "true" we will collect containers and processes.
+		// If "disabled" the agent will be disabled altogether and won't start.
+		enabled := config.Datadog.GetString(k)
+		if ok, err := isAffirmative(enabled); ok {
+			a.Enabled, a.EnabledChecks = true, processChecks
+		} else if enabled == "disabled" {
+			a.Enabled = false
+		} else if !ok && err == nil {
+			a.Enabled, a.EnabledChecks = true, containerChecks
+		}
 	}
 
 	// Whether or not the process-agent should output logs to console
@@ -153,23 +155,29 @@ func (a *AgentConfig) loadProcessYamlConfig(path string) error {
 	}
 
 	// How many check results to buffer in memory when POST fails. The default is usually fine.
-	if queueSize := config.Datadog.GetInt(key(ns, "queue_size")); queueSize > 0 {
-		a.QueueSize = queueSize
+	if k := key(ns, "queue_size"); config.Datadog.IsSet(k) {
+		if queueSize := config.Datadog.GetInt(k); queueSize > 0 {
+			a.QueueSize = queueSize
+		}
 	}
 
 	// The maximum number of processes, or containers per message. Note: Only change if the defaults are causing issues.
-	if maxPerMessage := config.Datadog.GetInt(key(ns, "max_per_message")); maxPerMessage > 0 {
-		if maxPerMessage <= maxMessageBatch {
+	if k := key(ns, "max_per_message"); config.Datadog.IsSet(k) {
+		if maxPerMessage := config.Datadog.GetInt(k); maxPerMessage <= 0 {
+			log.Warn("Invalid item count per message (<= 0), ignoring...")
+		} else if maxPerMessage <= maxMessageBatch {
 			a.MaxPerMessage = maxPerMessage
-		} else {
+		} else if maxPerMessage > 0 {
 			log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
 		}
 	}
 
 	// Overrides the path to the Agent bin used for getting the hostname. The default is usually fine.
 	a.DDAgentBin = defaultDDAgentBin
-	if agentBin := config.Datadog.GetString(key(ns, "dd_agent_bin")); agentBin != "" {
-		a.DDAgentBin = agentBin
+	if k := key(ns, "dd_agent_bin"); config.Datadog.IsSet(k) {
+		if agentBin := config.Datadog.GetString(k); agentBin != "" {
+			a.DDAgentBin = agentBin
+		}
 	}
 
 	// Windows: Sets windows process table refresh rate (in number of check runs)
@@ -224,7 +232,13 @@ func (a *AgentConfig) loadProcessYamlConfig(path string) error {
 }
 
 func (a *AgentConfig) setCheckInterval(ns, check, checkKey string) {
-	if interval := config.Datadog.GetInt(key(ns, "intervals", check)); interval != 0 {
+	k := key(ns, "intervals", check)
+
+	if !config.Datadog.IsSet(k) {
+		return
+	}
+
+	if interval := config.Datadog.GetInt(k); interval != 0 {
 		log.Infof("Overriding container check interval to %ds", interval)
 		a.CheckIntervals[checkKey] = time.Duration(interval) * time.Second
 	}

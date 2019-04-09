@@ -3,6 +3,8 @@ vendor/
 vendor.orig/
 
 tracer-ebpf.o
+tracer-ebpf-debug.o
+
 .DS_Store
 .idea
 .vscode
