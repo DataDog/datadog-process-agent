@@ -4,3 +4,6 @@ network_tracer_config:
     disable_tcp: true
     disable_udp: true
     disable_ipv6: true
+    excluded_linux_versions:
+      - 5.5.0
+      - 4.2.1

@@ -14,16 +14,6 @@ import (
 	bpflib "github.com/iovisor/gobpf/elf"
 )
 
-var (
-	// Feature versions sourced from: https://github.com/iovisor/bcc/blob/master/docs/kernel-versions.md
-	// Minimum kernel version -> max(3.15 - eBPF,
-	//                               3.18 - tables/maps,
-	//                               4.1 - kprobes,
-	//                               4.3 - perf events)
-	// 	                      -> 4.3
-	minRequiredKernelCode = linuxKernelVersionCode(4, 3, 0)
-)
-
 type Tracer struct {
 	m *bpflib.Module
 
@@ -51,31 +41,6 @@ const (
 // That is, for kernel "a.b.c", the version number will be (a<<16 + b<<8 + c)
 func CurrentKernelVersion() (uint32, error) {
 	return bpflib.CurrentKernelVersion()
-}
-
-func kernelCodeToString(code uint32) string {
-	// Kernel "a.b.c", the version number will be (a<<16 + b<<8 + c)
-	a, b, c := code>>16, code>>8&0xf, code&0xf
-	return fmt.Sprintf("%d.%d.%d", a, b, c)
-}
-
-// IsTracerSupportedByOS returns whether or not the current kernel version supports tracer functionality
-func IsTracerSupportedByOS() (bool, error) {
-	currentKernelCode, err := bpflib.CurrentKernelVersion()
-	if err != nil {
-		return false, fmt.Errorf("could not get kernel version: %s", err)
-	}
-
-	if currentKernelCode < minRequiredKernelCode {
-		return false, fmt.Errorf(
-			"incompatible linux version. at least %s (%d) required, got %s (%d)",
-			kernelCodeToString(minRequiredKernelCode),
-			minRequiredKernelCode,
-			kernelCodeToString(currentKernelCode),
-			currentKernelCode,
-		)
-	}
-	return true, nil
 }
 
 func NewTracer(config *Config) (*Tracer, error) {

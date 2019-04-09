@@ -65,7 +65,7 @@ func compileStringsToRegex(words []string) []*regexp.Regexp {
 		}
 
 		if word == "*" {
-			log.Warnf("data scrubber: ignoring wildcard-only ('*') sensitive word as it is not supported", word)
+			log.Warn("data scrubber: ignoring wildcard-only ('*') sensitive word as it is not supported")
 			continue
 		}
 
