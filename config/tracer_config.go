@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
+
 	"github.com/DataDog/datadog-process-agent/ebpf"
 	"github.com/DataDog/datadog-process-agent/util"
-	log "github.com/cihub/seelog"
 )
 
 // TracerConfigFromConfig returns a valid tracer-bpf config sourced from our agent config
@@ -33,12 +34,11 @@ func TracerConfigFromConfig(cfg *AgentConfig) *ebpf.Config {
 		log.Info("network tracer TCP tracing disabled by configuration")
 	}
 
-	if cfg.CollectLocalDNS {
-		tracerConfig.CollectLocalDNS = true
-	}
+	tracerConfig.CollectLocalDNS = cfg.CollectLocalDNS
 
 	tracerConfig.MaxTrackedConnections = cfg.MaxTrackedConnections
 	tracerConfig.ProcRoot = getProcRoot()
+	tracerConfig.BPFDebug = cfg.NetworkBPFDebug
 
 	return tracerConfig
 }

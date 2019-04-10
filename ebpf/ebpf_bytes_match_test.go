@@ -16,4 +16,12 @@ func TestEbpfBytesCorrect(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, bs, actual)
+
+	bsDebug, err := ioutil.ReadFile("c/tracer-ebpf-debug.o")
+	require.NoError(t, err)
+
+	actualDebug, err := tracerEbpfDebugOBytes()
+	require.NoError(t, err)
+
+	assert.Equal(t, bsDebug, actualDebug)
 }

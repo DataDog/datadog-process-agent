@@ -55,9 +55,11 @@ end
 desc "Test Datadog Process agent"
 task :test do
   cmd = "go list ./... | grep -v vendor | xargs go test"
+  tags = []
   if os != "windows"
-    cmd += " -tags 'docker kubelet kubeapiserver'"
+    tags.concat(["secrets", "docker", "kubelet", "kubeapiserver"])
   end
+  cmd += " -tags '#{tags.join(" ")}'"
   sh cmd
 end
 
@@ -154,15 +156,14 @@ namespace "ebpf" do
     end
   end
 
-  DEBUG=1
   DOCKER_FILE='packaging/Dockerfile-ebpf'
   DOCKER_IMAGE='datadog/tracer-bpf-builder'
 
   desc "Run tests for eBPF code"
   task :test => 'ebpf:build-only' do
-    tags = ''
+    tags = 'secrets'
     if ENV["SKIP_BPF_TESTS"] != "true" then
-      tags = 'linux_bpf'
+      tags += ' linux_bpf'
     else
       puts "Skipping BPF tests"
     end
@@ -199,7 +200,7 @@ namespace "ebpf" do
     if ENV['TEST'] != "true"
       cmd += " install"
     end
-    sh "#{sudo} docker run --rm -e DEBUG=#{DEBUG} \
+    sh "#{sudo} docker run --rm \
         -e CIRCLE_BUILD_URL=#{ENV['CIRCLE_BUILD_URL']} \
         -v $(pwd):/src:ro \
     -v $(pwd)/ebpf:/ebpf/ \
@@ -210,7 +211,7 @@ namespace "ebpf" do
   end
 
   desc "Build and run dockerized `nettop` command for testing"
-  task :nettop => 'ebpf:build' do
+  task 'nettop-docker' => 'ebpf:build' do
     sh 'sudo docker build -t "ebpf-nettop" . -f packaging/Dockerfile-nettop'
     sh "sudo docker run \
       --net=host \
@@ -218,5 +219,11 @@ namespace "ebpf" do
       --privileged \
       -v /sys/kernel/debug:/sys/kernel/debug \
       ebpf-nettop"
+  end
+
+  desc "Build and run `nettop` command for testing"
+  task 'nettop' => 'ebpf:build-only' do
+    sh 'go build -tags "linux_bpf" -o nettop ./cmd/nettop/'
+    sh 'sudo ./nettop'
   end
 end

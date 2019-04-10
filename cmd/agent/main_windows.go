@@ -12,7 +12,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/util/winutil"
 
-	log "github.com/cihub/seelog"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
@@ -109,12 +108,6 @@ func runService(isDebug bool) {
 	elog.Info(0x40000004, ServiceName)
 }
 
-func EnableLoggingToFile() {
-	seeConfig := fmt.Sprintf("<seelog minlevel=\"debug\"> <outputs>	<rollingfile type=\"size\" filename=\"%s\" maxsize=\"1000000\" maxrolls=\"2\" />	</outputs></seelog>", defaultLogFilePath)
-	logger, _ := log.LoggerFromConfigAsBytes([]byte(seeConfig))
-	log.ReplaceLogger(logger)
-}
-
 // main is the main application entry point
 func main() {
 	ignore := ""
@@ -131,7 +124,6 @@ func main() {
 	flag.BoolVar(&winopts.stopService, "stop-service", false, "Stops the trace agent service")
 
 	flag.Parse()
-	EnableLoggingToFile()
 	isIntSess, err := svc.IsAnInteractiveSession()
 	if err != nil {
 		fmt.Printf("failed to determine if we are running in an interactive session: %v", err)

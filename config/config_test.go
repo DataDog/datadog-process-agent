@@ -4,15 +4,18 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/gopsutil/process"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var originalConfig = config.Datadog
@@ -80,7 +83,7 @@ func TestOnlyEnvConfig(t *testing.T) {
 	os.Setenv("DD_API_KEY", "apikey_from_env")
 	defer os.Unsetenv("DD_API_KEY")
 
-	agentConfig, _ := NewAgentConfig("", "")
+	agentConfig, _ := NewAgentConfig("test", "", "")
 	assert.Equal(t, "apikey_from_env", agentConfig.APIEndpoints[0].APIKey)
 }
 
@@ -91,7 +94,7 @@ func TestOnlyEnvConfigArgsScrubbingEnabled(t *testing.T) {
 	os.Setenv("DD_CUSTOM_SENSITIVE_WORDS", "*password*,consul_token,*api_key")
 	defer os.Unsetenv("DD_CUSTOM_SENSITIVE_WORDS")
 
-	agentConfig, _ := NewAgentConfig("", "")
+	agentConfig, _ := NewAgentConfig("test", "", "")
 	assert.Equal(t, true, agentConfig.Scrubber.Enabled)
 
 	cases := []struct {
@@ -119,7 +122,7 @@ func TestOnlyEnvConfigArgsScrubbingDisabled(t *testing.T) {
 	defer os.Unsetenv("DD_SCRUB_ARGS")
 	defer os.Unsetenv("DD_CUSTOM_SENSITIVE_WORDS")
 
-	agentConfig, _ := NewAgentConfig("", "")
+	agentConfig, _ := NewAgentConfig("test", "", "")
 	assert.Equal(t, false, agentConfig.Scrubber.Enabled)
 
 	cases := []struct {
@@ -166,6 +169,75 @@ func TestDefaultConfig(t *testing.T) {
 	os.Unsetenv("DOCKER_DD_AGENT")
 }
 
+var secretScriptBuilder sync.Once
+
+func setupSecretScript() error {
+	script := "./testdata/secret"
+	goCmd, err := exec.LookPath("go")
+	if err != nil {
+		return fmt.Errorf("Couldn't find golang binary in path")
+	}
+
+	buildCmd := exec.Command(goCmd, "build", "-o", script, fmt.Sprintf("%s.go", script))
+	if err := buildCmd.Start(); err != nil {
+		return fmt.Errorf("Couldn't build script %v: %s", script, err)
+	}
+	if err := buildCmd.Wait(); err != nil {
+		return fmt.Errorf("Couldn't wait the end of the build for script %v: %s", script, err)
+	}
+
+	// Permissions required for the secret script
+	err = os.Chmod(script, 0700)
+	if err != nil {
+		return err
+	}
+
+	return os.Chown(script, os.Geteuid(), os.Getgid())
+}
+
+func TestAgentConfigYamlEnc(t *testing.T) {
+	secretScriptBuilder.Do(func() { require.NoError(t, setupSecretScript()) })
+
+	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	defer restoreGlobalConfig()
+	// Secrets settings are initialized only once by initConfig in the agent package so we have to setup them
+	config.Datadog.Set("secret_backend_timeout", 15)
+	config.Datadog.Set("secret_backend_output_max_size", 1024)
+
+	assert := assert.New(t)
+
+	agentConfig, err := NewAgentConfig(
+		"test",
+		"./testdata/TestDDAgentConfigYamlEnc.yaml",
+		"",
+	)
+	assert.NoError(err)
+
+	ep := agentConfig.APIEndpoints[0]
+	assert.Equal("secret_my_api_key", ep.APIKey)
+}
+
+func TestAgentConfigYamlEnc2(t *testing.T) {
+	secretScriptBuilder.Do(func() { require.NoError(t, setupSecretScript()) })
+
+	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
+	defer restoreGlobalConfig()
+	// Secrets settings are initialized only once by initConfig in the agent package so we have to setup them
+	config.Datadog.Set("secret_backend_timeout", 15)
+	config.Datadog.Set("secret_backend_output_max_size", 1024)
+	assert := assert.New(t)
+	agentConfig, err := NewAgentConfig(
+		"test",
+		"./testdata/TestDDAgentConfigYamlEnc2.yaml",
+		"",
+	)
+	assert.NoError(err)
+
+	ep := agentConfig.APIEndpoints[0]
+	assert.Equal("secret_encrypted_key", ep.APIKey)
+	assert.Equal("secret_burrito.com", ep.Endpoint.String())
+}
+
 func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 	defer restoreGlobalConfig()
@@ -173,6 +245,7 @@ func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert := assert.New(t)
 
 	agentConfig, err := NewAgentConfig(
+		"test",
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig.yaml",
 		"",
 	)
@@ -192,6 +265,7 @@ func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
 
 	agentConfig, err = NewAgentConfig(
+		"test",
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig.yaml",
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig-Net.yaml",
 	)
@@ -208,11 +282,13 @@ func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
 	assert.Equal("/var/my-location/network-tracer.log", agentConfig.NetworkTracerSocketPath)
 	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
+	assert.True(agentConfig.NetworkBPFDebug)
 	assert.False(agentConfig.DisableTCPTracing)
 	assert.False(agentConfig.DisableUDPTracing)
 	assert.False(agentConfig.DisableIPv6Tracing)
 
 	agentConfig, err = NewAgentConfig(
+		"test",
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig.yaml",
 		"./testdata/TestDDAgentConfigYamlAndNetworkConfig-Net-2.yaml",
 	)
@@ -227,6 +303,7 @@ func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(100, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(false, agentConfig.Windows.AddNewArgs)
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
+	assert.False(agentConfig.NetworkBPFDebug)
 	assert.Equal("/var/my-location/network-tracer.log", agentConfig.NetworkTracerSocketPath)
 	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
 	assert.True(agentConfig.DisableTCPTracing)
@@ -293,23 +370,23 @@ func TestEnvSiteConfig(t *testing.T) {
 	assert := assert.New(t)
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	agentConfig, err := NewAgentConfig("./testdata/TestEnvSiteConfig.yaml", "")
+	agentConfig, err := NewAgentConfig("test", "./testdata/TestEnvSiteConfig.yaml", "")
 	assert.NoError(err)
 	assert.Equal("process.datadoghq.io", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	agentConfig, err = NewAgentConfig("./testdata/TestEnvSiteConfig-2.yaml", "")
+	agentConfig, err = NewAgentConfig("test", "./testdata/TestEnvSiteConfig-2.yaml", "")
 	assert.NoError(err)
 	assert.Equal("process.datadoghq.eu", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
-	agentConfig, err = NewAgentConfig("./testdata/TestEnvSiteConfig-3.yaml", "")
+	agentConfig, err = NewAgentConfig("test", "./testdata/TestEnvSiteConfig-3.yaml", "")
 	assert.NoError(err)
 	assert.Equal("burrito.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
 	config.Datadog = config.NewConfig("datadog", "DD", strings.NewReplacer(".", "_"))
 	os.Setenv("DD_PROCESS_AGENT_URL", "https://test.com")
-	agentConfig, err = NewAgentConfig("./testdata/TestEnvSiteConfig-3.yaml", "")
+	agentConfig, err = NewAgentConfig("test", "./testdata/TestEnvSiteConfig-3.yaml", "")
 	assert.Equal("test.com", agentConfig.APIEndpoints[0].Endpoint.Hostname())
 
 	os.Unsetenv("DD_PROCESS_AGENT_URL")

@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	log "github.com/cihub/seelog"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // Handles signals - tells us whether we should exit.

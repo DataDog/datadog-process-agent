@@ -3,10 +3,11 @@ package ebpf
 import (
 	"bufio"
 	"bytes"
-	log "github.com/cihub/seelog"
 	"io"
 	"os"
 	"strconv"
+
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const tcpListen = 10
