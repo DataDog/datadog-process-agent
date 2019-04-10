@@ -35,12 +35,11 @@ var winopts struct {
 }
 
 func init() {
-	fmt.Printf("main_windows.init()")
 	pd, err := winutil.GetProgramDataDir()
 	if err == nil {
 		defaultConfigPath = filepath.Join(pd, "datadog.yaml")
 		defaultConfdPath = filepath.Join(pd, "conf.d")
-		defaultLogFilePath = filepath.Join(pd, "logs", "process.log")
+		defaultLogFilePath = filepath.Join(pd, "logs", "process-agent.log")
 	}
 }
 
