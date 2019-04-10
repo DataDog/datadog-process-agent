@@ -18,7 +18,7 @@ var (
 
 func init() {
 	if pd, err := winutil.GetProgramDataDir(); err == nil {
-		defaultLogFilePath = filepath.Join(pd, "Datadog", "logs", "process-agent.log")
+		defaultLogFilePath = filepath.Join(pd, "logs", "process-agent.log")
 	}
 	if _here, err := executable.Folder(); err == nil {
 		defaultDDAgentBin = filepath.Join(_here, "..", "..", "embedded", "agent.exe")
