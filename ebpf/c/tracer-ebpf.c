@@ -18,11 +18,18 @@
 #include <net/inet_sock.h>
 #include <net/net_namespace.h>
 
-#define bpf_debug(fmt, ...)                                        \
+/* Macro to output debug logs to /sys/kernel/debug/tracing/trace_pipe
+ */
+#if DEBUG == 1
+#define log_debug(fmt, ...)                                        \
     ({                                                             \
         char ____fmt[] = fmt;                                      \
         bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
     })
+#else
+// No op
+#define log_debug(fmt, ...)
+#endif
 
 /* Macro to execute the given expression replacing family by the correct family
  */
@@ -689,13 +696,11 @@ int kprobe__tcp_sendmsg(struct pt_regs* ctx) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     u64 zero = 0;
 
-    // TODO: Add DEBUG macro so this is only printed, if enabled
-    // bpf_debug("map: tcp_send_ipv4 kprobe\n");
-
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
     if (status == NULL || status->state == TRACER_STATE_UNINITIALIZED) {
         return 0;
     }
+    log_debug("kprobe/tcp_sendmsg: pid_tgid: %d, size: %d\n", pid_tgid, size);
 
     return handle_message(sk, status, pid_tgid, CONN_TYPE_TCP, size, 0);
 }
@@ -715,6 +720,8 @@ int kprobe__tcp_cleanup_rbuf(struct pt_regs* ctx) {
         return 0;
     }
 
+    log_debug("kprobe/tcp_cleanup_rbuf: pid_tgid: %d, copied: %d\n", pid_tgid, copied);
+
     return handle_message(sk, status, pid_tgid, CONN_TYPE_TCP, 0, copied);
 }
 
@@ -723,7 +730,7 @@ int kprobe__tcp_close(struct pt_regs* ctx) {
     struct sock* sk;
     tracer_status_t* status;
     u64 zero = 0;
-    u64 pid = bpf_get_current_pid_tgid();
+    u64 pid_tgid = bpf_get_current_pid_tgid();
     sk = (struct sock*)PT_REGS_PARM1(ctx);
 
     status = bpf_map_lookup_elem(&tracer_status, &zero);
@@ -732,9 +739,6 @@ int kprobe__tcp_close(struct pt_regs* ctx) {
     }
 
     u32 net_ns_inum;
-    u16 sport, dport;
-    sport = 0;
-    dport = 0;
 
     // Get network namespace id
     possible_net_t* skc_net;
@@ -744,7 +748,9 @@ int kprobe__tcp_close(struct pt_regs* ctx) {
     bpf_probe_read(&skc_net, sizeof(possible_net_t*), ((char*)sk) + status->offset_netns);
     bpf_probe_read(&net_ns_inum, sizeof(net_ns_inum), ((char*)skc_net) + status->offset_ino);
 
-    handle_family(sk, status, cleanup_tcp_conn(ctx, sk, status, pid, family));
+    log_debug("kprobe/tcp_close: pid_tgid: %d, ns: %d\n", pid_tgid, net_ns_inum);
+
+    handle_family(sk, status, cleanup_tcp_conn(ctx, sk, status, pid_tgid, family));
     return 0;
 }
 
@@ -760,6 +766,7 @@ int kprobe__udp_sendmsg(struct pt_regs* ctx) {
         return 0;
     }
 
+    log_debug("kprobe/udp_sendmsg: pid_tgid: %d, size: %d\n", pid_tgid, size);
     handle_message(sk, status, pid_tgid, CONN_TYPE_UDP, size, 0);
 
     return 0;
@@ -779,6 +786,7 @@ int kprobe__udp_recvmsg(struct pt_regs* ctx) {
 
     // Store pointer to the socket using the pid/tgid
     bpf_map_update_elem(&udp_recv_sock, &pid_tgid, &sk, BPF_ANY);
+    log_debug("kprobe/udp_recvmsg: pid_tgid: %d\n", pid_tgid);
 
     return 0;
 }
@@ -821,6 +829,7 @@ int kprobe__tcp_retransmit_skb(struct pt_regs* ctx) {
     if (status == NULL || status->state == TRACER_STATE_UNINITIALIZED) {
         return 0;
     }
+    log_debug("kprobe/tcp_retransmit\n");
 
     return handle_retransmit(sk, status);
 }
@@ -888,6 +897,7 @@ int kprobe__tcp_v4_destroy_sock(struct pt_regs* ctx) {
         bpf_map_update_elem(&port_bindings, &lport, &state, BPF_ANY);
     }
 
+    log_debug("kprobe/tcp_v4_destroy_sock: lport: %d\n", lport);
     return 0;
 }
 

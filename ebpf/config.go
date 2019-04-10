@@ -34,6 +34,9 @@ type Config struct {
 
 	// ProcRoot is the root path to the proc filesystem
 	ProcRoot string
+
+	// BPFDebug enables bpf debug logs
+	BPFDebug bool
 }
 
 // NewDefaultConfig enables traffic collection for all connection types
@@ -47,6 +50,7 @@ func NewDefaultConfig() *Config {
 		TCPConnTimeout:        10 * time.Minute,
 		MaxTrackedConnections: 65536,
 		ProcRoot:              "/proc",
+		BPFDebug:              false,
 	}
 }
 

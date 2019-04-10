@@ -5,8 +5,7 @@ import (
 	"net"
 	"os"
 
-	log "github.com/cihub/seelog"
-
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-process-agent/config"
 )
 

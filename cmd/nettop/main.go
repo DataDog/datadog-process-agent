@@ -27,6 +27,7 @@ func main() {
 
 	cfg := ebpf.NewDefaultConfig()
 	fmt.Printf("-- Config: %+v --\n", cfg)
+	cfg.BPFDebug = true
 
 	t, err := ebpf.NewTracer(cfg)
 	if err != nil {

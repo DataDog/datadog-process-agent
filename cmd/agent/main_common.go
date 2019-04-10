@@ -9,16 +9,17 @@ import (
 	"os"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/tagger"
-
+	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
-	log "github.com/cihub/seelog"
-
+	"github.com/DataDog/datadog-agent/pkg/tagger"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-process-agent/checks"
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/statsd"
 	"github.com/DataDog/datadog-process-agent/util"
 )
+
+const loggerName ddconfig.LoggerName = "PROCESS"
 
 var opts struct {
 	configPath    string
@@ -91,7 +92,7 @@ func runAgent(exit chan bool) {
 		}()
 	}
 
-	cfg, err := config.NewAgentConfig(opts.configPath, opts.netConfigPath)
+	cfg, err := config.NewAgentConfig(loggerName, opts.configPath, opts.netConfigPath)
 	if err != nil {
 		log.Criticalf("Error parsing config: %s", err)
 		os.Exit(1)

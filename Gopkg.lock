@@ -75,7 +75,7 @@
   revision = "a9c7a9896c1847c9cc2b068a2ae68e9d74540a5d"
 
 [[projects]]
-  digest = "1:3f222f2ba821b07db58ec2274787b5c271f2000ba820381fc3df7cf7a17717d8"
+  digest = "1:be57d8791a067eec36e04f2550c9c49b3cf71197dfa84eae599158d7cdd62ae7"
   name = "github.com/DataDog/gopsutil"
   packages = [
     "cpu",
@@ -86,7 +86,7 @@
     "process",
   ]
   pruneopts = ""
-  revision = "c8f74f1344dd41bc49ec4d3c2377c526aaedfd20"
+  revision = "233cd0cf42c26d835ed6f0e46f2103432a88b526"
 
 [[projects]]
   digest = "1:b22f5da83ac471bbbe2a5aa1f07c8029dc82bcbf6ff832516f035fc3a314d539"
@@ -1008,7 +1008,6 @@
     "github.com/DataDog/gopsutil/process",
     "github.com/DataDog/zstd",
     "github.com/StackExchange/wmi",
-    "github.com/cihub/seelog",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
     "github.com/iovisor/gobpf/elf",
