@@ -98,19 +98,33 @@ func GetDockerSocketPath() (string, error) {
 }
 
 // GetPlatform returns the current platform we are running on by calling "python -mplatform"
-func GetPlatform() (string, error) {
-	cmd := exec.Command("python", "-m", "platform")
+func ExecCmd(head string, args ...string) (string, error) {
+	pyOut, pyErr := execCmd("python", "-m", "platform")
+	if pyErr == nil {
+		return pyOut, nil
+	}
+
+	lsbOut, lsbErr := execCmd("lsb_release", "-a")
+	if lsbErr == nil {
+		return lsbOut, nil
+	}
+
+	return "", fmt.Errorf("error retrieving platform, with python: %s, with lsb_release: %s", pyErr, lsbErr)
+}
+
+func execCmd(head string, args ...string) (string, error) {
+	cmd := exec.Command(head, args...)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("error retrieving platform: %s", err)
+		return "", err
 	}
 
 	errStr := stderr.String()
 	if errStr != "" {
-		return "", fmt.Errorf("non empty stderr received when retrieving platform: %s", errStr)
+		return "", fmt.Errorf("non empty stderr received: %s", errStr)
 	}
 
 	return strings.ToLower(strings.TrimSpace(stdout.String())), nil
