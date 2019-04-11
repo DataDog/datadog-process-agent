@@ -75,7 +75,7 @@ Exiting.`
 func runAgent(exit chan bool) {
 	platform, err := util.GetPlatform()
 	if err != nil {
-		log.Errorf("error retrieving platform: %s", err)
+		log.Debugf("error retrieving platform: %s", err)
 	} else {
 		log.Infof("running on platform: %s", platform)
 	}
