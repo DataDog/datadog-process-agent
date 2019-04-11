@@ -56,25 +56,25 @@ func IsTracerSupportedByOS(exclusionList []string) (bool, error) {
 	return verifyOSVersion(currentKernelCode, platform, exclusionList)
 }
 
-func verifyOSVersion(currentKernelCode uint32, platform string, exclusionList []string) (bool, error) {
+func verifyOSVersion(kernelCode uint32, platform string, exclusionList []string) (bool, error) {
 	for _, version := range exclusionList {
-		if code := stringToKernelCode(version); code == currentKernelCode {
+		if code := stringToKernelCode(version); code == kernelCode {
 			return false, fmt.Errorf(
 				"current kernel version (%s) is in the exclusion list: %s (list: %+v)",
-				kernelCodeToString(currentKernelCode),
+				kernelCodeToString(kernelCode),
 				version,
 				exclusionList,
 			)
 		}
 	}
 
-	if currentKernelCode < minRequiredKernelCode {
+	if kernelCode < minRequiredKernelCode {
 		return false, fmt.Errorf(
 			"incompatible linux version. at least %s (%d) required, got %s (%d)",
 			kernelCodeToString(minRequiredKernelCode),
 			minRequiredKernelCode,
-			kernelCodeToString(currentKernelCode),
-			currentKernelCode,
+			kernelCodeToString(kernelCode),
+			kernelCode,
 		)
 	}
 
@@ -85,8 +85,8 @@ func verifyOSVersion(currentKernelCode uint32, platform string, exclusionList []
 	}
 
 	if isUbuntu(platform) {
-		if currentKernelCode >= linuxKernelVersionCode(4, 4, 119) && currentKernelCode <= linuxKernelVersionCode(4, 4, 126) {
-			return false, fmt.Errorf("got ubuntu kernel %s with known bug on platform: %s, see: https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1763454", kernelCodeToString(currentKernelCode), platform)
+		if kernelCode >= linuxKernelVersionCode(4, 4, 119) && kernelCode <= linuxKernelVersionCode(4, 4, 126) {
+			return false, fmt.Errorf("got ubuntu kernel %s with known bug on platform: %s, see: https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1763454", kernelCodeToString(kernelCode), platform)
 		}
 	}
 
