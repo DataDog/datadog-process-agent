@@ -97,8 +97,8 @@ func GetDockerSocketPath() (string, error) {
 	return sockPath, nil
 }
 
-// GetPlatform returns the current platform we are running on by calling "python -mplatform"
-func ExecCmd(head string, args ...string) (string, error) {
+// GetPlatform returns the current platform we are running on by calling "python -mplatform" then "lsb_release -a" if python fails
+func GetPlatform() (string, error) {
 	pyOut, pyErr := execCmd("python", "-m", "platform")
 	if pyErr == nil {
 		return pyOut, nil
