@@ -4,8 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 )
@@ -92,4 +95,23 @@ func GetDockerSocketPath() (string, error) {
 		return "", docker.ErrDockerNotAvailable
 	}
 	return sockPath, nil
+}
+
+// GetPlatform returns the current platform we are running on by calling "python -mplatform"
+func GetPlatform() (string, error) {
+	cmd := exec.Command("python", "-m", "platform")
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("error retrieving platform: %s", err)
+	}
+
+	errStr := stderr.String()
+	if errStr != "" {
+		return "", fmt.Errorf("non empty stderr received when retrieving platform: %s", errStr)
+	}
+
+	return strings.ToLower(strings.TrimSpace(stdout.String())), nil
 }

@@ -4,7 +4,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"strings"
 	"unsafe"
+
+	"github.com/DataDog/datadog-process-agent/util"
 )
 
 var (
@@ -42,18 +45,6 @@ func linuxKernelVersionCode(major, minor, patch uint32) uint32 {
 	return (major << 16) + (minor << 8) + patch
 }
 
-var ubuntu44119Error = "got ubuntu kernel %s with known bug, see: https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1763454"
-var defaultExclusionList = map[uint32]string{
-	linuxKernelVersionCode(4, 4, 119): ubuntu44119Error,
-	linuxKernelVersionCode(4, 4, 120): ubuntu44119Error,
-	linuxKernelVersionCode(4, 4, 121): ubuntu44119Error,
-	linuxKernelVersionCode(4, 4, 122): ubuntu44119Error,
-	linuxKernelVersionCode(4, 4, 123): ubuntu44119Error,
-	linuxKernelVersionCode(4, 4, 124): ubuntu44119Error,
-	linuxKernelVersionCode(4, 4, 125): ubuntu44119Error,
-	linuxKernelVersionCode(4, 4, 126): ubuntu44119Error,
-}
-
 // IsTracerSupportedByOS returns whether or not the current kernel version supports tracer functionality
 func IsTracerSupportedByOS(exclusionList []string) (bool, error) {
 	currentKernelCode, err := CurrentKernelVersion()
@@ -61,14 +52,11 @@ func IsTracerSupportedByOS(exclusionList []string) (bool, error) {
 		return false, fmt.Errorf("could not get kernel version: %s", err)
 	}
 
-	return verifyOSVersion(currentKernelCode, exclusionList)
+	platform, _ := util.GetPlatform()
+	return verifyOSVersion(currentKernelCode, platform, exclusionList)
 }
 
-func verifyOSVersion(currentKernelCode uint32, exclusionList []string) (bool, error) {
-	if errStr, ok := defaultExclusionList[currentKernelCode]; ok {
-		return false, fmt.Errorf(errStr, currentKernelCode)
-	}
-
+func verifyOSVersion(currentKernelCode uint32, platform string, exclusionList []string) (bool, error) {
 	for _, version := range exclusionList {
 		if code := stringToKernelCode(version); code == currentKernelCode {
 			return false, fmt.Errorf(
@@ -89,6 +77,19 @@ func verifyOSVersion(currentKernelCode uint32, exclusionList []string) (bool, er
 			currentKernelCode,
 		)
 	}
+
+	// Hardcoded exclusion list
+	if platform == "" {
+		// If we can't retrieve the platform just return true to avoid blocking the tracer from running
+		return true, nil
+	}
+
+	if isUbuntu(platform) {
+		if currentKernelCode >= linuxKernelVersionCode(4, 4, 119) && currentKernelCode <= linuxKernelVersionCode(4, 4, 126) {
+			return false, fmt.Errorf("got ubuntu kernel %s with known bug on platform:%s, see: https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1763454", kernelCodeToString(currentKernelCode), platform)
+		}
+	}
+
 	return true, nil
 }
 
@@ -103,4 +104,8 @@ func init() {
 	} else {
 		nativeEndian = binary.BigEndian
 	}
+}
+
+func isUbuntu(platform string) bool {
+	return strings.Contains(platform, "ubuntu")
 }

@@ -41,23 +41,23 @@ var (
 )
 
 // versionString returns the version information filled in at build time
-func versionString() string {
+func versionString(sep string) string {
 	var buf bytes.Buffer
 
 	if Version != "" {
-		fmt.Fprintf(&buf, "Version: %s\n", Version)
+		fmt.Fprintf(&buf, "Version: %s%s", Version, sep)
 	}
 	if GitCommit != "" {
-		fmt.Fprintf(&buf, "Git hash: %s\n", GitCommit)
+		fmt.Fprintf(&buf, "Git hash: %s%s", GitCommit, sep)
 	}
 	if GitBranch != "" {
-		fmt.Fprintf(&buf, "Git branch: %s\n", GitBranch)
+		fmt.Fprintf(&buf, "Git branch: %s%s", GitBranch, sep)
 	}
 	if BuildDate != "" {
-		fmt.Fprintf(&buf, "Build date: %s\n", BuildDate)
+		fmt.Fprintf(&buf, "Build date: %s%s", BuildDate, sep)
 	}
 	if GoVersion != "" {
-		fmt.Fprintf(&buf, "Go Version: %s\n", GoVersion)
+		fmt.Fprintf(&buf, "Go Version: %s%s", GoVersion, sep)
 	}
 
 	return buf.String()
@@ -73,10 +73,18 @@ Exiting.`
 )
 
 func runAgent(exit chan bool) {
+	platform, err := util.GetPlatform()
+	if err != nil {
+		log.Errorf("error retrieving platform: %s", err)
+	} else {
+		log.Infof("running on platform: %s", platform)
+	}
+
 	if opts.version {
-		fmt.Println(versionString())
+		fmt.Print(versionString("\n"))
 		os.Exit(0)
 	}
+	log.Infof("running version: %s", versionString(", "))
 
 	if opts.check == "" && !opts.info && opts.pidfilePath != "" {
 		err := pidfile.WritePID(opts.pidfilePath)

@@ -19,7 +19,7 @@ func TestLinuxKernelVersionCode(t *testing.T) {
 
 func TestUbuntu44119NotSupported(t *testing.T) {
 	for i := uint32(119); i < 127; i++ {
-		ok, err := verifyOSVersion(linuxKernelVersionCode(4, 4, i), nil)
+		ok, err := verifyOSVersion(linuxKernelVersionCode(4, 4, i), "linux-4.4-with-ubuntu", nil)
 		assert.False(t, ok)
 		assert.Error(t, err)
 	}
@@ -27,23 +27,23 @@ func TestUbuntu44119NotSupported(t *testing.T) {
 
 func TestExcludedKernelVersion(t *testing.T) {
 	exclusionList := []string{"5.5.1", "6.3.2"}
-	ok, err := verifyOSVersion(linuxKernelVersionCode(4, 4, 121), exclusionList)
+	ok, err := verifyOSVersion(linuxKernelVersionCode(4, 4, 121), "ubuntu", exclusionList)
 	assert.False(t, ok)
 	assert.Error(t, err)
 
-	ok, err = verifyOSVersion(linuxKernelVersionCode(5, 5, 1), exclusionList)
+	ok, err = verifyOSVersion(linuxKernelVersionCode(5, 5, 1), "debian", exclusionList)
 	assert.False(t, ok)
 	assert.Error(t, err)
 
-	ok, err = verifyOSVersion(linuxKernelVersionCode(6, 3, 2), exclusionList)
+	ok, err = verifyOSVersion(linuxKernelVersionCode(6, 3, 2), "debian", exclusionList)
 	assert.False(t, ok)
 	assert.Error(t, err)
 
-	ok, err = verifyOSVersion(linuxKernelVersionCode(6, 3, 1), exclusionList)
+	ok, err = verifyOSVersion(linuxKernelVersionCode(6, 3, 1), "debian", exclusionList)
 	assert.True(t, ok)
 	assert.Nil(t, err)
 
-	ok, err = verifyOSVersion(linuxKernelVersionCode(5, 5, 2), exclusionList)
+	ok, err = verifyOSVersion(linuxKernelVersionCode(5, 5, 2), "debian", exclusionList)
 	assert.True(t, ok)
 	assert.Nil(t, err)
 }
