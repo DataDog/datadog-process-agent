@@ -86,7 +86,7 @@ func verifyOSVersion(currentKernelCode uint32, platform string, exclusionList []
 
 	if isUbuntu(platform) {
 		if currentKernelCode >= linuxKernelVersionCode(4, 4, 119) && currentKernelCode <= linuxKernelVersionCode(4, 4, 126) {
-			return false, fmt.Errorf("got ubuntu kernel %s with known bug on platform:%s, see: https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1763454", kernelCodeToString(currentKernelCode), platform)
+			return false, fmt.Errorf("got ubuntu kernel %s with known bug on platform: %s, see: https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1763454", kernelCodeToString(currentKernelCode), platform)
 		}
 	}
 

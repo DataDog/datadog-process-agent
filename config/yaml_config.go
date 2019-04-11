@@ -45,7 +45,9 @@ func (a *AgentConfig) loadNetworkYamlConfig(path string) error {
 	}
 
 	a.NetworkBPFDebug = config.Datadog.GetBool(key(netNS, "bpf_debug"))
-	a.ExcludedBPFLinuxVersions = config.Datadog.GetStringSlice(key(netNS, "excluded_linux_versions"))
+	if config.Datadog.IsSet(key(netNS, "excluded_linux_versions")) {
+		a.ExcludedBPFLinuxVersions = config.Datadog.GetStringSlice(key(netNS, "excluded_linux_versions"))
+	}
 
 	// The full path to the location of the unix socket where connections will be accessed
 	if socketPath := config.Datadog.GetString(key(netNS, "nettracer_socket")); socketPath != "" {
