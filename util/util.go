@@ -4,8 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/DataDog/datadog-agent/pkg/util/docker"
 )
@@ -92,4 +95,37 @@ func GetDockerSocketPath() (string, error) {
 		return "", docker.ErrDockerNotAvailable
 	}
 	return sockPath, nil
+}
+
+// GetPlatform returns the current platform we are running on by calling "python -mplatform" then "lsb_release -a" if python fails
+func GetPlatform() (string, error) {
+	pyOut, pyErr := execCmd("python", "-m", "platform")
+	if pyErr == nil {
+		return pyOut, nil
+	}
+
+	lsbOut, lsbErr := execCmd("lsb_release", "-a")
+	if lsbErr == nil {
+		return lsbOut, nil
+	}
+
+	return "", fmt.Errorf("error retrieving platform, with python: %s, with lsb_release: %s", pyErr, lsbErr)
+}
+
+func execCmd(head string, args ...string) (string, error) {
+	cmd := exec.Command(head, args...)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+
+	errStr := stderr.String()
+	if errStr != "" {
+		return "", fmt.Errorf("non empty stderr received: %s", errStr)
+	}
+
+	return strings.ToLower(strings.TrimSpace(stdout.String())), nil
 }

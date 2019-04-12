@@ -81,6 +81,7 @@ type AgentConfig struct {
 	NetworkTracerLogFile     string
 	MaxTrackedConnections    uint
 	NetworkBPFDebug          bool
+	ExcludedBPFLinuxVersions []string
 
 	// Check config
 	EnabledChecks  []string

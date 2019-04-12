@@ -14,6 +14,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-process-agent/config"
+	"github.com/DataDog/datadog-process-agent/util"
 
 	_ "net/http/pprof"
 )
@@ -54,7 +55,7 @@ func main() {
 
 	// --version
 	if opts.version {
-		fmt.Println(versionString())
+		fmt.Println(versionString("\n"))
 		os.Exit(0)
 	}
 
@@ -96,6 +97,13 @@ func main() {
 	}
 	defer nettracer.Close()
 
+	platform, err := util.GetPlatform()
+	if err != nil {
+		log.Debugf("error retrieving platform: %s", err)
+	} else {
+		log.Infof("running on platform: %s", platform)
+	}
+	log.Infof("running network-tracer with version: %s", versionString(", "))
 	go nettracer.Run()
 	log.Infof("network tracer started")
 
@@ -129,18 +137,18 @@ func handleSignals(exit chan bool) {
 }
 
 // versionString returns the version information filled in at build time
-func versionString() string {
-	addString := func(buf *bytes.Buffer, s, arg string) {
+func versionString(sep string) string {
+	addString := func(buf *bytes.Buffer, s, arg string, sep string) {
 		if arg != "" {
-			fmt.Fprintf(buf, s, arg)
+			fmt.Fprintf(buf, s, arg, sep)
 		}
 	}
 
 	var buf bytes.Buffer
-	addString(&buf, "Version: %s\n", Version)
-	addString(&buf, "Git hash: %s\n", GitCommit)
-	addString(&buf, "Git branch: %s\n", GitBranch)
-	addString(&buf, "Build date: %s\n", BuildDate)
-	addString(&buf, "Go Version: %s\n", GoVersion)
+	addString(&buf, "Version: %s%s", Version, sep)
+	addString(&buf, "Git hash: %s%s", GitCommit, sep)
+	addString(&buf, "Git branch: %s%s", GitBranch, sep)
+	addString(&buf, "Build date: %s%s", BuildDate, sep)
+	addString(&buf, "Go Version: %s%s", GoVersion, sep)
 	return buf.String()
 }

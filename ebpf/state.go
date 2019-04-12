@@ -149,7 +149,7 @@ func getConnsByKey(conns []ConnectionStats, buf *bytes.Buffer) map[string]*Conne
 	for i, c := range conns {
 		key, err := c.ByteKey(buf)
 		if err != nil {
-			log.Warn("failed to create byte key: %s", err)
+			log.Warnf("failed to create byte key: %s", err)
 			continue
 		}
 		connsByKey[string(key)] = &conns[i]
@@ -164,7 +164,7 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 
 	key, err := conn.ByteKey(ns.buf)
 	if err != nil {
-		log.Warn("failed to create byte key: %s", err)
+		log.Warnf("failed to create byte key: %s", err)
 		return
 	}
 

@@ -7,11 +7,6 @@ func CurrentKernelVersion() (uint32, error) {
 	return 0, ErrNotImplemented
 }
 
-// IsTracerSupportedByOS is not implemented on non-linux systems
-func IsTracerSupportedByOS() (bool, error) {
-	return false, ErrNotImplemented
-}
-
 // Tracer is not implemented on non-linux systems
 type Tracer struct{}
 

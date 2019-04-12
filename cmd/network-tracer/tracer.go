@@ -36,7 +36,7 @@ func CreateNetworkTracer(cfg *config.AgentConfig) (*NetworkTracer, error) {
 	nt := &NetworkTracer{}
 
 	// Checking whether the current OS + kernel version is supported by the tracer
-	if nt.supported, err = ebpf.IsTracerSupportedByOS(); err != nil {
+	if nt.supported, err = ebpf.IsTracerSupportedByOS(cfg.ExcludedBPFLinuxVersions); err != nil {
 		return nil, fmt.Errorf("%s: %s", ErrTracerUnsupported, err)
 	}
 
