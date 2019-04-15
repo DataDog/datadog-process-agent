@@ -243,14 +243,13 @@ func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
 
 // getTCPStats reads tcp related stats for the given ConnTuple
 func (t *Tracer) getTCPStats(mp *bpflib.Map, tuple *ConnTuple) *TCPStats {
-	// Remove the PID since we don't use it in the TCP Stats map
-	tup := tuple.copy()
-	tup.pid = 0
+	// The PID isn't used as a key in the stats map, we will temporarily set it to 0 here and reset it when we're done
+	pid := tuple.pid
+	tuple.pid = 0
 
 	stats := &TCPStats{retransmits: 0}
-	if err := t.m.LookupElement(mp, unsafe.Pointer(tup), unsafe.Pointer(stats)); err != nil {
-		return stats
-	}
+	_ = t.m.LookupElement(mp, unsafe.Pointer(tuple), unsafe.Pointer(stats))
+	tuple.pid = pid
 
 	return stats
 }
