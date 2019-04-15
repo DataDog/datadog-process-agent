@@ -211,7 +211,7 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 	client := ns.clients[id]
 	client.lastFetch = now
 
-	conns := make([]ConnectionStats, 0)
+	conns := make([]ConnectionStats, 0, len(active)+len(client.closedConnections))
 
 	// Closed connections
 	for key, closedConn := range client.closedConnections {

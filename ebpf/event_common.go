@@ -117,7 +117,11 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 	// Byte-packing to improve creation speed
 	// PID (32 bits) + SPort (16 bits) + DPort (16 bits) = 64 bits
 	p0 := uint64(c.Pid)<<32 | uint64(c.SPort)<<16 | uint64(c.DPort)
-	if err := binary.Write(buffer, binary.LittleEndian, p0); err != nil {
+
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], p0)
+
+	if _, err := buffer.Write(buf[:]); err != nil {
 		return nil, err
 	}
 	if _, err := buffer.WriteString(c.Source); err != nil {
@@ -125,7 +129,7 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 	}
 	// Family (4 bits) + Type (4 bits) = 8 bits
 	p1 := uint8(c.Family)<<4 | uint8(c.Type)
-	if err := binary.Write(buffer, binary.LittleEndian, p1); err != nil {
+	if err := buffer.WriteByte(p1); err != nil {
 		return nil, err
 	}
 	if _, err := buffer.WriteString(c.Dest); err != nil {
