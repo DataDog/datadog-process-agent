@@ -146,7 +146,7 @@ func runAgent(exit chan bool) {
 
 	if opts.info {
 		// using the debug port to get info to work
-		url := "http://localhost:6062/debug/vars"
+		url := fmt.Sprintf("http://localhost:%d/debug/vars", cfg.ProcessExpVarPort)
 		if err := Info(os.Stdout, cfg, url); err != nil {
 			os.Exit(1)
 		}
@@ -155,7 +155,7 @@ func runAgent(exit chan bool) {
 
 	// Run a profile server.
 	go func() {
-		http.ListenAndServe("localhost:6062", nil)
+		http.ListenAndServe(fmt.Sprintf("localhost:%d", cfg.ProcessExpVarPort), nil)
 	}()
 
 	cl, err := NewCollector(cfg)

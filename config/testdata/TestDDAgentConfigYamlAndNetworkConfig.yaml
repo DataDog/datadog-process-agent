@@ -12,3 +12,4 @@ process_config:
     args_refresh_interval: 100
     add_new_args: false
   scrub_args: false
+  expvar_port: 5065
