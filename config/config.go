@@ -68,6 +68,7 @@ type AgentConfig struct {
 	DDAgentBin         string
 	StatsdHost         string
 	StatsdPort         int
+	ProcessExpVarPort  int
 
 	// Network collection configuration
 	EnableNetworkTracing     bool
@@ -156,6 +157,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		AllowRealTime:      true,
 		HostName:           "",
 		Transport:          NewDefaultTransport(),
+		ProcessExpVarPort:  6062,
 
 		// Statsd for internal instrumentation
 		StatsdHost: "127.0.0.1",
