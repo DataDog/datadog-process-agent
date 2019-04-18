@@ -26,6 +26,8 @@ process_config:
       # stress is used for molecule testing
       - "stress"
       - "^-bash"
+      - "^bash$"
+      - "^yes$"
       - "^su$"
       - "^/bin/bash"
       - "^/lib/systemd/"
