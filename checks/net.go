@@ -140,6 +140,7 @@ func (c *ConnectionsCheck) formatConnections(conns []common.ConnectionStats, las
 			BytesSentPerSecond:     calculateRate(conn.SendBytes, lastConns[key].SendBytes, lastCheckTime),
 			BytesReceivedPerSecond: calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
 			Direction:              calculateDirection(conn.Direction),
+			Namespace:              conn.NetworkNamespace,
 		})
 	}
 	c.prevCheckConns = conns
