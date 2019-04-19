@@ -9,6 +9,9 @@ download/
 cmd/agent/windows_resources/process-agent-msg.rc
 cmd/agent/windows_resources/*.bin
 
+# Rake
+.rake_tasks~
+
 # file generated at build time by message compiler
 process-agent-msg.h
 process-agent
