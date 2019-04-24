@@ -1,6 +1,6 @@
-// +build !docker
+// +build docker
 
-package main
+package util
 
 import (
 	"os"
@@ -10,8 +10,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-// Handles signals - tells us whether we should exit.
-func handleSignals(exit chan bool) {
+// HandleSignals tells us whether we should exit.
+func HandleSignals(exit chan bool) {
 	sigIn := make(chan os.Signal, 100)
 	signal.Notify(sigIn)
 	// unix only in all likelihood;  but we don't care.
@@ -20,6 +20,9 @@ func handleSignals(exit chan bool) {
 		case syscall.SIGINT, syscall.SIGTERM:
 			log.Criticalf("Caught signal '%s'; terminating.", sig)
 			close(exit)
+		case syscall.SIGCHLD:
+			// Running docker.GetDockerStat() spins up / kills a new process
+			continue
 		default:
 			log.Warnf("Caught signal %s; continuing/ignoring.", sig)
 		}
