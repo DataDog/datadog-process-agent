@@ -74,30 +74,35 @@ func (nt *NetworkTracer) Run() {
 	httpMux.HandleFunc("/status", func(w http.ResponseWriter, req *http.Request) {})
 
 	httpMux.HandleFunc("/connections", func(w http.ResponseWriter, req *http.Request) {
-		// We require to send a client_id to the network state
-		var clientID string
-		if rawCID := req.URL.Query().Get("client_id"); rawCID != "" {
-			clientID = rawCID
-		} else { // This is the default client ID
-			clientID = ebpf.DEBUGCLIENT
+		cs, err := nt.tracer.GetActiveConnections(getClientID(req))
+		if err != nil {
+			log.Errorf("unable to retrieve connections: %s", err)
+			w.WriteHeader(500)
+			return
 		}
+		writeConnections(w, cs)
+	})
 
-		cs, err := nt.tracer.GetActiveConnections(clientID)
+	httpMux.HandleFunc("/debug/net_maps", func(w http.ResponseWriter, req *http.Request) {
+		cs, err := nt.tracer.DebugNetworkMaps()
 		if err != nil {
 			log.Errorf("unable to retrieve connections: %s", err)
 			w.WriteHeader(500)
 			return
 		}
 
-		buf, err := easyjson.Marshal(cs)
+		writeConnections(w, cs)
+	})
+
+	httpMux.HandleFunc("/debug/net_state", func(w http.ResponseWriter, req *http.Request) {
+		stats, err := nt.tracer.DebugNetworkState(getClientID(req))
 		if err != nil {
-			log.Errorf("unable to marshall connections into JSON: %s", err)
+			log.Errorf("unable to retrieve tracer stats: %s", err)
 			w.WriteHeader(500)
 			return
 		}
 
-		w.Write(buf)
-		log.Tracef("/connections: %d connections, %d bytes", len(cs.Conns), len(buf))
+		writeAsJSON(w, stats)
 	})
 
 	httpMux.HandleFunc("/debug/stats", func(w http.ResponseWriter, req *http.Request) {
@@ -108,17 +113,39 @@ func (nt *NetworkTracer) Run() {
 			return
 		}
 
-		buf, err := json.Marshal(stats)
-		if err != nil {
-			log.Errorf("unable to marshal stats into JSON: %s", err)
-			w.WriteHeader(500)
-			return
-		}
-
-		w.Write(buf)
+		writeAsJSON(w, stats)
 	})
 
 	http.Serve(nt.conn.GetListener(), httpMux)
+}
+
+func getClientID(req *http.Request) string {
+	var clientID = ebpf.DEBUGCLIENT
+	if rawCID := req.URL.Query().Get("client_id"); rawCID != "" {
+		clientID = rawCID
+	}
+	return clientID
+}
+
+func writeConnections(w http.ResponseWriter, cs *ebpf.Connections) {
+	buf, err := easyjson.Marshal(cs)
+	if err != nil {
+		log.Errorf("unable to marshall connections into JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.Write(buf)
+	log.Tracef("/connections: %d connections, %d bytes", len(cs.Conns), len(buf))
+}
+
+func writeAsJSON(w http.ResponseWriter, data interface{}) {
+	buf, err := json.Marshal(data)
+	if err != nil {
+		log.Errorf("unable to marshall connections into JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.Write(buf)
 }
 
 // Close will stop all network tracing activities

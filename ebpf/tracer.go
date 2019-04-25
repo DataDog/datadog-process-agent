@@ -318,6 +318,23 @@ func (t *Tracer) GetStats() (map[string]interface{}, error) {
 	return t.state.GetStats(lost, received, skipped), nil
 }
 
+// DebugNetworkState returns a map with the current tracer's internal state, for debugging
+func (t *Tracer) DebugNetworkState(clientID string) (map[string]interface{}, error) {
+	if t.state == nil {
+		return nil, fmt.Errorf("internal state not yet initialized")
+	}
+	return t.state.DumpState(clientID), nil
+}
+
+// DebugNetworkMaps returns all connections stored in the BPF maps without modifications from network state
+func (t *Tracer) DebugNetworkMaps() (*Connections, error) {
+	latestConns, _, err := t.getConnections()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving connections: %s", err)
+	}
+	return &Connections{Conns: latestConns}, nil
+}
+
 // populatePortMapping reads the entire portBinding bpf map and populates the local port/address map.  A list of
 // closed ports will be returned
 func (t *Tracer) populatePortMapping(mp *bpflib.Map) ([]uint16, error) {

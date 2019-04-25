@@ -37,6 +37,9 @@ type NetworkState interface {
 
 	// GetStats returns a map of statistics about the current network state
 	GetStats(closedPollLost, closedPollReceived, tracerSkippedCount uint64) map[string]interface{}
+
+	// DebugNetworkState returns a map with the current network state for a client ID
+	DumpState(clientID string) map[string]interface{}
 }
 
 type telemetry struct {
@@ -131,6 +134,7 @@ func (ns *networkState) Connections(id string, latestTime uint64, latestConns []
 
 	// If its the first time we've seen this client, use global state as connection set
 	if ok := ns.newClient(id); !ok {
+		// TODO(SK): We still need to create stats objects for all connections, and set them to the current values for connections
 		return latestConns
 	}
 
@@ -378,4 +382,23 @@ func (ns *networkState) GetStats(closedPollLost, closedPollReceived, tracerSkipp
 		"current_time":       time.Now().Unix(),
 		"latest_bpf_time_ns": ns.latestTimeEpoch,
 	}
+}
+
+// DumpState returns the entirety of the network state in memory at the moment for a particular clientID, for debugging
+func (ns *networkState) DumpState(clientID string) map[string]interface{} {
+	ns.Lock()
+	defer ns.Unlock()
+
+	data := map[string]interface{}{}
+	if client, ok := ns.clients[clientID]; ok {
+		for connKey, s := range client.stats {
+			data[connKey] = map[string]uint64{
+				"total_sent":         s.totalSent,
+				"total_recv":         s.totalRecv,
+				"total_retransmits":  uint64(s.totalRetransmits),
+				"latest_bpf_time_ns": s.lastUpdateEpoch,
+			}
+		}
+	}
+	return data
 }
