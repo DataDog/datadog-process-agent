@@ -23,7 +23,17 @@ func (t *Tracer) GetActiveConnections(_ string) (*Connections, error) {
 	return nil, ErrNotImplemented
 }
 
-// GetStats returns a map of statistics about the current tracer's internal state
+// GetStats is not implemented on non-linux systems
 func (t *Tracer) GetStats() (map[string]interface{}, error) {
+	return nil, ErrNotImplemented
+}
+
+// DebugNetworkState is not implemented on non-linux systems
+func (t *Tracer) DebugNetworkState(clientID string) (map[string]interface{}, error) {
+	return nil, ErrNotImplemented
+}
+
+// DebugNetworkMaps is not implemented on non-linux systems
+func (t *Tracer) DebugNetworkMaps() (*Connections, error) {
 	return nil, ErrNotImplemented
 }
