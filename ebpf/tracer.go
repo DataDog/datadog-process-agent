@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -29,6 +30,9 @@ type Tracer struct {
 	perfReceived uint64
 	perfLost     uint64
 	skippedConns uint64
+
+	buffer     []ConnectionStats
+	bufferLock sync.Mutex
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -82,6 +86,7 @@ func NewTracer(config *Config) (*Tracer, error) {
 		state:          NewDefaultNetworkState(),
 		portMapping:    portMapping,
 		localAddresses: localAddresses,
+		buffer:         make([]ConnectionStats, 0, 512),
 	}
 
 	tr.perfMap, err = tr.initPerfPolling()
@@ -154,15 +159,25 @@ func (t *Tracer) Stop() {
 }
 
 func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
-	latestConns, latestTime, err := t.getConnections()
+	t.bufferLock.Lock()
+	defer t.bufferLock.Unlock()
+
+	latestConns, latestTime, err := t.appendActiveConnections(t.buffer[:0])
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving connections: %s", err)
+	}
+
+	// Grow or shrink buffer depending on the usage
+	if len(latestConns) >= cap(t.buffer)*2 {
+		t.buffer = make([]ConnectionStats, 0, cap(t.buffer)*2)
+	} else if len(latestConns) <= cap(t.buffer)/2 {
+		t.buffer = make([]ConnectionStats, 0, cap(t.buffer)/2)
 	}
 
 	return &Connections{Conns: t.state.Connections(clientID, latestTime, latestConns)}, nil
 }
 
-func (t *Tracer) getConnections() ([]ConnectionStats, uint64, error) {
+func (t *Tracer) appendActiveConnections(active []ConnectionStats) ([]ConnectionStats, uint64, error) {
 	mp, err := t.getMap(connMap)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error retrieving the bpf %s map: %s", connMap, err)
@@ -194,8 +209,7 @@ func (t *Tracer) getConnections() ([]ConnectionStats, uint64, error) {
 
 	// Iterate through all key-value pairs in map
 	key, nextKey, stats := &ConnTuple{}, &ConnTuple{}, &ConnStatsWithTimestamp{}
-	active := make([]ConnectionStats, 0)
-	expired := make([]*ConnTuple, 0)
+	var expired []*ConnTuple
 	for {
 		hasNext, _ := t.m.LookupNextElement(mp, unsafe.Pointer(key), unsafe.Pointer(nextKey), unsafe.Pointer(stats))
 		if !hasNext {
@@ -231,7 +245,7 @@ func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
 		err := t.m.DeleteElement(mp, unsafe.Pointer(entries[i]))
 		if err != nil {
 			// It's possible some other process deleted this entry already (e.g. tcp_close)
-			log.Warnf("failed to remove entry from connections map: %s", err)
+			_ = log.Warnf("failed to remove entry from connections map: %s", err)
 		}
 
 		// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
@@ -248,7 +262,13 @@ func (t *Tracer) getTCPStats(mp *bpflib.Map, tuple *ConnTuple) *TCPStats {
 	tuple.pid = 0
 
 	stats := &TCPStats{retransmits: 0}
-	_ = t.m.LookupElement(mp, unsafe.Pointer(tuple), unsafe.Pointer(stats))
+
+	// Don't bother looking in the map if the connection is UDP, there will never be data for that and we will avoid
+	// the overhead of the syscall and creating the resultant error
+	if connType(uint(tuple.metadata)) == TCP {
+		_ = t.m.LookupElement(mp, unsafe.Pointer(tuple), unsafe.Pointer(stats))
+	}
+
 	tuple.pid = pid
 
 	return stats
@@ -328,7 +348,7 @@ func (t *Tracer) DebugNetworkState(clientID string) (map[string]interface{}, err
 
 // DebugNetworkMaps returns all connections stored in the BPF maps without modifications from network state
 func (t *Tracer) DebugNetworkMaps() (*Connections, error) {
-	latestConns, _, err := t.getConnections()
+	latestConns, _, err := t.appendActiveConnections(make([]ConnectionStats, 0))
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving connections: %s", err)
 	}
@@ -388,7 +408,7 @@ func readLocalAddresses() map[string]struct{} {
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		log.Errorf("error reading network interfaces: %s", err)
+		_ = log.Errorf("error reading network interfaces: %s", err)
 		return addresses
 	}
 
@@ -396,7 +416,7 @@ func readLocalAddresses() map[string]struct{} {
 		addrs, err := intf.Addrs()
 
 		if err != nil {
-			log.Errorf("error reading interface %s addresses", intf.Name, err)
+			_ = log.Errorf("error reading interface %s addresses: %s", intf.Name, err)
 			continue
 		}
 
