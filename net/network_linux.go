@@ -73,9 +73,8 @@ func GetRemoteNetworkTracerUtil() (*RemoteNetTracerUtil, error) {
 }
 
 // GetConnections returns a set of active network connections, retrieved from the network tracer service
-func (r *RemoteNetTracerUtil) GetConnections() ([]ebpf.ConnectionStats, error) {
-	// Otherwise, get it remotely (via unix socket), and parse from JSON
-	resp, err := r.httpClient.Get(connectionsURL)
+func (r *RemoteNetTracerUtil) GetConnections(clientID string) ([]ebpf.ConnectionStats, error) {
+	resp, err := r.httpClient.Get(fmt.Sprintf("%s?client_id=%s", connectionsURL, clientID))
 	if err != nil {
 		return nil, err
 	} else if resp.StatusCode != http.StatusOK {
