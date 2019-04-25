@@ -109,7 +109,7 @@ func main() {
 
 	// Handles signals, which tells us whether we should exit.
 	e := make(chan bool)
-	go handleSignals(e)
+	go util.HandleSignals(e)
 	<-e
 }
 

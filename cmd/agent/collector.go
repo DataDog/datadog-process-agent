@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/config"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/statsd"
+	"github.com/DataDog/datadog-process-agent/util"
 )
 
 type checkPayload struct {
@@ -110,7 +111,7 @@ func (l *Collector) run(exit chan bool) {
 	}
 	log.Infof("Starting process-agent for host=%s, endpoints=%s, enabled checks=%v", l.cfg.HostName, eps, l.cfg.EnabledChecks)
 
-	go handleSignals(exit)
+	go util.HandleSignals(exit)
 	heartbeat := time.NewTicker(15 * time.Second)
 	queueSizeTicker := time.NewTicker(10 * time.Second)
 	go func() {
@@ -310,4 +311,21 @@ func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, bod
 		responses <- errResponse("could not decode message from %s: %s", url, err)
 	}
 	responses <- postResponse{r, err}
+}
+
+const (
+	// HTTPTimeout is the timeout in seconds for process-agent to send process payloads to DataDog
+	HTTPTimeout = 20 * time.Second
+	// ReqCtxTimeout is the timeout in seconds for process-agent to cancel POST request using context timeout
+	ReqCtxTimeout = 30 * time.Second
+)
+
+// IsTimeout returns true if the error is due to reaching the timeout limit on the http.client
+func isHTTPTimeout(err error) bool {
+	if netErr, ok := err.(interface {
+		Timeout() bool
+	}); ok && netErr.Timeout() {
+		return true
+	}
+	return false
 }
