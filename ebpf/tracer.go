@@ -162,7 +162,7 @@ func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
 	t.bufferLock.Lock()
 	defer t.bufferLock.Unlock()
 
-	latestConns, latestTime, err := t.appendActiveConnections(t.buffer[:0])
+	latestConns, latestTime, err := t.getConnections(t.buffer[:0])
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving connections: %s", err)
 	}
@@ -177,7 +177,7 @@ func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
 	return &Connections{Conns: t.state.Connections(clientID, latestTime, latestConns)}, nil
 }
 
-func (t *Tracer) appendActiveConnections(active []ConnectionStats) ([]ConnectionStats, uint64, error) {
+func (t *Tracer) getConnections(active []ConnectionStats) ([]ConnectionStats, uint64, error) {
 	mp, err := t.getMap(connMap)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error retrieving the bpf %s map: %s", connMap, err)
@@ -348,7 +348,7 @@ func (t *Tracer) DebugNetworkState(clientID string) (map[string]interface{}, err
 
 // DebugNetworkMaps returns all connections stored in the BPF maps without modifications from network state
 func (t *Tracer) DebugNetworkMaps() (*Connections, error) {
-	latestConns, _, err := t.appendActiveConnections(make([]ConnectionStats, 0))
+	latestConns, _, err := t.getConnections(make([]ConnectionStats, 0))
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving connections: %s", err)
 	}
