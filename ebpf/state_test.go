@@ -803,6 +803,32 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		assert.Equal(t, 5, int(conns[0].MonotonicSentBytes))
 		assert.Equal(t, 5, int(conns[0].LastSentBytes))
 	})
+
+	t.Run("LonglivedConnectionWithTwoClientsJoiningAtDifferentTimes", func(t *testing.T) {
+		//              +      3 bytes       +  1 + 3 b        +   2 b
+		//              |                    |                 |
+		// client c     |    +------------------------------------------+
+		//              |                    |                 |
+		//              +                    +                 +
+		//
+		//              c0                   c1                c2
+		//
+		//                                                5 bytes
+		//                                        +                      +
+		//                                        |                      |
+		// client d                               |---------------------+|
+		//                                        |                      |
+		//                                        +                      +
+		//
+		//                                       d0                      d1
+
+		// We expect:
+		// c0: Nothing
+		// c1: Monotonic: 3 bytes, Last seen: 3 bytes
+		// d0: Nothing
+		// c2: Monotonic: 7 bytes, Last seen: 4 bytes
+		// d1: Monotonic: ? bytes, Last seen: 5 bytes
+
 }
 
 func generateRandConnections(n int) []ConnectionStats {
