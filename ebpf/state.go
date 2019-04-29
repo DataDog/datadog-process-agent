@@ -133,9 +133,11 @@ func (ns *networkState) Connections(id string, latestTime uint64, latestConns []
 	ns.latestTimeEpoch = latestTime
 	now := time.Now()
 
+	connsByKey := getConnsByKey(latestConns, ns.buf)
+
 	// If its the first time we've seen this client, use global state as connection set
 	if client, ok := ns.newClient(id); !ok {
-		for key, c := range getConnsByKey(latestConns, ns.buf) {
+		for key, c := range connsByKey {
 			ns.createStatsForKey(client, key)
 			ns.updateConnWithStats(client, key, c, now)
 		}
@@ -143,7 +145,7 @@ func (ns *networkState) Connections(id string, latestTime uint64, latestConns []
 	}
 
 	// Update all connections with relevant up-to-date stats for client
-	conns := ns.mergeConnections(id, getConnsByKey(latestConns, ns.buf))
+	conns := ns.mergeConnections(id, connsByKey)
 
 	// Flush closed connection map
 	ns.clients[id].closedConnections = map[string]ConnectionStats{}

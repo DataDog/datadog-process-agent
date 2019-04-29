@@ -1,5 +1,3 @@
-// +build linux_bpf
-
 package ebpf
 
 import (
@@ -829,6 +827,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		// c2: Monotonic: 7 bytes, Last seen: 4 bytes
 		// d1: Monotonic: ? bytes, Last seen: 5 bytes
 
+	})
 }
 
 func generateRandConnections(n int) []ConnectionStats {
