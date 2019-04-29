@@ -630,7 +630,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		assert.Equal(t, 5, int(conns[0].LastSentBytes))
 
 		// Store the connection as an opened connection
-		conn2.MonotonicSentBytes += 1
+		conn2.MonotonicSentBytes++
 		conn2.LastUpdateEpoch++
 		cs = []ConnectionStats{conn2}
 
@@ -658,7 +658,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		assert.Equal(t, 4, int(conns[0].LastSentBytes))
 
 		// Store the connection again
-		conn3.MonotonicSentBytes += 1
+		conn3.MonotonicSentBytes++
 		conn3.LastUpdateEpoch++
 		cs = []ConnectionStats{conn3}
 
@@ -669,7 +669,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		assert.Equal(t, 4, int(conns[0].LastSentBytes))
 
 		// Store the connection as closed
-		conn3.MonotonicSentBytes += 1
+		conn3.MonotonicSentBytes++
 		conn3.LastUpdateEpoch++
 		state.StoreClosedConnection(conn3)
 
@@ -751,7 +751,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		assert.Equal(t, 2, int(conns[0].LastSentBytes))
 
 		// Store the connection as closed
-		conn.MonotonicSentBytes += 1
+		conn.MonotonicSentBytes++
 		conn.LastUpdateEpoch++
 		state.StoreClosedConnection(conn)
 
@@ -780,7 +780,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		assert.Equal(t, 5, int(conns[0].LastSentBytes))
 
 		// Store the connection as an opened connection
-		conn2.MonotonicSentBytes += 1
+		conn2.MonotonicSentBytes++
 		conn2.LastUpdateEpoch++
 		cs = []ConnectionStats{conn2}
 
@@ -823,10 +823,53 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		// We expect:
 		// c0: Nothing
 		// c1: Monotonic: 3 bytes, Last seen: 3 bytes
-		// d0: Nothing
+		// d0: Monotonic: 4 bytes, Last seen: 4 bytes
 		// c2: Monotonic: 7 bytes, Last seen: 4 bytes
-		// d1: Monotonic: ? bytes, Last seen: 5 bytes
+		// d1: Monotonic: 9 bytes, Last seen: 5 bytes
 
+		clientD := "d"
+
+		state := NewDefaultNetworkState()
+
+		// First get for client c, we should have nothing
+		conns := state.Connections(client, latestEpochTime(), []ConnectionStats{})
+		assert.Equal(t, 0, len(conns))
+
+		// Second get for client c we should have monotonic and last stats = 3
+		conns = state.Connections(client, latestEpochTime(), []ConnectionStats{conn})
+		assert.Len(t, conns, 1)
+		assert.Equal(t, 3, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 3, int(conns[0].LastSentBytes))
+
+		conn2 := conn
+		conn2.MonotonicSentBytes++
+		conn2.LastUpdateEpoch++
+
+		// First get for client d we should have monotonic = 4 and last bytes = 4
+		conns = state.Connections(clientD, latestEpochTime(), []ConnectionStats{conn2})
+		assert.Len(t, conns, 1)
+		assert.Equal(t, 4, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 4, int(conns[0].LastSentBytes))
+
+		conn3 := conn2
+		conn3.MonotonicSentBytes += 3
+		conn3.LastUpdateEpoch++
+
+		// Third get for client c we should have monotonic = 7 and last bytes = 4
+		conns = state.Connections(client, latestEpochTime(), []ConnectionStats{conn3})
+		assert.Len(t, conns, 1)
+		assert.Equal(t, 7, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 4, int(conns[0].LastSentBytes))
+
+		conn4 := conn3
+		conn4.MonotonicSentBytes += 2
+		conn4.LastUpdateEpoch++
+
+		// Second get for client d we should have monotonic = 9 and last bytes = 5
+		conns = state.Connections(clientD, latestEpochTime(), []ConnectionStats{conn4})
+		assert.Len(t, conns, 1)
+		assert.Equal(t, 9, int(conns[0].MonotonicSentBytes))
+		assert.Equal(t, 5, int(conns[0].LastSentBytes))
 	})
 }
 
@@ -849,7 +892,7 @@ func generateRandConnections(n int) []ConnectionStats {
 	return cs
 }
 
-var latestTime uint64 = 0
+var latestTime uint64
 
 func latestEpochTime() uint64 {
 	return atomic.AddUint64(&latestTime, 1)
