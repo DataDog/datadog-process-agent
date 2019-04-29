@@ -177,6 +177,8 @@ func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
 	return &Connections{Conns: t.state.Connections(clientID, latestTime, latestConns)}, nil
 }
 
+// getConnections returns all of the active connections in the ebpf maps along with the latest timestamp.  It takes
+// a reusable buffer for appending the active connections so that this doesn't continuously allocate
 func (t *Tracer) getConnections(active []ConnectionStats) ([]ConnectionStats, uint64, error) {
 	mp, err := t.getMap(connMap)
 	if err != nil {
