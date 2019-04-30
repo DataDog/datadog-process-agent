@@ -274,26 +274,34 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 }
 
 func (ns *networkState) updateConnWithStats(client *client, key string, c *ConnectionStats, now time.Time) {
-	if st, ok := client.stats[key]; ok {
-		// Check for underflow
-		if c.MonotonicSentBytes < st.totalSent || c.MonotonicRecvBytes < st.totalRecv || c.MonotonicRetransmits < st.totalRetransmits {
-			ns.telemetry.underflows++
-		} else {
-			c.LastSentBytes = c.MonotonicSentBytes - st.totalSent
-			c.LastRecvBytes = c.MonotonicRecvBytes - st.totalRecv
-			c.LastRetransmits = c.MonotonicRetransmits - st.totalRetransmits
+	st, ok := client.stats[key]
+	if !ok {
+		// If it's a closed connection update the last stats to be the monotonic stats
+		if _, ok := client.closedConnections[key]; ok {
+			c.LastSentBytes = c.MonotonicSentBytes
+			c.LastRecvBytes = c.MonotonicRecvBytes
+			c.LastRetransmits = c.MonotonicRetransmits
 		}
 
-		// Update stats object with latest values
-		st.totalSent = c.MonotonicSentBytes
-		st.totalRecv = c.MonotonicRecvBytes
-		st.totalRetransmits = c.MonotonicRetransmits
-		st.lastUpdateEpoch = c.LastUpdateEpoch
-	} else {
-		c.LastSentBytes = c.MonotonicSentBytes
-		c.LastRecvBytes = c.MonotonicRecvBytes
-		c.LastRetransmits = c.MonotonicRetransmits
+		// If we don't have a stats object for this client and it's not a closed connection
+		// just return without updating last stats (those will default to 0)
+		return
 	}
+
+	// Check for underflow
+	if c.MonotonicSentBytes < st.totalSent || c.MonotonicRecvBytes < st.totalRecv || c.MonotonicRetransmits < st.totalRetransmits {
+		ns.telemetry.underflows++
+	} else {
+		c.LastSentBytes = c.MonotonicSentBytes - st.totalSent
+		c.LastRecvBytes = c.MonotonicRecvBytes - st.totalRecv
+		c.LastRetransmits = c.MonotonicRetransmits - st.totalRetransmits
+	}
+
+	// Update stats object with latest values
+	st.totalSent = c.MonotonicSentBytes
+	st.totalRecv = c.MonotonicRecvBytes
+	st.totalRetransmits = c.MonotonicRetransmits
+	st.lastUpdateEpoch = c.LastUpdateEpoch
 }
 
 // createStatsForKey will create a new stats object for a key if it doesn't already exist.
