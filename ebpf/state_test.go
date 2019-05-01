@@ -873,6 +873,27 @@ func TestSameKeyEdgeCases(t *testing.T) {
 	})
 }
 
+func TestRemoveExpiredConnections(t *testing.T) {
+	d2u64 := func(d time.Duration) uint64 { return uint64(d.Nanoseconds()) }
+
+	s := NewDefaultNetworkState().(*networkState)
+	s.expiry = 5 * time.Second
+
+	client, _ := s.newClient("test")
+	client.stats["fake"] = &stats{lastUpdateEpoch: d2u64(10 * time.Second)}
+
+	expired := s.removeExpiredStats(client, d2u64(12*time.Second))
+	assert.Equal(t, expired, 0)
+
+	expired = s.removeExpiredStats(client, d2u64(25*time.Second))
+	assert.Equal(t, expired, 1)
+
+	client.stats["fake"] = &stats{lastUpdateEpoch: d2u64(35 * time.Second)}
+
+	expired = s.removeExpiredStats(client, d2u64(30*time.Second))
+	assert.Equal(t, expired, 0)
+}
+
 func generateRandConnections(n int) []ConnectionStats {
 	cs := make([]ConnectionStats, 0, n)
 	for i := 0; i < n; i++ {
