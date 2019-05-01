@@ -823,7 +823,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		// We expect:
 		// c0: Nothing
 		// c1: Monotonic: 3 bytes, Last seen: 3 bytes
-		// d0: Monotonic: 4 bytes, Last seen: 4 bytes
+		// d0: Monotonic: 4 bytes, Last seen: 0 bytes
 		// c2: Monotonic: 7 bytes, Last seen: 4 bytes
 		// d1: Monotonic: 9 bytes, Last seen: 5 bytes
 
@@ -849,7 +849,7 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		conns = state.Connections(clientD, latestEpochTime(), []ConnectionStats{conn2})
 		assert.Len(t, conns, 1)
 		assert.Equal(t, 4, int(conns[0].MonotonicSentBytes))
-		assert.Equal(t, 4, int(conns[0].LastSentBytes))
+		assert.Equal(t, 0, int(conns[0].LastSentBytes))
 
 		conn3 := conn2
 		conn3.MonotonicSentBytes += 3

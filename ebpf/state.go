@@ -140,6 +140,13 @@ func (ns *networkState) Connections(id string, latestTime uint64, latestConns []
 		for key, c := range connsByKey {
 			ns.createStatsForKey(client, key)
 			ns.updateConnWithStats(client, key, c, now)
+
+			// We force last stats to be 0 on a new client this is purely to
+			// have a coherent definition of LastXYZ and should not have an impact
+			// on collection since we drop the first get in the process-agent
+			c.LastSentBytes = 0
+			c.LastRecvBytes = 0
+			c.LastRetransmits = 0
 		}
 		return latestConns
 	}
