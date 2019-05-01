@@ -131,15 +131,28 @@ func (ns *networkState) Connections(id string, latestTime uint64, latestConns []
 
 	// Update the latest known time
 	ns.latestTimeEpoch = latestTime
+	now := time.Now()
+
+	connsByKey := getConnsByKey(latestConns, ns.buf)
 
 	// If its the first time we've seen this client, use global state as connection set
-	if ok := ns.newClient(id); !ok {
-		// TODO(SK): We still need to create stats objects for all connections, and set them to the current values for connections
+	if client, ok := ns.newClient(id); !ok {
+		for key, c := range connsByKey {
+			ns.createStatsForKey(client, key)
+			ns.updateConnWithStats(client, key, c, now)
+
+			// We force last stats to be 0 on a new client this is purely to
+			// have a coherent definition of LastXYZ and should not have an impact
+			// on collection since we drop the first get in the process-agent
+			c.LastSentBytes = 0
+			c.LastRecvBytes = 0
+			c.LastRetransmits = 0
+		}
 		return latestConns
 	}
 
 	// Update all connections with relevant up-to-date stats for client
-	conns := ns.mergeConnections(id, getConnsByKey(latestConns, ns.buf))
+	conns := ns.mergeConnections(id, connsByKey)
 
 	// Flush closed connection map
 	ns.clients[id].closedConnections = map[string]ConnectionStats{}
@@ -195,17 +208,18 @@ func (ns *networkState) StoreClosedConnection(conn ConnectionStats) {
 }
 
 // newClient creates a new client and returns true if the given client already exists
-func (ns *networkState) newClient(clientID string) bool {
-	if _, ok := ns.clients[clientID]; ok {
-		return true
+func (ns *networkState) newClient(clientID string) (*client, bool) {
+	if c, ok := ns.clients[clientID]; ok {
+		return c, true
 	}
 
-	ns.clients[clientID] = &client{
+	c := &client{
 		lastFetch:         time.Now(),
 		stats:             map[string]*stats{},
 		closedConnections: map[string]ConnectionStats{},
 	}
-	return false
+	ns.clients[clientID] = c
+	return c, false
 }
 
 // mergeConnections return the connections and takes care of updating their last stat counters
@@ -224,14 +238,7 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 			closedConn.MonotonicRecvBytes += activeConn.MonotonicRecvBytes
 			closedConn.MonotonicRetransmits += activeConn.MonotonicRetransmits
 
-			if _, ok := client.stats[key]; !ok {
-				if len(client.stats) >= ns.maxClientStats {
-					ns.telemetry.connDropped++
-					continue
-				}
-				client.stats[key] = &stats{}
-			}
-
+			ns.createStatsForKey(client, key)
 			ns.updateConnWithStats(client, key, &closedConn, now)
 		} else {
 			ns.updateConnWithStats(client, key, &closedConn, now)
@@ -264,14 +271,7 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 			continue // We processed this connection during the closed connection pass, so lets not do it again.
 		}
 
-		if _, ok := client.stats[key]; !ok {
-			if len(client.stats) >= ns.maxClientStats {
-				ns.telemetry.connDropped++
-				continue
-			}
-			client.stats[key] = &stats{}
-		}
-
+		ns.createStatsForKey(client, key)
 		ns.updateConnWithStats(client, key, c, now)
 
 		conns = append(conns, *c)
@@ -300,6 +300,17 @@ func (ns *networkState) updateConnWithStats(client *client, key string, c *Conne
 		c.LastSentBytes = c.MonotonicSentBytes
 		c.LastRecvBytes = c.MonotonicRecvBytes
 		c.LastRetransmits = c.MonotonicRetransmits
+	}
+}
+
+// createStatsForKey will create a new stats object for a key if it doesn't already exist.
+func (ns *networkState) createStatsForKey(client *client, key string) {
+	if _, ok := client.stats[key]; !ok {
+		if len(client.stats) >= ns.maxClientStats {
+			ns.telemetry.connDropped++
+			return
+		}
+		client.stats[key] = &stats{}
 	}
 }
 
