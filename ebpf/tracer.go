@@ -223,6 +223,12 @@ func (t *Tracer) getConnections() ([]ConnectionStats, uint64, error) {
 		_ = t.m.DeleteElement(portMp, unsafe.Pointer(&key))
 	}
 
+	// Get the latest time a second time because it could have changed while we were reading the eBPF map
+	latestTime, _, err = t.getLatestTimestamp()
+	if err != nil {
+		return nil, 0, fmt.Errorf("error retrieving latest timestamp: %s", err)
+	}
+
 	return active, latestTime, nil
 }
 

@@ -354,7 +354,7 @@ func (ns *networkState) cleanupState(now time.Time, clearExpiredStats, flushStat
 func (ns *networkState) removeExpiredStats(c *client, latestTimeEpoch uint64) int {
 	expired := make([]string, 0)
 	for key, s := range c.stats {
-		if latestTimeEpoch-s.lastUpdateEpoch > uint64(ns.expiry.Nanoseconds()) {
+		if latestTimeEpoch > s.lastUpdateEpoch+uint64(ns.expiry.Nanoseconds()) {
 			expired = append(expired, key)
 		}
 	}
