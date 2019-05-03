@@ -99,7 +99,7 @@
   revision = "3185a432dfed61437a6c62ed5622006d9027f513"
 
 [[projects]]
-  digest = "1:5ea152ecfc9dc1d5aec303cca549212ce9e251d11edb2832aef9061e931b431c"
+  digest = "1:1207eaf72dcb18a32f6475596237844a21a83463a5ebbaf2eb37f8183fb7e8d4"
   name = "github.com/StackVista/tcptracer-bpf"
   packages = [
     "pkg/tracer",
@@ -110,7 +110,7 @@
     "pkg/tracer/procspy",
   ]
   pruneopts = ""
-  revision = "d82fee3faf40fe50004b5b4352cacfd276b1ab12"
+  revision = "70dc3461cadc811c2bde72cdf67dcc7a284cf356"
 
 [[projects]]
   digest = "1:63776251fbaa60062742412a9d2fa1e4b7cd24bcf5527fa9656b314ea8d60913"
@@ -439,7 +439,6 @@
   version = "v1.8.0"
 
 [[projects]]
-  branch = "master"
   digest = "1:212bebc561f4f654a653225868b2a97353cd5e160dc0b0bbc7232b06608474ec"
   name = "github.com/mailru/easyjson"
   packages = [
