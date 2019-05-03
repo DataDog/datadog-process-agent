@@ -66,21 +66,12 @@ type Connections struct {
 	Conns []ConnectionStats `json:"connections"`
 }
 
-// ConnectionStats stores statistics for a single connection
+// ConnectionStats stores statistics for a single connection.  Field order in the struct should be 8-byte aligned
 //easyjson:json
 type ConnectionStats struct {
-	Pid    uint32           `json:"pid"`
-	Type   ConnectionType   `json:"type"`
-	Family ConnectionFamily `json:"family"`
-	NetNS  uint32           `json:"net_ns"`
-
 	// Source & Dest represented as a string to handle both IPv4 & IPv6
 	Source string `json:"source"`
 	Dest   string `json:"dest"`
-	SPort  uint16 `json:"sport"`
-	DPort  uint16 `json:"dport"`
-
-	Direction ConnectionDirection `json:"direction"`
 
 	MonotonicSentBytes uint64 `json:"monotonic_sent_bytes"`
 	LastSentBytes      uint64 `json:"last_sent_bytes"`
@@ -88,11 +79,20 @@ type ConnectionStats struct {
 	MonotonicRecvBytes uint64 `json:"monotonic_recv_bytes"`
 	LastRecvBytes      uint64 `json:"last_recv_bytes"`
 
+	// Last time the stats for this connection were updated
+	LastUpdateEpoch uint64 `json:"last_update_epoch"`
+
 	MonotonicRetransmits uint32 `json:"monotonic_retransmits"`
 	LastRetransmits      uint32 `json:"last_retransmits"`
 
-	// Last time the stats for this connection were updated
-	LastUpdateEpoch uint64 `json:"last_update_epoch"`
+	Pid   uint32 `json:"pid"`
+	NetNS uint32 `json:"net_ns"`
+
+	SPort     uint16              `json:"sport"`
+	DPort     uint16              `json:"dport"`
+	Type      ConnectionType      `json:"type"`
+	Family    ConnectionFamily    `json:"family"`
+	Direction ConnectionDirection `json:"direction"`
 }
 
 func (c ConnectionStats) String() string {
