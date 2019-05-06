@@ -1,4 +1,5 @@
 require "./gorake.rb"
+require 'tmpdir'
 
 def os
     case RUBY_PLATFORM
@@ -79,6 +80,16 @@ task 'build-network-tracer' do
     :os => os,
     :bpf => true
   })
+end
+
+desc "Build a network-tracer-agent Docker image (development only)"
+task 'build-network-tracer-docker-dev', 'image-name' do |t, args|
+  sh 'rake build-network-tracer'
+  Dir.mktmpdir do |dir|
+    # build in a temporary directory to make the docker build context small
+    sh "cp network-tracer #{dir}/network-tracer"
+    sh "docker build #{dir} -t #{args['image-name']} -f packaging/Dockerfile-tracer-dev"
+  end
 end
 
 desc "Run go vet on code"
