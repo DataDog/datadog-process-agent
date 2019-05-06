@@ -253,6 +253,13 @@
   version = "v2.2.1"
 
 [[projects]]
+  digest = "1:011900e7ee97686e7817937becc3bbeb9b9aa919d0a8c99e770710d9edee6230"
+  name = "github.com/florianl/go-conntrack"
+  packages = ["."]
+  pruneopts = ""
+  revision = "6d50e184fe3ef7ba0640303db5e6a5610bf4a297"
+
+[[projects]]
   branch = "master"
   digest = "1:a3226616c50c4efb347c3605fca62a8622f4e5ec3250ff8caca58443a478235b"
   name = "github.com/fsnotify/fsnotify"
@@ -461,6 +468,17 @@
   revision = "fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a"
 
 [[projects]]
+  branch = "master"
+  digest = "1:e73645a8a06de455820f63295ab5b06f8b8a7d5851a4c59cffada876526ef9f5"
+  name = "github.com/mdlayher/netlink"
+  packages = [
+    ".",
+    "nlenc",
+  ]
+  pruneopts = ""
+  revision = "b540351f6c5108aa445eaa6677010703c7294f8d"
+
+[[projects]]
   digest = "1:5219b4506253ccc598f9340677162a42d6a78f340a4cc6df2d62db4d0593c4e9"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
@@ -648,6 +666,7 @@
   digest = "1:35171304d8332a0cfac5f3bd9222467f036732ddde75c65278b16f65216e03ed"
   name = "golang.org/x/net"
   packages = [
+    "bpf",
     "context",
     "context/ctxhttp",
     "http2",
@@ -1010,6 +1029,7 @@
     "github.com/DataDog/gopsutil/process",
     "github.com/DataDog/zstd",
     "github.com/StackExchange/wmi",
+    "github.com/florianl/go-conntrack",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
     "github.com/iovisor/gobpf/elf",

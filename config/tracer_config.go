@@ -39,6 +39,7 @@ func TracerConfigFromConfig(cfg *AgentConfig) *ebpf.Config {
 	tracerConfig.MaxTrackedConnections = cfg.MaxTrackedConnections
 	tracerConfig.ProcRoot = getProcRoot()
 	tracerConfig.BPFDebug = cfg.NetworkBPFDebug
+	tracerConfig.EnableConntrack = cfg.EnableConntrack
 
 	return tracerConfig
 }

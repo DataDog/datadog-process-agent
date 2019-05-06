@@ -4,6 +4,7 @@ package ebpf
 
 import (
 	json "encoding/json"
+	netlink "github.com/DataDog/datadog-process-agent/netlink"
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
@@ -139,24 +140,10 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.L
 			continue
 		}
 		switch key {
-		case "pid":
-			out.Pid = uint32(in.Uint32())
-		case "type":
-			out.Type = ConnectionType(in.Uint8())
-		case "family":
-			out.Family = ConnectionFamily(in.Uint8())
-		case "net_ns":
-			out.NetNS = uint32(in.Uint32())
 		case "source":
 			out.Source = string(in.String())
 		case "dest":
 			out.Dest = string(in.String())
-		case "sport":
-			out.SPort = uint16(in.Uint16())
-		case "dport":
-			out.DPort = uint16(in.Uint16())
-		case "direction":
-			out.Direction = ConnectionDirection(in.Uint8())
 		case "monotonic_sent_bytes":
 			out.MonotonicSentBytes = uint64(in.Uint64())
 		case "last_sent_bytes":
@@ -165,12 +152,36 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.L
 			out.MonotonicRecvBytes = uint64(in.Uint64())
 		case "last_recv_bytes":
 			out.LastRecvBytes = uint64(in.Uint64())
+		case "last_update_epoch":
+			out.LastUpdateEpoch = uint64(in.Uint64())
 		case "monotonic_retransmits":
 			out.MonotonicRetransmits = uint32(in.Uint32())
 		case "last_retransmits":
 			out.LastRetransmits = uint32(in.Uint32())
-		case "last_update_epoch":
-			out.LastUpdateEpoch = uint64(in.Uint64())
+		case "pid":
+			out.Pid = uint32(in.Uint32())
+		case "net_ns":
+			out.NetNS = uint32(in.Uint32())
+		case "sport":
+			out.SPort = uint16(in.Uint16())
+		case "dport":
+			out.DPort = uint16(in.Uint16())
+		case "type":
+			out.Type = ConnectionType(in.Uint8())
+		case "family":
+			out.Family = ConnectionFamily(in.Uint8())
+		case "direction":
+			out.Direction = ConnectionDirection(in.Uint8())
+		case "conntrack":
+			if in.IsNull() {
+				in.Skip()
+				out.IPTranslation = nil
+			} else {
+				if out.IPTranslation == nil {
+					out.IPTranslation = new(netlink.IPTranslation)
+				}
+				(*out.IPTranslation).UnmarshalEasyJSON(in)
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -185,46 +196,6 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 	out.RawByte('{')
 	first := true
 	_ = first
-	{
-		const prefix string = ",\"pid\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		out.Uint32(uint32(in.Pid))
-	}
-	{
-		const prefix string = ",\"type\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		out.Uint8(uint8(in.Type))
-	}
-	{
-		const prefix string = ",\"family\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		out.Uint8(uint8(in.Family))
-	}
-	{
-		const prefix string = ",\"net_ns\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		out.Uint32(uint32(in.NetNS))
-	}
 	{
 		const prefix string = ",\"source\":"
 		if first {
@@ -244,36 +215,6 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 			out.RawString(prefix)
 		}
 		out.String(string(in.Dest))
-	}
-	{
-		const prefix string = ",\"sport\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		out.Uint16(uint16(in.SPort))
-	}
-	{
-		const prefix string = ",\"dport\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		out.Uint16(uint16(in.DPort))
-	}
-	{
-		const prefix string = ",\"direction\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
-		out.Uint8(uint8(in.Direction))
 	}
 	{
 		const prefix string = ",\"monotonic_sent_bytes\":"
@@ -316,6 +257,16 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		out.Uint64(uint64(in.LastRecvBytes))
 	}
 	{
+		const prefix string = ",\"last_update_epoch\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint64(uint64(in.LastUpdateEpoch))
+	}
+	{
 		const prefix string = ",\"monotonic_retransmits\":"
 		if first {
 			first = false
@@ -336,14 +287,88 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		out.Uint32(uint32(in.LastRetransmits))
 	}
 	{
-		const prefix string = ",\"last_update_epoch\":"
+		const prefix string = ",\"pid\":"
 		if first {
 			first = false
 			out.RawString(prefix[1:])
 		} else {
 			out.RawString(prefix)
 		}
-		out.Uint64(uint64(in.LastUpdateEpoch))
+		out.Uint32(uint32(in.Pid))
+	}
+	{
+		const prefix string = ",\"net_ns\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint32(uint32(in.NetNS))
+	}
+	{
+		const prefix string = ",\"sport\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint16(uint16(in.SPort))
+	}
+	{
+		const prefix string = ",\"dport\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint16(uint16(in.DPort))
+	}
+	{
+		const prefix string = ",\"type\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint8(uint8(in.Type))
+	}
+	{
+		const prefix string = ",\"family\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint8(uint8(in.Family))
+	}
+	{
+		const prefix string = ",\"direction\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Uint8(uint8(in.Direction))
+	}
+	{
+		const prefix string = ",\"conntrack\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		if in.IPTranslation == nil {
+			out.RawString("null")
+		} else {
+			(*in.IPTranslation).MarshalEasyJSON(out)
+		}
 	}
 	out.RawByte('}')
 }

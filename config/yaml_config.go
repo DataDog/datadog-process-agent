@@ -55,6 +55,10 @@ func (a *AgentConfig) loadNetworkYamlConfig(path string) error {
 		a.NetworkTracerSocketPath = socketPath
 	}
 
+	if config.Datadog.IsSet(key(netNS, "enable_conntrack")) {
+		a.EnableConntrack = config.Datadog.GetBool(key(netNS, "enable_conntrack"))
+	}
+
 	if logFile := config.Datadog.GetString(key(netNS, "log_file")); logFile != "" {
 		a.LogFile = logFile
 	}

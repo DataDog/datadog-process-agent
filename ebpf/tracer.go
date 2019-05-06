@@ -12,6 +12,7 @@ import (
 	"unsafe"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-process-agent/netlink"
 	bpflib "github.com/iovisor/gobpf/elf"
 )
 
@@ -23,6 +24,8 @@ type Tracer struct {
 	state          NetworkState
 	portMapping    *PortMapping
 	localAddresses map[string]struct{}
+
+	conntracker netlink.Conntracker
 
 	perfMap *bpflib.PerfMap
 
@@ -84,6 +87,16 @@ func NewTracer(config *Config) (*Tracer, error) {
 
 	localAddresses := readLocalAddresses()
 
+	conntracker := netlink.NewNoOpConntracker()
+	if config.EnableConntrack {
+		c, err := netlink.NewConntracker()
+		if err != nil {
+			log.Errorf("could not initialize conntrack")
+		} else {
+			conntracker = c
+		}
+	}
+
 	tr := &Tracer{
 		m:              m,
 		config:         config,
@@ -92,6 +105,7 @@ func NewTracer(config *Config) (*Tracer, error) {
 		localAddresses: localAddresses,
 		buffer:         make([]ConnectionStats, 0, 512),
 		buf:            &bytes.Buffer{},
+		conntracker:    conntracker,
 	}
 
 	tr.perfMap, err = tr.initPerfPolling()
@@ -162,6 +176,7 @@ func (t *Tracer) shouldSkipConnection(conn *ConnectionStats) bool {
 func (t *Tracer) Stop() {
 	_ = t.m.Close()
 	t.perfMap.PollStop()
+	t.conntracker.Close()
 }
 
 func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
@@ -234,6 +249,9 @@ func (t *Tracer) getConnections(active []ConnectionStats) ([]ConnectionStats, ui
 			if t.shouldSkipConnection(&conn) {
 				atomic.AddUint64(&t.skippedConns, 1)
 			} else {
+				// lookup conntrack in for active
+
+				conn.IPTranslation = t.conntracker.GetConntrackEntryForConn(conn.Source, conn.SPort)
 				active = append(active, conn)
 			}
 		}

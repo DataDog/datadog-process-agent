@@ -89,6 +89,7 @@ task 'build-network-tracer-docker-dev', 'image-name' do |t, args|
     # build in a temporary directory to make the docker build context small
     sh "cp network-tracer #{dir}/network-tracer"
     sh "docker build #{dir} -t #{args['image-name']} -f packaging/Dockerfile-tracer-dev"
+    sh "docker push #{args['image-name']}"
   end
 end
 

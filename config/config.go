@@ -83,6 +83,7 @@ type AgentConfig struct {
 	MaxTrackedConnections    uint
 	NetworkBPFDebug          bool
 	ExcludedBPFLinuxVersions []string
+	EnableConntrack          bool
 
 	// Check config
 	EnabledChecks  []string
@@ -172,6 +173,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		NetworkTracerSocketPath:  defaultNetworkTracerSocketPath,
 		NetworkTracerLogFile:     defaultNetworkLogFilePath,
 		MaxTrackedConnections:    maxMaxTrackedConnections,
+		EnableConntrack:          true,
 
 		// Check config
 		EnabledChecks: containerChecks,

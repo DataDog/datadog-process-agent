@@ -37,6 +37,9 @@ type Config struct {
 
 	// BPFDebug enables bpf debug logs
 	BPFDebug bool
+
+	//  EnableConntrack enables probing conntrack for natural address translation via netlink
+	EnableConntrack bool
 }
 
 // NewDefaultConfig enables traffic collection for all connection types
@@ -51,6 +54,7 @@ func NewDefaultConfig() *Config {
 		MaxTrackedConnections: 65536,
 		ProcRoot:              "/proc",
 		BPFDebug:              false,
+		EnableConntrack:       true,
 	}
 }
 
