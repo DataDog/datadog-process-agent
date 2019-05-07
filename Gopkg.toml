@@ -1,6 +1,6 @@
 [[constraint]]
   name = "github.com/DataDog/datadog-agent"
-  revision = "d7712d570b91f4f97af9f155ad1c676921d8325d"
+  revision = "be4d8296440be28d601268b1fb2c5a4eb1dc0ba3"
 
 [[constraint]]
   name = "github.com/DataDog/gopsutil"
