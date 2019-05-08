@@ -1,6 +1,7 @@
 package ebpf
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/rand"
@@ -124,6 +125,42 @@ func BenchmarkConnectionsGet(b *testing.B) {
 	}
 }
 
+func TestRemoveConnections(t *testing.T) {
+	conn := ConnectionStats{
+		Pid:                  123,
+		Type:                 UDP,
+		Family:               AFINET,
+		Source:               "localhost",
+		Dest:                 "localhost",
+		SPort:                31890,
+		DPort:                80,
+		MonotonicSentBytes:   12345,
+		LastSentBytes:        12345,
+		MonotonicRecvBytes:   6789,
+		LastRecvBytes:        6789,
+		MonotonicRetransmits: 2,
+		LastRetransmits:      2,
+	}
+
+	key, err := conn.ByteKey(&bytes.Buffer{})
+	require.NoError(t, err)
+
+	clientID := "1"
+	state := NewDefaultNetworkState().(*networkState)
+	conns := state.Connections(clientID, latestEpochTime(), []ConnectionStats{})
+	assert.Equal(t, 0, len(conns))
+
+	conns = state.Connections(clientID, latestEpochTime(), []ConnectionStats{conn})
+	assert.Equal(t, 1, len(conns))
+	assert.Equal(t, conn, conns[0])
+
+	client := state.clients[clientID]
+	assert.Equal(t, 1, len(client.stats))
+
+	state.RemoveConnections([]string{string(key)})
+	assert.Equal(t, 0, len(client.stats))
+}
+
 func TestRetrieveClosedConnection(t *testing.T) {
 	conn := ConnectionStats{
 		Pid:                  123,
@@ -178,7 +215,7 @@ func TestCleanupClient(t *testing.T) {
 
 	wait := 100 * time.Millisecond
 
-	state := NewNetworkState(defaultClientInterval, wait, defaultMaxClosedConns, defaultMaxClientStats)
+	state := NewNetworkState(wait, defaultMaxClosedConns, defaultMaxClientStats)
 	clients := state.(*networkState).getClients()
 	assert.Equal(t, 0, len(clients))
 
@@ -186,16 +223,14 @@ func TestCleanupClient(t *testing.T) {
 	assert.Equal(t, 0, len(conns))
 
 	// Should be a no op
-	state.(*networkState).cleanupState(time.Now(), false, false)
+	state.(*networkState).RemoveExpiredClients(time.Now())
 
 	clients = state.(*networkState).getClients()
 	assert.Equal(t, 1, len(clients))
 	assert.Equal(t, "1", clients[0])
 
-	time.Sleep(wait)
-
 	// Should delete the client 1
-	state.(*networkState).cleanupState(time.Now(), false, false)
+	state.(*networkState).RemoveExpiredClients(time.Now().Add(wait))
 
 	clients = state.(*networkState).getClients()
 	assert.Equal(t, 0, len(clients))
@@ -871,27 +906,6 @@ func TestSameKeyEdgeCases(t *testing.T) {
 		assert.Equal(t, 9, int(conns[0].MonotonicSentBytes))
 		assert.Equal(t, 5, int(conns[0].LastSentBytes))
 	})
-}
-
-func TestRemoveExpiredConnections(t *testing.T) {
-	d2u64 := func(d time.Duration) uint64 { return uint64(d.Nanoseconds()) }
-
-	s := NewDefaultNetworkState().(*networkState)
-	s.expiry = 5 * time.Second
-
-	client, _ := s.newClient("test")
-	client.stats["fake"] = &stats{lastUpdateEpoch: d2u64(10 * time.Second)}
-
-	expired := s.removeExpiredStats(client, d2u64(12*time.Second))
-	assert.Equal(t, expired, 0)
-
-	expired = s.removeExpiredStats(client, d2u64(25*time.Second))
-	assert.Equal(t, expired, 1)
-
-	client.stats["fake"] = &stats{lastUpdateEpoch: d2u64(35 * time.Second)}
-
-	expired = s.removeExpiredStats(client, d2u64(30*time.Second))
-	assert.Equal(t, expired, 0)
 }
 
 func generateRandConnections(n int) []ConnectionStats {

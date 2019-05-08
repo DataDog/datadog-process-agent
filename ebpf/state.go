@@ -18,8 +18,7 @@ const (
 	// With clients checking connection stats roughly every 30s, this gives us roughly ~1.6k + ~2.5k objects a second respectively.
 	defaultMaxClosedConns = 50000 // ~100 bytes per conn = 5MB
 	defaultMaxClientStats = 75000
-	defaultExpiry         = 2 * time.Minute
-	defaultClientInterval = 30 * time.Second
+	defaultClientExpiry   = 2 * time.Minute
 )
 
 // NetworkState takes care of handling the logic for:
@@ -34,6 +33,12 @@ type NetworkState interface {
 
 	// RemoveClient stops tracking stateful data for a given client
 	RemoveClient(clientID string)
+
+	// RemoveExpiredClients removes expired clients from the state
+	RemoveExpiredClients(now time.Time)
+
+	// RemoveConnections removes the given keys from the state
+	RemoveConnections(keys []string)
 
 	// GetStats returns a map of statistics about the current network state
 	GetStats(closedPollLost, closedPollReceived, tracerSkippedCount uint64) map[string]interface{}
@@ -53,8 +58,6 @@ type stats struct {
 	totalSent        uint64
 	totalRecv        uint64
 	totalRetransmits uint32
-
-	lastUpdateEpoch uint64
 }
 
 type client struct {
@@ -74,40 +77,26 @@ type networkState struct {
 	latestTimeEpoch uint64
 
 	// Network state configuration
-	clientInterval time.Duration
-	expiry         time.Duration
+	clientExpiry   time.Duration
 	maxClosedConns int
 	maxClientStats int
 }
 
 // NewDefaultNetworkState creates a new network state with default settings
 func NewDefaultNetworkState() NetworkState {
-	return NewNetworkState(defaultClientInterval, defaultExpiry, defaultMaxClosedConns, defaultMaxClientStats)
+	return NewNetworkState(defaultClientExpiry, defaultMaxClosedConns, defaultMaxClientStats)
 }
 
 // NewNetworkState creates a new network state
-func NewNetworkState(clientInterval, expiry time.Duration, maxClosedConns, maxClientStats int) NetworkState {
-	ns := &networkState{
+func NewNetworkState(clientExpiry time.Duration, maxClosedConns, maxClientStats int) NetworkState {
+	return &networkState{
 		clients:        map[string]*client{},
 		telemetry:      telemetry{},
-		clientInterval: clientInterval,
-		expiry:         expiry,
+		clientExpiry:   clientExpiry,
 		maxClosedConns: maxClosedConns,
 		maxClientStats: maxClientStats,
 		buf:            &bytes.Buffer{},
 	}
-
-	go func() {
-		count := uint64(0)
-		for now := range time.NewTicker(ns.clientInterval).C {
-			count++
-			// Every 10 ticks, lets check for any outdated stats objects to remove & flush telemetry
-			clearExpiredStats, flushTelemetry := count%10 == 0, count%10 == 0
-			ns.cleanupState(now, clearExpiredStats, flushTelemetry)
-		}
-	}()
-
-	return ns
 }
 
 func (ns *networkState) getClients() []string {
@@ -131,15 +120,13 @@ func (ns *networkState) Connections(id string, latestTime uint64, latestConns []
 
 	// Update the latest known time
 	ns.latestTimeEpoch = latestTime
-	now := time.Now()
-
 	connsByKey := getConnsByKey(latestConns, ns.buf)
 
 	// If its the first time we've seen this client, use global state as connection set
 	if client, ok := ns.newClient(id); !ok {
 		for key, c := range connsByKey {
 			ns.createStatsForKey(client, key)
-			ns.updateConnWithStats(client, key, c, now)
+			ns.updateConnWithStats(client, key, c)
 
 			// We force last stats to be 0 on a new client this is purely to
 			// have a coherent definition of LastXYZ and should not have an impact
@@ -239,9 +226,9 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 			closedConn.MonotonicRetransmits += activeConn.MonotonicRetransmits
 
 			ns.createStatsForKey(client, key)
-			ns.updateConnWithStats(client, key, &closedConn, now)
+			ns.updateConnWithStats(client, key, &closedConn)
 		} else {
-			ns.updateConnWithStats(client, key, &closedConn, now)
+			ns.updateConnWithStats(client, key, &closedConn)
 			// Since connection is no longer active, lets just remove the stats object afterwords
 			if _, ok := client.stats[key]; ok {
 				delete(client.stats, key)
@@ -272,7 +259,7 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 		}
 
 		ns.createStatsForKey(client, key)
-		ns.updateConnWithStats(client, key, c, now)
+		ns.updateConnWithStats(client, key, c)
 
 		conns = append(conns, *c)
 	}
@@ -280,7 +267,7 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 	return conns
 }
 
-func (ns *networkState) updateConnWithStats(client *client, key string, c *ConnectionStats, now time.Time) {
+func (ns *networkState) updateConnWithStats(client *client, key string, c *ConnectionStats) {
 	if st, ok := client.stats[key]; ok {
 		// Check for underflow
 		if c.MonotonicSentBytes < st.totalSent || c.MonotonicRecvBytes < st.totalRecv || c.MonotonicRetransmits < st.totalRetransmits {
@@ -295,7 +282,6 @@ func (ns *networkState) updateConnWithStats(client *client, key string, c *Conne
 		st.totalSent = c.MonotonicSentBytes
 		st.totalRecv = c.MonotonicRecvBytes
 		st.totalRetransmits = c.MonotonicRetransmits
-		st.lastUpdateEpoch = c.LastUpdateEpoch
 	} else {
 		c.LastSentBytes = c.MonotonicSentBytes
 		c.LastRecvBytes = c.MonotonicRecvBytes
@@ -320,49 +306,37 @@ func (ns *networkState) RemoveClient(clientID string) {
 	delete(ns.clients, clientID)
 }
 
-func (ns *networkState) cleanupState(now time.Time, clearExpiredStats, flushStats bool) {
+func (ns *networkState) RemoveExpiredClients(now time.Time) {
 	ns.Lock()
 	defer ns.Unlock()
 
-	// Remove expired clients + stats
-	deletedStats := 0
 	for id, c := range ns.clients {
-		if c.lastFetch.Add(ns.expiry).Before(now) {
+		if c.lastFetch.Add(ns.clientExpiry).Before(now) {
+			log.Debugf("expiring client: %s, had %d stats and %d closed connections", id, len(c.stats), len(c.closedConnections))
 			delete(ns.clients, id)
-		} else if clearExpiredStats { // Look for inactive stats objects and remove them
-			deletedStats += ns.removeExpiredStats(c, ns.latestTimeEpoch)
 		}
-	}
-
-	if deletedStats > 0 {
-		log.Debugf("removed %d expired stats objects in %d", deletedStats, time.Now().Sub(now))
-	}
-
-	if flushStats {
-		// Only flush log line if any metric is non-zero
-		if ns.telemetry.unorderedConns > 0 || ns.telemetry.underflows > 0 || ns.telemetry.closedConnDropped > 0 || ns.telemetry.connDropped > 0 {
-			log.Debugf("state telemetry: [%d unordered conns] [%d stats underflows] [%d connections dropped due to stats] [%d closed connections dropped]",
-				ns.telemetry.unorderedConns,
-				ns.telemetry.underflows,
-				ns.telemetry.closedConnDropped,
-				ns.telemetry.connDropped)
-		}
-		ns.telemetry = telemetry{} // Reset counters
 	}
 }
 
-func (ns *networkState) removeExpiredStats(c *client, latestTimeEpoch uint64) int {
-	expired := make([]string, 0)
-	for key, s := range c.stats {
-		if latestTimeEpoch > s.lastUpdateEpoch+uint64(ns.expiry.Nanoseconds()) {
-			expired = append(expired, key)
+func (ns *networkState) RemoveConnections(keys []string) {
+	ns.Lock()
+	defer ns.Unlock()
+
+	for _, c := range ns.clients {
+		for _, key := range keys {
+			delete(c.stats, key)
 		}
 	}
 
-	for _, key := range expired {
-		delete(c.stats, key)
+	// Flush log line if any metric is non zero
+	if ns.telemetry.unorderedConns > 0 || ns.telemetry.underflows > 0 || ns.telemetry.closedConnDropped > 0 || ns.telemetry.connDropped > 0 {
+		log.Debugf("state telemetry: [%d unordered conns] [%d stats underflows] [%d connections dropped due to stats] [%d closed connections dropped]",
+			ns.telemetry.unorderedConns,
+			ns.telemetry.underflows,
+			ns.telemetry.closedConnDropped,
+			ns.telemetry.connDropped)
 	}
-	return len(expired)
+	ns.telemetry = telemetry{}
 }
 
 // GetStats returns a map of statistics about the current network state
@@ -404,10 +378,9 @@ func (ns *networkState) DumpState(clientID string) map[string]interface{} {
 	if client, ok := ns.clients[clientID]; ok {
 		for connKey, s := range client.stats {
 			data[connKey] = map[string]uint64{
-				"total_sent":         s.totalSent,
-				"total_recv":         s.totalRecv,
-				"total_retransmits":  uint64(s.totalRetransmits),
-				"latest_bpf_time_ns": s.lastUpdateEpoch,
+				"total_sent":        s.totalSent,
+				"total_recv":        s.totalRecv,
+				"total_retransmits": uint64(s.totalRetransmits),
 			}
 		}
 	}

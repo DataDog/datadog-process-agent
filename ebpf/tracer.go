@@ -33,6 +33,9 @@ type Tracer struct {
 
 	buffer     []ConnectionStats
 	bufferLock sync.Mutex
+
+	// Internal buffer used to compute bytekeys
+	buf *bytes.Buffer
 }
 
 // maxActive configures the maximum number of instances of the kretprobe-probed functions handled simultaneously.
@@ -87,6 +90,7 @@ func NewTracer(config *Config) (*Tracer, error) {
 		portMapping:    portMapping,
 		localAddresses: localAddresses,
 		buffer:         make([]ConnectionStats, 0, 512),
+		buf:            &bytes.Buffer{},
 	}
 
 	tr.perfMap, err = tr.initPerfPolling()
@@ -234,6 +238,9 @@ func (t *Tracer) getConnections(active []ConnectionStats) ([]ConnectionStats, ui
 	// Remove expired entries
 	t.removeEntries(mp, tcpMp, expired)
 
+	// check for expired clients in the state
+	t.state.RemoveExpiredClients(time.Now())
+
 	for _, key := range closedPortBindings {
 		t.portMapping.RemoveMapping(key)
 		_ = t.m.DeleteElement(portMp, unsafe.Pointer(&key))
@@ -249,6 +256,12 @@ func (t *Tracer) getConnections(active []ConnectionStats) ([]ConnectionStats, ui
 }
 
 func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
+	// Byte keys of the connections to remove
+	keys := make([]string, 0, len(entries))
+	// Used to create the keys
+	statsWithTs, tcpStats := &ConnStatsWithTimestamp{}, &TCPStats{}
+
+	// Remove the entries from the eBPF Map
 	for i := range entries {
 		err := t.m.DeleteElement(mp, unsafe.Pointer(entries[i]))
 		if err != nil {
@@ -256,11 +269,21 @@ func (t *Tracer) removeEntries(mp, tcpMp *bpflib.Map, entries []*ConnTuple) {
 			_ = log.Warnf("failed to remove entry from connections map: %s", err)
 		}
 
+		// Append the connection key to the keys to remove from the userspace state
+		bk, err := connStats(entries[i], statsWithTs, tcpStats).ByteKey(t.buf)
+		if err != nil {
+			log.Warnf("failed to create connection byte_key: %s", err)
+		} else {
+			keys = append(keys, string(bk))
+		}
+
 		// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
 		entries[i].pid = 0
 		// We can ignore the error for this map since it will not always contain the entry
 		_ = t.m.DeleteElement(tcpMp, unsafe.Pointer(entries[i]))
 	}
+
+	t.state.RemoveConnections(keys)
 }
 
 // getTCPStats reads tcp related stats for the given ConnTuple
