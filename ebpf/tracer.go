@@ -224,7 +224,7 @@ func (t *Tracer) getConnections(active []ConnectionStats) ([]ConnectionStats, ui
 			break
 		} else if stats.isExpired(latestTime, t.timeoutForConn(nextKey)) {
 			expired = append(expired, nextKey.copy())
-			if key.isTCP() {
+			if nextKey.isTCP() {
 				atomic.AddUint64(&t.expiredTCPConns, 1)
 			}
 		} else {
