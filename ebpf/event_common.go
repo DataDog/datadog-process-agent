@@ -127,13 +127,45 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 	if _, err := buffer.WriteString(c.Source); err != nil {
 		return nil, err
 	}
+	buffer.WriteRune('|')
 	// Family (4 bits) + Type (4 bits) = 8 bits
 	p1 := uint8(c.Family)<<4 | uint8(c.Type)
 	if err := buffer.WriteByte(p1); err != nil {
 		return nil, err
 	}
+	buffer.WriteRune('|')
 	if _, err := buffer.WriteString(c.Dest); err != nil {
 		return nil, err
 	}
 	return buffer.Bytes(), nil
+}
+
+const keyFmt = "p:%d|src:%s:%d|dst:%s:%d|f:%d|t:%d"
+
+// BeautifyKey returns a human readable byte key (used for debugging purposes)
+// it should be in sync with ByteKey
+func BeautifyKey(key string) string {
+	raw := []byte(key)
+
+	// First 8 bytes are pid and ports
+	h := binary.LittleEndian.Uint64(raw[:8])
+	pid := h >> 32
+	sport := (h >> 16) & 0xffff
+	dport := h & 0xffff
+
+	// Them we have the source addr, family + type and dest addr
+	parts := bytes.Split(raw[8:], []byte{'|'})
+
+	var source, dest string
+	var family, typ uint8
+	if len(parts) == 3 {
+		source = string(parts[0])
+		dest = string(parts[2])
+		if len(parts[1]) == 1 {
+			family = (parts[1][0] >> 4) & 0xf
+			typ = parts[1][0] & 0xf
+		}
+	}
+
+	return fmt.Sprintf(keyFmt, pid, source, sport, dest, dport, family, typ)
 }

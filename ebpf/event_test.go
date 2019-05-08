@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -22,6 +23,27 @@ var (
 		MonotonicRecvBytes: 312312,
 	}
 )
+
+func TestBeautifyKey(t *testing.T) {
+	buf := &bytes.Buffer{}
+	for _, c := range []ConnectionStats{
+		testConn,
+		ConnectionStats{
+			Pid:    345,
+			Type:   0,
+			Family: 1,
+			Source: "127.0.0.1",
+			Dest:   "192.168.0.103",
+			SPort:  4444,
+			DPort:  8888,
+		},
+	} {
+		bk, err := c.ByteKey(buf)
+		require.NoError(t, err)
+		expected := fmt.Sprintf(keyFmt, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.Family, c.Type)
+		assert.Equal(t, expected, BeautifyKey(string(bk)))
+	}
+}
 
 var sink string
 

@@ -377,7 +377,7 @@ func (ns *networkState) DumpState(clientID string) map[string]interface{} {
 	data := map[string]interface{}{}
 	if client, ok := ns.clients[clientID]; ok {
 		for connKey, s := range client.stats {
-			data[connKey] = map[string]uint64{
+			data[BeautifyKey(connKey)] = map[string]uint64{
 				"total_sent":        s.totalSent,
 				"total_recv":        s.totalRecv,
 				"total_retransmits": uint64(s.totalRetransmits),
