@@ -31,9 +31,9 @@ gofmt -l $REPLACE_MODE -r '"DD_SITE" -> "STS_SITE"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"DD_USE_LOCAL_NETWORK_TRACER" -> "STS_USE_LOCAL_NETWORK_TRACER"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"DD_NETTRACER_SOCKET" -> "STS_NETTRACER_SOCKET"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"DD_PROCESS_AGENT_URL is invalid: %s" -> "STS_PROCESS_AGENT_URL is invalid: %s"' $REPLACE_SCOPE
-# known
-sed -i 's/DD_SITE/STS_SITE/g' ../config/config_test.go
 
+# tests
+sed -i 's/DD_SITE/STS_SITE/g' ../config/config_test.go
 
 # config_nix.go
 gofmt -l $REPLACE_MODE -r '"/var/log/datadog/process-agent.log" -> "/var/log/stackstate-agent/process-agent.log"' $REPLACE_SCOPE
@@ -65,6 +65,11 @@ gofmt -l $REPLACE_MODE -r '"c:\\programdata\\datadog\\conf.d" -> "c:\\programdat
 gofmt -l $REPLACE_MODE -r '"c:\\programdata\\datadog\\logs\\process-agent.log" -> "c:\\programdata\\stackstate\\logs\\process-agent.log"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"c:\\Program Files\\Datadog\\Datadog Agent\\embedded\\agent.exe" -> "c:\\Program Files\\StackState\\StackState Agent\\embedded\\agent.exe"' $REPLACE_SCOPE
 sed -i 's/DataDog/StackState/g' ../cmd/agent/main_windows.go
+
+# metrics
+gofmt -l $REPLACE_MODE -r '"datadog.process.agent" -> "stackstate.process.agent"' $REPLACE_SCOPE
+gofmt -l $REPLACE_MODE -r '"datadog.process.processes.host_count" -> "stackstate.process.processes.host_count"' $REPLACE_SCOPE
+gofmt -l $REPLACE_MODE -r '"datadog.process.containers.host_count" -> "stackstate.process.containers.host_count"' $REPLACE_SCOPE
 
 UNAME="$(uname)"
 if [[ $UNAME != MSYS* ]]; then
