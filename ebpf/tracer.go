@@ -27,9 +27,10 @@ type Tracer struct {
 	perfMap *bpflib.PerfMap
 
 	// Telemetry
-	perfReceived uint64
-	perfLost     uint64
-	skippedConns uint64
+	perfReceived    uint64
+	perfLost        uint64
+	skippedConns    uint64
+	expiredTCPConns uint64
 
 	buffer     []ConnectionStats
 	bufferLock sync.Mutex
@@ -140,8 +141,9 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 				recv := atomic.SwapUint64(&t.perfReceived, 0)
 				lost := atomic.SwapUint64(&t.perfLost, 0)
 				skip := atomic.SwapUint64(&t.skippedConns, 0)
+				tcpExpired := atomic.SwapUint64(&t.expiredTCPConns, 0)
 				if lost > 0 {
-					log.Debugf("closed connection polling: %d received, %d lost, %d skipped", recv, lost, skip)
+					log.Debugf("closed connection polling: %d received, %d lost, %d skipped, %d expired TCP", recv, lost, skip, tcpExpired)
 				}
 			}
 		}
@@ -222,6 +224,9 @@ func (t *Tracer) getConnections(active []ConnectionStats) ([]ConnectionStats, ui
 			break
 		} else if stats.isExpired(latestTime, t.timeoutForConn(nextKey)) {
 			expired = append(expired, nextKey.copy())
+			if key.isTCP() {
+				atomic.AddUint64(&t.expiredTCPConns, 1)
+			}
 		} else {
 			conn := connStats(nextKey, stats, t.getTCPStats(tcpMp, nextKey))
 			conn.Direction = t.determineConnectionDirection(&conn)
@@ -296,7 +301,7 @@ func (t *Tracer) getTCPStats(mp *bpflib.Map, tuple *ConnTuple) *TCPStats {
 
 	// Don't bother looking in the map if the connection is UDP, there will never be data for that and we will avoid
 	// the overhead of the syscall and creating the resultant error
-	if connType(uint(tuple.metadata)) == TCP {
+	if tuple.isTCP() {
 		_ = t.m.LookupElement(mp, unsafe.Pointer(tuple), unsafe.Pointer(stats))
 	}
 
@@ -351,7 +356,7 @@ func readBPFModule(debug bool) (*bpflib.Module, error) {
 }
 
 func (t *Tracer) timeoutForConn(c *ConnTuple) uint64 {
-	if connType(uint(c.metadata)) == TCP {
+	if c.isTCP() {
 		return uint64(t.config.TCPConnTimeout.Nanoseconds())
 	}
 	return uint64(t.config.UDPConnTimeout.Nanoseconds())
@@ -366,7 +371,8 @@ func (t *Tracer) GetStats() (map[string]interface{}, error) {
 	lost := atomic.LoadUint64(&t.perfLost)
 	received := atomic.LoadUint64(&t.perfReceived)
 	skipped := atomic.LoadUint64(&t.skippedConns)
-	return t.state.GetStats(lost, received, skipped), nil
+	expiredTCP := atomic.LoadUint64(&t.expiredTCPConns)
+	return t.state.GetStats(lost, received, skipped, expiredTCP), nil
 }
 
 // DebugNetworkState returns a map with the current tracer's internal state, for debugging

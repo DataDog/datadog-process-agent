@@ -47,7 +47,7 @@ func NewDefaultConfig() *Config {
 		CollectIPv6Conns:      true,
 		CollectLocalDNS:       false,
 		UDPConnTimeout:        30 * time.Second,
-		TCPConnTimeout:        10 * time.Minute,
+		TCPConnTimeout:        2 * time.Minute,
 		MaxTrackedConnections: 65536,
 		ProcRoot:              "/proc",
 		BPFDebug:              false,
