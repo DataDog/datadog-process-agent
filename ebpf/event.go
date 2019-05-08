@@ -47,6 +47,10 @@ func (t *ConnTuple) copy() *ConnTuple {
 	}
 }
 
+func (t *ConnTuple) isTCP() bool {
+	return connType(uint(t.metadata)) == TCP
+}
+
 /* conn_stats_ts_t
 __u64 sent_bytes;
 __u64 recv_bytes;
