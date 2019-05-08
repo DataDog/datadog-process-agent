@@ -18,7 +18,7 @@
   version = "4.8"
 
 [[projects]]
-  digest = "1:c158aba258b286b1eb1dc1b246d860881a680b821effe567b1f055bdffcab44b"
+  digest = "1:5e75a6b56c64c87e18995562b2cc9f7f3437c655fa3915cfb15d8d061b58e225"
   name = "github.com/DataDog/datadog-agent"
   packages = [
     "cmd/agent/api/response",
@@ -65,7 +65,7 @@
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "d7712d570b91f4f97af9f155ad1c676921d8325d"
+  revision = "be4d8296440be28d601268b1fb2c5a4eb1dc0ba3"
 
 [[projects]]
   digest = "1:7a91a175c283b21c6e99edc1b2fb82fe11eb5b42e7a28a2a67b17d9c28ad1855"
@@ -89,11 +89,12 @@
   revision = "233cd0cf42c26d835ed6f0e46f2103432a88b526"
 
 [[projects]]
-  digest = "1:b22f5da83ac471bbbe2a5aa1f07c8029dc82bcbf6ff832516f035fc3a314d539"
+  digest = "1:a4261d199fb200222fa77f78c343184ddcfd6ebedc71fdd966df3e7e76a1b95b"
   name = "github.com/DataDog/viper"
   packages = ["."]
   pruneopts = ""
-  revision = "v1.5.0"
+  revision = "0d6ea091c7f3660c643588f92960e87b0601ab74"
+  version = "v1.7.0"
 
 [[projects]]
   digest = "1:f3662169bf21f0406cdad064a592c5a052e8ba32f64a360d755544cd5a98dba8"
@@ -708,11 +709,12 @@
   version = "v0.9.0"
 
 [[projects]]
-  digest = "1:4b4e5848dfe7f316f95f754df071bebfb40cf4482da62e17e7e1aebdf11f4918"
+  digest = "1:cedccf16b71e86db87a24f8d4c70b0a855872eb967cb906a66b95de56aefbd0d"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   pruneopts = ""
-  revision = "d670f9405373e636a5a2765eea47fac0c9bc91a4"
+  revision = "51d6538a90f86fe93ac480b35f37b2be17fef232"
+  version = "v2.2.2"
 
 [[projects]]
   digest = "1:ba5a30c4cac85cf1d1b15f93803f16dcaa7ca7c0c22723aa3477dcd2b8a1b6d8"
