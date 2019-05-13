@@ -64,6 +64,7 @@ func NewConntracker() (Conntracker, error) {
 		statsTicker:         time.NewTicker(time.Second * 10),
 		compactTicker:       time.NewTicker(time.Hour),
 		state:               make(map[connKey]*IPTranslation),
+		buffer:              make(map[connKey]*IPTranslation),
 		maxShortLivedBuffer: 10000,
 	}
 
