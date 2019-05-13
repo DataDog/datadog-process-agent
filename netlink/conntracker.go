@@ -81,8 +81,7 @@ func NewConntracker() (Conntracker, error) {
 	}
 	ctr.registerUnlocked(sessions)
 
-	go ctr.emitStats()
-	go ctr.compact()
+	go ctr.run()
 
 	nfct.Register(context.Background(), ct.Ct, ct.NetlinkCtNew|ct.NetlinkCtExpectedNew|ct.NetlinkCtUpdate, ctr.register)
 	nfct.Register(context.Background(), ct.Ct, ct.NetlinkCtDestroy, ctr.unregister)
@@ -176,43 +175,53 @@ func (ctr *realConntracker) unregister(c ct.Conn) int {
 	return 0
 }
 
-func (ctr *realConntracker) compact() {
-	for range ctr.compactTicker.C {
-
-		ctr.Lock()
-
-		// https://github.com/golang/go/issues/20135
-		copied := make(map[connKey]*IPTranslation, len(ctr.state))
-		for k, v := range ctr.state {
-			copied[k] = v
+func (ctr *realConntracker) run() {
+	for {
+		select {
+		case _, ok := <-ctr.statsTicker.C:
+			if !ok {
+				return
+			}
+			ctr.emitStats()
+		case _, ok := <-ctr.compactTicker.C:
+			if !ok {
+				return
+			}
+			ctr.compact()
 		}
-		ctr.state = copied
-
-		ctr.Unlock()
-
 	}
 }
 
-func (ctr *realConntracker) emitStats() {
-	for range ctr.statsTicker.C {
+func (ctr *realConntracker) compact() {
+	ctr.Lock()
 
-		ctr.Lock()
-		size := len(ctr.state)
-		stBufSize := len(ctr.shortLivedBuffer)
-		ctr.Unlock()
-
-		log.Debugf("state size=%d short term buffer=%d", size, stBufSize)
-		if ctr.stats.gets != 0 {
-			log.Debugf("total gets: %d, ns/get: %f", ctr.stats.gets, float64(ctr.stats.getTimeTotal)/float64(ctr.stats.gets))
-		}
-		if ctr.stats.registers != 0 {
-			log.Debugf("total registers: %d, ns/register: %f", ctr.stats.registers, float64(ctr.stats.registersTotalTime)/float64(ctr.stats.registers))
-		}
-		atomic.StoreInt64(&ctr.stats.gets, 0)
-		atomic.StoreInt64(&ctr.stats.getTimeTotal, 0)
-		atomic.StoreInt64(&ctr.stats.registers, 0)
-		atomic.StoreInt64(&ctr.stats.registersTotalTime, 0)
+	// https://github.com/golang/go/issues/20135
+	copied := make(map[connKey]*IPTranslation, len(ctr.state))
+	for k, v := range ctr.state {
+		copied[k] = v
 	}
+	ctr.state = copied
+
+	ctr.Unlock()
+}
+
+func (ctr *realConntracker) emitStats() {
+	ctr.Lock()
+	size := len(ctr.state)
+	stBufSize := len(ctr.shortLivedBuffer)
+	ctr.Unlock()
+
+	log.Debugf("state size=%d short term buffer=%d", size, stBufSize)
+	if ctr.stats.gets != 0 {
+		log.Debugf("total gets: %d, ns/get: %f", ctr.stats.gets, float64(ctr.stats.getTimeTotal)/float64(ctr.stats.gets))
+	}
+	if ctr.stats.registers != 0 {
+		log.Debugf("total registers: %d, ns/register: %f", ctr.stats.registers, float64(ctr.stats.registersTotalTime)/float64(ctr.stats.registers))
+	}
+	atomic.StoreInt64(&ctr.stats.gets, 0)
+	atomic.StoreInt64(&ctr.stats.getTimeTotal, 0)
+	atomic.StoreInt64(&ctr.stats.registers, 0)
+	atomic.StoreInt64(&ctr.stats.registersTotalTime, 0)
 }
 
 func isNAT(c ct.Conn) bool {
