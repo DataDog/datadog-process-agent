@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	golog "log"
+	"net"
 	"sync"
 	"sync/atomic"
 	"time"
