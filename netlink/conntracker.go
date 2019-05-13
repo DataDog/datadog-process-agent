@@ -139,8 +139,8 @@ func (ctr *realConntracker) GetStats() map[string]interface{} {
 		m["nanoseconds_per_get"] = float64(ctr.stats.getTimeTotal) / float64(ctr.stats.gets)
 	}
 	if ctr.stats.registers != 0 {
-		m["registers_total"] = ctr.stats.gets
-		m["nanoseconds_per_register"] = float64(ctr.stats.getTimeTotal) / float64(ctr.stats.gets)
+		m["registers_total"] = ctr.stats.registers
+		m["nanoseconds_per_register"] = float64(ctr.stats.registersTotalTime) / float64(ctr.stats.registers)
 	}
 
 	return m
