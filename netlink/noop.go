@@ -4,6 +4,7 @@ package netlink
 
 type noOpConntracker struct{}
 
+// NewNoOpConntracker creates a conntracker which always returns empty information
 func NewNoOpConntracker() Conntracker {
 	return &noOpConntracker{}
 }

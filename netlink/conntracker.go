@@ -7,8 +7,6 @@ import (
 	"context"
 	"fmt"
 	golog "log"
-	"net"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -54,6 +52,7 @@ type realConntracker struct {
 	}
 }
 
+// NewConntracker creates a new conntracker with a short term buffer capped at the given size
 func NewConntracker(stbSize int) (Conntracker, error) {
 	if stbSize <= 0 {
 		return nil, fmt.Errorf("short term buffer size is less than 0")
@@ -247,6 +246,7 @@ func isNAT(c ct.Conn) bool {
 		originDstPort != replSrcPort
 }
 
+// ReplSrcIP extracts the source IP of the reply tuple from a conntrack entry
 func ReplSrcIP(c ct.Conn) net.IP {
 	if ipv4, ok := c[ct.AttrReplIPv4Src]; ok {
 		return net.IPv4(ipv4[0], ipv4[1], ipv4[2], ipv4[3])
@@ -259,6 +259,7 @@ func ReplSrcIP(c ct.Conn) net.IP {
 	return nil
 }
 
+// ReplDstIP extracts the dest IP of the reply tuple from a conntrack entry
 func ReplDstIP(c ct.Conn) net.IP {
 	if ipv4, ok := c[ct.AttrReplIPv4Dst]; ok {
 		return net.IPv4(ipv4[0], ipv4[1], ipv4[2], ipv4[3])
