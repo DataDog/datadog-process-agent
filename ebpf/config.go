@@ -40,6 +40,10 @@ type Config struct {
 
 	//  EnableConntrack enables probing conntrack for network address translation via netlink
 	EnableConntrack bool
+
+	// ConntrackShortTermBufferSize is the maximum number of short term conntracked connections that will
+	// held in memory at once
+	ConntrackShortTermBufferSize int
 }
 
 // NewDefaultConfig enables traffic collection for all connection types

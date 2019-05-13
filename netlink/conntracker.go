@@ -5,6 +5,7 @@ package netlink
 import (
 	"bytes"
 	"context"
+	"fmt"
 	golog "log"
 	"net"
 	"os"
@@ -52,7 +53,11 @@ type realConntracker struct {
 	}
 }
 
-func NewConntracker() (Conntracker, error) {
+func NewConntracker(stbSize int) (Conntracker, error) {
+	if stbSize <= 0 {
+		return nil, fmt.Errorf("short term buffer size is less than 0")
+	}
+
 	nfct, err := ct.Open(&ct.Config{ReadTimeout: 10 * time.Millisecond, Logger: golog.New(os.Stdout, "go-conntrack", 0)})
 	if err != nil {
 		return nil, err
@@ -64,7 +69,7 @@ func NewConntracker() (Conntracker, error) {
 		compactTicker:       time.NewTicker(time.Hour),
 		state:               make(map[connKey]*IPTranslation),
 		shortLivedBuffer:    make(map[connKey]*IPTranslation),
-		maxShortLivedBuffer: 10000,
+		maxShortLivedBuffer: stbSize,
 	}
 
 	// seed the state
