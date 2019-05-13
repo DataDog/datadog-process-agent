@@ -72,14 +72,14 @@ func NewConntracker() (Conntracker, error) {
 	if err != nil {
 		return nil, err
 	}
-	ctr.registerUnlocked(sessions)
+	ctr.loadInitialState(sessions)
 
 	sessions, err = nfct.Dump(ct.Ct, ct.CtIPv6)
 	if err != nil {
 		// this is not fatal because we've already seeded with IPv4
 		log.Errorf("Failed to dump IPv6")
 	}
-	ctr.registerUnlocked(sessions)
+	ctr.loadInitialState(sessions)
 
 	go ctr.run()
 
@@ -122,7 +122,7 @@ func (ctr *realConntracker) Close() {
 	ctr.nfct.Close()
 }
 
-func (ctr *realConntracker) registerUnlocked(sessions []ct.Conn) {
+func (ctr *realConntracker) loadInitialState(sessions []ct.Conn) {
 	for _, c := range sessions {
 		if isNAT(c) {
 			ctr.state[formatKey(c)] = formatIPTranslation(c)
