@@ -30,14 +30,14 @@ type connKey struct {
 }
 
 type realConntracker struct {
+	sync.Mutex
 	nfct  *ct.Nfct
-	l     *sync.Mutex
 	state map[connKey]*IPTranslation
 
 	// a short term buffer of connections to IPTranslations. Since we cannot make sure that tracer.go
 	// will try to read the translation for an IP before the delete callback happens, we will
 	// safe a fixed number of connections
-	buffer map[connKey]*IPTranslation
+	shortLivedBuffer map[connKey]*IPTranslation
 
 	// the maximum size of the short lived buffer
 	maxShortLivedBuffer int
@@ -60,11 +60,10 @@ func NewConntracker() (Conntracker, error) {
 
 	ctr := &realConntracker{
 		nfct:                nfct,
-		l:                   &sync.Mutex{},
 		statsTicker:         time.NewTicker(time.Second * 10),
 		compactTicker:       time.NewTicker(time.Hour),
 		state:               make(map[connKey]*IPTranslation),
-		buffer:              make(map[connKey]*IPTranslation),
+		shortLivedBuffer:    make(map[connKey]*IPTranslation),
 		maxShortLivedBuffer: 10000,
 	}
 
@@ -96,13 +95,13 @@ func NewConntracker() (Conntracker, error) {
 func (ctr *realConntracker) GetTranslationForConn(ip string, port uint16) *IPTranslation {
 	then := time.Now().UnixNano()
 
-	ctr.l.Lock()
-	defer ctr.l.Unlock()
+	ctr.Lock()
+	defer ctr.Unlock()
 
 	k := connKey{ip, port}
 	result, ok := ctr.state[k]
 	if !ok {
-		result = ctr.buffer[k]
+		result = ctr.shortLivedBuffer[k]
 	}
 
 	now := time.Now().UnixNano()
@@ -112,10 +111,10 @@ func (ctr *realConntracker) GetTranslationForConn(ip string, port uint16) *IPTra
 }
 
 func (ctr *realConntracker) ClearShortLived() {
-	ctr.l.Lock()
-	defer ctr.l.Unlock()
+	ctr.Lock()
+	defer ctr.Unlock()
 
-	ctr.buffer = make(map[connKey]*IPTranslation, len(ctr.buffer))
+	ctr.shortLivedBuffer = make(map[connKey]*IPTranslation, len(ctr.shortLivedBuffer))
 }
 
 func (ctr *realConntracker) Close() {
@@ -132,6 +131,8 @@ func (ctr *realConntracker) registerUnlocked(sessions []ct.Conn) {
 	}
 }
 
+// register is registered to be called whenever a conntrack update/create is called.
+// it will keep being called until it returns nonzero.
 func (ctr *realConntracker) register(c ct.Conn) int {
 	// don't both storing if the connection is not NAT
 	if !isNAT(c) {
@@ -139,8 +140,8 @@ func (ctr *realConntracker) register(c ct.Conn) int {
 	}
 
 	now := time.Now().UnixNano()
-	ctr.l.Lock()
-	defer ctr.l.Unlock()
+	ctr.Lock()
+	defer ctr.Unlock()
 
 	ctr.state[formatKey(c)] = formatIPTranslation(c)
 
@@ -151,21 +152,23 @@ func (ctr *realConntracker) register(c ct.Conn) int {
 	return 0
 }
 
+// unregister is registered to be called whenever a conntrack entry is destroyed.
+// it will keep being called until it returns nonzero.
 func (ctr *realConntracker) unregister(c ct.Conn) int {
 	if !isNAT(c) {
 		return 0
 	}
 
-	ctr.l.Lock()
-	defer ctr.l.Unlock()
+	ctr.Lock()
+	defer ctr.Unlock()
 
 	// move the mapping from the permanent to "short lived" connection
 	k := formatKey(c)
-	translation := ctr.state[k]
-	delete(ctr.state, k)
+	translation, _ := ctr.state[k]
 
-	if len(ctr.buffer) < ctr.maxShortLivedBuffer {
-		ctr.buffer[k] = translation
+	delete(ctr.state, k)
+	if len(ctr.shortLivedBuffer) < ctr.maxShortLivedBuffer {
+		ctr.shortLivedBuffer[k] = translation
 	} else {
 		log.Warn("exceeded maximum tracked short lived connections")
 	}
@@ -176,7 +179,7 @@ func (ctr *realConntracker) unregister(c ct.Conn) int {
 func (ctr *realConntracker) compact() {
 	for range ctr.compactTicker.C {
 
-		ctr.l.Lock()
+		ctr.Lock()
 
 		// https://github.com/golang/go/issues/20135
 		copied := make(map[connKey]*IPTranslation, len(ctr.state))
@@ -185,7 +188,7 @@ func (ctr *realConntracker) compact() {
 		}
 		ctr.state = copied
 
-		ctr.l.Unlock()
+		ctr.Unlock()
 
 	}
 }
@@ -193,10 +196,10 @@ func (ctr *realConntracker) compact() {
 func (ctr *realConntracker) emitStats() {
 	for range ctr.statsTicker.C {
 
-		ctr.l.Lock()
+		ctr.Lock()
 		size := len(ctr.state)
-		stBufSize := len(ctr.buffer)
-		ctr.l.Unlock()
+		stBufSize := len(ctr.shortLivedBuffer)
+		ctr.Unlock()
 
 		log.Debugf("state size=%d short term buffer=%d", size, stBufSize)
 		if ctr.stats.gets != 0 {
