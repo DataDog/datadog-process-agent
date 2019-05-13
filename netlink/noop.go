@@ -8,8 +8,10 @@ func NewNoOpConntracker() Conntracker {
 	return &noOpConntracker{}
 }
 
-func (*noOpConntracker) GetConntrackEntryForConn(ip string, port uint16) *IPTranslation {
+func (*noOpConntracker) GetTranslationForConn(ip string, port uint16) *IPTranslation {
 	return nil
 }
+
+func (*noOpConntracker) ClearShortLived() {}
 
 func (*noOpConntracker) Close() {}

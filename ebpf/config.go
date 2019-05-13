@@ -38,7 +38,7 @@ type Config struct {
 	// BPFDebug enables bpf debug logs
 	BPFDebug bool
 
-	//  EnableConntrack enables probing conntrack for natural address translation via netlink
+	//  EnableConntrack enables probing conntrack for network address translation via netlink
 	EnableConntrack bool
 }
 

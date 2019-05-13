@@ -89,9 +89,8 @@ func NewTracer(config *Config) (*Tracer, error) {
 
 	conntracker := netlink.NewNoOpConntracker()
 	if config.EnableConntrack {
-		c, err := netlink.NewConntracker()
-		if err != nil {
-			log.Errorf("could not initialize conntrack")
+		if c, err := netlink.NewConntracker(); err != nil {
+			log.Warnf("could not initialize conntrack, tracer will continue without NAT tracking")
 		} else {
 			conntracker = c
 		}
@@ -250,8 +249,7 @@ func (t *Tracer) getConnections(active []ConnectionStats) ([]ConnectionStats, ui
 				atomic.AddUint64(&t.skippedConns, 1)
 			} else {
 				// lookup conntrack in for active
-
-				conn.IPTranslation = t.conntracker.GetConntrackEntryForConn(conn.Source, conn.SPort)
+				conn.IPTranslation = t.conntracker.GetTranslationForConn(conn.Source, conn.SPort)
 				active = append(active, conn)
 			}
 		}
@@ -263,6 +261,8 @@ func (t *Tracer) getConnections(active []ConnectionStats) ([]ConnectionStats, ui
 
 	// check for expired clients in the state
 	t.state.RemoveExpiredClients(time.Now())
+
+	t.conntracker.ClearShortLived()
 
 	for _, key := range closedPortBindings {
 		t.portMapping.RemoveMapping(key)

@@ -19,7 +19,8 @@ import (
 
 // Conntracker is a wrapper around go-conntracker that keeps a record of all connections in user space
 type Conntracker interface {
-	GetConntrackEntryForConn(ip string, port uint16) *IPTranslation
+	GetTranslationForConn(ip string, port uint16) *IPTranslation
+	ClearShortLived()
 	Close()
 }
 
@@ -32,6 +33,14 @@ type realConntracker struct {
 	nfct  *ct.Nfct
 	l     *sync.Mutex
 	state map[connKey]*IPTranslation
+
+	// a short term buffer of connections to IPTranslations. Since we cannot make sure that tracer.go
+	// will try to read the translation for an IP before the delete callback happens, we will
+	// safe a fixed number of connections
+	buffer map[connKey]*IPTranslation
+
+	// the maximum size of the short lived buffer
+	maxShortLivedBuffer int
 
 	statsTicker   *time.Ticker
 	compactTicker *time.Ticker
@@ -50,11 +59,12 @@ func NewConntracker() (Conntracker, error) {
 	}
 
 	ctr := &realConntracker{
-		nfct:          nfct,
-		l:             &sync.Mutex{},
-		statsTicker:   time.NewTicker(time.Second * 10),
-		compactTicker: time.NewTicker(time.Hour),
-		state:         make(map[connKey]*IPTranslation),
+		nfct:                nfct,
+		l:                   &sync.Mutex{},
+		statsTicker:         time.NewTicker(time.Second * 10),
+		compactTicker:       time.NewTicker(time.Hour),
+		state:               make(map[connKey]*IPTranslation),
+		maxShortLivedBuffer: 10000,
 	}
 
 	// seed the state
@@ -82,18 +92,29 @@ func NewConntracker() (Conntracker, error) {
 	return ctr, nil
 }
 
-func (ctr *realConntracker) GetConntrackEntryForConn(ip string, port uint16) *IPTranslation {
+func (ctr *realConntracker) GetTranslationForConn(ip string, port uint16) *IPTranslation {
 	then := time.Now().UnixNano()
 
 	ctr.l.Lock()
 	defer ctr.l.Unlock()
 
-	result := ctr.state[connKey{ip, port}]
+	k := connKey{ip, port}
+	result, ok := ctr.state[k]
+	if !ok {
+		result = ctr.buffer[k]
+	}
 
 	now := time.Now().UnixNano()
 	atomic.AddInt64(&ctr.stats.gets, 1)
 	atomic.AddInt64(&ctr.stats.getTimeTotal, now-then)
 	return result
+}
+
+func (ctr *realConntracker) ClearShortLived() {
+	ctr.l.Lock()
+	defer ctr.l.Unlock()
+
+	ctr.buffer = make(map[connKey]*IPTranslation, len(ctr.buffer))
 }
 
 func (ctr *realConntracker) Close() {
@@ -137,7 +158,16 @@ func (ctr *realConntracker) unregister(c ct.Conn) int {
 	ctr.l.Lock()
 	defer ctr.l.Unlock()
 
-	delete(ctr.state, formatKey(c))
+	// move the mapping from the permanent to "short lived" connection
+	k := formatKey(c)
+	translation := ctr.state[k]
+	delete(ctr.state, k)
+
+	if len(ctr.buffer) < ctr.maxShortLivedBuffer {
+		ctr.buffer[k] = translation
+	} else {
+		log.Warn("exceeded maximum tracked short lived connections")
+	}
 
 	return 0
 }
@@ -147,6 +177,7 @@ func (ctr *realConntracker) compact() {
 
 		ctr.l.Lock()
 
+		// https://github.com/golang/go/issues/20135
 		copied := make(map[connKey]*IPTranslation, len(ctr.state))
 		for k, v := range ctr.state {
 			copied[k] = v
@@ -163,9 +194,10 @@ func (ctr *realConntracker) emitStats() {
 
 		ctr.l.Lock()
 		size := len(ctr.state)
+		stBufSize := len(ctr.buffer)
 		ctr.l.Unlock()
 
-		log.Debugf("state size %d", size)
+		log.Debugf("state size=%d short term buffer=%d", size, stBufSize)
 		if ctr.stats.gets != 0 {
 			log.Debugf("total gets: %d, ns/get: %f", ctr.stats.gets, float64(ctr.stats.getTimeTotal)/float64(ctr.stats.gets))
 		}
@@ -195,24 +227,20 @@ func isNAT(c ct.Conn) bool {
 	replSrcPort, _ := c.Uint16(ct.AttrReplPortSrc)
 	replDstPort, _ := c.Uint16(ct.AttrReplPortDst)
 
-	nat := !bytes.Equal(originSrcIPv4, replDstIPv4) ||
+	return !bytes.Equal(originSrcIPv4, replDstIPv4) ||
 		!bytes.Equal(originSrcIPv6, replDstIPv6) ||
 		!bytes.Equal(originDstIPv4, replSrcIPv4) ||
 		!bytes.Equal(originDstIPv6, replSrcIPv6) ||
 		originSrcPort != replDstPort ||
 		originDstPort != replSrcPort
-
-	return nat
 }
 
 func ReplSrcIP(c ct.Conn) net.IP {
-	ipv4, ok := c[ct.AttrReplIPv4Src]
-	if ok {
+	if ipv4, ok := c[ct.AttrReplIPv4Src]; ok {
 		return net.IPv4(ipv4[0], ipv4[1], ipv4[2], ipv4[3])
 	}
 
-	ipv6, ok := c[ct.AttrReplIPv6Src]
-	if ok {
+	if ipv6, ok := c[ct.AttrReplIPv6Src]; ok {
 		return net.IP(ipv6)
 	}
 
@@ -220,13 +248,11 @@ func ReplSrcIP(c ct.Conn) net.IP {
 }
 
 func ReplDstIP(c ct.Conn) net.IP {
-	ipv4, ok := c[ct.AttrReplIPv4Dst]
-	if ok {
+	if ipv4, ok := c[ct.AttrReplIPv4Dst]; ok {
 		return net.IPv4(ipv4[0], ipv4[1], ipv4[2], ipv4[3])
 	}
 
-	ipv6, ok := c[ct.AttrReplIPv6Dst]
-	if ok {
+	if ipv6, ok := c[ct.AttrReplIPv6Dst]; ok {
 		return net.IP(ipv6)
 	}
 

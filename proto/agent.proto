@@ -371,11 +371,11 @@ message Connection {
 	uint32 lastRetransmits = 18;
 	ConnectionDirection direction = 19;
 
-  // Network namespace
+	// Network namespace
 	uint32 netNS = 20;
 
- // the conntrack entry associated with the connection. May be null on systems which don't support querying conntrack.
-  IPTranslation ipTranslation = 21;
+	// the conntrack entry associated with the connection. May be null on systems which don't support querying conntrack.
+	IPTranslation ipTranslation = 21;
 }
 
 message Addr {
