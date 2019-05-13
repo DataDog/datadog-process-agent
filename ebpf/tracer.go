@@ -145,6 +145,7 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 				} else {
 					t.state.StoreClosedConnection(cs)
 				}
+				cs.IPTranslation = t.conntracker.GetTranslationForConn(cs.Source, cs.SPort)
 			case lostCount, ok := <-lostChannel:
 				if !ok {
 					return
