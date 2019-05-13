@@ -146,6 +146,7 @@ end
 desc "Generate easyjson code"
 task :easyjson do
   sh "easyjson ebpf/event_common.go"
+  sh "easyjson netlink/event.go"
 end
 
 desc "Regenerate protobuf definitions and easyjson definitions"

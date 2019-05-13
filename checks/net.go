@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/ebpf"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/net"
+	"github.com/DataDog/datadog-process-agent/netlink"
 )
 
 var (
@@ -193,7 +194,7 @@ func formatDirection(d ebpf.ConnectionDirection) model.ConnectionDirection {
 	}
 }
 
-func formatIPTranslation(ct *ebpf.IPTranslation) *model.IPTranslation {
+func formatIPTranslation(ct *netlink.IPTranslation) *model.IPTranslation {
 	if ct == nil {
 		return nil
 	}

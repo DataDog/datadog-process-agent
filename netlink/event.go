@@ -1,5 +1,6 @@
 package netlink
 
+// IPTranslation can be associated with a connection to show show the connection is NAT'd
 //easyjson:json
 type IPTranslation struct {
 	ReplSrcIP   string `json:"repl_src_ip"`
