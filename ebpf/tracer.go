@@ -391,7 +391,14 @@ func (t *Tracer) GetStats() (map[string]interface{}, error) {
 	received := atomic.LoadUint64(&t.perfReceived)
 	skipped := atomic.LoadUint64(&t.skippedConns)
 	expiredTCP := atomic.LoadUint64(&t.expiredTCPConns)
-	return t.state.GetStats(lost, received, skipped, expiredTCP), nil
+
+	stateStats := t.state.GetStats(lost, received, skipped, expiredTCP)
+	conntrackStats := t.conntracker.GetStats()
+
+	return map[string]interface{}{
+		"conntrack": conntrackStats,
+		"state":     stateStats,
+	}, nil
 }
 
 // DebugNetworkState returns a map with the current tracer's internal state, for debugging

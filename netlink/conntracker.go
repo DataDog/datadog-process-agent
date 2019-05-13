@@ -22,6 +22,7 @@ import (
 type Conntracker interface {
 	GetTranslationForConn(ip string, port uint16) *IPTranslation
 	ClearShortLived()
+	GetStats() map[string]interface{}
 	Close()
 }
 
@@ -121,6 +122,30 @@ func (ctr *realConntracker) ClearShortLived() {
 	ctr.shortLivedBuffer = make(map[connKey]*IPTranslation, len(ctr.shortLivedBuffer))
 }
 
+func (ctr *realConntracker) GetStats() map[string]interface{} {
+	// only a few stats are are locked
+	ctr.Lock()
+	size := len(ctr.state)
+	stBufSize := len(ctr.shortLivedBuffer)
+	ctr.Unlock()
+
+	m := map[string]interface{}{
+		"state_size":             size,
+		"short_term_buffer_size": stBufSize,
+	}
+
+	if ctr.stats.gets != 0 {
+		m["gets_total"] = ctr.stats.gets
+		m["nanoseconds_per_get"] = float64(ctr.stats.getTimeTotal) / float64(ctr.stats.gets)
+	}
+	if ctr.stats.registers != 0 {
+		m["registers_total"] = ctr.stats.gets
+		m["nanoseconds_per_register"] = float64(ctr.stats.getTimeTotal) / float64(ctr.stats.gets)
+	}
+
+	return m
+}
+
 func (ctr *realConntracker) Close() {
 	ctr.statsTicker.Stop()
 	ctr.compactTicker.Stop()
@@ -181,24 +206,14 @@ func (ctr *realConntracker) unregister(c ct.Conn) int {
 }
 
 func (ctr *realConntracker) run() {
-	for {
-		select {
-		case _, ok := <-ctr.statsTicker.C:
-			if !ok {
-				return
-			}
-			ctr.emitStats()
-		case _, ok := <-ctr.compactTicker.C:
-			if !ok {
-				return
-			}
-			ctr.compact()
-		}
+	for range ctr.compactTicker.C {
+		ctr.compact()
 	}
 }
 
 func (ctr *realConntracker) compact() {
 	ctr.Lock()
+	defer ctr.Unlock()
 
 	// https://github.com/golang/go/issues/20135
 	copied := make(map[connKey]*IPTranslation, len(ctr.state))
@@ -206,27 +221,6 @@ func (ctr *realConntracker) compact() {
 		copied[k] = v
 	}
 	ctr.state = copied
-
-	ctr.Unlock()
-}
-
-func (ctr *realConntracker) emitStats() {
-	ctr.Lock()
-	size := len(ctr.state)
-	stBufSize := len(ctr.shortLivedBuffer)
-	ctr.Unlock()
-
-	log.Debugf("state size=%d short term buffer=%d", size, stBufSize)
-	if ctr.stats.gets != 0 {
-		log.Debugf("total gets: %d, ns/get: %f", ctr.stats.gets, float64(ctr.stats.getTimeTotal)/float64(ctr.stats.gets))
-	}
-	if ctr.stats.registers != 0 {
-		log.Debugf("total registers: %d, ns/register: %f", ctr.stats.registers, float64(ctr.stats.registersTotalTime)/float64(ctr.stats.registers))
-	}
-	atomic.StoreInt64(&ctr.stats.gets, 0)
-	atomic.StoreInt64(&ctr.stats.getTimeTotal, 0)
-	atomic.StoreInt64(&ctr.stats.registers, 0)
-	atomic.StoreInt64(&ctr.stats.registersTotalTime, 0)
 }
 
 func isNAT(c ct.Conn) bool {
