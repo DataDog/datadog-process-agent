@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-process-agent/ebpf"
 	"github.com/DataDog/datadog-process-agent/model"
 	"github.com/DataDog/datadog-process-agent/net"
+	"github.com/DataDog/datadog-process-agent/netlink"
 )
 
 var (
@@ -152,6 +153,7 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats) []*mo
 			LastBytesReceived:  conn.LastRecvBytes,
 			LastRetransmits:    conn.LastRetransmits,
 			Direction:          formatDirection(conn.Direction),
+			IpTranslation:      formatIPTranslation(conn.IPTranslation),
 		})
 	}
 	return cxs
@@ -189,6 +191,19 @@ func formatDirection(d ebpf.ConnectionDirection) model.ConnectionDirection {
 		return model.ConnectionDirection_local
 	default:
 		return model.ConnectionDirection_unspecified
+	}
+}
+
+func formatIPTranslation(ct *netlink.IPTranslation) *model.IPTranslation {
+	if ct == nil {
+		return nil
+	}
+
+	return &model.IPTranslation{
+		ReplSrcIP:   ct.ReplSrcIP,
+		ReplDstIP:   ct.ReplDstIP,
+		ReplSrcPort: int32(ct.ReplSrcPort),
+		ReplDstPort: int32(ct.ReplDstPort),
 	}
 }
 

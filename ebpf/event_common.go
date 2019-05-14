@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+
+	"github.com/DataDog/datadog-process-agent/netlink"
 )
 
 // ConnectionType will be either TCP or UDP
@@ -88,11 +90,12 @@ type ConnectionStats struct {
 	Pid   uint32 `json:"pid"`
 	NetNS uint32 `json:"net_ns"`
 
-	SPort     uint16              `json:"sport"`
-	DPort     uint16              `json:"dport"`
-	Type      ConnectionType      `json:"type"`
-	Family    ConnectionFamily    `json:"family"`
-	Direction ConnectionDirection `json:"direction"`
+	SPort         uint16                 `json:"sport"`
+	DPort         uint16                 `json:"dport"`
+	Type          ConnectionType         `json:"type"`
+	Family        ConnectionFamily       `json:"family"`
+	Direction     ConnectionDirection    `json:"direction"`
+	IPTranslation *netlink.IPTranslation `json:"conntrack"`
 }
 
 func (c ConnectionStats) String() string {

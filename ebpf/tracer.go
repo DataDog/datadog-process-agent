@@ -12,6 +12,7 @@ import (
 	"unsafe"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-process-agent/netlink"
 	bpflib "github.com/iovisor/gobpf/elf"
 )
 
@@ -23,6 +24,8 @@ type Tracer struct {
 	state          NetworkState
 	portMapping    *PortMapping
 	localAddresses map[string]struct{}
+
+	conntracker netlink.Conntracker
 
 	perfMap *bpflib.PerfMap
 
@@ -84,6 +87,15 @@ func NewTracer(config *Config) (*Tracer, error) {
 
 	localAddresses := readLocalAddresses()
 
+	conntracker := netlink.NewNoOpConntracker()
+	if config.EnableConntrack {
+		if c, err := netlink.NewConntracker(config.ConntrackShortTermBufferSize); err != nil {
+			log.Warnf("could not initialize conntrack, tracer will continue without NAT tracking")
+		} else {
+			conntracker = c
+		}
+	}
+
 	tr := &Tracer{
 		m:              m,
 		config:         config,
@@ -92,6 +104,7 @@ func NewTracer(config *Config) (*Tracer, error) {
 		localAddresses: localAddresses,
 		buffer:         make([]ConnectionStats, 0, 512),
 		buf:            &bytes.Buffer{},
+		conntracker:    conntracker,
 	}
 
 	tr.perfMap, err = tr.initPerfPolling()
@@ -130,6 +143,7 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 				if t.shouldSkipConnection(&cs) {
 					atomic.AddUint64(&t.skippedConns, 1)
 				} else {
+					cs.IPTranslation = t.conntracker.GetTranslationForConn(cs.Source, cs.SPort)
 					t.state.StoreClosedConnection(cs)
 				}
 			case lostCount, ok := <-lostChannel:
@@ -162,6 +176,7 @@ func (t *Tracer) shouldSkipConnection(conn *ConnectionStats) bool {
 func (t *Tracer) Stop() {
 	_ = t.m.Close()
 	t.perfMap.PollStop()
+	t.conntracker.Close()
 }
 
 func (t *Tracer) GetActiveConnections(clientID string) (*Connections, error) {
@@ -234,6 +249,8 @@ func (t *Tracer) getConnections(active []ConnectionStats) ([]ConnectionStats, ui
 			if t.shouldSkipConnection(&conn) {
 				atomic.AddUint64(&t.skippedConns, 1)
 			} else {
+				// lookup conntrack in for active
+				conn.IPTranslation = t.conntracker.GetTranslationForConn(conn.Source, conn.SPort)
 				active = append(active, conn)
 			}
 		}
@@ -245,6 +262,8 @@ func (t *Tracer) getConnections(active []ConnectionStats) ([]ConnectionStats, ui
 
 	// check for expired clients in the state
 	t.state.RemoveExpiredClients(time.Now())
+
+	t.conntracker.ClearShortLived()
 
 	for _, key := range closedPortBindings {
 		t.portMapping.RemoveMapping(key)
@@ -372,7 +391,14 @@ func (t *Tracer) GetStats() (map[string]interface{}, error) {
 	received := atomic.LoadUint64(&t.perfReceived)
 	skipped := atomic.LoadUint64(&t.skippedConns)
 	expiredTCP := atomic.LoadUint64(&t.expiredTCPConns)
-	return t.state.GetStats(lost, received, skipped, expiredTCP), nil
+
+	stateStats := t.state.GetStats(lost, received, skipped, expiredTCP)
+	conntrackStats := t.conntracker.GetStats()
+
+	return map[string]interface{}{
+		"conntrack": conntrackStats,
+		"state":     stateStats,
+	}, nil
 }
 
 // DebugNetworkState returns a map with the current tracer's internal state, for debugging

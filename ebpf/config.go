@@ -37,6 +37,13 @@ type Config struct {
 
 	// BPFDebug enables bpf debug logs
 	BPFDebug bool
+
+	//  EnableConntrack enables probing conntrack for network address translation via netlink
+	EnableConntrack bool
+
+	// ConntrackShortTermBufferSize is the maximum number of short term conntracked connections that will
+	// held in memory at once
+	ConntrackShortTermBufferSize int
 }
 
 // NewDefaultConfig enables traffic collection for all connection types
@@ -51,6 +58,7 @@ func NewDefaultConfig() *Config {
 		MaxTrackedConnections: 65536,
 		ProcRoot:              "/proc",
 		BPFDebug:              false,
+		EnableConntrack:       true,
 	}
 }
 
