@@ -15,8 +15,8 @@ var (
 		Pid:                123,
 		Type:               1,
 		Family:             0,
-		Source:             "192.168.0.1",
-		Dest:               "192.168.0.103",
+		Source:             V4Address(231201201),
+		Dest:               V6Address(123123123, 987654321),
 		SPort:              123,
 		DPort:              35000,
 		MonotonicSentBytes: 123123,
@@ -32,15 +32,15 @@ func TestBeautifyKey(t *testing.T) {
 			Pid:    345,
 			Type:   0,
 			Family: 1,
-			Source: "127.0.0.1",
-			Dest:   "192.168.0.103",
+			Source: V4Address(889192575),
+			Dest:   V4Address(123192319),
 			SPort:  4444,
 			DPort:  8888,
 		},
 	} {
 		bk, err := c.ByteKey(buf)
 		require.NoError(t, err)
-		expected := fmt.Sprintf(keyFmt, c.Pid, c.Source, c.SPort, c.Dest, c.DPort, c.Family, c.Type)
+		expected := fmt.Sprintf(keyFmt, c.Pid, c.SourceAddr().String(), c.SPort, c.DestAddr().String(), c.DPort, c.Family, c.Type)
 		assert.Equal(t, expected, BeautifyKey(string(bk)))
 	}
 }
