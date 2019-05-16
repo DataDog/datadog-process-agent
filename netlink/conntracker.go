@@ -213,8 +213,8 @@ func (ctr *realConntracker) unregister(c ct.Conn) int {
 	}
 
 	then := time.Now().UnixNano()
-	atomic.AddInt64(&ctr.stats.registers, 1)
-	atomic.AddInt64(&ctr.stats.registersTotalTime, then-now)
+	atomic.AddInt64(&ctr.stats.unregisters, 1)
+	atomic.AddInt64(&ctr.stats.unregistersTotalTime, then-now)
 
 	return 0
 }
