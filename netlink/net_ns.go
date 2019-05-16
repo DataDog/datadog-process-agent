@@ -8,21 +8,16 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-// guessRootNetNSFd guesses the file descriptor of the root net NS
+// getGlobalNetNSFD guesses the file descriptor of the root net NS
 // and returns 0 in case of failure
-func guessRootNetNSFd(procRoot string) int {
-	for _, path := range []string{
-		procRoot + "/1/ns/net",
-		"/proc/1/ns/net",
-	} {
-		file, err := os.Open(path)
-		if err != nil {
-			log.Debugf("could not attach to net namespace at %s: %v", path, err)
-			continue
-		}
-
-		log.Debugf("attaching to net namespace at %s", path)
-		return int(file.Fd())
+func getGlobalNetNSFD(procRoot string) int {
+	path := procRoot + "/1/ns/net"
+	file, err := os.Open(path)
+	if err != nil {
+		log.Warnf("could not attach to net namespace at %s: %v", path, err)
+		return 0
 	}
-	return 0
+
+	log.Infof("attaching to net namespace at %s", path)
+	return int(file.Fd())
 }
