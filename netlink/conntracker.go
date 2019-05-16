@@ -58,7 +58,9 @@ func NewConntracker(stbSize int) (Conntracker, error) {
 		return nil, fmt.Errorf("short term buffer size is less than 0")
 	}
 
-	nfct, err := ct.Open(&ct.Config{ReadTimeout: 10 * time.Millisecond})
+	netns := guessRootNetNSFd()
+
+	nfct, err := ct.Open(&ct.Config{ReadTimeout: 10 * time.Millisecond, NetNS: netns})
 	if err != nil {
 		return nil, err
 	}
