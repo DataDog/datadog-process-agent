@@ -45,10 +45,12 @@ type realConntracker struct {
 	statsTicker   *time.Ticker
 	compactTicker *time.Ticker
 	stats         struct {
-		gets               int64
-		getTimeTotal       int64
-		registers          int64
-		registersTotalTime int64
+		gets                 int64
+		getTimeTotal         int64
+		registers            int64
+		registersTotalTime   int64
+		unregisters          int64
+		unregistersTotalTime int64
 	}
 }
 
@@ -143,6 +145,11 @@ func (ctr *realConntracker) GetStats() map[string]interface{} {
 		m["registers_total"] = ctr.stats.registers
 		m["nanoseconds_per_register"] = float64(ctr.stats.registersTotalTime) / float64(ctr.stats.registers)
 	}
+	if ctr.stats.unregisters != 0 {
+		m["unregisters_total"] = ctr.stats.unregisters
+		m["nanoseconds_per_unregister"] = float64(ctr.stats.unregistersTotalTime) / float64(ctr.stats.unregisters)
+
+	}
 
 	return m
 }
@@ -189,6 +196,8 @@ func (ctr *realConntracker) unregister(c ct.Conn) int {
 		return 0
 	}
 
+	now := time.Now().UnixNano()
+
 	ctr.Lock()
 	defer ctr.Unlock()
 
@@ -202,6 +211,10 @@ func (ctr *realConntracker) unregister(c ct.Conn) int {
 	} else {
 		log.Warn("exceeded maximum tracked short lived connections")
 	}
+
+	then := time.Now().UnixNano()
+	atomic.AddInt64(&ctr.stats.unregisters, 1)
+	atomic.AddInt64(&ctr.stats.unregistersTotalTime, then-now)
 
 	return 0
 }
