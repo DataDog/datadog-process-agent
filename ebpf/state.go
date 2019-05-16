@@ -239,7 +239,7 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 			closedConn.MonotonicRetransmits += activeConn.MonotonicRetransmits
 
 			ns.createStatsForKey(client, key)
-			ns.updateConnWithStatsAndActiveConn(client, key, *activeConn, &closedConn)
+			ns.updateConnWithStatWithActiveConn(client, key, *activeConn, &closedConn)
 		} else {
 			ns.updateConnWithStats(client, key, &closedConn)
 		}
@@ -276,7 +276,9 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 	return conns
 }
 
-func (ns *networkState) updateConnWithStatsAndActiveConn(client *client, key string, active ConnectionStats, closed *ConnectionStats) {
+// This is used to update the stats when we process a closed connection that became active again
+// in this case we want the stats to reflect the new active connections in order to avoid underflows
+func (ns *networkState) updateConnWithStatWithActiveConn(client *client, key string, active ConnectionStats, closed *ConnectionStats) {
 	if st, ok := client.stats[key]; ok {
 		// Check for underflow
 		if closed.MonotonicSentBytes < st.totalSent || closed.MonotonicRecvBytes < st.totalRecv || closed.MonotonicRetransmits < st.totalRetransmits {
