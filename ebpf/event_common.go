@@ -72,8 +72,9 @@ type Connections struct {
 //easyjson:json
 type ConnectionStats struct {
 	// Source & Dest represented as a string to handle both IPv4 & IPv6
-	Source Address `json:"source"`
-	Dest   Address `json:"dest"`
+	// Note: As ebpf.Address is an interface, we need to use interface{} for easyjson
+	Source interface{} `json:"source,string"`
+	Dest   interface{} `json:"dest,string"`
 
 	MonotonicSentBytes uint64 `json:"monotonic_sent_bytes"`
 	LastSentBytes      uint64 `json:"last_sent_bytes"`
@@ -96,6 +97,14 @@ type ConnectionStats struct {
 	Family        ConnectionFamily       `json:"family"`
 	Direction     ConnectionDirection    `json:"direction"`
 	IPTranslation *netlink.IPTranslation `json:"conntrack"`
+}
+
+func (c ConnectionStats) SourceAddr() Address {
+	return c.Source.(Address)
+}
+
+func (c ConnectionStats) DestAddr() Address {
+	return c.Dest.(Address)
 }
 
 func (c ConnectionStats) String() string {
@@ -127,7 +136,7 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 	if _, err := buffer.Write(buf[:]); err != nil {
 		return nil, err
 	}
-	if _, err := buffer.Write(c.Source.Bytes()); err != nil {
+	if _, err := buffer.Write(c.SourceAddr().Bytes()); err != nil {
 		return nil, err
 	}
 	buffer.WriteRune('|')
@@ -137,7 +146,7 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 		return nil, err
 	}
 	buffer.WriteRune('|')
-	if _, err := buffer.Write(c.Dest.Bytes()); err != nil {
+	if _, err := buffer.Write(c.DestAddr().Bytes()); err != nil {
 		return nil, err
 	}
 	return buffer.Bytes(), nil
@@ -147,7 +156,15 @@ const keyFmt = "p:%d|src:%s:%d|dst:%s:%d|f:%d|t:%d"
 
 // BeautifyKey returns a human readable byte key (used for debugging purposes)
 // it should be in sync with ByteKey
+// Note: This is only used in /debug/* endpoints
 func BeautifyKey(key string) string {
+	bytesToAddress := func(buf []byte) Address {
+		if len(buf) == 4 {
+			return V4AddressFromBytes(buf)
+		}
+		return V6AddressFromBytes(buf)
+	}
+
 	raw := []byte(key)
 
 	// First 8 bytes are pid and ports
@@ -171,11 +188,4 @@ func BeautifyKey(key string) string {
 	}
 
 	return fmt.Sprintf(keyFmt, pid, source, sport, dest, dport, family, typ)
-}
-
-func bytesToAddress(buf []byte) Address {
-	if len(buf) == 4 {
-		return V4AddressFromBytes(buf)
-	}
-	return V6AddressFromBytes(buf)
 }

@@ -3,11 +3,14 @@ package ebpf
 import (
 	"encoding/binary"
 	"net"
+
+	"github.com/mailru/easyjson/jwriter"
 )
 
 type Address interface {
 	Bytes() []byte
 	String() string
+	MarshalEasyJSON(w *jwriter.Writer)
 }
 
 type v4Address [4]byte
@@ -35,6 +38,10 @@ func (a v4Address) String() string {
 	return net.IPv4(a[0], a[1], a[2], a[3]).String()
 }
 
+func (a v4Address) MarshalEasyJSON(w *jwriter.Writer) {
+	w.String(a.String())
+}
+
 type v6Address [16]byte
 
 func V6Address(low, high uint64) Address {
@@ -56,4 +63,8 @@ func (a v6Address) Bytes() []byte {
 
 func (a v6Address) String() string {
 	return net.IP(a[:]).String()
+}
+
+func (a v6Address) MarshalEasyJSON(w *jwriter.Writer) {
+	w.String(a.String())
 }

@@ -141,9 +141,21 @@ func easyjson5f1d7f40DecodeGithubComDataDogDatadogProcessAgentEbpf1(in *jlexer.L
 		}
 		switch key {
 		case "source":
-			out.Source = string(in.String())
+			if m, ok := out.Source.(easyjson.Unmarshaler); ok {
+				m.UnmarshalEasyJSON(in)
+			} else if m, ok := out.Source.(json.Unmarshaler); ok {
+				_ = m.UnmarshalJSON(in.Raw())
+			} else {
+				out.Source = in.Interface()
+			}
 		case "dest":
-			out.Dest = string(in.String())
+			if m, ok := out.Dest.(easyjson.Unmarshaler); ok {
+				m.UnmarshalEasyJSON(in)
+			} else if m, ok := out.Dest.(json.Unmarshaler); ok {
+				_ = m.UnmarshalJSON(in.Raw())
+			} else {
+				out.Dest = in.Interface()
+			}
 		case "monotonic_sent_bytes":
 			out.MonotonicSentBytes = uint64(in.Uint64())
 		case "last_sent_bytes":
@@ -204,7 +216,13 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		} else {
 			out.RawString(prefix)
 		}
-		out.String(string(in.Source))
+		if m, ok := in.Source.(easyjson.Marshaler); ok {
+			m.MarshalEasyJSON(out)
+		} else if m, ok := in.Source.(json.Marshaler); ok {
+			out.Raw(m.MarshalJSON())
+		} else {
+			out.Raw(json.Marshal(in.Source))
+		}
 	}
 	{
 		const prefix string = ",\"dest\":"
@@ -214,7 +232,13 @@ func easyjson5f1d7f40EncodeGithubComDataDogDatadogProcessAgentEbpf1(out *jwriter
 		} else {
 			out.RawString(prefix)
 		}
-		out.String(string(in.Dest))
+		if m, ok := in.Dest.(easyjson.Marshaler); ok {
+			m.MarshalEasyJSON(out)
+		} else if m, ok := in.Dest.(json.Marshaler); ok {
+			out.Raw(m.MarshalJSON())
+		} else {
+			out.Raw(json.Marshal(in.Dest))
+		}
 	}
 	{
 		const prefix string = ",\"monotonic_sent_bytes\":"

@@ -132,6 +132,11 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats) []*mo
 			createTimeForPID[conn.Pid] = 0
 		}
 
+		source, dest, ok := formatIPs(conn.Source, conn.Dest)
+		if !ok {
+			continue
+		}
+
 		cxs = append(cxs, &model.Connection{
 			Pid:           int32(conn.Pid),
 			PidCreateTime: createTimeForPID[conn.Pid],
@@ -139,11 +144,11 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats) []*mo
 			Family:        formatFamily(conn.Family),
 			Type:          formatType(conn.Type),
 			Laddr: &model.Addr{
-				Ip:   conn.Source,
+				Ip:   source,
 				Port: int32(conn.SPort),
 			},
 			Raddr: &model.Addr{
-				Ip:   conn.Dest,
+				Ip:   dest,
 				Port: int32(conn.DPort),
 			},
 			TotalBytesSent:     conn.MonotonicSentBytes,
@@ -157,6 +162,22 @@ func (c *ConnectionsCheck) formatConnections(conns []ebpf.ConnectionStats) []*mo
 		})
 	}
 	return cxs
+}
+
+// These are written as strings via the easyjson marshaller in ebpf.Address
+func formatIPs(sourceIP, destIP interface{}) (string, string, bool) {
+	source, ok := sourceIP.(string)
+	if !ok {
+		log.Errorf("failed to cast source IP interface to string %s", sourceIP)
+		return "", "", false
+	}
+
+	dest, ok := destIP.(string)
+	if !ok {
+		log.Errorf("failed to cast dest IP interface to string %s", destIP)
+		return "", "", false
+	}
+	return source, dest, true
 }
 
 func formatFamily(f ebpf.ConnectionFamily) model.ConnectionFamily {

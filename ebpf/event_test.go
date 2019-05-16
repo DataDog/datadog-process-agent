@@ -28,7 +28,7 @@ func TestBeautifyKey(t *testing.T) {
 	buf := &bytes.Buffer{}
 	for _, c := range []ConnectionStats{
 		testConn,
-		ConnectionStats{
+		{
 			Pid:    345,
 			Type:   0,
 			Family: 1,
@@ -60,8 +60,8 @@ func BenchmarkUniqueConnKeyByteBuffer(b *testing.B) {
 	buf := new(bytes.Buffer)
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
-		buf.WriteString(c.Source)
-		buf.WriteString(c.Dest)
+		buf.WriteString(c.SourceAddr().String())
+		buf.WriteString(c.DestAddr().String())
 		binary.Write(buf, binary.LittleEndian, c.Pid)
 		binary.Write(buf, binary.LittleEndian, c.Type)
 		binary.Write(buf, binary.LittleEndian, c.Family)
@@ -79,11 +79,11 @@ func BenchmarkUniqueConnKeyByteBufferPacked(b *testing.B) {
 		// PID (32 bits) + SPort (16 bits) + DPort (16 bits) = 64 bits
 		p0 := uint64(c.Pid)<<32 | uint64(c.SPort)<<16 | uint64(c.DPort)
 		binary.Write(buf, binary.LittleEndian, p0)
-		buf.WriteString(c.Source)
+		buf.WriteString(c.SourceAddr().String())
 		// Family (8 bits) + Type (8 bits) = 16 bits
 		p1 := uint16(c.Family)<<8 | uint16(c.Type)
 		binary.Write(buf, binary.LittleEndian, p1)
-		buf.WriteString(c.Dest)
+		buf.WriteString(c.DestAddr().String())
 		buf.Bytes()
 	}
 }
