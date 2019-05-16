@@ -43,6 +43,7 @@ build_windows:
   allow_failure: false
   before_script:
     - if exist %GOPATH%\src\github.com\StackVista\stackstate-process-agent rd /s/q %GOPATH%\src\github.com\StackVista\stackstate-process-agent
+    - if exist %GOPATH%\pkg rd /s/q %GOPATH%\pkg
     - mkdir %GOPATH%\src\github.com\StackVista\stackstate-process-agent
     - xcopy /q/h/e/s * %GOPATH%\src\github.com\StackVista\stackstate-process-agent
     - cd %GOPATH%\src\github.com\StackVista\stackstate-process-agent
