@@ -53,12 +53,14 @@ type realConntracker struct {
 }
 
 // NewConntracker creates a new conntracker with a short term buffer capped at the given size
-func NewConntracker(stbSize int) (Conntracker, error) {
+func NewConntracker(procRoot string, stbSize int) (Conntracker, error) {
 	if stbSize <= 0 {
 		return nil, fmt.Errorf("short term buffer size is less than 0")
 	}
 
-	nfct, err := ct.Open(&ct.Config{ReadTimeout: 10 * time.Millisecond})
+	netns := guessRootNetNSFd(procRoot)
+
+	nfct, err := ct.Open(&ct.Config{ReadTimeout: 10 * time.Millisecond, NetNS: netns})
 	if err != nil {
 		return nil, err
 	}
