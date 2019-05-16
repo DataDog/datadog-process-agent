@@ -24,6 +24,12 @@ func V4Address(ip uint32) Address {
 	return a
 }
 
+func V4AddressFromString(ip string) Address {
+	var a v4Address
+	copy(a[:], []byte(net.ParseIP(ip))[12:16])
+	return a
+}
+
 func V4AddressFromBytes(buf []byte) Address {
 	var a v4Address
 	copy(a[:], buf)
@@ -48,6 +54,12 @@ func V6Address(low, high uint64) Address {
 	var a v6Address
 	binary.LittleEndian.PutUint64(a[:8], high)
 	binary.LittleEndian.PutUint64(a[8:], low)
+	return a
+}
+
+func V6AddressFromString(ip string) Address {
+	var a v6Address
+	copy(a[:], []byte(net.ParseIP(ip)))
 	return a
 }
 

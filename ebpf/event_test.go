@@ -15,8 +15,8 @@ var (
 		Pid:                123,
 		Type:               1,
 		Family:             0,
-		Source:             V4Address(231201201),
-		Dest:               V6Address(123123123, 987654321),
+		Source:             V4AddressFromString("192.168.0.1"),
+		Dest:               V4AddressFromString("192.168.0.103"),
 		SPort:              123,
 		DPort:              35000,
 		MonotonicSentBytes: 123123,
@@ -32,8 +32,8 @@ func TestBeautifyKey(t *testing.T) {
 			Pid:    345,
 			Type:   0,
 			Family: 1,
-			Source: V4Address(889192575),
-			Dest:   V4Address(123192319),
+			Source: V4AddressFromString("127.0.0.1"),
+			Dest:   V4AddressFromString("192.168.0.103"),
 			SPort:  4444,
 			DPort:  8888,
 		},
@@ -90,61 +90,52 @@ func BenchmarkUniqueConnKeyByteBufferPacked(b *testing.B) {
 
 func TestConnStatsByteKey(t *testing.T) {
 	buf := new(bytes.Buffer)
+	addrA := V4AddressFromString("127.0.0.1")
+	addrB := V4AddressFromString("127.0.0.2")
+
 	for _, test := range []struct {
 		a ConnectionStats
 		b ConnectionStats
 	}{
-		{
-			a: ConnectionStats{Pid: 1},
-			b: ConnectionStats{},
+		{ // Port is different
+			a: ConnectionStats{Source: addrA, Dest: addrB, Pid: 1},
+			b: ConnectionStats{Source: addrA, Dest: addrB},
 		},
-		{
-			a: ConnectionStats{Family: 1},
-			b: ConnectionStats{},
+		{ // Family is different
+			a: ConnectionStats{Source: addrA, Dest: addrB, Family: 1},
+			b: ConnectionStats{Source: addrA, Dest: addrB},
 		},
-		{
-			a: ConnectionStats{Type: 1},
-			b: ConnectionStats{},
+		{ // Type is different
+			a: ConnectionStats{Source: addrA, Dest: addrB, Type: 1},
+			b: ConnectionStats{Source: addrA, Dest: addrB},
 		},
-		{
-			a: ConnectionStats{Source: "hello"},
-			b: ConnectionStats{},
+		{ // Source is different
+			a: ConnectionStats{Source: V4AddressFromString("123.255.123.0"), Dest: addrB},
+			b: ConnectionStats{Source: addrA, Dest: addrB},
 		},
-		{
-			a: ConnectionStats{Dest: "goodbye"},
-			b: ConnectionStats{},
+		{ // Dest is different
+			a: ConnectionStats{Source: addrA, Dest: V4AddressFromString("129.0.1.2")},
+			b: ConnectionStats{Source: addrA, Dest: addrB},
 		},
-		{
-			a: ConnectionStats{SPort: 1},
-			b: ConnectionStats{},
+		{ // Source port is different
+			a: ConnectionStats{Source: addrA, Dest: addrB, SPort: 1},
+			b: ConnectionStats{Source: addrA, Dest: addrB},
 		},
-		{
-			a: ConnectionStats{DPort: 1},
-			b: ConnectionStats{},
+		{ // Dest port is different
+			a: ConnectionStats{Source: addrA, Dest: addrB, DPort: 1},
+			b: ConnectionStats{Source: addrA, Dest: addrB},
 		},
-		{
-			a: ConnectionStats{Pid: 1, Family: 0, Type: 1, Source: "a"},
-			b: ConnectionStats{Pid: 1, Family: 0, Type: 1, Source: "b"},
+		{ // Fields set, but sources are different
+			a: ConnectionStats{Pid: 1, Family: 0, Type: 1, Source: addrA, Dest: addrB},
+			b: ConnectionStats{Pid: 1, Family: 0, Type: 1, Source: addrB, Dest: addrB},
 		},
-		{
-			a: ConnectionStats{Pid: 1, Dest: "b", Family: 0, Type: 1, Source: "a"},
-			b: ConnectionStats{Pid: 1, Dest: "a", Family: 0, Type: 1, Source: "b"},
+		{ // Both sources and dest are different
+			a: ConnectionStats{Pid: 1, Dest: addrB, Family: 0, Type: 1, Source: addrA},
+			b: ConnectionStats{Pid: 1, Dest: addrA, Family: 0, Type: 1, Source: addrB},
 		},
-		{
-			a: ConnectionStats{Pid: 1, Dest: "", Family: 0, Type: 1, Source: "a"},
-			b: ConnectionStats{Pid: 1, Dest: "a", Family: 0, Type: 1, Source: ""},
-		},
-		{
-			a: ConnectionStats{Pid: 1, Dest: "b", Family: 0, Type: 1},
-			b: ConnectionStats{Pid: 1, Family: 0, Type: 1, Source: "b"},
-		},
-		{
-			a: ConnectionStats{Pid: 1, Dest: "b", Family: 1},
-			b: ConnectionStats{Pid: 1, Dest: "b", Type: 1},
-		},
-		{
-			a: ConnectionStats{Pid: 1, Dest: "b", Type: 0, SPort: 3},
-			b: ConnectionStats{Pid: 1, Dest: "b", Type: 0, DPort: 3},
+		{ // Family and Type are different
+			a: ConnectionStats{Pid: 1, Source: addrA, Dest: addrB, Family: 1},
+			b: ConnectionStats{Pid: 1, Source: addrA, Dest: addrB, Type: 1},
 		},
 	} {
 		var keyA, keyB string
