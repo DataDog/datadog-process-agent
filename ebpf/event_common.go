@@ -72,8 +72,8 @@ type Connections struct {
 //easyjson:json
 type ConnectionStats struct {
 	// Source & Dest represented as a string to handle both IPv4 & IPv6
-	Source string `json:"source"`
-	Dest   string `json:"dest"`
+	Source Address `json:"source"`
+	Dest   Address `json:"dest"`
 
 	MonotonicSentBytes uint64 `json:"monotonic_sent_bytes"`
 	LastSentBytes      uint64 `json:"last_sent_bytes"`
@@ -127,7 +127,7 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 	if _, err := buffer.Write(buf[:]); err != nil {
 		return nil, err
 	}
-	if _, err := buffer.WriteString(c.Source); err != nil {
+	if _, err := buffer.Write(c.Source.Bytes()); err != nil {
 		return nil, err
 	}
 	buffer.WriteRune('|')
@@ -137,7 +137,7 @@ func (c ConnectionStats) ByteKey(buffer *bytes.Buffer) ([]byte, error) {
 		return nil, err
 	}
 	buffer.WriteRune('|')
-	if _, err := buffer.WriteString(c.Dest); err != nil {
+	if _, err := buffer.Write(c.Dest.Bytes()); err != nil {
 		return nil, err
 	}
 	return buffer.Bytes(), nil
@@ -159,11 +159,11 @@ func BeautifyKey(key string) string {
 	// Them we have the source addr, family + type and dest addr
 	parts := bytes.Split(raw[8:], []byte{'|'})
 
-	var source, dest string
+	var source, dest Address
 	var family, typ uint8
 	if len(parts) == 3 {
-		source = string(parts[0])
-		dest = string(parts[2])
+		source = bytesToAddress(parts[0])
+		dest = bytesToAddress(parts[2])
 		if len(parts[1]) == 1 {
 			family = (parts[1][0] >> 4) & 0xf
 			typ = parts[1][0] & 0xf
@@ -171,4 +171,11 @@ func BeautifyKey(key string) string {
 	}
 
 	return fmt.Sprintf(keyFmt, pid, source, sport, dest, dport, family, typ)
+}
+
+func bytesToAddress(buf []byte) Address {
+	if len(buf) == 4 {
+		return V4AddressFromBytes(buf)
+	}
+	return V6AddressFromBytes(buf)
 }
