@@ -2,7 +2,6 @@ package ebpf
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"testing"
 
@@ -42,49 +41,6 @@ func TestBeautifyKey(t *testing.T) {
 		require.NoError(t, err)
 		expected := fmt.Sprintf(keyFmt, c.Pid, c.SourceAddr().String(), c.SPort, c.DestAddr().String(), c.DPort, c.Family, c.Type)
 		assert.Equal(t, expected, BeautifyKey(string(bk)))
-	}
-}
-
-var sink string
-
-func BenchmarkUniqueConnKeyString(b *testing.B) {
-	c := testConn
-	for n := 0; n < b.N; n++ {
-		sink = fmt.Sprintf("%d-%d-%d-%s-%d-%s-%d", c.Pid, c.Type, c.Family, c.Source, c.SPort, c.Dest, c.DPort)
-	}
-	sink += ""
-}
-
-func BenchmarkUniqueConnKeyByteBuffer(b *testing.B) {
-	c := testConn
-	buf := new(bytes.Buffer)
-	for n := 0; n < b.N; n++ {
-		buf.Reset()
-		buf.WriteString(c.SourceAddr().String())
-		buf.WriteString(c.DestAddr().String())
-		binary.Write(buf, binary.LittleEndian, c.Pid)
-		binary.Write(buf, binary.LittleEndian, c.Type)
-		binary.Write(buf, binary.LittleEndian, c.Family)
-		binary.Write(buf, binary.LittleEndian, c.SPort)
-		binary.Write(buf, binary.LittleEndian, c.DPort)
-		buf.Bytes()
-	}
-}
-
-func BenchmarkUniqueConnKeyByteBufferPacked(b *testing.B) {
-	c := testConn
-	buf := new(bytes.Buffer)
-	for n := 0; n < b.N; n++ {
-		buf.Reset()
-		// PID (32 bits) + SPort (16 bits) + DPort (16 bits) = 64 bits
-		p0 := uint64(c.Pid)<<32 | uint64(c.SPort)<<16 | uint64(c.DPort)
-		binary.Write(buf, binary.LittleEndian, p0)
-		buf.WriteString(c.SourceAddr().String())
-		// Family (8 bits) + Type (8 bits) = 16 bits
-		p1 := uint16(c.Family)<<8 | uint16(c.Type)
-		binary.Write(buf, binary.LittleEndian, p1)
-		buf.WriteString(c.DestAddr().String())
-		buf.Bytes()
 	}
 }
 

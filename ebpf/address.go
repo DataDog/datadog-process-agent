@@ -29,7 +29,7 @@ func V4Address(ip uint32) Address {
 // V4AddressFromString creates an Address using the string representation of an v4 IP
 func V4AddressFromString(ip string) Address {
 	var a v4Address
-	copy(a[:], []byte(net.ParseIP(ip))[12:16])
+	copy(a[:], net.ParseIP(ip).To4())
 	return a
 }
 
