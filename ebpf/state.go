@@ -141,7 +141,20 @@ func (ns *networkState) Connections(id string, latestTime uint64, latestConns []
 	// Update all connections with relevant up-to-date stats for client
 	conns := ns.mergeConnections(id, connsByKey)
 
-	// Flush closed connection map
+	// XXX: we should change the way we clean this map once
+	// https://github.com/golang/go/issues/20135 is solved
+	newStats := make(map[string]*stats, len(ns.clients[id].stats))
+	for key, st := range ns.clients[id].stats {
+		// Don't keep closed connections' stats
+		_, isClosed := ns.clients[id].closedConnections[key]
+		_, isActive := connsByKey[key]
+		if !isClosed || isActive {
+			newStats[key] = st
+		}
+	}
+	ns.clients[id].stats = newStats
+
+	// Flush closed connection map and stats
 	ns.clients[id].closedConnections = map[string]ConnectionStats{}
 
 	return conns
@@ -226,13 +239,9 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 			closedConn.MonotonicRetransmits += activeConn.MonotonicRetransmits
 
 			ns.createStatsForKey(client, key)
-			ns.updateConnWithStats(client, key, &closedConn)
+			ns.updateConnWithStatWithActiveConn(client, key, *activeConn, &closedConn)
 		} else {
 			ns.updateConnWithStats(client, key, &closedConn)
-			// Since connection is no longer active, lets just remove the stats object afterwords
-			if _, ok := client.stats[key]; ok {
-				delete(client.stats, key)
-			}
 		}
 
 		conns = append(conns, closedConn)
@@ -265,6 +274,30 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 	}
 
 	return conns
+}
+
+// This is used to update the stats when we process a closed connection that became active again
+// in this case we want the stats to reflect the new active connections in order to avoid underflows
+func (ns *networkState) updateConnWithStatWithActiveConn(client *client, key string, active ConnectionStats, closed *ConnectionStats) {
+	if st, ok := client.stats[key]; ok {
+		// Check for underflow
+		if closed.MonotonicSentBytes < st.totalSent || closed.MonotonicRecvBytes < st.totalRecv || closed.MonotonicRetransmits < st.totalRetransmits {
+			ns.telemetry.underflows++
+		} else {
+			closed.LastSentBytes = closed.MonotonicSentBytes - st.totalSent
+			closed.LastRecvBytes = closed.MonotonicRecvBytes - st.totalRecv
+			closed.LastRetransmits = closed.MonotonicRetransmits - st.totalRetransmits
+		}
+
+		// Update stats object with latest values
+		st.totalSent = active.MonotonicSentBytes
+		st.totalRecv = active.MonotonicRecvBytes
+		st.totalRetransmits = active.MonotonicRetransmits
+	} else {
+		closed.LastSentBytes = closed.MonotonicSentBytes
+		closed.LastRecvBytes = closed.MonotonicRecvBytes
+		closed.LastRetransmits = closed.MonotonicRetransmits
+	}
 }
 
 func (ns *networkState) updateConnWithStats(client *client, key string, c *ConnectionStats) {
