@@ -99,10 +99,12 @@ type ConnectionStats struct {
 	IPTranslation *netlink.IPTranslation `json:"conntrack"`
 }
 
+// SourceAddr returns the source address in the Address abstraction
 func (c ConnectionStats) SourceAddr() Address {
 	return c.Source.(Address)
 }
 
+// DestAddr returns the dest address in the Address abstraction
 func (c ConnectionStats) DestAddr() Address {
 	return c.Dest.(Address)
 }
