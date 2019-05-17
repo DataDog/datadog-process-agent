@@ -143,7 +143,7 @@ func (t *Tracer) initPerfPolling() (*bpflib.PerfMap, error) {
 				if t.shouldSkipConnection(&cs) {
 					atomic.AddUint64(&t.skippedConns, 1)
 				} else {
-					cs.IPTranslation = t.conntracker.GetTranslationForConn(cs.Source, cs.SPort)
+					cs.IPTranslation = t.conntracker.GetTranslationForConn(cs.SourceAddr().String(), cs.SPort)
 					t.state.StoreClosedConnection(cs)
 				}
 			case lostCount, ok := <-lostChannel:
@@ -250,7 +250,7 @@ func (t *Tracer) getConnections(active []ConnectionStats) ([]ConnectionStats, ui
 				atomic.AddUint64(&t.skippedConns, 1)
 			} else {
 				// lookup conntrack in for active
-				conn.IPTranslation = t.conntracker.GetTranslationForConn(conn.Source, conn.SPort)
+				conn.IPTranslation = t.conntracker.GetTranslationForConn(conn.SourceAddr().String(), conn.SPort)
 				active = append(active, conn)
 			}
 		}
@@ -447,8 +447,8 @@ func (t *Tracer) populatePortMapping(mp *bpflib.Map) ([]uint16, error) {
 }
 
 func (t *Tracer) determineConnectionDirection(conn *ConnectionStats) ConnectionDirection {
-	sourceLocal := t.isLocalAddress(conn.Source)
-	destLocal := t.isLocalAddress(conn.Dest)
+	sourceLocal := t.isLocalAddress(conn.SourceAddr())
+	destLocal := t.isLocalAddress(conn.DestAddr())
 
 	if sourceLocal && destLocal {
 		return LOCAL
@@ -461,8 +461,8 @@ func (t *Tracer) determineConnectionDirection(conn *ConnectionStats) ConnectionD
 	return OUTGOING
 }
 
-func (t *Tracer) isLocalAddress(address string) bool {
-	_, ok := t.localAddresses[address]
+func (t *Tracer) isLocalAddress(address Address) bool {
+	_, ok := t.localAddresses[address.String()]
 	return ok
 }
 
