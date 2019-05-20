@@ -86,7 +86,8 @@ func newConntrackerOnce(procRoot string, stbSize int) (Conntracker, error) {
 
 	netns := getGlobalNetNSFD(procRoot)
 
-	nfct, err := ct.Open(&ct.Config{ReadTimeout: 10 * time.Millisecond, NetNS: netns})
+	logger := getLogger()
+	nfct, err := ct.Open(&ct.Config{ReadTimeout: 10 * time.Millisecond, NetNS: netns, Logger: logger})
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +107,7 @@ func newConntrackerOnce(procRoot string, stbSize int) (Conntracker, error) {
 		return nil, err
 	}
 	ctr.loadInitialState(sessions)
+	log.Debugf("seeded IPv4 state")
 
 	sessions, err = nfct.Dump(ct.Ct, ct.CtIPv6)
 	if err != nil {
@@ -113,11 +115,15 @@ func newConntrackerOnce(procRoot string, stbSize int) (Conntracker, error) {
 		log.Errorf("Failed to dump IPv6")
 	}
 	ctr.loadInitialState(sessions)
+	log.Debugf("seeded IPv6 state")
 
 	go ctr.run()
 
 	nfct.Register(context.Background(), ct.Ct, ct.NetlinkCtNew|ct.NetlinkCtExpectedNew|ct.NetlinkCtUpdate, ctr.register)
+	log.Debugf("initialized register hook")
+
 	nfct.Register(context.Background(), ct.Ct, ct.NetlinkCtDestroy, ctr.unregister)
+	log.Debugf("initialized unregister hook")
 
 	log.Infof("initialized conntrack")
 
