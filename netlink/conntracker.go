@@ -56,6 +56,30 @@ type realConntracker struct {
 
 // NewConntracker creates a new conntracker with a short term buffer capped at the given size
 func NewConntracker(procRoot string, stbSize int) (Conntracker, error) {
+	type result struct {
+		c Conntracker
+		e error
+	}
+
+	attempts := 3
+	for i := 0; i < attempts; i++ {
+		rs := make(chan result)
+		go func() {
+			c, err := newConntrackerOnce(procRoot, stbSize)
+			rs <- result{c, err}
+		}()
+
+		select {
+		case <-time.After(time.Second * 5):
+			log.Debugf("could not initialize conntrack after 5 seconds (attempt %d)", i+1)
+		case r := <-rs:
+			return r.c, r.e
+		}
+	}
+	return nil, fmt.Errorf("could not create conntrack after %d tries", attempts)
+}
+
+func newConntrackerOnce(procRoot string, stbSize int) (Conntracker, error) {
 	if stbSize <= 0 {
 		return nil, fmt.Errorf("short term buffer size is less than 0")
 	}
