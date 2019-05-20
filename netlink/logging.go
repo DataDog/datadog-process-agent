@@ -8,6 +8,7 @@ import (
 	agentlog "github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
+// getLogger creates a log.Logger which forwards logs to the agent's logging package
 func getLogger() *log.Logger {
 	reader, writer := io.Pipe()
 

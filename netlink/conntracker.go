@@ -14,6 +14,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 
 	ct "github.com/florianl/go-conntrack"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -80,7 +81,7 @@ func NewConntracker(procRoot string, stbSize int) (Conntracker, error) {
 	case <-done:
 		return conntracker, err
 	case <-time.After(initializationTimeout):
-		return nil, fmt.Errorf("could not initialize conntrack after %s", initializationTimeout)
+		return nil, fmt.Errorf("could not initialize conntrack after: %s", initializationTimeout)
 	}
 }
 
@@ -99,7 +100,7 @@ func newConntrackerOnce(procRoot string, stbSize int) (Conntracker, error) {
 
 	nfctDel, err := ct.Open(&ct.Config{ReadTimeout: 10 * time.Millisecond, NetNS: netns, Logger: logger})
 	if err != nil {
-		return nil, fmt.Errorf("failed to open delete NFCT", err)
+		return nil, errors.Wrap(err, "failed to open delete NFCT")
 	}
 
 	ctr := &realConntracker{
