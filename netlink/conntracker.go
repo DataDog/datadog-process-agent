@@ -16,6 +16,10 @@ import (
 	ct "github.com/florianl/go-conntrack"
 )
 
+const (
+	initializationTimeout = time.Second * 10
+)
+
 // Conntracker is a wrapper around go-conntracker that keeps a record of all connections in user space
 type Conntracker interface {
 	GetTranslationForConn(ip string, port uint16) *IPTranslation
@@ -31,7 +35,11 @@ type connKey struct {
 
 type realConntracker struct {
 	sync.Mutex
-	nfct  *ct.Nfct
+
+	// we need two nfct handles because we can only register one callback per connection at a time
+	nfct    *ct.Nfct
+	nfctDel *ct.Nfct
+
 	state map[connKey]*IPTranslation
 
 	// a short term buffer of connections to IPTranslations. Since we cannot make sure that tracer.go
@@ -56,20 +64,47 @@ type realConntracker struct {
 
 // NewConntracker creates a new conntracker with a short term buffer capped at the given size
 func NewConntracker(procRoot string, stbSize int) (Conntracker, error) {
+	var (
+		err         error
+		conntracker Conntracker
+	)
+
+	done := make(chan struct{})
+
+	go func() {
+		conntracker, err = newConntrackerOnce(procRoot, stbSize)
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+		return conntracker, err
+	case <-time.After(initializationTimeout):
+		return nil, fmt.Errorf("could not initialize conntrack after %s", initializationTimeout)
+	}
+}
+
+func newConntrackerOnce(procRoot string, stbSize int) (Conntracker, error) {
 	if stbSize <= 0 {
 		return nil, fmt.Errorf("short term buffer size is less than 0")
 	}
 
 	netns := getGlobalNetNSFD(procRoot)
 
-	nfct, err := ct.Open(&ct.Config{ReadTimeout: 10 * time.Millisecond, NetNS: netns})
+	logger := getLogger()
+	nfct, err := ct.Open(&ct.Config{ReadTimeout: 10 * time.Millisecond, NetNS: netns, Logger: logger})
 	if err != nil {
 		return nil, err
 	}
 
+	nfctDel, err := ct.Open(&ct.Config{ReadTimeout: 10 * time.Millisecond, NetNS: netns, Logger: logger})
+	if err != nil {
+		return nil, fmt.Errorf("failed to open delete NFCT", err)
+	}
+
 	ctr := &realConntracker{
 		nfct:                nfct,
-		statsTicker:         time.NewTicker(time.Second * 10),
+		nfctDel:             nfctDel,
 		compactTicker:       time.NewTicker(time.Hour),
 		state:               make(map[connKey]*IPTranslation),
 		shortLivedBuffer:    make(map[connKey]*IPTranslation),
@@ -82,6 +117,7 @@ func NewConntracker(procRoot string, stbSize int) (Conntracker, error) {
 		return nil, err
 	}
 	ctr.loadInitialState(sessions)
+	log.Debugf("seeded IPv4 state")
 
 	sessions, err = nfct.Dump(ct.Ct, ct.CtIPv6)
 	if err != nil {
@@ -89,11 +125,15 @@ func NewConntracker(procRoot string, stbSize int) (Conntracker, error) {
 		log.Errorf("Failed to dump IPv6")
 	}
 	ctr.loadInitialState(sessions)
+	log.Debugf("seeded IPv6 state")
 
 	go ctr.run()
 
 	nfct.Register(context.Background(), ct.Ct, ct.NetlinkCtNew|ct.NetlinkCtExpectedNew|ct.NetlinkCtUpdate, ctr.register)
-	nfct.Register(context.Background(), ct.Ct, ct.NetlinkCtDestroy, ctr.unregister)
+	log.Debugf("initialized register hook")
+
+	nfctDel.Register(context.Background(), ct.Ct, ct.NetlinkCtDestroy, ctr.unregister)
+	log.Debugf("initialized unregister hook")
 
 	log.Infof("initialized conntrack")
 
@@ -155,9 +195,7 @@ func (ctr *realConntracker) GetStats() map[string]interface{} {
 }
 
 func (ctr *realConntracker) Close() {
-	ctr.statsTicker.Stop()
 	ctr.compactTicker.Stop()
-	ctr.nfct.Close()
 }
 
 func (ctr *realConntracker) loadInitialState(sessions []ct.Conn) {
