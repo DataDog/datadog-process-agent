@@ -64,7 +64,7 @@ type realConntracker struct {
 }
 
 // NewConntracker creates a new conntracker with a short term buffer capped at the given size
-func NewConntracker(procRoot string, stbSize int) (Conntracker, error) {
+func NewConntracker(procRoot string, deleteBufferSize int) (Conntracker, error) {
 	var (
 		err         error
 		conntracker Conntracker
@@ -73,7 +73,7 @@ func NewConntracker(procRoot string, stbSize int) (Conntracker, error) {
 	done := make(chan struct{})
 
 	go func() {
-		conntracker, err = newConntrackerOnce(procRoot, stbSize)
+		conntracker, err = newConntrackerOnce(procRoot, deleteBufferSize)
 		done <- struct{}{}
 	}()
 
@@ -85,8 +85,8 @@ func NewConntracker(procRoot string, stbSize int) (Conntracker, error) {
 	}
 }
 
-func newConntrackerOnce(procRoot string, stbSize int) (Conntracker, error) {
-	if stbSize <= 0 {
+func newConntrackerOnce(procRoot string, deleteBufferSize int) (Conntracker, error) {
+	if deleteBufferSize <= 0 {
 		return nil, fmt.Errorf("short term buffer size is less than 0")
 	}
 
@@ -109,7 +109,7 @@ func newConntrackerOnce(procRoot string, stbSize int) (Conntracker, error) {
 		compactTicker:       time.NewTicker(time.Hour),
 		state:               make(map[connKey]*IPTranslation),
 		shortLivedBuffer:    make(map[connKey]*IPTranslation),
-		maxShortLivedBuffer: stbSize,
+		maxShortLivedBuffer: deleteBufferSize,
 	}
 
 	// seed the state
