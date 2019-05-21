@@ -11,6 +11,8 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/DataDog/datadog-process-agent/util"
+
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-process-agent/netlink"
 	bpflib "github.com/iovisor/gobpf/elf"
@@ -23,7 +25,7 @@ type Tracer struct {
 
 	state          NetworkState
 	portMapping    *PortMapping
-	localAddresses map[Address]struct{}
+	localAddresses map[util.Address]struct{}
 
 	conntracker netlink.Conntracker
 
@@ -459,13 +461,13 @@ func (t *Tracer) determineConnectionDirection(conn *ConnectionStats) ConnectionD
 	return OUTGOING
 }
 
-func (t *Tracer) isLocalAddress(address Address) bool {
+func (t *Tracer) isLocalAddress(address util.Address) bool {
 	_, ok := t.localAddresses[address]
 	return ok
 }
 
-func readLocalAddresses() map[Address]struct{} {
-	addresses := make(map[Address]struct{}, 0)
+func readLocalAddresses() map[util.Address]struct{} {
+	addresses := make(map[util.Address]struct{}, 0)
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
@@ -484,8 +486,11 @@ func readLocalAddresses() map[Address]struct{} {
 		for _, addr := range addrs {
 			switch v := addr.(type) {
 			case *net.IPNet:
+				address := util.AddressFromNetIP(v.IP)
+				addresses[address] = struct{}{}
 			case *net.IPAddr:
-				addresses[NetIPToAddress(v.IP)] = struct{}{}
+				address := util.AddressFromNetIP(v.IP)
+				addresses[address] = struct{}{}
 			}
 		}
 	}

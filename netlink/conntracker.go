@@ -12,21 +12,21 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"github.com/DataDog/datadog-process-agent/ebpf"
+	"github.com/DataDog/datadog-process-agent/util"
 
 	ct "github.com/florianl/go-conntrack"
 )
 
 // Conntracker is a wrapper around go-conntracker that keeps a record of all connections in user space
 type Conntracker interface {
-	GetTranslationForConn(ip ebpf.Address, port uint16) *IPTranslation
+	GetTranslationForConn(ip util.Address, port uint16) *IPTranslation
 	ClearShortLived()
 	GetStats() map[string]interface{}
 	Close()
 }
 
 type connKey struct {
-	ip   ebpf.Address
+	ip   util.Address
 	port uint16
 }
 
@@ -101,7 +101,7 @@ func NewConntracker(procRoot string, stbSize int) (Conntracker, error) {
 	return ctr, nil
 }
 
-func (ctr *realConntracker) GetTranslationForConn(ip ebpf.Address, port uint16) *IPTranslation {
+func (ctr *realConntracker) GetTranslationForConn(ip util.Address, port uint16) *IPTranslation {
 	then := time.Now().UnixNano()
 
 	ctr.Lock()
@@ -312,7 +312,7 @@ func formatIPTranslation(c ct.Conn) *IPTranslation {
 
 func formatKey(c ct.Conn) (k connKey) {
 	if ip, err := c.OrigSrcIP(); err == nil {
-		k.ip = ebpf.NetIPToAddress(ip)
+		k.ip = util.AddressFromNetIP(ip)
 	}
 	if port, err := c.Uint16(ct.AttrOrigPortSrc); err == nil {
 		k.port = NtohsU16(port)
