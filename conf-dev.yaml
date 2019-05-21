@@ -2,6 +2,7 @@ log_level: debug
 
 api_key: API_KEY
 process_agent_enabled: true
+incremental_publishing_enabled: true
 process_config:
   enabled: 'true'
 

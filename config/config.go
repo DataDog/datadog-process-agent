@@ -89,6 +89,10 @@ type AgentConfig struct {
 	AmountTopMemoryUsage        int
 	MemoryUsageThreshold        int
 
+	// Publishing settings
+	EnableIncrementalPublishing          bool          // Reduce downstream load by only publishing incremental changes. Remote should support this
+	IncrementalPublishingRefreshInterval time.Duration // Periodically resend all data to allow downstream to recover from any lost data
+
 	// Network collection configuration
 	EnableNetworkTracing              bool
 	EnableLocalNetworkTracer          bool // To have the network tracer embedded in the process-agent
@@ -187,6 +191,9 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Path and environment for the dd-agent embedded python
 		DDAgentPy:    defaultDDAgentPy,
 		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
+
+		EnableIncrementalPublishing:          false,
+		IncrementalPublishingRefreshInterval: 1 * time.Minute,
 
 		// Network collection configuration
 		EnableNetworkTracing:              false,
@@ -573,6 +580,10 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	}
 	if v := os.Getenv("DD_NETTRACER_SOCKET"); v != "" {
 		c.NetworkTracerSocketPath = v
+	}
+
+	if ok, _ := isAffirmative(os.Getenv("STS_INCREMENTAL_PUBLISHING")); ok {
+		c.EnableIncrementalPublishing = ok
 	}
 
 	return c

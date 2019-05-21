@@ -42,6 +42,26 @@ func makeProcess(pid int32) *model.Process {
 	}
 }
 
+func makeTaggedProcess(pid int32, tags []string) *model.Process {
+	return &model.Process{
+		Pid:  pid,
+		Tags: tags,
+	}
+}
+
+func makeModelContainer(id string) *model.Container {
+	return &model.Container{
+		Id: id,
+	}
+}
+
+func makeTaggedModelContainer(id string, tags []string) *model.Container {
+	return &model.Container{
+		Id:   id,
+		Tags: tags,
+	}
+}
+
 func makeProcessStat(pid int32) *model.ProcessStat {
 	return &model.ProcessStat{
 		Pid: pid,
@@ -373,7 +393,7 @@ func TestProcessInclusions(t *testing.T) {
 			expectedPidsTags: []struct {
 				int
 				Tags
-			}{{1, []string{TopMemory, TopCPU, TopIORead, TopIOWrite}}},
+			}{{1, []string{TopCPU, TopIORead, TopIOWrite, TopMemory}}},
 			totalCPUpercentage: 25,
 			totalMemory:        40,
 		},
@@ -459,6 +479,7 @@ func TestProcessInclusions(t *testing.T) {
 			assert.True(t, len(processInclusions) <= maxTopProcesses, fmt.Sprintf("Way too many top processes reported: %d > %d", len(processInclusions), maxTopProcesses))
 
 			for _, proc := range processInclusions {
+				sort.Strings(proc.Tags)
 				pidTags := struct {
 					int
 					Tags
@@ -466,6 +487,125 @@ func TestProcessInclusions(t *testing.T) {
 				assert.Contains(t, tc.expectedPidsTags, pidTags, fmt.Sprintf("Expected pids/tags: %v, found pid/tag: %v", tc.expectedPidsTags, pidTags))
 			}
 		})
+	}
+}
+
+func TestBuildIncrementProcesses(t *testing.T) {
+	pLast := []*model.Process{
+		makeProcess(1),
+		makeTaggedProcess(2, []string{"tag"}),
+		makeTaggedProcess(3, []string{"oldtag"}),
+	}
+	pNow := []*model.Process{
+		makeTaggedProcess(2, []string{"tag"}),
+		makeTaggedProcess(3, []string{"newtag"}),
+		makeProcess(4),
+	}
+
+	commands := buildIncrement(pNow, []*model.Container{}, buildProcState(pLast), make(map[string]*model.Container))
+
+	expected := []*model.CollectorCommand{
+		&model.CollectorCommand{
+			Command: &model.CollectorCommand_UpdateProcessMetrics{
+				UpdateProcessMetrics: makeTaggedProcess(2, []string{"tag"}),
+			},
+		},
+		&model.CollectorCommand{
+			Command: &model.CollectorCommand_UpdateProcess{
+				UpdateProcess: makeTaggedProcess(3, []string{"newtag"}),
+			},
+		},
+		&model.CollectorCommand{
+			Command: &model.CollectorCommand_UpdateProcess{
+				UpdateProcess: makeProcess(4),
+			},
+		},
+		&model.CollectorCommand{
+			Command: &model.CollectorCommand_DeleteProcess{
+				DeleteProcess: makeProcess(1),
+			},
+		},
+	}
+
+	assert.Equal(t, len(expected), len(commands))
+
+	for i := 0; i < len(expected); i++ {
+		assert.EqualValues(t, expected[i], commands[i])
+	}
+}
+
+func TestBuildIncrementContainers(t *testing.T) {
+	cLast := []*model.Container{
+		makeModelContainer("1"),
+		makeTaggedModelContainer("2", []string{"tag"}),
+		makeTaggedModelContainer("3", []string{"oldtag"}),
+	}
+	cNow := []*model.Container{
+		makeTaggedModelContainer("2", []string{"tag"}),
+		makeTaggedModelContainer("3", []string{"newtag"}),
+		makeModelContainer("4"),
+	}
+
+	commands := buildIncrement([]*model.Process{}, cNow, make(map[int32]*model.Process), buildCtrState(cLast))
+
+	expected := []*model.CollectorCommand{
+		&model.CollectorCommand{
+			Command: &model.CollectorCommand_UpdateContainerMetrics{
+				UpdateContainerMetrics: makeTaggedModelContainer("2", []string{"tag"}),
+			},
+		},
+		&model.CollectorCommand{
+			Command: &model.CollectorCommand_UpdateContainer{
+				UpdateContainer: makeTaggedModelContainer("3", []string{"newtag"}),
+			},
+		},
+		&model.CollectorCommand{
+			Command: &model.CollectorCommand_UpdateContainer{
+				UpdateContainer: makeModelContainer("4"),
+			},
+		},
+		&model.CollectorCommand{
+			Command: &model.CollectorCommand_DeleteContainer{
+				DeleteContainer: makeModelContainer("1"),
+			},
+		},
+	}
+
+	assert.Equal(t, len(expected), len(commands))
+
+	for i := 0; i < len(expected); i++ {
+		assert.EqualValues(t, expected[i], commands[i])
+	}
+}
+
+func TestBuildIncrementContainerPrecedeProcesses(t *testing.T) {
+	cNow := []*model.Container{
+		makeModelContainer("1"),
+	}
+
+	pNow := []*model.Process{
+		makeProcess(1),
+	}
+
+	commands := buildIncrement(pNow, cNow, make(map[int32]*model.Process), make(map[string]*model.Container))
+
+	expected := []*model.CollectorCommand{
+		&model.CollectorCommand{
+			Command: &model.CollectorCommand_UpdateContainer{
+				UpdateContainer: makeModelContainer("1"),
+			},
+		},
+		&model.CollectorCommand{
+			Command: &model.CollectorCommand_UpdateProcess{
+				UpdateProcess: makeProcess(1),
+			},
+		},
+	}
+
+	assert.Equal(t, len(expected), len(commands))
+
+	for i := 0; i < len(expected); i++ {
+		assert.EqualValues(t, expected[i], commands[i])
 	}
 }
 
@@ -616,7 +756,7 @@ func TestProcessFormatting(t *testing.T) {
 			last[c.Pid] = c
 		}
 
-		chunked := fmtProcesses(cfg, cur, last, containers, syst2, syst1, lastRun)
+		chunked := chunkProcesses(fmtProcesses(cfg, cur, last, containers, syst2, syst1, lastRun), cfg.MaxPerMessage, make([][]*model.Process, 0))
 		assert.Len(t, chunked, tc.expectedChunks, "len %d", i)
 		total := 0
 		pids := make([]int32, 0)

@@ -111,6 +111,7 @@ message CollectorReqStatus {
 //
 
 message CollectorCommand {
+  // Tagged union, meaning the command field will contain either one of the 6 choices, to distinguish between the commands
   oneof command {
     Process updateProcess = 1;
     Process updateProcessMetrics = 2;
