@@ -14,6 +14,18 @@ type Address interface {
 	MarshalEasyJSON(w *jwriter.Writer)
 }
 
+func NetIPToAddress(ip net.IP) Address {
+	if v4 := ip.To4(); v4 != nil {
+		var a v4Address
+		copy(a[:], v4)
+		return a
+	}
+
+	var a v6Address
+	copy(a[:], ip)
+	return a
+}
+
 type v4Address [4]byte
 
 // V4Address creates an Address using the uint32 representation of an v4 IP

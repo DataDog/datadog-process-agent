@@ -1,10 +1,61 @@
 package ebpf
 
 import (
+	"net"
 	"testing"
 
-	"github.com/magiconair/properties/assert"
+	"github.com/stretchr/testify/assert"
 )
+
+func TestNetIPToAddress(t *testing.T) {
+	// V4
+	addr := V4Address(889192575)
+	addrFromIP := NetIPToAddress(net.ParseIP("127.0.0.1"))
+
+	_, ok := addrFromIP.(v4Address)
+	assert.True(t, ok)
+	assert.Equal(t, addrFromIP, addr)
+
+	// V6
+	addr = V6Address(889192575, 0)
+	addrFromIP = NetIPToAddress(net.ParseIP("::7f00:35:0:0"))
+
+	_, ok = addrFromIP.(v6Address)
+	assert.True(t, ok)
+	assert.Equal(t, addrFromIP, addr)
+
+	// Mismatch tests
+	a := NetIPToAddress(net.ParseIP("127.0.0.1"))
+	b := NetIPToAddress(net.ParseIP("::7f00:35:0:0"))
+	assert.NotEqual(t, a, b)
+
+	a = NetIPToAddress(net.ParseIP("127.0.0.1"))
+	b = NetIPToAddress(net.ParseIP("127.0.0.2"))
+	assert.NotEqual(t, a, b)
+
+	a = NetIPToAddress(net.ParseIP("::7f00:35:0:1"))
+	b = NetIPToAddress(net.ParseIP("::7f00:35:0:0"))
+	assert.NotEqual(t, a, b)
+}
+
+func TestAddressUsageInMaps(t *testing.T) {
+	addrMap := make(map[Address]struct{})
+
+	addrMap[V4Address(889192575)] = struct{}{}
+	addrMap[V6Address(889192575, 0)] = struct{}{}
+
+	_, ok := addrMap[V4AddressFromString("127.0.0.1")]
+	assert.True(t, ok)
+
+	_, ok = addrMap[V4AddressFromString("127.0.0.1")]
+	assert.False(t, ok)
+
+	_, ok = addrMap[V6AddressFromString("::7f00:35:0:0")]
+	assert.True(t, ok)
+
+	_, ok = addrMap[V6AddressFromString("::")]
+	assert.False(t, ok)
+}
 
 func TestAddressV4(t *testing.T) {
 	addr := V4Address(889192575)
