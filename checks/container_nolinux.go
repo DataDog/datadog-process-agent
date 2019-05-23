@@ -42,11 +42,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	return nil, nil
 }
 
-func fmtContainers(
-	ctrList []*containers.Container,
-	lastRates map[string]util.ContainerRateMetrics,
-	lastRun time.Time,
-	chunks int,
-) []*model.Container {
-	return make([][]*model.Container, chunks)
+func fmtContainers(ctrList []*containers.Container, lastRates map[string]util.ContainerRateMetrics, lastRun time.Time) []*model.Container {
+	return make([]*model.Container, 0, len(ctrList))
 }
