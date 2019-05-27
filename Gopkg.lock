@@ -18,7 +18,7 @@
   version = "4.8"
 
 [[projects]]
-  digest = "1:c158aba258b286b1eb1dc1b246d860881a680b821effe567b1f055bdffcab44b"
+  digest = "1:ec1877ea1b925407c27ec21b482b30941971ba88a74b3a58fddc3d6add89def7"
   name = "github.com/DataDog/datadog-agent"
   packages = [
     "cmd/agent/api/response",
@@ -65,7 +65,7 @@
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "d7712d570b91f4f97af9f155ad1c676921d8325d"
+  revision = "4f0f16c45f851f9ae72cb896c73ccbe37d271975"
 
 [[projects]]
   digest = "1:7a91a175c283b21c6e99edc1b2fb82fe11eb5b42e7a28a2a67b17d9c28ad1855"
@@ -1014,6 +1014,7 @@
     "github.com/mailru/easyjson",
     "github.com/mailru/easyjson/jlexer",
     "github.com/mailru/easyjson/jwriter",
+    "github.com/pkg/errors",
     "github.com/shirou/w32",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
