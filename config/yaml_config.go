@@ -2,11 +2,13 @@ package config
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	ddutil "github.com/DataDog/datadog-agent/pkg/util"
@@ -27,6 +29,10 @@ func key(pieces ...string) string {
 // Network-specific configuration
 func (a *AgentConfig) loadNetworkYamlConfig(path string) error {
 	loadEnvVariables()
+
+	if err := config.ResolveSecrets(config.Datadog, filepath.Base(path)); err != nil {
+		return err
+	}
 
 	a.EnableLocalNetworkTracer = config.Datadog.GetBool(key(netNS, "use_local_network_tracer"))
 
@@ -82,6 +88,10 @@ func (a *AgentConfig) loadNetworkYamlConfig(path string) error {
 // Process-specific configuration
 func (a *AgentConfig) loadProcessYamlConfig(path string) error {
 	loadEnvVariables()
+
+	if err := config.ResolveSecrets(config.Datadog, filepath.Base(path)); err != nil {
+		return err
+	}
 
 	URL, err := url.Parse(config.GetMainEndpoint("https://process.", key(ns, "process_dd_url")))
 	if err != nil {
