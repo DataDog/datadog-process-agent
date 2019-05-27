@@ -20,14 +20,12 @@ process_config:
     process: 5
     connections: 5
   process_blacklist:
+    # A list of regex patterns that will exclude a process if matched.
     patterns:
-      # A list of regex patterns that will exclude a process if matched.
       # Linux Specific patterns
       # stress is used for molecule testing
       - "stress"
       - "^-bash"
-      - "^bash$"
-      - "^yes$"
       - "^su$"
       - "^/bin/bash"
       - "^/lib/systemd/"
@@ -62,6 +60,7 @@ process_config:
       - "winlogon.exe"
       - "wlms.exe"
       - "wmiprvse.exe"
+      - "sshd.exe"
       # Should be ignored, but gets reported with an empty command line
       #- "sppsvc.exe"
       #- "services.exe"

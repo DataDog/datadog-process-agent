@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 
@@ -166,58 +165,12 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		agentConf.CheckIntervals["connections"] = time.Duration(yc.Process.Intervals.Connections) * time.Second
 	}
 
-	if yc.Process.Blacklist.Inclusions.AmountTopCPUPercentageUsage != 0 {
-		log.Infof("Overriding top CPU percentage using processes inclusions to %d", yc.Process.Blacklist.Inclusions.AmountTopCPUPercentageUsage)
-		agentConf.AmountTopCPUPercentageUsage = yc.Process.Blacklist.Inclusions.AmountTopCPUPercentageUsage
-	}
-	if yc.Process.Blacklist.Inclusions.AmountTopIOReadUsage != 0 {
-		log.Infof("Overriding top IO read using processes inclusions to %d", yc.Process.Blacklist.Inclusions.AmountTopIOReadUsage)
-		agentConf.AmountTopIOReadUsage = yc.Process.Blacklist.Inclusions.AmountTopIOReadUsage
-	}
-	if yc.Process.Blacklist.Inclusions.AmountTopIOWriteUsage != 0 {
-		log.Infof("Overriding top IO write using processes inclusions to %d", yc.Process.Blacklist.Inclusions.AmountTopIOWriteUsage)
-		agentConf.AmountTopIOWriteUsage = yc.Process.Blacklist.Inclusions.AmountTopIOWriteUsage
-	}
-	if yc.Process.Blacklist.Inclusions.AmountTopMemoryUsage != 0 {
-		log.Infof("Overriding top memory using processes inclusions to %d", yc.Process.Blacklist.Inclusions.AmountTopMemoryUsage)
-		agentConf.AmountTopMemoryUsage = yc.Process.Blacklist.Inclusions.AmountTopMemoryUsage
-	}
+	agentConf.Blacklist = deriveFmapConstructRegex(constructRegex, yc.Process.Blacklist.Patterns)
 
-	// Threshold for retrieving top CPU percentage using processes
-	if yc.Process.Blacklist.Inclusions.CPUPercentageUsageThreshold != 0 {
-		log.Infof("Overriding CPU percentage threshold for collecting top CPU using processes inclusions to %d", yc.Process.Blacklist.Inclusions.CPUPercentageUsageThreshold)
-		agentConf.CPUPercentageUsageThreshold = yc.Process.Blacklist.Inclusions.CPUPercentageUsageThreshold
-		if yc.Process.Blacklist.Inclusions.AmountTopCPUPercentageUsage <= 0 {
-			log.Warn("CPUPercentageUsageThreshold specified without AmountTopCPUPercentageUsage. Please add AmountTopCPUPercentageUsage to benefit from the top process inclusions")
-		}
-	}
-
-	// Threshold for retrieving top Memory percentage using processes
-	if yc.Process.Blacklist.Inclusions.MemoryUsageThreshold != 0 {
-		log.Infof("Overriding Memory threshold for collecting top memory using processes inclusions to %d", yc.Process.Blacklist.Inclusions.MemoryUsageThreshold)
-		agentConf.MemoryUsageThreshold = yc.Process.Blacklist.Inclusions.MemoryUsageThreshold
-		if yc.Process.Blacklist.Inclusions.AmountTopMemoryUsage <= 0 {
-			log.Warn("MemoryUsageThreshold specified without AmountTopMemoryUsage. Please add AmountTopMemoryUsage to benefit from the top process inclusions")
-		}
-	}
-
-	// log warning if blacklist inclusions is specified without patterns
-	if (yc.Process.Blacklist.Inclusions.AmountTopCPUPercentageUsage > 0 ||
-		yc.Process.Blacklist.Inclusions.AmountTopIOReadUsage > 0 ||
-		yc.Process.Blacklist.Inclusions.AmountTopIOWriteUsage > 0 ||
-		yc.Process.Blacklist.Inclusions.AmountTopMemoryUsage > 0) && len(yc.Process.Blacklist.Patterns) == 0 {
-		log.Warn("Process blacklist inclusions specified without a blacklist pattern. Please add process blacklist patterns to benefit from the top process inclusions")
-	}
-
-	blacklist := make([]*regexp.Regexp, 0, len(yc.Process.Blacklist.Patterns))
-	for _, b := range yc.Process.Blacklist.Patterns {
-		r, err := regexp.Compile(b)
-		if err != nil {
-			log.Warnf("Invalid blacklist pattern: %s", b)
-		}
-		blacklist = append(blacklist, r)
-	}
-	agentConf.Blacklist = blacklist
+	setBlacklistInclusions(agentConf, yc.Process.Blacklist.Inclusions.AmountTopCPUPercentageUsage,
+		yc.Process.Blacklist.Inclusions.AmountTopIOReadUsage, yc.Process.Blacklist.Inclusions.AmountTopIOWriteUsage,
+		yc.Process.Blacklist.Inclusions.AmountTopMemoryUsage,
+		yc.Process.Blacklist.Inclusions.CPUPercentageUsageThreshold, yc.Process.Blacklist.Inclusions.MemoryUsageThreshold)
 
 	// DataScrubber
 	if yc.Process.ScrubArgs != nil {

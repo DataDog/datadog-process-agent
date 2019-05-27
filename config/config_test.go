@@ -72,6 +72,27 @@ func TestBlacklist(t *testing.T) {
 	}
 }
 
+func TestSetBlacklistFromEnv(t *testing.T) {
+	os.Setenv("STS_PROCESS_BLACKLIST_PATTERNS", "^/usr/bin/bashbash,^sshd:")
+
+	os.Setenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_CPU", "2")
+	os.Setenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_IO_READ", "4")
+	os.Setenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_IO_WRITE", "5")
+	os.Setenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_MEM", "6")
+	os.Setenv("STS_PROCESS_BLACKLIST_INCLUSIONS_CPU_THRESHOLD", "30")
+	os.Setenv("STS_PROCESS_BLACKLIST_INCLUSIONS_MEM_THRESHOLD", "25")
+
+	agentConfig, _ := NewAgentConfig(nil, nil, nil)
+	assert.Equal(t, len(agentConfig.Blacklist), 2)
+
+	assert.Equal(t, agentConfig.AmountTopCPUPercentageUsage, 2)
+	assert.Equal(t, agentConfig.AmountTopIOReadUsage, 4)
+	assert.Equal(t, agentConfig.AmountTopIOWriteUsage, 5)
+	assert.Equal(t, agentConfig.AmountTopMemoryUsage, 6)
+	assert.Equal(t, agentConfig.CPUPercentageUsageThreshold, 30)
+	assert.Equal(t, agentConfig.MemoryUsageThreshold, 25)
+}
+
 func TestOnlyEnvConfig(t *testing.T) {
 	// setting an API Key should be enough to generate valid config
 	os.Setenv("DD_API_KEY", "apikey_from_env")
@@ -755,7 +776,6 @@ func TestEnvSiteConfig(t *testing.T) {
 		assert.NoError(err)
 		assert.Equal(tc.expected, agentConfig.APIEndpoints[0].Endpoint.Hostname())
 	}
-
 }
 
 func TestIsAffirmative(t *testing.T) {
