@@ -10,12 +10,14 @@ import (
 
 func TestCommandLineSplitting(t *testing.T) {
 	for _, tc := range []struct {
+		name     string
 		input    string
 		expected []string
 	}{
 		{
+			name: "slack",
 			input: "\"C:\\Users\\db\\AppData\\Local\\slack\app-3.1.1\\slack.exe\" --type=gpu-process --no-sandbox --supports-dual-gpus=false --gpu-driver-bug-workarounds=7,10,20,21,24,43,76 --disable-gl-extensions=\"GL_KHR_blend_equation_advanced GL_KHR_blend_equation_advanced_coherent\" --gpu-vendor-id=0x10de --gpu-device-id=0x13b2 --gpu-driver-vendor=NVIDIA --gpu-driver-version=22.21.13.8205 --gpu-driver-date=5-1-2017 --gpu-secondary-vendor-ids=0x8086 --gpu-secondary-device-ids=0x191b --service-request-channel-token=2EADF7A9FD7CB01C6A780DE1F8FEF0BB --mojo-platform-channel-handle=1708 /prefetch:2",
-			expected: {
+			expected: []string{
 				"\"C:\\Users\\db\\AppData\\Local\\slack\app-3.1.1\\slack.exe\"",
 				"--type=gpu-process",
 				"--no-sandbox",
@@ -35,8 +37,10 @@ func TestCommandLineSplitting(t *testing.T) {
 			},
 		},
 		{
+			name:  "chrome",
 			input: "\"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe\" --type=renderer --field-trial-handle=1592,5674313428440474125,10112982115004747190,131072 --service-pipe-token=E553C13F2DAFB1BDFD9B6F4F2B98B2ED --lang=en-US --enable-offline-auto-reload --enable-offline-auto-reload-visible-only --device-scale-factor=1 --num-raster-threads=4 --enable-main-frame-before-activation --enable-compositor-image-animations --service-request-channel-token=E553C13F2DAFB1BDFD9B6F4F2B98B2ED --renderer-client-id=1103 --mojo-platform-channel-handle=13292 /prefetch:1",
-			expected: {"\"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe\"",
+			expected: []string{
+				"\"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe\"",
 				"--type=renderer",
 				"--field-trial-handle=1592,5674313428440474125,10112982115004747190,131072",
 				"--service-pipe-token=E553C13F2DAFB1BDFD9B6F4F2B98B2ED",
@@ -54,7 +58,9 @@ func TestCommandLineSplitting(t *testing.T) {
 			},
 		},
 	} {
-		assert.Equal(t, tc.expected, tc.input)
+		t.Run(tc.name, func (t *testing.T) {
+			assert.Equal(t, tc.expected, parseCmdLineArgs(tc.input))
+		})
 	}
 }
 

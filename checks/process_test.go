@@ -9,17 +9,13 @@ import (
 	"regexp"
 	"sort"
 
-	// "regexp"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
-	// "github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
-	//	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/stretchr/testify/assert"
-	// "github.com/StackVista/stackstate-agent/pkg/util/containers"
 )
 
 func makeProcessWithResource(pid int32, cmdline string, resMemory, readCount, writeCount uint64, userCPU, systemCPU float64) *process.FilledProcess {
@@ -223,9 +219,7 @@ func TestProcessBlacklisting(t *testing.T) {
 }
 
 func TestProcessInclusions(t *testing.T) {
-	cfg := config.NewDefaultAgentConfig()
-
-	type Tags = []string
+	type Tags = map[string]struct{}
 	for _, tc := range []struct {
 		name                        string
 		processes                   []*ProcessCommon
@@ -236,8 +230,8 @@ func TestProcessInclusions(t *testing.T) {
 		amountTopMemoryUsage        int
 		memoryUsageThreshold        int
 		expectedPidsTags            []struct {
-			int
-			Tags
+			Pid  int
+			Tags Tags
 		}
 		totalCPUpercentage float32
 		totalMemory        uint64
@@ -301,13 +295,13 @@ func TestProcessInclusions(t *testing.T) {
 			amountTopMemoryUsage:        1,
 			memoryUsageThreshold:        35,
 			expectedPidsTags: []struct {
-				int
-				Tags
+				Pid  int
+				Tags Tags
 			}{
-				{2, []string{TopMemory}},
-				{4, []string{TopCPU}},
-				{6, []string{TopIORead}},
-				{8, []string{TopIOWrite}},
+				{2, map[string]struct{}{TopMemory: {}}},
+				{4, map[string]struct{}{TopCPU: {}}},
+				{6, map[string]struct{}{TopIORead: {}}},
+				{8, map[string]struct{}{TopIOWrite: {}}},
 			},
 			totalCPUpercentage: 25,
 			totalMemory:        40,
@@ -371,9 +365,9 @@ func TestProcessInclusions(t *testing.T) {
 			amountTopMemoryUsage:        1,
 			memoryUsageThreshold:        35,
 			expectedPidsTags: []struct {
-				int
-				Tags
-			}{{1, []string{TopMemory, TopCPU, TopIORead, TopIOWrite}}},
+				Pid  int
+				Tags Tags
+			}{{1, map[string]struct{}{TopMemory: {}, TopCPU: {}, TopIORead: {}, TopIOWrite: {}}}},
 			totalCPUpercentage: 25,
 			totalMemory:        40,
 		},
@@ -436,33 +430,34 @@ func TestProcessInclusions(t *testing.T) {
 			amountTopMemoryUsage:        1,
 			memoryUsageThreshold:        35,
 			expectedPidsTags: []struct {
-				int
-				Tags
+				Pid  int
+				Tags Tags
 			}{
-				{6, []string{TopIORead}},
-				{8, []string{TopIOWrite}},
+				{6, map[string]struct{}{TopIORead: {}}},
+				{8, map[string]struct{}{TopIOWrite: {}}},
 			},
 			totalCPUpercentage: 10,
 			totalMemory:        10,
 		},
 	} {
-		cfg.AmountTopCPUPercentageUsage = tc.amountTopCPUPercentageUsage
-		cfg.CPUPercentageUsageThreshold = tc.cpuPercentageUsageThreshold
-		cfg.AmountTopIOReadUsage = tc.amountTopIOReadUsage
-		cfg.AmountTopIOWriteUsage = tc.amountTopIOWriteUsage
-		cfg.AmountTopMemoryUsage = tc.amountTopMemoryUsage
-		cfg.MemoryUsageThreshold = tc.memoryUsageThreshold
-		maxTopProcesses := cfg.AmountTopCPUPercentageUsage + cfg.AmountTopIOReadUsage + cfg.AmountTopIOWriteUsage + cfg.AmountTopMemoryUsage
-
 		t.Run(tc.name, func(t *testing.T) {
+			cfg := config.NewDefaultAgentConfig()
+			cfg.AmountTopCPUPercentageUsage = tc.amountTopCPUPercentageUsage
+			cfg.CPUPercentageUsageThreshold = tc.cpuPercentageUsageThreshold
+			cfg.AmountTopIOReadUsage = tc.amountTopIOReadUsage
+			cfg.AmountTopIOWriteUsage = tc.amountTopIOWriteUsage
+			cfg.AmountTopMemoryUsage = tc.amountTopMemoryUsage
+			cfg.MemoryUsageThreshold = tc.memoryUsageThreshold
+			maxTopProcesses := cfg.AmountTopCPUPercentageUsage + cfg.AmountTopIOReadUsage + cfg.AmountTopIOWriteUsage + cfg.AmountTopMemoryUsage
+
 			processInclusions := getProcessInclusions(tc.processes, cfg, tc.totalCPUpercentage, tc.totalMemory)
 			assert.True(t, len(processInclusions) <= maxTopProcesses, fmt.Sprintf("Way too many top processes reported: %d > %d", len(processInclusions), maxTopProcesses))
 
 			for _, proc := range processInclusions {
 				pidTags := struct {
-					int
-					Tags
-				}{int(proc.Pid), proc.Tags}
+					Pid  int
+					Tags Tags
+				}{int(proc.Pid), deriveSet(proc.Tags)}
 				assert.Contains(t, tc.expectedPidsTags, pidTags, fmt.Sprintf("Expected pids/tags: %v, found pid/tag: %v", tc.expectedPidsTags, pidTags))
 			}
 		})
@@ -537,9 +532,9 @@ func TestProcessFormatting(t *testing.T) {
 		User: 20, System: 40, Nice: 0, Iowait: 0, Irq: 0, Softirq: 0, Steal: 0, Guest: 0,
 		GuestNice: 0, Idle: 0, Stolen: 0,
 	}
-	cfg := config.NewDefaultAgentConfig()
 
 	for i, tc := range []struct {
+		name                        string
 		cur, last                   []*process.FilledProcess
 		maxSize                     int
 		blacklist                   []string
@@ -551,8 +546,8 @@ func TestProcessFormatting(t *testing.T) {
 		amountTopMemoryUsage        int
 		expectedPids                []int32
 	}{
-		// expects all the processes to be present and chunked into 3 processes per chunk
 		{
+			name:						 "Expects all the processes to be present and chunked into 3 processes per chunk",
 			cur:                         pNow,
 			last:                        pLast,
 			maxSize:                     3,
@@ -565,9 +560,8 @@ func TestProcessFormatting(t *testing.T) {
 			amountTopMemoryUsage:        2,
 			expectedPids:                []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21},
 		},
-		//// expects all the processes not listed in the blacklist to be present as well as the top resource consuming
-		//// processes regardless of whether they are blacklisted or not
 		{
+			name:						 "Expects all the processes not listed in the blacklist to be present as well as the top resource consuming processes regardless of whether they are blacklisted or not",
 			cur:                         pNow,
 			last:                        pLast,
 			maxSize:                     3,
@@ -580,8 +574,8 @@ func TestProcessFormatting(t *testing.T) {
 			amountTopMemoryUsage:        2,
 			expectedPids:                []int32{1, 2, 3, 4, 5, 6, 11, 13, 16, 17, 20, 21},
 		},
-		// expects all the top resource consuming process only to be present in a single chunk
 		{
+			name:						 "Expects all the top resource consuming process only to be present in a single chunk",
 			cur:                         pNow,
 			last:                        pLast,
 			maxSize:                     7,
@@ -595,58 +589,64 @@ func TestProcessFormatting(t *testing.T) {
 			expectedPids:                []int32{5, 6, 11, 12, 13, 16, 20},
 		},
 	} {
-		bl := make([]*regexp.Regexp, 0, len(tc.blacklist))
-		for _, s := range tc.blacklist {
-			bl = append(bl, regexp.MustCompile(s))
-		}
-		cfg.Blacklist = bl
-		cfg.MaxPerMessage = tc.maxSize
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := config.NewDefaultAgentConfig()
 
-		cfg.AmountTopCPUPercentageUsage = tc.amountTopCPUPercentageUsage
-		cfg.AmountTopMemoryUsage = tc.amountTopMemoryUsage
-		cfg.AmountTopIOReadUsage = tc.amountTopIOReadUsage
-		cfg.AmountTopIOWriteUsage = tc.amountTopIOWriteUsage
-
-		cur := make(map[int32]*process.FilledProcess)
-		for _, c := range tc.cur {
-			cur[c.Pid] = c
-		}
-		last := make(map[int32]*process.FilledProcess)
-		for _, c := range tc.last {
-			last[c.Pid] = c
-		}
-
-		chunked := fmtProcesses(cfg, cur, last, containers, syst2, syst1, lastRun)
-		assert.Len(t, chunked, tc.expectedChunks, "len %d", i)
-		total := 0
-		pids := make([]int32, 0)
-		for _, c := range chunked {
-			total += len(c)
-			for _, proc := range c {
-				pids = append(pids, proc.Pid)
+			bl := make([]*regexp.Regexp, 0, len(tc.blacklist))
+			for _, s := range tc.blacklist {
+				bl = append(bl, regexp.MustCompile(s))
 			}
-		}
-		assert.Equal(t, tc.expectedTotal, total, "total test %d", i)
-		sort.Slice(pids, func(i, j int) bool {
-			return pids[i] < pids[j]
-		})
-		assert.Equal(t, tc.expectedPids, pids, "expected pIds: %v, found pIds: %v", tc.expectedPids, pids)
+			cfg.Blacklist = bl
+			cfg.MaxPerMessage = tc.maxSize
 
-		chunkedStat := fmtProcessStats(cfg, cur, last, containers, syst2, syst1, lastRun)
-		assert.Len(t, chunkedStat, tc.expectedChunks, "len stat %d", i)
-		total = 0
-		pids = make([]int32, 0)
-		for _, c := range chunkedStat {
-			total += len(c)
-			for _, proc := range c {
-				pids = append(pids, proc.Pid)
+			cfg.AmountTopCPUPercentageUsage = tc.amountTopCPUPercentageUsage
+			cfg.AmountTopMemoryUsage = tc.amountTopMemoryUsage
+			cfg.AmountTopIOReadUsage = tc.amountTopIOReadUsage
+			cfg.AmountTopIOWriteUsage = tc.amountTopIOWriteUsage
+
+			cur := make(map[int32]*process.FilledProcess)
+			for _, c := range tc.cur {
+				c.CpuTime.Timestamp = 60*100 //in Windows uses CpuTime.Timestamp set to now in nanos
+				cur[c.Pid] = c
 			}
-		}
-		assert.Equal(t, tc.expectedTotal, total, "total stat test %d", i)
-		sort.Slice(pids, func(i, j int) bool {
-			return pids[i] < pids[j]
+			last := make(map[int32]*process.FilledProcess)
+			for _, c := range tc.last {
+				c.CpuTime.Timestamp = 30*100 //in Windows uses CpuTime.Timestamp set to now in nanos
+				last[c.Pid] = c
+			}
+
+			chunked := fmtProcesses(cfg, cur, last, containers, syst2, syst1, lastRun)
+			assert.Len(t, chunked, tc.expectedChunks, "len %d", i)
+			total := 0
+			pids := make([]int32, 0)
+			for _, c := range chunked {
+				total += len(c)
+				for _, proc := range c {
+					pids = append(pids, proc.Pid)
+				}
+			}
+			assert.Equal(t, tc.expectedTotal, total, "total test %d", i)
+			sort.Slice(pids, func(i, j int) bool {
+				return pids[i] < pids[j]
+			})
+			assert.Equal(t, tc.expectedPids, pids, "expected pIds: %v, found pIds: %v", tc.expectedPids, pids)
+
+			chunkedStat := fmtProcessStats(cfg, cur, last, containers, syst2, syst1, lastRun)
+			assert.Len(t, chunkedStat, tc.expectedChunks, "len stat %d", i)
+			total = 0
+			pids = make([]int32, 0)
+			for _, c := range chunkedStat {
+				total += len(c)
+				for _, proc := range c {
+					pids = append(pids, proc.Pid)
+				}
+			}
+			assert.Equal(t, tc.expectedTotal, total, "total stat test %d", i)
+			sort.Slice(pids, func(i, j int) bool {
+				return pids[i] < pids[j]
+			})
+			assert.Equal(t, tc.expectedPids, pids, "expected pIds: %v, found pIds: %v", tc.expectedPids, pids)
 		})
-		assert.Equal(t, tc.expectedPids, pids, "expected pIds: %v, found pIds: %v", tc.expectedPids, pids)
 	}
 }
 
