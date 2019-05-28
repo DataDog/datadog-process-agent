@@ -1,3 +1,5 @@
+//go:generate goderive .
+
 package config
 
 import (
@@ -181,6 +183,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Statsd for internal instrumentation
 		StatsdHost: "127.0.0.1",
 		StatsdPort: 8125,
+
+		Blacklist: deriveFmapConstructRegex(constructRegex, defaultBlacklistPatterns),
 
 		// Top resource using process inclusion amounts
 		AmountTopCPUPercentageUsage: 0,
@@ -574,6 +578,7 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	}
 
 	// Note: this feature is in development and should not be used in production environments
+	// STS: ignore DD notes, this will enable our tcptracer-ebpf and that is production ready
 	if ok, _ := isAffirmative(os.Getenv("DD_NETWORK_TRACING_ENABLED")); ok {
 		c.EnabledChecks = append(c.EnabledChecks, "connections")
 		c.EnableNetworkTracing = ok
@@ -586,7 +591,92 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		c.EnableIncrementalPublishing = ok
 	}
 
+	if v := os.Getenv("STS_PROCESS_BLACKLIST_PATTERNS"); v != "" {
+		patterns := strings.Split(v, ",")
+		c.Blacklist = deriveFmapConstructRegex(constructRegex, patterns)
+	}
+
+	amountTopCPUPercentageUsage, amountTopIOReadUsage, amountTopIOWriteUsage, amountTopMemoryUsage := 0, 0, 0, 0
+	CPUPercentageUsageThreshold, memoryUsageThreshold := 0, 0
+	if v, err := strconv.Atoi(os.Getenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_CPU")); err == nil {
+		amountTopCPUPercentageUsage = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_IO_READ")); err == nil {
+		amountTopIOReadUsage = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_IO_WRITE")); err == nil {
+		amountTopIOWriteUsage = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_MEM")); err == nil {
+		amountTopMemoryUsage = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("STS_PROCESS_BLACKLIST_INCLUSIONS_CPU_THRESHOLD")); err == nil {
+		CPUPercentageUsageThreshold = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("STS_PROCESS_BLACKLIST_INCLUSIONS_MEM_THRESHOLD")); err == nil {
+		memoryUsageThreshold = v
+	}
+	setBlacklistInclusions(c, amountTopCPUPercentageUsage, amountTopIOReadUsage, amountTopIOWriteUsage, amountTopMemoryUsage,
+		CPUPercentageUsageThreshold, memoryUsageThreshold)
+
 	return c
+}
+
+func setBlacklistInclusions(agentConf *AgentConfig,
+	amountTopCPUPercentageUsage int, amountTopIOReadUsage int, amountTopIOWriteUsage int, amountTopMemoryUsage int,
+	CPUPercentageUsageThreshold int, MemoryUsageThreshold int,
+) {
+	if amountTopCPUPercentageUsage != 0 {
+		log.Infof("Overriding top CPU percentage using processes inclusions to %d", amountTopCPUPercentageUsage)
+		agentConf.AmountTopCPUPercentageUsage = amountTopCPUPercentageUsage
+	}
+	if amountTopIOReadUsage != 0 {
+		log.Infof("Overriding top IO read using processes inclusions to %d", amountTopIOReadUsage)
+		agentConf.AmountTopIOReadUsage = amountTopIOReadUsage
+	}
+	if amountTopIOWriteUsage != 0 {
+		log.Infof("Overriding top IO write using processes inclusions to %d", amountTopIOWriteUsage)
+		agentConf.AmountTopIOWriteUsage = amountTopIOWriteUsage
+	}
+	if amountTopMemoryUsage != 0 {
+		log.Infof("Overriding top memory using processes inclusions to %d", amountTopMemoryUsage)
+		agentConf.AmountTopMemoryUsage = amountTopMemoryUsage
+	}
+
+	// Threshold for retrieving top CPU percentage using processes
+	if CPUPercentageUsageThreshold != 0 {
+		log.Infof("Overriding CPU percentage threshold for collecting top CPU using processes inclusions to %d", CPUPercentageUsageThreshold)
+		agentConf.CPUPercentageUsageThreshold = CPUPercentageUsageThreshold
+		if amountTopCPUPercentageUsage <= 0 {
+			log.Warn("CPUPercentageUsageThreshold specified without AmountTopCPUPercentageUsage. Please add AmountTopCPUPercentageUsage to benefit from the top process inclusions")
+		}
+	}
+
+	// Threshold for retrieving top Memory percentage using processes
+	if MemoryUsageThreshold != 0 {
+		log.Infof("Overriding Memory threshold for collecting top memory using processes inclusions to %d", MemoryUsageThreshold)
+		agentConf.MemoryUsageThreshold = MemoryUsageThreshold
+		if amountTopMemoryUsage <= 0 {
+			log.Warn("MemoryUsageThreshold specified without AmountTopMemoryUsage. Please add AmountTopMemoryUsage to benefit from the top process inclusions")
+		}
+	}
+
+	// log warning if blacklist inclusions is specified without patterns
+	if (agentConf.AmountTopCPUPercentageUsage > 0 ||
+		agentConf.AmountTopIOReadUsage > 0 ||
+		agentConf.AmountTopIOWriteUsage > 0 ||
+		agentConf.AmountTopMemoryUsage > 0) && len(agentConf.Blacklist) == 0 {
+		log.Warn("Process blacklist inclusions specified without a blacklist pattern. Please add process blacklist patterns to benefit from the top process inclusions")
+	}
+
+}
+
+func constructRegex(pattern string) *regexp.Regexp {
+	r, err := regexp.Compile(pattern)
+	if err != nil {
+		log.Warnf("Invalid blacklist pattern: %s", pattern)
+	}
+	return r
 }
 
 // IsBlacklisted returns a boolean indicating if the given command is blacklisted by our config.

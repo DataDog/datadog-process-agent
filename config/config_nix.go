@@ -12,3 +12,6 @@ const (
 	// Agent 6
 	defaultDDAgentBin = "/opt/datadog-agent/bin/agent/agent"
 )
+
+// Process blacklist
+var defaultBlacklistPatterns = []string{"stress", "^-bash", "^su$", "^/bin/bash", "^/lib/systemd/", "^pickup", "^/sbin/", "^qmgr", "^sshd:", "^/usr/bin/bash", "^/usr/bin/dbus-daemon", "^/usr/bin/vi(?:m|m.basic)?$", "^/usr/bin/tail", "^/usr/lib/systemd/", "^/usr/sbin/", "^\\(sd-pam\\)"}

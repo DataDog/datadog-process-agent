@@ -18,10 +18,9 @@ build_linux:
   script:
     - touch $BUILD_ENV
     - echo 'export IMPORT_PATH=$GOPATH/src/github.com/StackVista/stackstate-process-agent' >> $BUILD_ENV
-    - git status -s
     - echo "export PROCESS_AGENT_VERSION=$(packaging/version.sh)" >> $BUILD_ENV
     - echo "export EBPF=${EBPF:-true}" >> $BUILD_ENV
-    - echo 'export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH' >> $BUILD_ENV && source $BUILD_ENV
+    - source $BUILD_ENV
     - rsync -azC --delete ./ $IMPORT_PATH
     - go get golang.org/x/tools/cmd/gorename
     - go get golang.org/x/tools/cmd/eg
@@ -46,10 +45,8 @@ build_windows:
     - if exist %GOPATH%\pkg rd /s/q %GOPATH%\pkg
     - mkdir %GOPATH%\src\github.com\StackVista\stackstate-process-agent
     - xcopy /q/h/e/s * %GOPATH%\src\github.com\StackVista\stackstate-process-agent
-    - cd %GOPATH%\src\github.com\StackVista\stackstate-process-agent
   script:
     - cd %GOPATH%\src\github.com\StackVista\stackstate-process-agent
-    - call rake deps
     - cd packaging && bash -c "./apply_branding.sh" && cd ..
     - call .gitlab-scripts/windows_build.cmd
   after_script:
@@ -80,10 +77,8 @@ pre_release_linux:
     - mkdir -p /go/src/github.com/StackVista
     - ln -s $CI_PROJECT_DIR /go/src/github.com/StackVista/stackstate-process-agent
     - echo 'export IMPORT_PATH=$GOPATH/src/github.com/StackVista/stackstate-process-agent' >> $BUILD_ENV
-    - git status -s
     - echo "export PROCESS_AGENT_VERSION=$(packaging/version.sh)" >> $BUILD_ENV
-    - echo "export EBPF=${EBPF:-true}" >> $BUILD_ENV
-    - echo 'export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH' >> $BUILD_ENV && source $BUILD_ENV
+    - source $BUILD_ENV
   script:
     - ls -la $IMPORT_PATH
     - ls -la $IMPORT_PATH/packaging

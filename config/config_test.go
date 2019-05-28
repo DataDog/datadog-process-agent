@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/StackVista/stackstate-process-agent/util"
 	"net/http"
 	"net/url"
 	"os"
@@ -69,6 +70,27 @@ func TestBlacklist(t *testing.T) {
 		assert.Equal(t, c.blacklisted, IsBlacklisted(c.cmdline, blacklist),
 			fmt.Sprintf("Case %v failed", c))
 	}
+}
+
+func TestSetBlacklistFromEnv(t *testing.T) {
+	os.Setenv("STS_PROCESS_BLACKLIST_PATTERNS", "^/usr/bin/bashbash,^sshd:")
+
+	os.Setenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_CPU", "2")
+	os.Setenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_IO_READ", "4")
+	os.Setenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_IO_WRITE", "5")
+	os.Setenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_MEM", "6")
+	os.Setenv("STS_PROCESS_BLACKLIST_INCLUSIONS_CPU_THRESHOLD", "30")
+	os.Setenv("STS_PROCESS_BLACKLIST_INCLUSIONS_MEM_THRESHOLD", "25")
+
+	agentConfig, _ := NewAgentConfig(nil, nil, nil)
+	assert.Equal(t, len(agentConfig.Blacklist), 2)
+
+	assert.Equal(t, agentConfig.AmountTopCPUPercentageUsage, 2)
+	assert.Equal(t, agentConfig.AmountTopIOReadUsage, 4)
+	assert.Equal(t, agentConfig.AmountTopIOWriteUsage, 5)
+	assert.Equal(t, agentConfig.AmountTopMemoryUsage, 6)
+	assert.Equal(t, agentConfig.CPUPercentageUsageThreshold, 30)
+	assert.Equal(t, agentConfig.MemoryUsageThreshold, 25)
 }
 
 func TestOnlyEnvConfig(t *testing.T) {
@@ -222,8 +244,13 @@ func TestDefaultConfig(t *testing.T) {
 
 	os.Setenv("DOCKER_DD_AGENT", "yes")
 	agentConfig = NewDefaultAgentConfig()
-	assert.Equal(os.Getenv("HOST_PROC"), "")
-	assert.Equal(os.Getenv("HOST_SYS"), "")
+	if util.PathExists("/host") {
+		assert.Equal(os.Getenv("HOST_PROC"), "/host/proc")
+		assert.Equal(os.Getenv("HOST_SYS"), "/host/sys")
+	} else {
+		assert.Equal(os.Getenv("HOST_PROC"), "")
+		assert.Equal(os.Getenv("HOST_SYS"), "")
+	}
 	os.Setenv("DOCKER_DD_AGENT", "no")
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 }
@@ -755,7 +782,6 @@ func TestEnvSiteConfig(t *testing.T) {
 		assert.NoError(err)
 		assert.Equal(tc.expected, agentConfig.APIEndpoints[0].Endpoint.Hostname())
 	}
-
 }
 
 func TestIsAffirmative(t *testing.T) {
