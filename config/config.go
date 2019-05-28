@@ -261,11 +261,6 @@ func NewAgentConfig(loggerName config.LoggerName, yamlPath, netYamlPath string) 
 		cfg.LogLevel = "warn"
 	}
 
-	if v := os.Getenv("DD_HOSTNAME"); v != "" {
-		log.Info("overriding hostname from env DD_HOSTNAME value")
-		cfg.HostName = v
-	}
-
 	if cfg.HostName == "" {
 		if ecsutil.IsFargateInstance() {
 			// Fargate tasks should have no concept of host names, so we're using the task ARN.
@@ -323,6 +318,8 @@ func NewNetworkAgentConfig(loggerName config.LoggerName, yamlPath string) (*Agen
 
 func loadEnvVariables() {
 	for envKey, cfgKey := range map[string]string{
+		"DD_HOSTNAME": "hostname",
+
 		"DD_PROCESS_AGENT_ENABLED":          "process_config.enabled",
 		"DD_PROCESS_AGENT_CONTAINER_SOURCE": "process_config.container_source",
 		"DD_SCRUB_ARGS":                     "process_config.scrub_args",
