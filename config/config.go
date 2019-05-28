@@ -580,13 +580,12 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		c.NetworkTracerSocketPath = v
 	}
 
-	if v := os.Getenv("STS_PROCESS_BLACKLIST_PATTERNS"); v != "" {
-		patterns := strings.Split(v, ",")
-		c.Blacklist = deriveFmapConstructRegex(constructRegex, patterns)
-	}
-
+	var patterns []string
 	amountTopCPUPercentageUsage, amountTopIOReadUsage, amountTopIOWriteUsage, amountTopMemoryUsage := 0, 0, 0, 0
 	CPUPercentageUsageThreshold, memoryUsageThreshold := 0, 0
+	if v := os.Getenv("STS_PROCESS_BLACKLIST_PATTERNS"); v != "" {
+		patterns = strings.Split(v, ",")
+	}
 	if v, err := strconv.Atoi(os.Getenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_CPU")); err == nil {
 		amountTopCPUPercentageUsage = v
 	}
@@ -605,16 +604,23 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	if v, err := strconv.Atoi(os.Getenv("STS_PROCESS_BLACKLIST_INCLUSIONS_MEM_THRESHOLD")); err == nil {
 		memoryUsageThreshold = v
 	}
-	setBlacklistInclusions(c, amountTopCPUPercentageUsage, amountTopIOReadUsage, amountTopIOWriteUsage, amountTopMemoryUsage,
+	setProcessBlacklist(c,
+		patterns,
+		amountTopCPUPercentageUsage, amountTopIOReadUsage, amountTopIOWriteUsage, amountTopMemoryUsage,
 		CPUPercentageUsageThreshold, memoryUsageThreshold)
 
 	return c
 }
 
-func setBlacklistInclusions(agentConf *AgentConfig,
+func setProcessBlacklist(agentConf *AgentConfig,
+	patterns []string,
 	amountTopCPUPercentageUsage int, amountTopIOReadUsage int, amountTopIOWriteUsage int, amountTopMemoryUsage int,
 	CPUPercentageUsageThreshold int, MemoryUsageThreshold int,
 ) {
+	if len(patterns) > 0 {
+		log.Infof("Overriding processes blacklist to %v", patterns)
+		agentConf.Blacklist = deriveFmapConstructRegex(constructRegex, patterns)
+	}
 	if amountTopCPUPercentageUsage != 0 {
 		log.Infof("Overriding top CPU percentage using processes inclusions to %d", amountTopCPUPercentageUsage)
 		agentConf.AmountTopCPUPercentageUsage = amountTopCPUPercentageUsage

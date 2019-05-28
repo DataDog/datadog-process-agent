@@ -547,7 +547,7 @@ func TestProcessFormatting(t *testing.T) {
 		expectedPids                []int32
 	}{
 		{
-			name:						 "Expects all the processes to be present and chunked into 3 processes per chunk",
+			name:                        "Expects all the processes to be present and chunked into 3 processes per chunk",
 			cur:                         pNow,
 			last:                        pLast,
 			maxSize:                     3,
@@ -561,7 +561,7 @@ func TestProcessFormatting(t *testing.T) {
 			expectedPids:                []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21},
 		},
 		{
-			name:						 "Expects all the processes not listed in the blacklist to be present as well as the top resource consuming processes regardless of whether they are blacklisted or not",
+			name:                        "Expects all the processes not listed in the blacklist to be present as well as the top resource consuming processes regardless of whether they are blacklisted or not",
 			cur:                         pNow,
 			last:                        pLast,
 			maxSize:                     3,
@@ -575,7 +575,7 @@ func TestProcessFormatting(t *testing.T) {
 			expectedPids:                []int32{1, 2, 3, 4, 5, 6, 11, 13, 16, 17, 20, 21},
 		},
 		{
-			name:						 "Expects all the top resource consuming process only to be present in a single chunk",
+			name:                        "Expects all the top resource consuming process only to be present in a single chunk",
 			cur:                         pNow,
 			last:                        pLast,
 			maxSize:                     7,
@@ -606,12 +606,12 @@ func TestProcessFormatting(t *testing.T) {
 
 			cur := make(map[int32]*process.FilledProcess)
 			for _, c := range tc.cur {
-				c.CpuTime.Timestamp = 60*100 //in Windows uses CpuTime.Timestamp set to now in nanos
+				c.CpuTime.Timestamp = 60 * 100 //in Windows uses CpuTime.Timestamp set to now in nanos
 				cur[c.Pid] = c
 			}
 			last := make(map[int32]*process.FilledProcess)
 			for _, c := range tc.last {
-				c.CpuTime.Timestamp = 30*100 //in Windows uses CpuTime.Timestamp set to now in nanos
+				c.CpuTime.Timestamp = 30 * 100 //in Windows uses CpuTime.Timestamp set to now in nanos
 				last[c.Pid] = c
 			}
 

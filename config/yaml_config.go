@@ -165,9 +165,9 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		agentConf.CheckIntervals["connections"] = time.Duration(yc.Process.Intervals.Connections) * time.Second
 	}
 
-	agentConf.Blacklist = deriveFmapConstructRegex(constructRegex, yc.Process.Blacklist.Patterns)
-
-	setBlacklistInclusions(agentConf, yc.Process.Blacklist.Inclusions.AmountTopCPUPercentageUsage,
+	setProcessBlacklist(agentConf,
+		yc.Process.Blacklist.Patterns,
+		yc.Process.Blacklist.Inclusions.AmountTopCPUPercentageUsage,
 		yc.Process.Blacklist.Inclusions.AmountTopIOReadUsage, yc.Process.Blacklist.Inclusions.AmountTopIOWriteUsage,
 		yc.Process.Blacklist.Inclusions.AmountTopMemoryUsage,
 		yc.Process.Blacklist.Inclusions.CPUPercentageUsageThreshold, yc.Process.Blacklist.Inclusions.MemoryUsageThreshold)

@@ -15,7 +15,7 @@ func TestCommandLineSplitting(t *testing.T) {
 		expected []string
 	}{
 		{
-			name: "slack",
+			name:  "slack",
 			input: "\"C:\\Users\\db\\AppData\\Local\\slack\app-3.1.1\\slack.exe\" --type=gpu-process --no-sandbox --supports-dual-gpus=false --gpu-driver-bug-workarounds=7,10,20,21,24,43,76 --disable-gl-extensions=\"GL_KHR_blend_equation_advanced GL_KHR_blend_equation_advanced_coherent\" --gpu-vendor-id=0x10de --gpu-device-id=0x13b2 --gpu-driver-vendor=NVIDIA --gpu-driver-version=22.21.13.8205 --gpu-driver-date=5-1-2017 --gpu-secondary-vendor-ids=0x8086 --gpu-secondary-device-ids=0x191b --service-request-channel-token=2EADF7A9FD7CB01C6A780DE1F8FEF0BB --mojo-platform-channel-handle=1708 /prefetch:2",
 			expected: []string{
 				"\"C:\\Users\\db\\AppData\\Local\\slack\app-3.1.1\\slack.exe\"",
@@ -58,7 +58,7 @@ func TestCommandLineSplitting(t *testing.T) {
 			},
 		},
 	} {
-		t.Run(tc.name, func (t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.expected, parseCmdLineArgs(tc.input))
 		})
 	}
