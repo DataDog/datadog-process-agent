@@ -187,7 +187,7 @@ func chunkProcesses(processes []*model.Process, maxPerMessage int, chunked [][]*
 	return append(chunked, processes)
 }
 
-// Chunks processes into predefined max per message size
+// Chunks commands into predefined max per message size
 func chunkCollectorCommands(commands []*model.CollectorCommand, maxPerMessage int) [][]*model.CollectorCommand {
 	chunked := make([][]*model.CollectorCommand, 0)
 
