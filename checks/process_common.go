@@ -187,6 +187,20 @@ func chunkProcesses(processes []*model.Process, maxPerMessage int, chunked [][]*
 	return append(chunked, processes)
 }
 
+// Chunks commands into predefined max per message size
+func chunkCollectorCommands(commands []*model.CollectorCommand, maxPerMessage int) [][]*model.CollectorCommand {
+	chunked := make([][]*model.CollectorCommand, 0)
+
+	for maxPerMessage < len(commands) {
+		commands, chunked = commands[maxPerMessage:], append(chunked, commands[0:maxPerMessage:maxPerMessage])
+	}
+	// checks the length of the processStats otherwise it appends an empty array to the chunked
+	if len(commands) == 0 {
+		return chunked
+	}
+	return append(chunked, commands)
+}
+
 func formatCommand(fp *process.FilledProcess) *model.Command {
 	return &model.Command{
 		Args:   fp.Cmdline,

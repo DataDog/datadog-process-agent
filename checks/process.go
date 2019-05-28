@@ -30,6 +30,13 @@ type ProcessCheck struct {
 	lastProcs    map[int32]*process.FilledProcess
 	lastCtrRates map[string]util.ContainerRateMetrics
 	lastRun      time.Time
+
+	// Last time we did a refresh of the published processes/containers
+	lastRefresh time.Time
+
+	// Fields to keep track of what we communicated last to the remote. This is used to determine incremental changes
+	lastProcState map[int32]*model.Process
+	lastCtrState  map[string]*model.Container
 }
 
 // Init initializes the singleton ProcessCheck.
@@ -74,22 +81,211 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		p.lastCPUTime = cpuTimes[0]
 		p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
 		p.lastRun = time.Now()
+		// Put the last refresh WAAY back
+		p.lastRefresh = time.Unix(0, 0)
+		p.lastProcState = make(map[int32]*model.Process)
+		p.lastCtrState = make(map[string]*model.Container)
 		return nil, nil
 	}
 
-	chunkedProcs := fmtProcesses(cfg, procs, p.lastProcs,
-		ctrList, cpuTimes[0], p.lastCPUTime, p.lastRun)
+	var messages []model.MessageBody
+
+	processes := fmtProcesses(cfg, procs, p.lastProcs, ctrList, cpuTimes[0], p.lastCPUTime, p.lastRun)
+
 	// In case we skip every process..
-	if len(chunkedProcs) == 0 {
+	if len(processes) == 0 {
 		return nil, nil
 	}
-	groupSize := len(chunkedProcs)
-	chunkedContainers := fmtContainers(ctrList, p.lastCtrRates, p.lastRun, groupSize)
+
+	containers := fmtContainers(ctrList, p.lastCtrRates, p.lastRun)
+
+	if cfg.EnableIncrementalPublishing && time.Now().Before(p.lastRefresh.Add(cfg.IncrementalPublishingRefreshInterval)) {
+		log.Debug("Sending process status increment")
+		messages = p.fmtIncrement(cfg, groupID, buildIncrement(processes, containers, p.lastProcState, p.lastCtrState))
+	} else {
+		log.Debug("Sending process status snapshot")
+		messages = p.fmtSnapshot(cfg, groupID, processes, containers)
+		p.lastRefresh = time.Now()
+	}
+
+	// Store the last state for comparison on the next run.
+	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
+	p.lastProcs = procs
+	p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
+	p.lastCPUTime = cpuTimes[0]
+	p.lastRun = time.Now()
+	p.lastProcState = buildProcState(processes)
+	p.lastCtrState = buildCtrState(containers)
+
+	statsd.Client.Gauge("datadog.process.containers.host_count", float64(len(containers)), []string{}, 1)
+	statsd.Client.Gauge("datadog.process.processes.host_count", float64(len(processes)), []string{}, 1)
+
+	log.Debugf("collected processes in %s", time.Now().Sub(start))
+	return messages, nil
+}
+
+func buildProcState(processes []*model.Process) map[int32]*model.Process {
+	procState := make(map[int32]*model.Process)
+	for _, proc := range processes {
+		procState[proc.Pid] = proc
+	}
+	return procState
+}
+
+func buildCtrState(containers []*model.Container) map[string]*model.Container {
+	ctrState := make(map[string]*model.Container)
+	for _, ctr := range containers {
+		ctrState[ctr.Id] = ctr
+	}
+	return ctrState
+}
+
+func buildIncrement(
+	processes []*model.Process,
+	containers []*model.Container,
+	lastProcesses map[int32]*model.Process,
+	lastContainers map[string]*model.Container,
+) []*model.CollectorCommand {
+	// Put capacity to upperbound of commands that can be made
+	commands := make([]*model.CollectorCommand, 0, len(processes)+len(containers)+len(lastProcesses)+len(lastContainers))
+
+	// =================== Commands for containers ===============================
+	for _, container := range containers {
+		if previousContainer, ok := lastContainers[container.Id]; ok {
+			// Was it already there? Lets see whether topology changed
+			// Later we may also do comparison on metrics
+
+			// Tags are the only topology information that change during runtime, so only if this information changed do we have to send a topology update
+			if tagsEq(container.Tags, previousContainer.Tags) {
+				// If no topology update, send an update with just metrics
+				commands = append(commands, &model.CollectorCommand{
+					Command: &model.CollectorCommand_UpdateContainerMetrics{
+						UpdateContainerMetrics: container,
+					},
+				})
+			} else {
+				// Otherwise a full update
+				commands = append(commands, &model.CollectorCommand{
+					Command: &model.CollectorCommand_UpdateContainer{
+						UpdateContainer: container,
+					},
+				})
+			}
+			delete(lastContainers, container.Id)
+		} else {
+			// If the process did not exist before, send a full update
+			commands = append(commands, &model.CollectorCommand{
+				Command: &model.CollectorCommand_UpdateContainer{
+					UpdateContainer: container,
+				},
+			})
+		}
+	}
+
+	// Iterate over the containers that were not removed
+	for _, deletedContainer := range lastContainers {
+		// If the container did not exist before, send a full update
+		commands = append(commands, &model.CollectorCommand{
+			Command: &model.CollectorCommand_DeleteContainer{
+				DeleteContainer: deletedContainer,
+			},
+		})
+	}
+
+	// =================== Commands for processes ===============================
+	for _, process := range processes {
+		if previousProcess, ok := lastProcesses[process.Pid]; ok {
+			// Was it already there? Lets see whether topology changed
+			// Later we may also do comparison on metrics
+
+			// Tags are the only topology information that change during runtime, so only if this information changed do we have to send a topology update
+			if tagsEq(process.Tags, previousProcess.Tags) {
+				// If no topology update, send an update with just metrics
+				commands = append(commands, &model.CollectorCommand{
+					Command: &model.CollectorCommand_UpdateProcessMetrics{
+						UpdateProcessMetrics: process,
+					},
+				})
+			} else {
+				// Otherwise a full update
+				commands = append(commands, &model.CollectorCommand{
+					Command: &model.CollectorCommand_UpdateProcess{
+						UpdateProcess: process,
+					},
+				})
+			}
+			delete(lastProcesses, process.Pid)
+		} else {
+			// If the process did not exist before, send a full update
+			commands = append(commands, &model.CollectorCommand{
+				Command: &model.CollectorCommand_UpdateProcess{
+					UpdateProcess: process,
+				},
+			})
+		}
+	}
+
+	// Iterate over the processes that were not removed
+	for _, deletedProcess := range lastProcesses {
+		// If the process did not exist before, send a full update
+		commands = append(commands, &model.CollectorCommand{
+			Command: &model.CollectorCommand_DeleteProcess{
+				DeleteProcess: deletedProcess,
+			},
+		})
+	}
+
+	return commands
+}
+
+func (p *ProcessCheck) fmtIncrement(cfg *config.AgentConfig, groupID int32, commands []*model.CollectorCommand) []model.MessageBody {
+	chunkedCommands := chunkCollectorCommands(commands, cfg.MaxPerMessage)
+	groupSize := len(chunkedCommands)
 	messages := make([]model.MessageBody, 0, groupSize)
-	totalProcs, totalContainers := float64(0), float64(0)
 	for i := 0; i < groupSize; i++ {
-		totalProcs += float64(len(chunkedProcs[i]))
-		totalContainers += float64(len(chunkedContainers[i]))
+		messages = append(messages, &model.CollectorCommands{
+			HostName:  cfg.HostName,
+			Info:      p.sysInfo,
+			Commands:  chunkedCommands[i],
+			GroupId:   groupID,
+			GroupSize: int32(groupSize),
+		})
+	}
+
+	return messages
+}
+
+func tagsEq(a, b []string) bool {
+
+	// If one is nil, the other must also be nil.
+	if (a == nil) != (b == nil) {
+		return false
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (p *ProcessCheck) fmtSnapshot(cfg *config.AgentConfig,
+	groupID int32,
+	processes []*model.Process,
+	containers []*model.Container) []model.MessageBody {
+
+	chunkedProcs := chunkProcesses(processes, cfg.MaxPerMessage, make([][]*model.Process, 0))
+	groupSize := len(chunkedProcs)
+	chunkedContainers := chunkedContainers(containers, groupSize)
+	messages := make([]model.MessageBody, 0, groupSize)
+
+	for i := 0; i < groupSize; i++ {
 		messages = append(messages, &model.CollectorProc{
 			HostName:   cfg.HostName,
 			Info:       p.sysInfo,
@@ -100,17 +296,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Mess
 		})
 	}
 
-	// Store the last state for comparison on the next run.
-	// Note: not storing the filtered in case there are new processes that haven't had a chance to show up twice.
-	p.lastProcs = procs
-	p.lastCtrRates = util.ExtractContainerRateMetric(ctrList)
-	p.lastCPUTime = cpuTimes[0]
-	p.lastRun = time.Now()
-
-	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
-	statsd.Client.Gauge("datadog.process.processes.host_count", totalProcs, []string{}, 1)
-	log.Debugf("collected processes in %s", time.Now().Sub(start))
-	return messages, nil
+	return messages
 }
 
 func fmtProcesses(
@@ -119,7 +305,7 @@ func fmtProcesses(
 	ctrList []*containers.Container,
 	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
-) [][]*model.Process {
+) []*model.Process {
 	cidByPid := make(map[int32]string, len(ctrList))
 	for _, c := range ctrList {
 		for _, p := range c.Pids {
@@ -201,5 +387,5 @@ func fmtProcesses(
 	// sort all, deduplicate and chunk
 	processes := append(<-inclusionProcessesChan, <-allProcessesChan...)
 	cfg.Scrubber.IncrementCacheAge()
-	return chunkProcesses(deriveUniqueProcesses(deriveSortProcesses(processes)), cfg.MaxPerMessage, make([][]*model.Process, 0))
+	return deriveUniqueProcesses(deriveSortProcesses(processes))
 }

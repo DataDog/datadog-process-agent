@@ -42,13 +42,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.Me
 	return nil, nil
 }
 
-// fmtContainers formats and chunks the containers into a slice of chunks using a specific
-// number of chunks. len(result) MUST EQUAL chunks.
-func fmtContainers(
-	ctrList []*containers.Container,
-	lastRates map[string]util.ContainerRateMetrics,
-	lastRun time.Time,
-	chunks int,
-) [][]*model.Container {
-	return make([][]*model.Container, chunks)
+func fmtContainers(ctrList []*containers.Container, lastRates map[string]util.ContainerRateMetrics, lastRun time.Time) []*model.Container {
+	return make([]*model.Container, 0, len(ctrList))
 }

@@ -22,6 +22,10 @@ type YamlAgentConfig struct {
 	Site   string `yaml:"site"`
 	// Whether or not the process-agent should output logs to console
 	LogToConsole bool `yaml:"log_to_console"`
+	// Incremental publishing: send only changes to server, instead of snapshots
+	IncrementalPublishingEnabled string `yaml:"incremental_publishing_enabled"`
+	// Periodically resend all data to allow downstream to recover from any lost data
+	IncrementalPublishingRefreshInterval int `yaml:"incremental_publishing_refresh_interval"`
 	// Process-specific configuration
 	Process struct {
 		// A string indicate the enabled state of the Agent.
@@ -143,6 +147,13 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	}
 	if yc.Process.LogFile != "" {
 		agentConf.LogFile = yc.Process.LogFile
+	}
+	if enabled, _ := isAffirmative(yc.IncrementalPublishingEnabled); enabled {
+		agentConf.EnableIncrementalPublishing = enabled
+	}
+	if yc.IncrementalPublishingRefreshInterval != 0 {
+		log.Infof("Overriding incremental publishing interval with %ds", yc.IncrementalPublishingRefreshInterval)
+		agentConf.IncrementalPublishingRefreshInterval = time.Duration(yc.IncrementalPublishingRefreshInterval) * time.Second
 	}
 	if yc.Process.Intervals.Container != 0 {
 		log.Infof("Overriding container check interval to %ds", yc.Process.Intervals.Container)

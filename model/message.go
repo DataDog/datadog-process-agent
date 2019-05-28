@@ -76,6 +76,7 @@ type MessageType uint8
 // are additional types that aren't covered here.
 const (
 	TypeCollectorProc              = 12
+	TypeCollectorCommands          = 13
 	TypeCollectorConnections       = 22
 	TypeResCollector               = 23
 	TypeCollectorRealTime          = 27
@@ -109,6 +110,8 @@ func DecodeMessage(data []byte) (Message, error) {
 	switch header.Type {
 	case TypeCollectorProc:
 		m = &CollectorProc{}
+	case TypeCollectorCommands:
+		m = &CollectorCommands{}
 	case TypeCollectorConnections:
 		m = &CollectorConnections{}
 	case TypeCollectorRealTime:
@@ -134,6 +137,8 @@ func DetectMessageType(b MessageBody) (MessageType, error) {
 	switch b.(type) {
 	case *CollectorProc:
 		t = TypeCollectorProc
+	case *CollectorCommands:
+		t = TypeCollectorCommands
 	case *CollectorConnections:
 		t = TypeCollectorConnections
 	case *CollectorRealTime:

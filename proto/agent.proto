@@ -37,6 +37,15 @@ message CollectorProc {
 	repeated Container containers = 10;
 }
 
+message CollectorCommands {
+	string hostName = 2;
+	repeated CollectorCommand commands = 3;
+	Host host = 4;
+	SystemInfo info = 5;
+	int32 groupId = 6;
+	int32 groupSize = 7;
+}
+
 message CollectorConnections {
 	string hostName = 2;
 	repeated Connection connections = 3;
@@ -100,6 +109,18 @@ message CollectorReqStatus {
 //
 // Models
 //
+
+message CollectorCommand {
+  // Tagged union, meaning the command field will contain either one of the 6 choices, to distinguish between the commands
+  oneof command {
+    Process updateProcess = 1;
+    Process updateProcessMetrics = 2;
+    Process deleteProcess = 3;
+    Container updateContainer = 10;
+    Container updateContainerMetrics = 11;
+    Container deleteContainer = 12;
+  }
+}
 
 message CollectorStatus {
 	int32 activeClients = 1;
