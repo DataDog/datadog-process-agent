@@ -250,7 +250,9 @@ func TestAgentEncryptedVariablesSecrets(t *testing.T) {
 	config.Datadog.Set("secret_backend_output_max_size", 1024)
 
 	os.Setenv("DD_API_KEY", "ENC[my_api_key]")
+	os.Setenv("DD_HOSTNAME", "ENC[my_host]")
 	defer os.Unsetenv("DD_API_KEY")
+	defer os.Unsetenv("DD_HOSTNAME")
 
 	assert := assert.New(t)
 	agentConfig, err := NewAgentConfig(
@@ -261,6 +263,7 @@ func TestAgentEncryptedVariablesSecrets(t *testing.T) {
 	assert.Equal("secret_my_api_key", config.Datadog.Get("api_key"))
 	ep := agentConfig.APIEndpoints[0]
 	assert.Equal("secret_my_api_key", ep.APIKey)
+	assert.Equal("secret_my_host", agentConfig.HostName)
 }
 
 func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
@@ -298,6 +301,7 @@ func TestAgentConfigYamlAndNetworkConfig(t *testing.T) {
 
 	assert.Equal("apikey_20", ep.APIKey)
 	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
+	assert.Equal("server-01", agentConfig.HostName)
 	assert.Equal(10, agentConfig.QueueSize)
 	assert.Equal(true, agentConfig.AllowRealTime)
 	assert.Equal(true, agentConfig.Enabled)
