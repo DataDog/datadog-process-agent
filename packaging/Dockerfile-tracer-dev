@@ -1,7 +1,0 @@
-FROM ubuntu:xenial
-
-RUN apt-get update && apt-get install -y conntrack
-
-COPY network-tracer /usr/local/bin
-
-CMD network-tracer
