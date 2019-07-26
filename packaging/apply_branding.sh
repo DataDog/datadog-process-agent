@@ -65,6 +65,7 @@ gofmt -l $REPLACE_MODE -r '"c:\\programdata\\datadog\\conf.d" -> "c:\\programdat
 gofmt -l $REPLACE_MODE -r '"c:\\programdata\\datadog\\logs\\process-agent.log" -> "c:\\programdata\\stackstate\\logs\\process-agent.log"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"c:\\Program Files\\Datadog\\Datadog Agent\\embedded\\agent.exe" -> "c:\\Program Files\\StackState\\StackState Agent\\embedded\\agent.exe"' $REPLACE_SCOPE
 sed -i 's/DataDog/StackState/g' ../cmd/agent/main_windows.go
+sed -i 's/Data[dD]og/StackState/g' ../cmd/agent/windows_resources/process-agent.rc
 
 # metrics
 gofmt -l $REPLACE_MODE -r '"datadog.process.agent" -> "stackstate.process.agent"' $REPLACE_SCOPE
