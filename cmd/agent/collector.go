@@ -31,12 +31,13 @@ type checkPayload struct {
 type Collector struct {
 	send          chan checkPayload
 	rtIntervalCh  chan time.Duration
-	featuresCh    chan features.Features
 	cfg           *config.AgentConfig
 	httpClient    http.Client
 	groupID       int32
 	runCounter    int32
 	enabledChecks []checks.Check
+	// Channel to send data to each running check, currently only to broadcast features
+	featuresChs []chan features.Features
 
 	// Controls the real-time interval, can change live.
 	realTimeInterval time.Duration
@@ -111,10 +112,16 @@ func (l *Collector) run(exit chan bool) {
 	heartbeat := time.NewTicker(15 * time.Second)
 	queueSizeTicker := time.NewTicker(10 * time.Second)
 	featuresTicker := time.NewTicker(5 * time.Second)
-	featuresBroadcastCh := make(chan features.Features)
-	featuresCh := make(chan features.Features, 1) // Need at least one because we produce before continuing
 
-	// Request features right away
+	// Channel to announce new features detected
+	featuresCh := make(chan features.Features, 1)
+
+	// Channel per check to broadcast features
+	featureChecksChs := make([]chan features.Features, 0)
+	for range l.enabledChecks {
+		featureChecksChs = append(featureChecksChs, make(chan features.Features, 1))
+	}
+
 	l.getFeatures(l.cfg.APIEndpoints[0], "/features", featuresCh)
 
 	go func() {
@@ -137,16 +144,20 @@ func (l *Collector) run(exit chan bool) {
 				l.getFeatures(l.cfg.APIEndpoints[0], "/features", featuresCh)
 			case featuresValue := <-featuresCh:
 				// Broadcast to all checks
-				for range l.enabledChecks {
-					featuresBroadcastCh <- featuresValue
+				for _, ch := range featureChecksChs {
+					ch <- featuresValue
 				}
+				// Stop polling
+				featuresTicker.Stop()
 			case <-exit:
 				return
 			}
 		}
 	}()
 
-	for _, c := range l.enabledChecks {
+	for checkInd, c := range l.enabledChecks {
+		// Assignment here, because iterator value gets altered
+		myInd := checkInd
 		go func(c checks.Check) {
 			var featuresSet features.Features = features.Empty()
 
@@ -163,9 +174,8 @@ func (l *Collector) run(exit chan bool) {
 					if !c.RealTime() || realTimeEnabled {
 						l.runCheck(c, featuresSet)
 					}
-				case f := <-featuresBroadcastCh:
+				case f := <-featureChecksChs[myInd]:
 					featuresSet = f
-					featuresTicker.Stop()
 				case d := <-l.rtIntervalCh:
 					// Live-update the ticker.
 					if c.RealTime() {

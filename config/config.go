@@ -196,7 +196,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		DDAgentPy:    defaultDDAgentPy,
 		DDAgentPyEnv: []string{defaultDDAgentPyEnv},
 
-		EnableIncrementalPublishing:          false,
+		EnableIncrementalPublishing:          true,
 		IncrementalPublishingRefreshInterval: 1 * time.Minute,
 
 		// Network collection configuration
