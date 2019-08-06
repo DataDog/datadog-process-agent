@@ -3,6 +3,7 @@
 package checks
 
 import (
+	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"time"
 
 	"github.com/StackVista/stackstate-agent/pkg/util/containers"
@@ -37,7 +38,7 @@ func (c *ContainerCheck) RealTime() bool { return false }
 
 // Run runs the ContainerCheck to collect a list of running containers and the
 // stats for each container.
-func (c *ContainerCheck) Run(cfg *config.AgentConfig, groupID int32) ([]model.MessageBody, error) {
+func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32) ([]model.MessageBody, error) {
 
 	return nil, nil
 }

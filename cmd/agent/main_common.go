@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -210,7 +211,7 @@ func debugCheckResults(cfg *config.AgentConfig, check string) error {
 	if check == checks.Connections.Name() {
 		// Connections check requires process-check to have occurred first (for process creation ts)
 		checks.Process.Init(cfg, sysInfo)
-		checks.Process.Run(cfg, 0)
+		checks.Process.Run(cfg, features.All(), 0)
 	}
 
 	names := make([]string, 0, len(checks.All))
@@ -226,7 +227,7 @@ func debugCheckResults(cfg *config.AgentConfig, check string) error {
 
 func printResults(cfg *config.AgentConfig, ch checks.Check) error {
 	// Run the check once to prime the cache.
-	if _, err := ch.Run(cfg, 0); err != nil {
+	if _, err := ch.Run(cfg, features.All(), 0); err != nil {
 		return fmt.Errorf("collection error: %s", err)
 	}
 
@@ -241,7 +242,7 @@ func printResults(cfg *config.AgentConfig, ch checks.Check) error {
 	fmt.Printf("\nResults for check %s\n", ch.Name())
 	fmt.Printf("-----------------------------\n\n")
 
-	msgs, err := ch.Run(cfg, 1)
+	msgs, err := ch.Run(cfg, features.All(), 1)
 	if err != nil {
 		return fmt.Errorf("collection error: %s", err)
 	}

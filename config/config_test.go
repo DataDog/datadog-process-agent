@@ -366,7 +366,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(10, agentConfig.QueueSize)
 	assert.Equal(true, agentConfig.AllowRealTime)
 	assert.Equal(true, agentConfig.Enabled)
-	assert.Equal(false, agentConfig.EnableIncrementalPublishing)
+	assert.Equal(true, agentConfig.EnableIncrementalPublishing)
 	assert.Equal(1*time.Minute, agentConfig.IncrementalPublishingRefreshInterval)
 	assert.Equal(processChecks, agentConfig.EnabledChecks)
 	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
@@ -381,7 +381,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	err = yaml.Unmarshal([]byte(strings.Join([]string{
 		"api_key: apikey_20",
 		"process_agent_enabled: true",
-		"incremental_publishing_enabled: true",
+		"incremental_publishing_enabled: false",
 		"incremental_publishing_refresh_interval: 120",
 		"process_config:",
 		"  enabled: 'false'",
@@ -402,7 +402,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal("apikey_20", ep.APIKey)
 	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
 	assert.Equal(true, agentConfig.Enabled)
-	assert.Equal(true, agentConfig.EnableIncrementalPublishing)
+	assert.Equal(false, agentConfig.EnableIncrementalPublishing)
 	assert.Equal(2*time.Minute, agentConfig.IncrementalPublishingRefreshInterval)
 	assert.Equal(containerChecks, agentConfig.EnabledChecks)
 	assert.Equal(-1, agentConfig.Windows.ArgsRefreshInterval)

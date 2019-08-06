@@ -3,11 +3,14 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"reflect"
 	"sync/atomic"
 	"time"
 
@@ -33,6 +36,8 @@ type Collector struct {
 	groupID       int32
 	runCounter    int32
 	enabledChecks []checks.Check
+	// Channel to send data to each running check, currently only to broadcast features
+	featuresChs []chan features.Features
 
 	// Controls the real-time interval, can change live.
 	realTimeInterval time.Duration
@@ -70,12 +75,12 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 	}, nil
 }
 
-func (l *Collector) runCheck(c checks.Check) {
+func (l *Collector) runCheck(c checks.Check, features features.Features) {
 	runCounter := atomic.AddInt32(&l.runCounter, 1)
 	s := time.Now()
 	// update the last collected timestamp for info
 	updateLastCollectTime(time.Now())
-	messages, err := c.Run(l.cfg, atomic.AddInt32(&l.groupID, 1))
+	messages, err := c.Run(l.cfg, features, atomic.AddInt32(&l.groupID, 1))
 	if err != nil {
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
@@ -106,6 +111,19 @@ func (l *Collector) run(exit chan bool) {
 	go handleSignals(exit)
 	heartbeat := time.NewTicker(15 * time.Second)
 	queueSizeTicker := time.NewTicker(10 * time.Second)
+	featuresTicker := time.NewTicker(5 * time.Second)
+
+	// Channel to announce new features detected
+	featuresCh := make(chan features.Features, 1)
+
+	// Channel per check to broadcast features
+	featureChecksChs := make([]chan features.Features, 0)
+	for range l.enabledChecks {
+		featureChecksChs = append(featureChecksChs, make(chan features.Features, 1))
+	}
+
+	l.getFeatures(l.cfg.APIEndpoints[0], "/features", featuresCh)
+
 	go func() {
 		for {
 			select {
@@ -122,17 +140,30 @@ func (l *Collector) run(exit chan bool) {
 				statsd.Client.Gauge("datadog.process.agent", 1, []string{"version:" + Version}, 1)
 			case <-queueSizeTicker.C:
 				updateQueueSize(l.send)
+			case <-featuresTicker.C:
+				l.getFeatures(l.cfg.APIEndpoints[0], "/features", featuresCh)
+			case featuresValue := <-featuresCh:
+				// Broadcast to all checks
+				for _, ch := range featureChecksChs {
+					ch <- featuresValue
+				}
+				// Stop polling
+				featuresTicker.Stop()
 			case <-exit:
 				return
 			}
 		}
 	}()
 
-	for _, c := range l.enabledChecks {
+	for checkInd, c := range l.enabledChecks {
+		// Assignment here, because iterator value gets altered
+		myInd := checkInd
 		go func(c checks.Check) {
+			var featuresSet features.Features = features.Empty()
+
 			// Run the check the first time to prime the caches.
 			if !c.RealTime() {
-				l.runCheck(c)
+				l.runCheck(c, featuresSet)
 			}
 
 			ticker := time.NewTicker(l.cfg.CheckInterval(c.Name()))
@@ -141,8 +172,10 @@ func (l *Collector) run(exit chan bool) {
 				case <-ticker.C:
 					realTimeEnabled := atomic.LoadInt32(&l.realTimeEnabled) == 1
 					if !c.RealTime() || realTimeEnabled {
-						l.runCheck(c)
+						l.runCheck(c, featuresSet)
 					}
+				case f := <-featureChecksChs[myInd]:
+					featuresSet = f
 				case d := <-l.rtIntervalCh:
 					// Live-update the ticker.
 					if c.RealTime() {
@@ -173,11 +206,12 @@ func (l *Collector) postMessage(checkPath string, m model.MessageBody) {
 			Encoding: model.MessageEncodingZstdPB,
 			Type:     msgType,
 		}, Body: m})
+
 	if err != nil {
 		log.Errorf("Unable to encode message: %s", err)
 	}
 
-	responses := make(chan postResponse)
+	responses := make(chan errorResponse)
 	for _, ep := range l.cfg.APIEndpoints {
 		go l.postToAPI(ep, checkPath, body, responses)
 	}
@@ -190,8 +224,6 @@ func (l *Collector) postMessage(checkPath string, m model.MessageBody) {
 			log.Error(res.err)
 			continue
 		}
-
-		// STS: We do not do anything with response messages right now
 	}
 
 	if len(statuses) > 0 {
@@ -237,24 +269,80 @@ func (l *Collector) updateStatus(statuses []*model.CollectorStatus) {
 	}
 }
 
-type postResponse struct {
+type errorResponse struct {
 	err error
 }
 
-func errResponse(format string, a ...interface{}) postResponse {
-	return postResponse{err: fmt.Errorf(format, a...)}
-}
-
-func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan postResponse) {
+func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan errorResponse) {
 	l.postToAPIwithEncoding(endpoint, checkPath, body, responses, "x-zip")
 }
 
-func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan postResponse, contentEncoding string) {
-	url := endpoint.Endpoint.String() + checkPath // Add the checkPath in full Process Agent URL
-	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan errorResponse, contentEncoding string) {
+	resp, err := l.accessAPIwithEncoding(endpoint, "POST", checkPath, body, contentEncoding)
 	if err != nil {
-		responses <- errResponse("could not create request to %s: %s", url, err)
+		responses <- errorResponse{err: err}
 		return
+	}
+	defer resp.Body.Close()
+	responses <- errorResponse{nil}
+}
+
+func (l *Collector) getFeatures(endpoint config.APIEndpoint, checkPath string, report chan features.Features) {
+	resp, accessErr := l.accessAPIwithEncoding(endpoint, "GET", checkPath, make([]byte, 0), "identity")
+
+	// Handle error response
+	if accessErr != nil {
+		// Soo we got a 404, meaning we were able to contact stackstate, but it had no features path. We can publish a result
+		if resp != nil {
+			log.Info("Found StackState version which does not support feature detection yet")
+			report <- features.Empty()
+		}
+		// Log
+		_ = log.Error(accessErr)
+		return
+	}
+
+	defer resp.Body.Close()
+
+	// Get byte array
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		_ = log.Errorf("could not decode response body from features: %s", err)
+		return
+	}
+	var data interface{}
+	// Parse json
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		_ = log.Errorf("error unmarshalling features json: %s of body %s", err, body)
+		return
+	}
+
+	// Validate structure
+	featureMap, ok := data.(map[string]interface{})
+	if !ok {
+		_ = log.Errorf("Json was wrongly formatted, expected map type, got: %s", reflect.TypeOf(data))
+	}
+
+	featuresParsed := make(map[string]bool)
+
+	for k, v := range featureMap {
+		featureValue, okV := v.(bool)
+		if !okV {
+			_ = log.Warnf("Json was wrongly formatted, expected boolean type, got: %s, skipping feature %s", reflect.TypeOf(v), k)
+		}
+		featuresParsed[k] = featureValue
+	}
+
+	log.Infof("Server supports features: %s", featuresParsed)
+	report <- features.Make(featuresParsed)
+}
+
+func (l *Collector) accessAPIwithEncoding(endpoint config.APIEndpoint, method string, checkPath string, body []byte, contentEncoding string) (*http.Response, error) {
+	url := endpoint.Endpoint.String() + checkPath // Add the checkPath in full Process Agent URL
+	req, err := http.NewRequest(method, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("could not create %s request to %s: %s", method, url, err)
 	}
 
 	req.Header.Add("content-encoding", contentEncoding)
@@ -269,25 +357,17 @@ func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath
 	resp, err := l.httpClient.Do(req)
 	if err != nil {
 		if isHTTPTimeout(err) {
-			responses <- errResponse("Timeout detected on %s, %s", url, err)
-		} else {
-			responses <- errResponse("Error submitting payload to %s: %s", url, err)
+			return nil, fmt.Errorf("Timeout detected on %s, %s", url, err)
 		}
-		return
+		return nil, fmt.Errorf("Error submitting payload to %s: %s", url, err)
 	}
 
-	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 300 {
-		responses <- errResponse("unexpected response from %s. Status: %s", url, resp.Status)
+		defer resp.Body.Close()
 		io.Copy(ioutil.Discard, resp.Body)
-		return
+		return resp, fmt.Errorf("unexpected response from %s. Status: %s", url, resp.Status)
 	}
 
-	body, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		responses <- errResponse("could not decode response body from %s: %s", url, err)
-		return
-	}
+	return resp, nil
 
-	responses <- postResponse{nil}
 }
