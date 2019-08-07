@@ -296,6 +296,7 @@ func (l *Collector) getFeatures(endpoint config.APIEndpoint, checkPath string, r
 		if resp != nil {
 			log.Info("Found StackState version which does not support feature detection yet")
 			report <- features.Empty()
+			return
 		}
 		// Log
 		_ = log.Error(accessErr)
