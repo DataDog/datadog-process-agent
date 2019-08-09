@@ -1,6 +1,7 @@
 stages:
 - build
 - pre_release
+- release
 
 variables:
   SRC_PATH: /src/github.com/StackVista/stackstate-process-agent
@@ -8,6 +9,8 @@ variables:
   STS_REPO_BRANCH_NAME: $CI_COMMIT_REF_NAME
   CIRCLE_BRANCH: $CI_COMMIT_REF_NAME
   BUILD_ENV: /root/.bashrc
+  STS_DOCKER_RELEASE_REPO: stackstate-process-agent
+  STS_DOCKER_TEST_REPO: stackstate-process-agent-test
 
 build_linux:
   image: stackstate/stackstate-process-agent-runner-gitlab:centos6
@@ -83,3 +86,37 @@ pre_release_linux:
     - ls -la $IMPORT_PATH
     - ls -la $IMPORT_PATH/packaging
     - cd $IMPORT_PATH/packaging && ./publish_staging_package.sh
+    
+pre_release_image:
+  stage: pre_release
+  image: docker:18.06.0
+  dependencies:
+    - build_linux
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+    - docker:dind
+  before_script: []
+  script:
+    - cd $CI_PROJECT_DIR
+    - ./packaging/publish_image.sh $CI_COMMIT_REF_NAME $STS_DOCKER_TEST_REPO $CI_PROJECT_DIR/process-agent
+
+release_image:
+  stage: release
+  image: docker:18.06.0
+  dependencies:
+    - build_linux
+  variables:
+    DOCKER_DRIVER: overlay
+  services:
+    - docker:dind
+  before_script: []
+  script:
+    - cd $CI_PROJECT_DIR
+    - export PROCESS_AGENT_VERSION=$(packaging/version.sh)
+    - export PUSH_LATEST=true
+    - ./packaging/publish_image.sh $PROCESS_AGENT_VERSION $STS_DOCKER_RELEASE_REPO $CI_PROJECT_DIR/process-agent $PUSH_LATEST
+  when: manual
+  only:
+    - tags
+    - trigger   

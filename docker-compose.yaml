@@ -1,0 +1,60 @@
+---
+version: '3.2'
+
+services:
+  kafka:
+    image: spotify/kafka:latest
+    environment:
+      ADVERTISED_HOST: kafka
+      ADVERTISED_PORT: 9092
+  receiver:
+    image: "508573134510.dkr.ecr.eu-west-1.amazonaws.com/stackstate-receiver:master"
+    command: "-J-Xms128M -J-Xmx1G -J-XX:+ExitOnOutOfMemoryError -DconsoleLogging=true -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:MaxRAMFraction=1"
+    ports:
+      - 7077:7077
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKERS: kafka:9092
+  correlate:
+    image: "508573134510.dkr.ecr.eu-west-1.amazonaws.com/stackstate-correlate:master"
+    entrypoint: "bin/stackstate-correlate -J-Xms128M -J-Xmx1G -J-XX:+ExitOnOutOfMemoryError -DconsoleLogging=true -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:MaxRAMFraction=1"
+    depends_on:
+      - receiver
+    environment:
+      KAFKA_BROKERS: kafka:9092
+  topic-api:
+    image: "508573134510.dkr.ecr.eu-west-1.amazonaws.com/stackstate-topic-api:master"
+    command: "-J-Xms128M -J-Xmx1G -J-XX:+ExitOnOutOfMemoryError -DconsoleLogging=true -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:MaxRAMFraction=1"
+    ports:
+      - 7070:7070
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      ZOOKEEPER_QUORUM: kafka:9092
+  stackstate-process-agent:
+    image: stackstate/stackstate-process-agent-test:${CURRENT_BRANCH:-master}
+    network_mode: "host"
+    pid: "host"
+    privileged: true
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/proc/:/host/proc/:ro"
+      - "/sys/fs/cgroup/:/host/sys/fs/cgroup:ro"
+      - "/etc/passwd:/etc/passwd:ro"
+      - "/sys/kernel/debug:/sys/kernel/debug"
+    environment:
+      STS_API_KEY: "API_KEY"
+      STS_PROCESS_AGENT_URL: "http://localhost:7077/stsAgent"
+      STS_PROCESS_AGENT_ENABLED: "true"
+      STS_PROCESS_BLACKLIST_PATTERNS: "^s6-,^docker-,^/sbin/,^/usr/sbin,^/pause,^/usr/bin/dbus-daemon,^-bash,^su$$,^/bin/bash,/lib/systemd/,agent"
+      HOST_PROC: "/host/proc"
+      HOST_SYS: "/host/sys"
+      STS_LOG_LEVEL: "debug"
+      STS_LOG_TO_CONSOLE: "true"
+#    healthcheck:
+#      test: curl --fail -s http://localhost:5000/ || exit 1
+#      interval: 1m30s
+#      timeout: 10s
+#      retries: 3
