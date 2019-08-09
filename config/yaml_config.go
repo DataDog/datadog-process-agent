@@ -148,8 +148,11 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	if yc.Process.LogFile != "" {
 		agentConf.LogFile = yc.Process.LogFile
 	}
-	if enabled, _ := isAffirmative(yc.IncrementalPublishingEnabled); enabled {
+	if enabled, err := isAffirmative(yc.IncrementalPublishingEnabled); err == nil {
+		log.Infof("Overriding incremental publishing with %ds", yc.IncrementalPublishingEnabled)
 		agentConf.EnableIncrementalPublishing = enabled
+	} else {
+		agentConf.EnableIncrementalPublishing = true
 	}
 	if yc.IncrementalPublishingRefreshInterval != 0 {
 		log.Infof("Overriding incremental publishing interval with %ds", yc.IncrementalPublishingRefreshInterval)
