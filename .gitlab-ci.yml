@@ -12,12 +12,14 @@ variables:
   STS_DOCKER_RELEASE_REPO: stackstate-process-agent
   STS_DOCKER_TEST_REPO: stackstate-process-agent-test
 
+before_script:
+    - mkdir -p /go/src/github.com/StackVista
+    - ln -s $CI_PROJECT_DIR  /go/src/github.com/StackVista/stackstate-process-agent
+
 build_linux:
   image: stackstate/stackstate-process-agent-runner-gitlab:centos6
   stage: build
-  before_script:
-    - mkdir -p /go/src/github.com/StackVista
-    - ln -s $CI_PROJECT_DIR  /go/src/github.com/StackVista/stackstate-process-agent
+  
   script:
     - touch $BUILD_ENV
     - echo 'export IMPORT_PATH=$GOPATH/src/github.com/StackVista/stackstate-process-agent' >> $BUILD_ENV
@@ -65,6 +67,7 @@ pre_release_windows:
   stage: pre_release
   dependencies:
     - build_windows
+  before_script: []  
   script:
     - call rake windows-versioned-artifact
     - aws.exe s3 cp . s3://stackstate-process-agent-2-test/%CI_COMMIT_REF_NAME% --recursive --exclude "*" --include "*.exe" --acl public-read
@@ -96,7 +99,6 @@ pre_release_image:
     DOCKER_DRIVER: overlay
   services:
     - docker:dind
-  before_script: []
   script:
     - cd $CI_PROJECT_DIR
     - ./packaging/publish_image.sh $CI_COMMIT_REF_NAME $STS_DOCKER_TEST_REPO $CI_PROJECT_DIR/process-agent
@@ -110,7 +112,6 @@ release_image:
     DOCKER_DRIVER: overlay
   services:
     - docker:dind
-  before_script: []
   script:
     - cd $CI_PROJECT_DIR
     - export PROCESS_AGENT_VERSION=$(packaging/version.sh)
