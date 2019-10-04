@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
-
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
 	"github.com/StackVista/stackstate-process-agent/net"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	log "github.com/cihub/seelog"
+	"strings"
 	"time"
 )
 
@@ -83,7 +83,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 	}
 
 	log.Debugf("collected connections in %s", time.Since(start))
-	return batchConnections(cfg, groupID, c.formatConnections(conns, lastConnByKey, c.prevCheckTime)), nil
+	return batchConnections(cfg, groupID, c.formatConnections(cfg, conns, lastConnByKey, c.prevCheckTime)), nil
 }
 
 func (c *ConnectionsCheck) getConnections() ([]common.ConnectionStats, error) {
@@ -108,7 +108,7 @@ func (c *ConnectionsCheck) getConnections() ([]common.ConnectionStats, error) {
 
 // Connections are split up into a chunks of at most 100 connections per message to
 // limit the message size on intake.
-func (c *ConnectionsCheck) formatConnections(conns []common.ConnectionStats, lastConns map[string]common.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
+func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []common.ConnectionStats, lastConns map[string]common.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
 	// Process create-times required to construct unique process hash keys on the backend
 	createTimeForPID := Process.createTimesforPIDs(connectionPIDs(conns))
 
@@ -141,12 +141,24 @@ func (c *ConnectionsCheck) formatConnections(conns []common.ConnectionStats, las
 			BytesSentPerSecond:     calculateRate(conn.SendBytes, lastConns[key].SendBytes, lastCheckTime),
 			BytesReceivedPerSecond: calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
 			Direction:              calculateDirection(conn.Direction),
-			Namespace:              conn.NetworkNamespace,
+			Namespace:              formatNamespace(cfg.ClusterName, conn.NetworkNamespace),
 		})
 	}
 	c.prevCheckConns = conns
 	c.prevCheckTime = time.Now()
 	return cxs
+}
+
+func formatNamespace(clusterName string, n string) string {
+	// check if we're running in kubernetes, prepend the namespace with the kubernetes / openshift cluster name
+	var fragments []string
+	if clusterName != "" {
+		fragments = append(fragments, clusterName)
+	}
+	if n != "" {
+		fragments = append(fragments, n)
+	}
+	return strings.Join(fragments, ":")
 }
 
 func formatFamily(f common.ConnectionFamily) model.ConnectionFamily {

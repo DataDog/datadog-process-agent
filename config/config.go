@@ -91,6 +91,9 @@ type AgentConfig struct {
 	AmountTopMemoryUsage        int
 	MemoryUsageThreshold        int
 
+	// Kubernetes/Openshift cluster name
+	ClusterName string
+
 	// Publishing settings
 	EnableIncrementalPublishing          bool          // Reduce downstream load by only publishing incremental changes. Remote should support this
 	IncrementalPublishingRefreshInterval time.Duration // Periodically resend all data to allow downstream to recover from any lost data
@@ -619,6 +622,10 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		patterns,
 		amountTopCPUPercentageUsage, amountTopIOReadUsage, amountTopIOWriteUsage, amountTopMemoryUsage,
 		CPUPercentageUsageThreshold, memoryUsageThreshold)
+
+	if v := os.Getenv("STS_CLUSTER_NAME"); v != "" {
+		c.ClusterName = v
+	}
 
 	return c
 }
