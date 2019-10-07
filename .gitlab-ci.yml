@@ -114,9 +114,8 @@ release_image:
     - docker:dind
   script:
     - cd $CI_PROJECT_DIR
-    - export PROCESS_AGENT_VERSION=$(packaging/version.sh)
     - export PUSH_LATEST=true
-    - ./packaging/publish_image.sh $PROCESS_AGENT_VERSION $STS_DOCKER_RELEASE_REPO $CI_PROJECT_DIR/process-agent $PUSH_LATEST
+    - ./packaging/publish_image.sh $CI_COMMIT_REF_NAME $STS_DOCKER_RELEASE_REPO $CI_PROJECT_DIR/process-agent $PUSH_LATEST
   when: manual
   only:
     - tags
