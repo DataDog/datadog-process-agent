@@ -49,6 +49,7 @@ gofmt -l $REPLACE_MODE -r '"error parsing process_dd_url: %s" -> "error parsing 
 gofmt -l $REPLACE_MODE -r '"dd_agent_py" -> "sts_agent_py"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"dd_agent_py_env" -> "sts_agent_py_env"' $REPLACE_SCOPE
 gofmt -l $REPLACE_MODE -r '"ddconfig" -> "stsconfig"' $REPLACE_SCOPE
+gofmt -l $REPLACE_MODE -r '"https://process.datadoghq.com" -> "http://localhost"' $REPLACE_SCOPE
 
 # console changes
 gofmt -l $REPLACE_MODE -r '"/etc/datadog-agent/datadog.yaml" -> "/etc/stackstate-agent/stackstate.yaml"' $REPLACE_SCOPE
