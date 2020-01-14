@@ -30,6 +30,7 @@ var defaultBlacklistPatterns = []string{
 	"^/usr/bin/tail",
 	"^\\(sd-pam\\)",
 	"^containerd-shim",
+	"^docker-container-shim",
 	"^pause",
 	"^/pause",
 	// Kubernetes / Containerized environments
@@ -128,7 +129,7 @@ var defaultBlacklistPatterns = []string{
 	"^s6-supervise$",
 	"^s6-svscan$",
 	"^s6-",
-	"^sleep$",
+	"^sleep",
 	"^/usr/sbin/sshd$",
 	"^./lib/systemd/systemd-journald$",
 	"^/lib/systemd/systemd-logind$",
