@@ -113,6 +113,7 @@ var defaultBlacklistPatterns = []string{
 	"^/bin/oauth2_proxy$",
 	"^/usr/lib/policykit-1/polkitd",
 	"^.process-agent$",
+	"^/opt/stackstate-agent/bin/",
 	"^/usr/bin/pulseaudio$",
 	"^python$",
 	"^/usr/bin/python$",
