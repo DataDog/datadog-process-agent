@@ -29,6 +29,8 @@ var defaultBlacklistPatterns = []string{
 	"^/usr/bin/vi(?:m|m.basic)?$",
 	"^/usr/bin/tail",
 	"^\\(sd-pam\\)",
+	"^/compose-controller$",
+	"^/api-server$",
 	"^containerd-shim",
 	"^docker-container-shim",
 	"^pause",
