@@ -190,7 +190,7 @@ func TestDefaultBlacklistNix(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:      "Should not filter MyOwnApplication.EXE process based on Blacklist",
+			name:      "Should not filter /usr/bin/python2.7 process based on Blacklist",
 			processArgs: []string{"/usr/bin/python2.7", "my-py-application"},
 			expected: false,
 		},

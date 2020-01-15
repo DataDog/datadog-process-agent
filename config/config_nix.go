@@ -117,8 +117,6 @@ var defaultBlacklistPatterns = []string{
 	"^.process-agent",
 	"^/opt/stackstate-agent/bin/",
 	"^/usr/bin/pulseaudio",
-	"^python",
-	"^/usr/bin/python",
 	"^rescheduler",
 	"^/usr/sbin/rsyslogd",
 	"^/usr/lib/rtkit/rtkit-daemon",
