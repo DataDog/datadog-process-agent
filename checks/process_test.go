@@ -38,10 +38,10 @@ func makeProcess(pid int32) *model.Process {
 	}
 }
 
-func makeProcessWithContainer(pid int32, containerId string) *model.Process {
+func makeProcessWithContainer(pid int32, containerID string) *model.Process {
 	return &model.Process{
 		Pid:         pid,
-		ContainerId: containerId,
+		ContainerId: containerID,
 	}
 }
 
@@ -52,10 +52,10 @@ func makeTaggedProcess(pid int32, tags []string) *model.Process {
 	}
 }
 
-func makeTaggedProcessWithContainer(pid int32, containerId string, tags []string) *model.Process {
+func makeTaggedProcessWithContainer(pid int32, containerID string, tags []string) *model.Process {
 	return &model.Process{
 		Pid:         pid,
-		ContainerId: containerId,
+		ContainerId: containerID,
 		Tags:        tags,
 	}
 }
