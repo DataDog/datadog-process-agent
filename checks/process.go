@@ -149,6 +149,7 @@ func buildIncrement(
 ) []*model.CollectorCommand {
 	// Put capacity to upperbound of commands that can be made
 	commands := make([]*model.CollectorCommand, 0, len(processes)+len(containers)+len(lastProcesses)+len(lastContainers))
+	currentContainers := buildCtrState(containers)
 
 	// =================== Commands for containers ===============================
 	for _, container := range containers {
@@ -195,6 +196,11 @@ func buildIncrement(
 
 	// =================== Commands for processes ===============================
 	for _, process := range processes {
+		// check to see if we are running in Kubernetes and replicate the tags from the container to the process
+		if container, ok := currentContainers[process.ContainerId]; ok {
+			process = replicateKubernetesLabelsToProcess(process, container)
+		}
+
 		if previousProcess, ok := lastProcesses[process.Pid]; ok {
 			// Was it already there? Lets see whether topology changed
 			// Later we may also do comparison on metrics
@@ -281,7 +287,8 @@ func (p *ProcessCheck) fmtSnapshot(cfg *config.AgentConfig,
 	processes []*model.Process,
 	containers []*model.Container) []model.MessageBody {
 
-	chunkedProcs := chunkProcesses(processes, cfg.MaxPerMessage, make([][]*model.Process, 0))
+	enrichedProcesses := enrichProcessWithKubernetesTags(processes, containers)
+	chunkedProcs := chunkProcesses(enrichedProcesses, cfg.MaxPerMessage, make([][]*model.Process, 0))
 	groupSize := len(chunkedProcs)
 	chunkedContainers := chunkedContainers(containers, groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
@@ -298,6 +305,20 @@ func (p *ProcessCheck) fmtSnapshot(cfg *config.AgentConfig,
 	}
 
 	return messages
+}
+
+func enrichProcessWithKubernetesTags(processes []*model.Process, containers []*model.Container) []*model.Process {
+	// build container map
+	enrichedProcesses := make([]*model.Process, 0, len(processes))
+	currentContainers := buildCtrState(containers)
+	for _, proc := range processes {
+		// check to see if we are running in Kubernetes and replicate the tags from the container to the process
+		if container, ok := currentContainers[proc.ContainerId]; ok {
+			enrichedProcesses = append(enrichedProcesses, replicateKubernetesLabelsToProcess(proc, container))
+		}
+	}
+
+	return enrichedProcesses
 }
 
 func fmtProcesses(

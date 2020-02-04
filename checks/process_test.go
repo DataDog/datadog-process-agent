@@ -38,10 +38,25 @@ func makeProcess(pid int32) *model.Process {
 	}
 }
 
+func makeProcessWithContainer(pid int32, containerId string) *model.Process {
+	return &model.Process{
+		Pid:         pid,
+		ContainerId: containerId,
+	}
+}
+
 func makeTaggedProcess(pid int32, tags []string) *model.Process {
 	return &model.Process{
 		Pid:  pid,
 		Tags: tags,
+	}
+}
+
+func makeTaggedProcessWithContainer(pid int32, containerId string, tags []string) *model.Process {
+	return &model.Process{
+		Pid:         pid,
+		ContainerId: containerId,
+		Tags:        tags,
 	}
 }
 
@@ -500,22 +515,22 @@ func TestBuildIncrementProcesses(t *testing.T) {
 	commands := buildIncrement(pNow, []*model.Container{}, buildProcState(pLast), make(map[string]*model.Container))
 
 	expected := []*model.CollectorCommand{
-		&model.CollectorCommand{
+		{
 			Command: &model.CollectorCommand_UpdateProcessMetrics{
 				UpdateProcessMetrics: makeTaggedProcess(2, []string{"tag"}),
 			},
 		},
-		&model.CollectorCommand{
+		{
 			Command: &model.CollectorCommand_UpdateProcess{
 				UpdateProcess: makeTaggedProcess(3, []string{"newtag"}),
 			},
 		},
-		&model.CollectorCommand{
+		{
 			Command: &model.CollectorCommand_UpdateProcess{
 				UpdateProcess: makeProcess(4),
 			},
 		},
-		&model.CollectorCommand{
+		{
 			Command: &model.CollectorCommand_DeleteProcess{
 				DeleteProcess: makeProcess(1),
 			},
@@ -544,22 +559,22 @@ func TestBuildIncrementContainers(t *testing.T) {
 	commands := buildIncrement([]*model.Process{}, cNow, make(map[int32]*model.Process), buildCtrState(cLast))
 
 	expected := []*model.CollectorCommand{
-		&model.CollectorCommand{
+		{
 			Command: &model.CollectorCommand_UpdateContainerMetrics{
 				UpdateContainerMetrics: makeTaggedModelContainer("2", []string{"tag"}),
 			},
 		},
-		&model.CollectorCommand{
+		{
 			Command: &model.CollectorCommand_UpdateContainer{
 				UpdateContainer: makeTaggedModelContainer("3", []string{"newtag"}),
 			},
 		},
-		&model.CollectorCommand{
+		{
 			Command: &model.CollectorCommand_UpdateContainer{
 				UpdateContainer: makeModelContainer("4"),
 			},
 		},
-		&model.CollectorCommand{
+		{
 			Command: &model.CollectorCommand_DeleteContainer{
 				DeleteContainer: makeModelContainer("1"),
 			},
@@ -570,6 +585,100 @@ func TestBuildIncrementContainers(t *testing.T) {
 
 	for i := 0; i < len(expected); i++ {
 		assert.EqualValues(t, expected[i], commands[i])
+	}
+}
+
+func TestBuildIncrementContainersProcessKubernetesReplication(t *testing.T) {
+
+	for _, tc := range []struct {
+		name             string
+		processes        []*model.Process
+		lastProcesses    map[int32]*model.Process
+		containers       []*model.Container
+		lastContainers   map[string]*model.Container
+		expectedCommands []*model.CollectorCommand
+	}{
+		{
+			name: "Should replicate tags from Kubernetes container onto the process",
+			processes: []*model.Process{
+				makeProcessWithContainer(1, "123"),
+			},
+			lastProcesses: map[int32]*model.Process{},
+			containers: []*model.Container{
+				makeTaggedModelContainer("123", []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}),
+			},
+			lastContainers: map[string]*model.Container{},
+			expectedCommands: []*model.CollectorCommand{
+				{
+					Command: &model.CollectorCommand_UpdateContainer{
+						UpdateContainer: makeTaggedModelContainer("123", []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}),
+					},
+				},
+				{
+					Command: &model.CollectorCommand_UpdateProcess{
+						UpdateProcess: makeTaggedProcessWithContainer(1, "123", []string{"pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
+					},
+				},
+			},
+		},
+		{
+			name: "Should update a process with the tags from a Kubernetes container",
+			processes: []*model.Process{
+				makeProcessWithContainer(1, "123"),
+			},
+			lastProcesses: map[int32]*model.Process{},
+			containers: []*model.Container{
+				makeTaggedModelContainer("123", []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}),
+			},
+			lastContainers: map[string]*model.Container{
+				"123": makeTaggedModelContainer("123", []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}),
+			},
+			expectedCommands: []*model.CollectorCommand{
+				{
+					Command: &model.CollectorCommand_UpdateContainerMetrics{
+						UpdateContainerMetrics: makeTaggedModelContainer("123", []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}),
+					},
+				},
+				{
+					Command: &model.CollectorCommand_UpdateProcess{
+						UpdateProcess: makeTaggedProcessWithContainer(1, "123", []string{"pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			commands := buildIncrement(tc.processes, tc.containers, tc.lastProcesses, tc.lastContainers)
+			assert.EqualValues(t, tc.expectedCommands, commands)
+		})
+	}
+}
+
+func TestEnrichProcessWithKubernetesTags(t *testing.T) {
+
+	for _, tc := range []struct {
+		name              string
+		processes         []*model.Process
+		containers        []*model.Container
+		expectedProcesses []*model.Process
+	}{
+		{
+			name: "Should replicate tags from Kubernetes container onto the process",
+			processes: []*model.Process{
+				makeProcessWithContainer(1, "123"),
+			},
+			containers: []*model.Container{
+				makeTaggedModelContainer("123", []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}),
+			},
+			expectedProcesses: []*model.Process{
+				makeTaggedProcessWithContainer(1, "123", []string{"pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			processes := enrichProcessWithKubernetesTags(tc.processes, tc.containers)
+			assert.EqualValues(t, tc.expectedProcesses, processes)
+		})
 	}
 }
 
@@ -585,12 +694,12 @@ func TestBuildIncrementContainerPrecedeProcesses(t *testing.T) {
 	commands := buildIncrement(pNow, cNow, make(map[int32]*model.Process), make(map[string]*model.Container))
 
 	expected := []*model.CollectorCommand{
-		&model.CollectorCommand{
+		{
 			Command: &model.CollectorCommand_UpdateContainer{
 				UpdateContainer: makeModelContainer("1"),
 			},
 		},
-		&model.CollectorCommand{
+		{
 			Command: &model.CollectorCommand_UpdateProcess{
 				UpdateProcess: makeProcess(1),
 			},
@@ -814,6 +923,49 @@ func TestRateCalculation(t *testing.T) {
 	assert.True(t, floatEquals(calculateRate(5, 1, now), 0))
 	assert.True(t, floatEquals(calculateRate(5, 0, prev), 0))
 	assert.True(t, floatEquals(calculateRate(5, 1, empty), 0))
+}
+
+func TestKubernetesContainerToPodLabelsReplication(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		process        *model.Process
+		container      *model.Container
+		podLabel       string
+		namespaceLabel string
+	}{
+		{
+			name:           "Should replica pod_name:some-pod-name-xyz label from container to process",
+			process:        &model.Process{Tags: []string{}},
+			container:      &model.Container{Tags: []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}},
+			podLabel:       "pod-name:some-pod-name-xyz",
+			namespaceLabel: "namespace:some-namespace",
+		},
+		{
+			name:           "Should not create a pod_name: label when none is present in the container",
+			process:        &model.Process{},
+			container:      &model.Container{},
+			podLabel:       "",
+			namespaceLabel: "",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			podLabel := ""
+			namespaceLabel := ""
+
+			tc.process = replicateKubernetesLabelsToProcess(tc.process, tc.container)
+
+			for _, tag := range tc.process.Tags {
+				if strings.HasPrefix(tag, "pod-name:") {
+					podLabel = tag
+				}
+				if strings.HasPrefix(tag, "namespace:") {
+					namespaceLabel = tag
+				}
+			}
+			assert.Equal(t, tc.podLabel, podLabel)
+			assert.Equal(t, tc.namespaceLabel, namespaceLabel)
+		})
+	}
 }
 
 func floatEquals(a, b float32) bool {
