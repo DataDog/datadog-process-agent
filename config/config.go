@@ -699,6 +699,7 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 	cmd := strings.Join(cmdline, " ")
 	for _, b := range blacklist {
 		if b.MatchString(cmd) {
+			log.Debugf("Filter process: %s based on blacklist: %s", cmd, b.String())
 			return true
 		}
 	}
