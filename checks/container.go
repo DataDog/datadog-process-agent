@@ -3,8 +3,10 @@
 package checks
 
 import (
+	"fmt"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/StackVista/stackstate-agent/pkg/tagger"
@@ -62,7 +64,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 	if len(ctrList) != cfg.MaxPerMessage {
 		groupSize++
 	}
-	chunked := chunkedContainers(fmtContainers(ctrList, c.lastRates, c.lastRun), groupSize)
+	chunked := chunkedContainers(fmtContainers(cfg, ctrList, c.lastRates, c.lastRun), groupSize)
 	messages := make([]model.MessageBody, 0, groupSize)
 	totalContainers := float64(0)
 	for i := 0; i < groupSize; i++ {
@@ -86,6 +88,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 
 // fmtContainers formats the ctrList
 func fmtContainers(
+	cfg *config.AgentConfig,
 	ctrList []*containers.Container,
 	lastRates map[string]util.ContainerRateMetrics,
 	lastRun time.Time) []*model.Container {
@@ -133,7 +136,7 @@ func fmtContainers(
 			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun),
 			NetSentBps:  calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun),
 			Started:     ctr.StartedAt,
-			Tags:        tags,
+			Tags:        transformKubernetesTags(tags, cfg.ClusterName),
 		})
 	}
 
@@ -185,4 +188,26 @@ func fillNilRates(rates util.ContainerRateMetrics) util.ContainerRateMetrics {
 		r.NetworkSum = util.NullContainerRates.NetworkSum
 	}
 	return *r
+}
+
+func transformKubernetesTags(tags []string, clusterName string) []string {
+	updatedTags := make([]string, 0, len(tags))
+
+	for _, tag := range tags {
+		if strings.HasPrefix(tag, "pod_name:") {
+			podName := strings.Split(tag, "pod_name:")[1]
+			updatedTags = append(updatedTags, fmt.Sprintf("pod-name:%s", podName))
+		} else if strings.HasPrefix(tag, "kube_namespace:") {
+			namespace := strings.Split(tag, "kube_namespace:")[1]
+			updatedTags = append(updatedTags, fmt.Sprintf("namespace:%s", namespace))
+		} else {
+			updatedTags = append(updatedTags, tag)
+		}
+	}
+
+	if clusterName != "" {
+		updatedTags = append(updatedTags, fmt.Sprintf("cluster-name:%s", clusterName))
+	}
+
+	return updatedTags
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/StackVista/stackstate-process-agent/model"
 	log "github.com/cihub/seelog"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -319,4 +320,23 @@ func (p *ProcessCheck) createTimesforPIDs(pids []uint32) map[uint32]int64 {
 		}
 	}
 	return createTimeForPID
+}
+
+func replicateKubernetesLabelsToProcess(process *model.Process, container *model.Container) *model.Process {
+	if container != nil {
+		for _, tag := range container.Tags {
+			if strings.HasPrefix(tag, "cluster-name:") {
+				process.Tags = append(process.Tags, tag)
+			}
+
+			if strings.HasPrefix(tag, "pod-name:") {
+				process.Tags = append(process.Tags, tag)
+			}
+
+			if strings.HasPrefix(tag, "namespace:") {
+				process.Tags = append(process.Tags, tag)
+			}
+		}
+	}
+	return process
 }
