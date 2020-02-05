@@ -599,49 +599,49 @@ func TestBuildIncrementContainersProcessKubernetesReplication(t *testing.T) {
 		expectedCommands []*model.CollectorCommand
 	}{
 		{
-			name: "Should replicate tags from Kubernetes container onto the process",
+			name: "Should replicate only kubernetes tags from container onto the process",
 			processes: []*model.Process{
 				makeProcessWithContainer(1, "123"),
 			},
 			lastProcesses: map[int32]*model.Process{},
 			containers: []*model.Container{
-				makeTaggedModelContainer("123", []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}),
+				makeTaggedModelContainer("123", []string{"non-replicate:tag", "cluster-name:test-cluster-name", "pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
 			},
 			lastContainers: map[string]*model.Container{},
 			expectedCommands: []*model.CollectorCommand{
 				{
 					Command: &model.CollectorCommand_UpdateContainer{
-						UpdateContainer: makeTaggedModelContainer("123", []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}),
+						UpdateContainer: makeTaggedModelContainer("123", []string{"non-replicate:tag", "cluster-name:test-cluster-name", "pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
 					},
 				},
 				{
 					Command: &model.CollectorCommand_UpdateProcess{
-						UpdateProcess: makeTaggedProcessWithContainer(1, "123", []string{"pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
+						UpdateProcess: makeTaggedProcessWithContainer(1, "123", []string{"cluster-name:test-cluster-name", "pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
 					},
 				},
 			},
 		},
 		{
-			name: "Should update a process with the tags from a Kubernetes container",
+			name: "Should update a process with kubernetes tags from a container",
 			processes: []*model.Process{
 				makeProcessWithContainer(1, "123"),
 			},
 			lastProcesses: map[int32]*model.Process{},
 			containers: []*model.Container{
-				makeTaggedModelContainer("123", []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}),
+				makeTaggedModelContainer("123", []string{"cluster-name:test-cluster-name", "pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
 			},
 			lastContainers: map[string]*model.Container{
-				"123": makeTaggedModelContainer("123", []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}),
+				"123": makeTaggedModelContainer("123", []string{"cluster-name:test-cluster-name", "pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
 			},
 			expectedCommands: []*model.CollectorCommand{
 				{
 					Command: &model.CollectorCommand_UpdateContainerMetrics{
-						UpdateContainerMetrics: makeTaggedModelContainer("123", []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}),
+						UpdateContainerMetrics: makeTaggedModelContainer("123", []string{"cluster-name:test-cluster-name", "pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
 					},
 				},
 				{
 					Command: &model.CollectorCommand_UpdateProcess{
-						UpdateProcess: makeTaggedProcessWithContainer(1, "123", []string{"pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
+						UpdateProcess: makeTaggedProcessWithContainer(1, "123", []string{"cluster-name:test-cluster-name", "pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
 					},
 				},
 			},
@@ -668,10 +668,10 @@ func TestEnrichProcessWithKubernetesTags(t *testing.T) {
 				makeProcessWithContainer(1, "123"),
 			},
 			containers: []*model.Container{
-				makeTaggedModelContainer("123", []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}),
+				makeTaggedModelContainer("123", []string{"cluster-name:test-cluster-name", "pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
 			},
 			expectedProcesses: []*model.Process{
-				makeTaggedProcessWithContainer(1, "123", []string{"pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
+				makeTaggedProcessWithContainer(1, "123", []string{"cluster-name:test-cluster-name", "pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
 			},
 		},
 	} {
@@ -923,49 +923,6 @@ func TestRateCalculation(t *testing.T) {
 	assert.True(t, floatEquals(calculateRate(5, 1, now), 0))
 	assert.True(t, floatEquals(calculateRate(5, 0, prev), 0))
 	assert.True(t, floatEquals(calculateRate(5, 1, empty), 0))
-}
-
-func TestKubernetesContainerToPodLabelsReplication(t *testing.T) {
-	for _, tc := range []struct {
-		name           string
-		process        *model.Process
-		container      *model.Container
-		podLabel       string
-		namespaceLabel string
-	}{
-		{
-			name:           "Should replica pod_name:some-pod-name-xyz label from container to process",
-			process:        &model.Process{Tags: []string{}},
-			container:      &model.Container{Tags: []string{"pod_name:some-pod-name-xyz", "kube_namespace:some-namespace"}},
-			podLabel:       "pod-name:some-pod-name-xyz",
-			namespaceLabel: "namespace:some-namespace",
-		},
-		{
-			name:           "Should not create a pod_name: label when none is present in the container",
-			process:        &model.Process{},
-			container:      &model.Container{},
-			podLabel:       "",
-			namespaceLabel: "",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			podLabel := ""
-			namespaceLabel := ""
-
-			tc.process = replicateKubernetesLabelsToProcess(tc.process, tc.container)
-
-			for _, tag := range tc.process.Tags {
-				if strings.HasPrefix(tag, "pod-name:") {
-					podLabel = tag
-				}
-				if strings.HasPrefix(tag, "namespace:") {
-					namespaceLabel = tag
-				}
-			}
-			assert.Equal(t, tc.podLabel, podLabel)
-			assert.Equal(t, tc.namespaceLabel, namespaceLabel)
-		})
-	}
 }
 
 func floatEquals(a, b float32) bool {

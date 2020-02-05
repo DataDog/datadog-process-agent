@@ -98,7 +98,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, features features.Features, 
 		return nil, nil
 	}
 
-	containers := fmtContainers(ctrList, p.lastCtrRates, p.lastRun)
+	containers := fmtContainers(cfg, ctrList, p.lastCtrRates, p.lastRun)
 
 	if cfg.EnableIncrementalPublishing && features.FeatureEnabled("incremental-topology") && time.Now().Before(p.lastRefresh.Add(cfg.IncrementalPublishingRefreshInterval)) {
 		log.Debug("Sending process status increment")
