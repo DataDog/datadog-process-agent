@@ -206,7 +206,7 @@ func transformKubernetesTags(tags []string, clusterName string) []string {
 	}
 
 	if clusterName != "" {
-		updatedTags = append(updatedTags, fmt.Sprintf("cluster_name:%s", clusterName))
+		updatedTags = append(updatedTags, fmt.Sprintf("cluster-name:%s", clusterName))
 	}
 
 	return updatedTags
