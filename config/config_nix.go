@@ -15,8 +15,10 @@ const (
 
 // Process blacklist
 var defaultBlacklistPatterns = []string{
+	"^/usr/bin/stress",
 	"^stress",
 	"^/usr/bin/yes",
+	"^yes\\s.*$",
 	"^-bash",
 	"^-sh",
 	"^su\\s.*$",
@@ -24,7 +26,8 @@ var defaultBlacklistPatterns = []string{
 	"^/usr/lib/systemd/",
 	"^pickup",
 	"^/sbin/",
-	"^/usr/sbin/",
+	"^/usr/sbin/.*",
+	"^/usr/sbin/sshd",
 	"^qmgr",
 	"^sshd:",
 	"^/usr/bin/vi(?:m|m.basic)?\\s",
