@@ -87,6 +87,181 @@ func TestDefaultBlacklist(t *testing.T) {
 	}
 }
 
+func TestDefaultBlacklistWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+
+	var cf *YamlAgentConfig
+	err := yaml.Unmarshal([]byte(strings.Join([]string{
+		"anything: goes",
+	}, "\n")), &cf)
+	assert.NoError(t, err)
+	agentConfig, _ := NewAgentConfig(nil, cf, nil)
+
+	for _, tc := range []struct {
+		name      string
+		processArgs   []string
+		expected  bool
+	}{
+		{
+			name:      "Should not filter MyOwnApplication.EXE process based on Blacklist",
+			processArgs: []string{"MyOwnApplication.EXE"},
+			expected: false,
+		},
+		{
+			name:      "Should filter Explorer.EXE process based on Blacklist",
+			processArgs: []string{"Explorer.EXE"},
+			expected: true,
+		},
+		{
+			name:      "Should filter conhost.exe process based on Blacklist",
+			processArgs: []string{"conhost.exe"},
+			expected: true,
+		},
+		{
+			name:      "Should filter DllHost.exe process based on Blacklist",
+			processArgs: []string{"DllHost.exe"},
+			expected: true,
+		},
+		{
+			name:      "Should filter dwm.exe process based on Blacklist",
+			processArgs: []string{"dwm.exe"},
+			expected: true,
+		},
+		{
+			name:      "Should filter tasklist.exe process based on Blacklist",
+			processArgs: []string{"tasklist.exe"},
+			expected: true,
+		},
+		{
+			name:      "Should filter VBoxService.exe process based on Blacklist",
+			processArgs: []string{"VBoxService.exe"},
+			expected: true,
+		},
+		{
+			name:      "Should filter taskhostw.exe process based on Blacklist",
+			processArgs: []string{"taskhostw.exe"},
+			expected: true,
+		},
+		{
+			name:      "Should filter svchost.exe process based on Blacklist",
+			processArgs: []string{"svchost.exe"},
+			expected: true,
+		},
+		{
+			name:      "Should filter lsass.exe process based on Blacklist",
+			processArgs: []string{"lsass.exe"},
+			expected: true,
+		},
+		{
+			name:      "Should filter msdtc.exe process based on Blacklist",
+			processArgs: []string{"msdtc.exe"},
+			expected: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			filter := IsBlacklisted(tc.processArgs, agentConfig.Blacklist)
+			assert.Equal(t,  tc.expected, filter, "Test: [%s], expected filter: %t, found filter: %t", tc.name, tc.expected, filter)
+		})
+	}
+}
+
+func TestDefaultBlacklistNix(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		return
+	}
+
+	var cf *YamlAgentConfig
+	err := yaml.Unmarshal([]byte(strings.Join([]string{
+		"anything: goes",
+	}, "\n")), &cf)
+	assert.NoError(t, err)
+	agentConfig, _ := NewAgentConfig(nil, cf, nil)
+
+	for _, tc := range []struct {
+		name      string
+		processArgs   []string
+		expected  bool
+	}{
+		{
+			name:      "Should not filter /opt/some-application/bin/app process based on Blacklist",
+			processArgs: []string{"/opt/some-application/bin/app", "start", "-h"},
+			expected: false,
+		},
+		{
+			name:      "Should not filter /usr/bin/python2.7 process based on Blacklist",
+			processArgs: []string{"/usr/bin/python2.7", "my-py-application"},
+			expected: false,
+		},
+		{
+			name:      "Should not filter /usr/local/openjdk-8/bin/java process based on Blacklist",
+			processArgs: []string{"/usr/local/openjdk-8/bin/java", "my-java-application"},
+			expected: false,
+		},
+		{
+			name:      "Should filter sleep process based on Blacklist",
+			processArgs: []string{"sleep", "15"},
+			expected: true,
+		},
+		{
+			name:      "Should filter -sh process based on Blacklist",
+			processArgs: []string{"-sh", "something"},
+			expected: true,
+		},
+		{
+			name:      "Should filter msdtc.exe process based on Blacklist",
+			processArgs: []string{"sshd:", ""},
+			expected: true,
+		},
+		{
+			name:      "Should filter pause process based on Blacklist",
+			processArgs: []string{"pause"},
+			expected: true,
+		},
+		{
+			name:      "Should filter /usr/bin/vim process based on Blacklist",
+			processArgs: []string{"/usr/bin/vim", "some-text-file"},
+			expected: true,
+		},
+		{
+			name:      "Should filter everything in /usr/sbin based on Blacklist",
+			processArgs: []string{"/usr/sbin/everything"},
+			expected: true,
+		},
+		{
+			name:      "Should filter s6-format-filter process based on Blacklist",
+			processArgs: []string{"s6-format-filter"},
+			expected: true,
+		},
+		{
+			name:      "Should filter dotnet process based on Blacklist",
+			processArgs: []string{"dotnet", "my-dotnet-application"},
+			expected: true,
+		},
+		{
+			name:      "Should filter /usr/bin/containerd process based on Blacklist",
+			processArgs: []string{"/usr/bin/containerd"},
+			expected: true,
+		},
+		{
+			name:      "Should filter bash process based on Blacklist",
+			processArgs: []string{"bash", "some-bash-process"},
+			expected: true,
+		},
+		{
+			name:      "Should filter docker-container-shim process based on Blacklist",
+			processArgs: []string{"docker-container-shim"},
+			expected: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			filter := IsBlacklisted(tc.processArgs, agentConfig.Blacklist)
+			assert.Equal(t,  tc.expected, filter, "Test: [%s], expected filter: %t, found filter: %t", tc.name, tc.expected, filter)
+		})
+	}
+}
+
 func TestSetBlacklistFromEnv(t *testing.T) {
 	os.Setenv("STS_PROCESS_BLACKLIST_PATTERNS", "^/usr/bin/bashbash,^sshd:")
 

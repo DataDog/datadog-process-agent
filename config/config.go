@@ -638,6 +638,8 @@ func setProcessBlacklist(agentConf *AgentConfig,
 	if len(patterns) > 0 {
 		log.Infof("Overriding processes blacklist to %v", patterns)
 		agentConf.Blacklist = deriveFmapConstructRegex(constructRegex, patterns)
+	} else {
+		log.Infof("Using default processes blacklist %v", agentConf.Blacklist)
 	}
 	if amountTopCPUPercentageUsage != 0 {
 		log.Infof("Overriding top CPU percentage using processes inclusions to %d", amountTopCPUPercentageUsage)
@@ -697,6 +699,7 @@ func IsBlacklisted(cmdline []string, blacklist []*regexp.Regexp) bool {
 	cmd := strings.Join(cmdline, " ")
 	for _, b := range blacklist {
 		if b.MatchString(cmd) {
+			log.Debugf("Filter process: %s based on blacklist: %s", cmd, b.String())
 			return true
 		}
 	}
