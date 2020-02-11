@@ -315,6 +315,9 @@ func enrichProcessWithKubernetesTags(processes []*model.Process, containers []*m
 		// check to see if we are running in Kubernetes and replicate the tags from the container to the process
 		if container, ok := currentContainers[proc.ContainerId]; ok {
 			enrichedProcesses = append(enrichedProcesses, replicateKubernetesLabelsToProcess(proc, container))
+		} else {
+			// no enriching -> most likely not running in kubernetes
+			enrichedProcesses = append(enrichedProcesses, proc)
 		}
 	}
 
