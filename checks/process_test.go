@@ -674,6 +674,16 @@ func TestEnrichProcessWithKubernetesTags(t *testing.T) {
 				makeTaggedProcessWithContainer(1, "123", []string{"cluster-name:test-cluster-name", "pod-name:some-pod-name-xyz", "namespace:some-namespace"}),
 			},
 		},
+		{
+			name: "Should do nothing with processes not running in a container",
+			processes: []*model.Process{
+				makeProcess(1),
+			},
+			containers: []*model.Container{},
+			expectedProcesses: []*model.Process{
+				makeProcess(1),
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			processes := enrichProcessWithKubernetesTags(tc.processes, tc.containers)
