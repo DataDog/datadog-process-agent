@@ -2,7 +2,6 @@ package checks
 
 import (
 	"bytes"
-	"github.com/DataDog/gopsutil/process"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	"testing"
 	"time"
@@ -125,14 +124,7 @@ func TestFilterShortLivedConnections(t *testing.T) {
 		}
 	}
 
-	// fill in the procs in the lastProcs map to get process create time for the connection mapping
-	Process.lastProcs = map[int32]*process.FilledProcess{
-		1: {Pid: 1, CreateTime: now.Add(-5 * time.Minute).Unix()},
-		2: {Pid: 2, CreateTime: now.Add(-5 * time.Minute).Unix()},
-		3: {Pid: 3, CreateTime: now.Add(-5 * time.Minute).Unix()},
-		4: {Pid: 4, CreateTime: now.Add(-5 * time.Minute).Unix()},
-	}
-
+	// fill in the procs in the lastProcState map to get process create time for the connection mapping
 	Process.lastProcState = map[int32]*model.Process{
 		1: {Pid: 1, CreateTime: now.Add(-5 * time.Minute).Unix()},
 		2: {Pid: 2, CreateTime: now.Add(-5 * time.Minute).Unix()},
@@ -154,8 +146,8 @@ func TestFilterShortLivedConnections(t *testing.T) {
 
 	assert.Len(t, connections, 4)
 
-	// clear the changes to Process.lastProcs
-	Process.lastProcs = make(map[int32]*process.FilledProcess, 0)
+	// clear the changes to Process.lastProcState
+	Process.lastProcState = make(map[int32]*model.Process, 0)
 }
 
 func TestNetworkConnectionNamespaceKubernetes(t *testing.T) {
@@ -184,8 +176,8 @@ func TestNetworkConnectionNamespaceKubernetes(t *testing.T) {
 		}
 	}
 
-	// fill in the procs in the lastProcs map to get process create time for the connection mapping
-	Process.lastProcs = map[int32]*process.FilledProcess{
+	// fill in the procs in the lastProcState map to get process create time for the connection mapping
+	Process.lastProcState = map[int32]*model.Process{
 		1: {Pid: 1, CreateTime: now.Add(-5 * time.Minute).Unix()},
 		2: {Pid: 2, CreateTime: now.Add(-5 * time.Minute).Unix()},
 		3: {Pid: 3, CreateTime: now.Add(-5 * time.Minute).Unix()},
@@ -199,8 +191,8 @@ func TestNetworkConnectionNamespaceKubernetes(t *testing.T) {
 		assert.Contains(t, c.Namespace, testClusterName)
 	}
 
-	// clear the changes to Process.lastProcs
-	Process.lastProcs = make(map[int32]*process.FilledProcess, 0)
+	// clear the changes to Process.lastProcState
+	Process.lastProcState = make(map[int32]*model.Process, 0)
 }
 
 func TestFormatNamespace(t *testing.T) {
