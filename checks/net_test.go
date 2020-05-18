@@ -93,6 +93,64 @@ func makeConnectionStats(pid uint32, local, remote string, localPort, remotePort
 	}
 }
 
+func TestFilterShortLivedConnections(t *testing.T) {
+	testClusterName := "test-cluster"
+	cfg := config.NewDefaultAgentConfig()
+	cfg.ClusterName = testClusterName
+
+	now := time.Now()
+
+	c := &ConnectionsCheck{
+		buf: new(bytes.Buffer),
+	}
+
+	// create the connection stats
+	connStats := []common.ConnectionStats{
+		makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 12345, 8080),
+		makeConnectionStats(2, "10.0.0.1", "10.0.0.3", 12346, 8080),
+		makeConnectionStats(3, "10.0.0.1", "10.0.0.4", 12347, 8080),
+		makeConnectionStats(4, "10.0.0.1", "10.0.0.5", 12348, 8080),
+	}
+
+	lastConnByKey := make(map[string]common.ConnectionStats)
+	prevConnStats := []common.ConnectionStats{
+		makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 12345, 8080),
+		makeConnectionStats(2, "10.0.0.1", "10.0.0.3", 12346, 8080),
+		makeConnectionStats(3, "10.0.0.1", "10.0.0.4", 12347, 8080),
+		// pid 4 connection missing from previous connection stats, will be excluded from excluded connections
+	}
+	for _, conn := range prevConnStats {
+		if b, err := conn.ByteKey(c.buf); err == nil {
+			lastConnByKey[string(b)] = conn
+		}
+	}
+
+	// fill in the procs in the lastProcs map to get process create time for the connection mapping
+	Process.lastProcs = map[int32]*process.FilledProcess{
+		1: {Pid: 1, CreateTime: now.Add(-5 * time.Minute).Unix()},
+		2: {Pid: 2, CreateTime: now.Add(-5 * time.Minute).Unix()},
+		3: {Pid: 3, CreateTime: now.Add(-5 * time.Minute).Unix()},
+		4: {Pid: 4, CreateTime: now.Add(-5 * time.Minute).Unix()},
+	}
+
+	connections := c.formatConnections(cfg, connStats, lastConnByKey, now.Add(-15*time.Second))
+
+	assert.Len(t, connections, 3)
+
+	// assert that connection for pid 4 is included when present in the previous connection stats
+	for _, conn := range connStats {
+		if b, err := conn.ByteKey(c.buf); err == nil {
+			lastConnByKey[string(b)] = conn
+		}
+	}
+	connections = c.formatConnections(cfg, connStats, lastConnByKey, now.Add(-15*time.Second))
+
+	assert.Len(t, connections, 4)
+
+	// clear the changes to Process.lastProcs
+	Process.lastProcs = make(map[int32]*process.FilledProcess, 0)
+}
+
 func TestNetworkConnectionNamespaceKubernetes(t *testing.T) {
 	testClusterName := "test-cluster"
 	cfg := config.NewDefaultAgentConfig()
@@ -112,15 +170,22 @@ func TestNetworkConnectionNamespaceKubernetes(t *testing.T) {
 		makeConnectionStats(4, "10.0.0.1", "10.0.0.5", 12348, 8080),
 	}
 
-	// fill in the procs in the lastProcs map to get process create time for the connection mapping
-	Process.lastProcs = map[int32]*process.FilledProcess{
-		1: &process.FilledProcess{Pid: 1, CreateTime: now.Add(-5 * time.Minute).Unix()},
-		2: &process.FilledProcess{Pid: 2, CreateTime: now.Add(-5 * time.Minute).Unix()},
-		3: &process.FilledProcess{Pid: 3, CreateTime: now.Add(-5 * time.Minute).Unix()},
-		4: &process.FilledProcess{Pid: 4, CreateTime: now.Add(-5 * time.Minute).Unix()},
+	lastConnByKey := make(map[string]common.ConnectionStats)
+	for _, conn := range connStats {
+		if b, err := conn.ByteKey(c.buf); err == nil {
+			lastConnByKey[string(b)] = conn
+		}
 	}
 
-	connections := c.formatConnections(cfg, connStats, make(map[string]common.ConnectionStats, 0), now.Add(-15*time.Second))
+	// fill in the procs in the lastProcs map to get process create time for the connection mapping
+	Process.lastProcs = map[int32]*process.FilledProcess{
+		1: {Pid: 1, CreateTime: now.Add(-5 * time.Minute).Unix()},
+		2: {Pid: 2, CreateTime: now.Add(-5 * time.Minute).Unix()},
+		3: {Pid: 3, CreateTime: now.Add(-5 * time.Minute).Unix()},
+		4: {Pid: 4, CreateTime: now.Add(-5 * time.Minute).Unix()},
+	}
+
+	connections := c.formatConnections(cfg, connStats, lastConnByKey, now.Add(-15*time.Second))
 
 	assert.Len(t, connections, 4)
 	for _, c := range connections {

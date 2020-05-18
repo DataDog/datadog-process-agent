@@ -114,17 +114,23 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 
 	cxs := make([]*model.Connection, 0, len(conns))
 	for _, conn := range conns {
+		if _, ok := createTimeForPID[conn.Pid]; !ok {
+			continue
+		}
+
 		b, err := conn.ByteKey(c.buf)
 		if err != nil {
 			log.Debugf("failed to create connection byte key: %s", err)
 			continue
 		}
+		key := string(b)
 
-		if _, ok := createTimeForPID[conn.Pid]; !ok {
+		// Skipping any connection that didn't exist in the previous run.
+		// This means short-lived connections will never be captured.
+		if _, ok := keyMissingInLastConns(key, lastConns); ok {
 			continue
 		}
 
-		key := string(b)
 		cxs = append(cxs, &model.Connection{
 			Pid:           int32(conn.Pid),
 			PidCreateTime: createTimeForPID[conn.Pid],
