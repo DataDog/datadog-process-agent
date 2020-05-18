@@ -315,7 +315,7 @@ func (p *ProcessCheck) createTimesforPIDs(pids []uint32) map[uint32]int64 {
 
 	createTimeForPID := make(map[uint32]int64)
 	for _, pid := range pids {
-		if p, ok := p.lastProcs[int32(pid)]; ok {
+		if p, ok := p.lastProcState[int32(pid)]; ok {
 			createTimeForPID[pid] = p.CreateTime
 		}
 	}

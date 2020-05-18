@@ -133,6 +133,13 @@ func TestFilterShortLivedConnections(t *testing.T) {
 		4: {Pid: 4, CreateTime: now.Add(-5 * time.Minute).Unix()},
 	}
 
+	Process.lastProcState = map[int32]*model.Process{
+		1: {Pid: 1, CreateTime: now.Add(-5 * time.Minute).Unix()},
+		2: {Pid: 2, CreateTime: now.Add(-5 * time.Minute).Unix()},
+		3: {Pid: 3, CreateTime: now.Add(-5 * time.Minute).Unix()},
+		4: {Pid: 4, CreateTime: now.Add(-5 * time.Minute).Unix()},
+	}
+
 	connections := c.formatConnections(cfg, connStats, lastConnByKey, now.Add(-15*time.Second))
 
 	assert.Len(t, connections, 3)
