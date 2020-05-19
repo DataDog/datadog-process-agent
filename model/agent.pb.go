@@ -509,6 +509,8 @@ func (*CollectorReqStatus) ProtoMessage()               {}
 func (*CollectorReqStatus) Descriptor() ([]byte, []int) { return fileDescriptorAgent, []int{7} }
 
 type CollectorCommand struct {
+	// Tagged union, meaning the command field will contain either one of the 6 choices, to distinguish between the commands
+	//
 	// Types that are valid to be assigned to Command:
 	//	*CollectorCommand_UpdateProcess
 	//	*CollectorCommand_UpdateProcessMetrics
