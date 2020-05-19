@@ -125,12 +125,6 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 		}
 		key := string(b)
 
-		// Skipping any connection that didn't exist in the previous run.
-		// This means short-lived connections will never be captured.
-		if _, ok := keyMissingInLastConns(key, lastConns); ok {
-			continue
-		}
-
 		cxs = append(cxs, &model.Connection{
 			Pid:           int32(conn.Pid),
 			PidCreateTime: createTimeForPID[conn.Pid],
