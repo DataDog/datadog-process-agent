@@ -1,6 +1,7 @@
 package checks
 
 import (
+	"fmt"
 	"github.com/DataDog/gopsutil/process"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
@@ -13,6 +14,8 @@ import (
 // ProcessCommon is the common process type used for sorting / process inclusions
 type ProcessCommon struct {
 	Pid     int32
+	Identifier string
+	FirstObserved int64
 	Command *model.Command
 	Memory  *model.MemoryStat
 	CPU     *model.CPUStat
@@ -28,10 +31,10 @@ const (
 	TopIOWrite string = "usage:top-io-write"
 )
 
-// returns a function to filter processes in blacklist based on the configuration provided
+// returns a function to filter short-lived and blacklisted processes based on the configuration provided
 func keepProcess(cfg *config.AgentConfig) func(*ProcessCommon) bool {
 	return func(process *ProcessCommon) bool {
-		return !isProcessBlacklisted(cfg, process.Command.Args, process.Command.Exe)
+		return !isProcessShortLived(process.Identifier, process.FirstObserved, cfg) && !isProcessBlacklisted(cfg, process.Command.Args, process.Command.Exe)
 	}
 }
 
@@ -214,7 +217,7 @@ func formatCommand(fp *process.FilledProcess) *model.Command {
 }
 
 func formatIO(fp *process.FilledProcess, lastIO *process.IOCountersStat, before time.Time) *model.IOStat {
-	// This will be nill for Mac
+	// This will be nil for Mac
 	if fp.IOStat == nil {
 		return &model.IOStat{}
 	}
@@ -278,21 +281,12 @@ func formatMemory(fp *process.FilledProcess) *model.MemoryStat {
 	return ms
 }
 
-// checks if the process was in the previous collected processes
-func pidMissingInLastProcs(pid int32, lastProcs map[int32]*process.FilledProcess) (*process.FilledProcess, bool) {
-	lastProcess, ok := lastProcs[pid]
-
-	if !ok {
-		// Skipping any processes that didn't exist in the previous run.
-		// This means short-lived processes (<2s) will never be captured.
-		return nil, true
-	}
-
-	return lastProcess, false
+// createProcessID creates process identifier
+func createProcessID(pid int32, createTime int64) string {
+	return fmt.Sprintf("%d:%d", pid, createTime)
 }
 
-// skipProcess will skip a given process if it's blacklisted or hasn't existed
-// for multiple collections.
+// isProcessBlacklisted will skip a given process if it's blacklisted or hasn't existed for multiple collections.
 func isProcessBlacklisted(
 	cfg *config.AgentConfig,
 	cmdLine []string,
@@ -339,4 +333,26 @@ func replicateKubernetesLabelsToProcess(process *model.Process, container *model
 		}
 	}
 	return process
+}
+
+func isProcessShortLived(processID string, firstObserved int64, cfg *config.AgentConfig) bool {
+	// short-lived filtering is disabled, return false
+	if !cfg.EnableShortLivedProcessFilter {
+		return false
+	}
+
+	// firstObserved is before ShortLivedTime. Process is not short-lived, return false
+	if time.Unix(firstObserved, 0).Before(time.Now().Add(-cfg.ShortLivedProcessQualifierSecs)) {
+		return false
+	}
+
+	// process is filtered due to it's short-lived nature, let's log it on trace level
+	log.Debugf("Filter process: %s based on it's short-lived nature; "+
+		"meaning we observed it less than %d seconds. If this behaviour is not desired set the "+
+		"STS_PROCESS_FILTER_SHORT_LIVED_QUALIFIER_SECS environment variable to 0, disabled it in agent.yaml "+
+		"under process_config.filters.short_lived_processes.enabled or increase the qualifier seconds using"+
+		"process_config.filters.short_lived_processes.qualifier_secs.",
+		processID, cfg.ShortLivedProcessQualifierSecs,
+	)
+	return true
 }

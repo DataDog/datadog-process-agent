@@ -278,11 +278,11 @@ func validateLogLevels(levels ...string) error {
 
 func replaceLogger(cfg *LoggerConfig) error {
 	if err := validateLogLevels(cfg.LogLevel); err == errInvalidLogLevel {
-		log.Infof("log level %s is invalid, defaulting to INFO")
+		log.Infof("log level %s is invalid, defaulting to INFO", cfg.LogLevel)
 		cfg.LogLevel = "info"
 	}
 	if err := validateLogLevels(cfg.SyslogLevel); err == errInvalidLogLevel {
-		log.Infof("log level %s is invalid, defaulting to INFO")
+		log.Infof("log level %s is invalid, defaulting to INFO", cfg.SyslogLevel)
 		cfg.LogLevel = "info"
 	}
 	logger, err := cfg.SeelogLogger()
