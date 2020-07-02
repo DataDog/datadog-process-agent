@@ -45,17 +45,25 @@ type YamlAgentConfig struct {
 			ProcessRealTime   int `yaml:"process_realtime"`
 			Connections       int `yaml:"connections"`
 		} `yaml:"intervals"`
+		// The expiration time in, in minutes, that is used to evict items from the network relation cache
+		NetworkRelationCacheDurationMin int `yaml:"network_relation_cache_duration_min"`
 		// The expiration time in, in minutes, that is used to evict items from the process cache
-		ProcessCacheDuration int `yaml:"process_cache_duration"`
+		ProcessCacheDurationMin int `yaml:"process_cache_duration_min"`
 		// The filters are used to excluded processes based on some value
 		Filters struct {
+			// The ShortLivedNetworkRelations filter determines whether a network relation is considered "shortlived" and filters it based on the
+			// configured qualifier seconds
+			ShortLivedNetworkRelations struct {
+				Enabled       string `yaml:"enabled"`
+				QualifierSecs int    `yaml:"qualifier_secs"`
+			} `yaml:"short_lived_network_relations"`
 			// The ShortLived filter determines whether a process is considered "shortlived" and filters it based on the
 			// configured qualifier seconds
-			ShortLived struct {
-				Enabled       bool `yaml:"enabled"`
-				QualifierSecs int  `yaml:"qualifier_secs"`
-			}
-		} `yaml:"process_filtering"`
+			ShortLivedProcesses struct {
+				Enabled       string `yaml:"enabled"`
+				QualifierSecs int    `yaml:"qualifier_secs"`
+			} `yaml:"short_lived_processes"`
+		} `yaml:"filters"`
 		// The inclusion amounts for the top resource consuming processes. These processes will be included regardless
 		// of being included in the blacklist patterns.
 		// TODO: Move to Filters
@@ -198,10 +206,20 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		yc.Process.Blacklist.Inclusions.AmountTopMemoryUsage,
 		yc.Process.Blacklist.Inclusions.CPUPercentageUsageThreshold, yc.Process.Blacklist.Inclusions.MemoryUsageThreshold)
 
-	setProcessFilters(agentConf, yc.Process.Filters.ShortLived.Enabled, yc.Process.Filters.ShortLived.QualifierSecs)
+	if enabled, err := isAffirmative(yc.Process.Filters.ShortLivedProcesses.Enabled); err == nil {
+		setProcessFilters(agentConf, enabled, yc.Process.Filters.ShortLivedProcesses.QualifierSecs)
+	}
 
-	if yc.Process.ProcessCacheDuration > 0 {
-		agentConf.ProcessCacheDuration = time.Duration(yc.Process.ProcessCacheDuration) * time.Minute
+	if enabled, err := isAffirmative(yc.Process.Filters.ShortLivedNetworkRelations.Enabled); err == nil {
+		setNetworkRelationFilters(agentConf, enabled, yc.Process.Filters.ShortLivedNetworkRelations.QualifierSecs)
+	}
+
+	if yc.Process.ProcessCacheDurationMin > 0 {
+		agentConf.ProcessCacheDurationMin = time.Duration(yc.Process.ProcessCacheDurationMin) * time.Minute
+	}
+
+	if yc.Process.NetworkRelationCacheDurationMin > 0 {
+		agentConf.NetworkRelationCacheDurationMin = time.Duration(yc.Process.NetworkRelationCacheDurationMin) * time.Minute
 	}
 
 	// DataScrubber

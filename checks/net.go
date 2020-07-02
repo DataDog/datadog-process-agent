@@ -11,7 +11,7 @@ import (
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	log "github.com/cihub/seelog"
-	"strings"
+	"github.com/patrickmn/go-cache"
 	"time"
 )
 
@@ -29,10 +29,12 @@ type ConnectionsCheck struct {
 	useLocalTracer bool
 	localTracer    tracer.Tracer
 
-	prevCheckConns []common.ConnectionStats
-	prevCheckTime  time.Time
+	prevCheckTime time.Time
 
 	buf *bytes.Buffer // Internal buffer
+
+	// Use this as the network relation cache to calculate rate metrics and drop short-lived network relations
+	cache *cache.Cache
 }
 
 // Name returns the name of the ConnectionsCheck.
@@ -66,24 +68,19 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 		return nil, err
 	}
 
-	if c.prevCheckConns == nil { // End check early if this is our first run.
-		c.prevCheckConns = conns
+	if c.prevCheckTime.IsZero() { // End check early if this is our first run.
+		// fill in the relation cache
+		for _, conn := range conns {
+			relationID := CreateNetworkRelationIdentifier(cfg.HostName, conn)
+			PutNetworkRelationCache(c.cache, relationID, conn)
+		}
 		c.prevCheckTime = time.Now()
 		return nil, nil
 	}
 
-	// Temporary map to help find matching connections from previous check
-	lastConnByKey := make(map[string]common.ConnectionStats)
-	for _, conn := range c.prevCheckConns {
-		if b, err := conn.ByteKey(c.buf); err == nil {
-			lastConnByKey[string(b)] = conn
-		} else {
-			log.Debugf("failed to create connection byte key: %s", err)
-		}
-	}
-
-	log.Debugf("collected connections in %s", time.Since(start))
-	return batchConnections(cfg, groupID, c.formatConnections(cfg, conns, lastConnByKey, c.prevCheckTime)), nil
+	formattedConnections := c.formatConnections(cfg, conns, c.prevCheckTime)
+	log.Debugf("collected connections in %s, connections found: %v", time.Since(start), formattedConnections)
+	return batchConnections(cfg, groupID, formattedConnections), nil
 }
 
 func (c *ConnectionsCheck) getConnections() ([]common.ConnectionStats, error) {
@@ -108,91 +105,46 @@ func (c *ConnectionsCheck) getConnections() ([]common.ConnectionStats, error) {
 
 // Connections are split up into a chunks of at most 100 connections per message to
 // limit the message size on intake.
-func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []common.ConnectionStats, lastConns map[string]common.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
+func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []common.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
 	// Process create-times required to construct unique process hash keys on the backend
-	createTimeForPID := Process.createTimesforPIDs(connectionPIDs(conns))
+	createTimeForPID := Process.createTimesForPIDs(connectionPIDs(conns))
 
 	cxs := make([]*model.Connection, 0, len(conns))
 	for _, conn := range conns {
-		if _, ok := createTimeForPID[conn.Pid]; !ok {
-			log.Debugf("Filter connection: it's corresponding pid [%d] is not present in the last process state", conn.Pid)
-			continue
-		}
+		// Check to see if this is a process that we observed and that it's not short-lived / blacklisted in the Process check
+		if pidCreateTime, ok := isProcessPresent(createTimeForPID, conn.Pid); ok {
+			relationID := CreateNetworkRelationIdentifier(cfg.HostName, conn)
+			// Check to see if we have this relation cached and whether we have observed it for the configured time, otherwise skip
+			if relationCache, ok := IsNetworkRelationCached(c.cache, relationID); ok {
+				if !isRelationShortLived(relationID, relationCache.FirstObserved, cfg) {
+					cxs = append(cxs, &model.Connection{
+						Pid:           int32(conn.Pid),
+						PidCreateTime: pidCreateTime,
+						Family:        formatFamily(conn.Family),
+						Type:          formatType(conn.Type),
+						Laddr: &model.Addr{
+							Ip:   conn.Local,
+							Port: int32(conn.LocalPort),
+						},
+						Raddr: &model.Addr{
+							Ip:   conn.Remote,
+							Port: int32(conn.RemotePort),
+						},
+						BytesSentPerSecond:     calculateRate(conn.SendBytes, relationCache.ConnectionMetrics.SendBytes, lastCheckTime),
+						BytesReceivedPerSecond: calculateRate(conn.RecvBytes, relationCache.ConnectionMetrics.RecvBytes, lastCheckTime),
+						Direction:              calculateDirection(conn.Direction),
+						Namespace:              formatNamespace(cfg.ClusterName, conn.NetworkNamespace),
+						ConnectionIdentifier:   relationID,
+					})
+				}
+			}
 
-		b, err := conn.ByteKey(c.buf)
-		if err != nil {
-			log.Debugf("failed to create connection byte key: %s", err)
-			continue
+			// put it in the cache for the next run
+			PutNetworkRelationCache(c.cache, relationID, conn)
 		}
-		key := string(b)
-
-		cxs = append(cxs, &model.Connection{
-			Pid:           int32(conn.Pid),
-			PidCreateTime: createTimeForPID[conn.Pid],
-			Family:        formatFamily(conn.Family),
-			Type:          formatType(conn.Type),
-			Laddr: &model.Addr{
-				Ip:   conn.Local,
-				Port: int32(conn.LocalPort),
-			},
-			Raddr: &model.Addr{
-				Ip:   conn.Remote,
-				Port: int32(conn.RemotePort),
-			},
-			BytesSentPerSecond:     calculateRate(conn.SendBytes, lastConns[key].SendBytes, lastCheckTime),
-			BytesReceivedPerSecond: calculateRate(conn.RecvBytes, lastConns[key].RecvBytes, lastCheckTime),
-			Direction:              calculateDirection(conn.Direction),
-			Namespace:              formatNamespace(cfg.ClusterName, conn.NetworkNamespace),
-		})
 	}
-	c.prevCheckConns = conns
 	c.prevCheckTime = time.Now()
 	return cxs
-}
-
-func formatNamespace(clusterName string, n string) string {
-	// check if we're running in kubernetes, prepend the namespace with the kubernetes / openshift cluster name
-	var fragments []string
-	if clusterName != "" {
-		fragments = append(fragments, clusterName)
-	}
-	if n != "" {
-		fragments = append(fragments, n)
-	}
-	return strings.Join(fragments, ":")
-}
-
-func formatFamily(f common.ConnectionFamily) model.ConnectionFamily {
-	switch f {
-	case common.AF_INET:
-		return model.ConnectionFamily_v4
-	case common.AF_INET6:
-		return model.ConnectionFamily_v6
-	default:
-		return -1
-	}
-}
-
-func formatType(f common.ConnectionType) model.ConnectionType {
-	switch f {
-	case common.TCP:
-		return model.ConnectionType_tcp
-	case common.UDP:
-		return model.ConnectionType_udp
-	default:
-		return -1
-	}
-}
-
-func calculateDirection(d common.Direction) model.ConnectionDirection {
-	switch d {
-	case common.OUTGOING:
-		return model.ConnectionDirection_outgoing
-	case common.INCOMING:
-		return model.ConnectionDirection_incoming
-	default:
-		return model.ConnectionDirection_none
-	}
 }
 
 func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
@@ -217,14 +169,6 @@ func min(a, b int) int {
 	return b
 }
 
-func groupSize(total, maxBatchSize int) int32 {
-	groupSize := total / maxBatchSize
-	if total%maxBatchSize > 0 {
-		groupSize++
-	}
-	return int32(groupSize)
-}
-
 func connectionPIDs(conns []common.ConnectionStats) []uint32 {
 	ps := make(map[uint32]struct{}) // Map used to represent a set
 	for _, c := range conns {
@@ -236,4 +180,39 @@ func connectionPIDs(conns []common.ConnectionStats) []uint32 {
 		pids = append(pids, pid)
 	}
 	return pids
+}
+
+// isProcessPresent checks to see if this process was present in the pidCreateTimes map created by the Process check,
+// otherwise we don't report connections for this pid
+func isProcessPresent(pidCreateTimes map[uint32]int64, pid uint32) (int64, bool) {
+	pidCreateTime, ok := pidCreateTimes[pid]
+	if !ok {
+		log.Debugf("Filter connection: it's corresponding pid [%d] is not present in the last process state", pid)
+		return pidCreateTime, false
+	}
+
+	return pidCreateTime, true
+}
+
+// isRelationShortLived checks to see whether a network connection is considered a short-lived network relation
+func isRelationShortLived(relationID string, firstObserved int64, cfg *config.AgentConfig) bool {
+	// short-lived filtering is disabled, return false
+	if !cfg.EnableShortLivedNetworkRelationFilter {
+		return false
+	}
+
+	// firstObserved is before ShortLivedTime. Relation is not short-lived, return false
+	if time.Unix(firstObserved, 0).Before(time.Now().Add(-cfg.ShortLivedNetworkRelationQualifierSecs)) {
+		return false
+	}
+
+	// connection / relation is filtered due to it's short-lived nature, let's log it on trace level
+	log.Debugf("Filter relation: %s based on it's short-lived nature; "+
+		"meaning we observed this / similar network relations less than %d seconds. If this behaviour is not desired set the "+
+		"STS_NETWORK_RELATION_FILTER_SHORT_LIVED_QUALIFIER_SECS environment variable to 0, disable it in agent.yaml "+
+		"under process_config.filters.short_lived_network_relations.enabled or increase the qualifier seconds using"+
+		"process_config.filters.short_lived_network_relations.qualifier_secs.",
+		relationID, cfg.ShortLivedNetworkRelationQualifierSecs,
+	)
+	return true
 }

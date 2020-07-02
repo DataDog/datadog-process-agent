@@ -13,14 +13,14 @@ import (
 
 // ProcessCommon is the common process type used for sorting / process inclusions
 type ProcessCommon struct {
-	Pid     int32
-	Identifier string
+	Pid           int32
+	Identifier    string
 	FirstObserved int64
-	Command *model.Command
-	Memory  *model.MemoryStat
-	CPU     *model.CPUStat
-	IOStat  *model.IOStat
-	Tags    []string
+	Command       *model.Command
+	Memory        *model.MemoryStat
+	CPU           *model.CPUStat
+	IOStat        *model.IOStat
+	Tags          []string
 }
 
 // Process tags for top usage
@@ -303,7 +303,7 @@ func isProcessBlacklisted(
 	return config.IsBlacklisted(cmdLine, cfg.Blacklist)
 }
 
-func (p *ProcessCheck) createTimesforPIDs(pids []uint32) map[uint32]int64 {
+func (p *ProcessCheck) createTimesForPIDs(pids []uint32) map[uint32]int64 {
 	p.Lock()
 	defer p.Unlock()
 

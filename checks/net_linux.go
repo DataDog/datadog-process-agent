@@ -4,6 +4,7 @@ package checks
 
 import (
 	"bytes"
+	"github.com/patrickmn/go-cache"
 
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
@@ -51,6 +52,8 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		net.SetNetworkTracerSocketPath(cfg.NetworkTracerSocketPath)
 		net.GetRemoteNetworkTracerUtil()
 	}
+
+	c.cache = cache.New(cfg.NetworkRelationCacheDurationMin, cfg.NetworkRelationCacheDurationMin)
 
 	c.buf = new(bytes.Buffer)
 }

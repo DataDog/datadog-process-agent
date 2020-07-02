@@ -242,13 +242,13 @@ func TestProcessBlacklisting(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:      "Should filter process with arguments that does not match a pattern in the blacklist, but is not " +
+			name: "Should filter process with arguments that does not match a pattern in the blacklist, but is not " +
 				"observed for longer than the configured short-lived seconds",
 			blacklist: []string{"non-matching-pattern"},
 			process: &ProcessCommon{
-				Pid: 1,
-				Identifier: fmt.Sprintf("1:%d", time.Now().Add(-5*time.Millisecond).Unix()),
-				FirstObserved: time.Now().Add(-5*time.Millisecond).Unix(),
+				Pid:           1,
+				Identifier:    fmt.Sprintf("1:%d", time.Now().Add(-5*time.Millisecond).Unix()),
+				FirstObserved: time.Now().Add(-5 * time.Millisecond).Unix(),
 				Command: &model.Command{
 					Args:   []string{"some", "args"},
 					Cwd:    "this/working/directory",
@@ -887,12 +887,12 @@ func TestProcessFormatting(t *testing.T) {
 
 			cur := make(map[int32]*process.FilledProcess)
 			for _, c := range tc.cur {
-				c.CpuTime.Timestamp = 60 * 100 //in Windows uses CpuTime.Timestamp set to now in nanos
+				c.CpuTime.Timestamp = 60 * 100 //in Windows uses CPUTime.Timestamp set to now in nanos
 				cur[c.Pid] = c
 			}
 			last := make(map[int32]*process.FilledProcess)
 			for _, c := range tc.last {
-				c.CpuTime.Timestamp = 30 * 100 //in Windows uses CpuTime.Timestamp set to now in nanos
+				c.CpuTime.Timestamp = 30 * 100 //in Windows uses CPUTime.Timestamp set to now in nanos
 				last[c.Pid] = c
 			}
 
@@ -900,14 +900,7 @@ func TestProcessFormatting(t *testing.T) {
 
 			// fill in the process cache
 			for _, fp := range tc.last {
-				processID := createProcessID(fp.Pid, fp.CreateTime)
-				cachedProcess := &ProcessCache{
-					Process:       fp,
-					FirstObserved: now.Add(-5 * time.Minute).Unix(),
-					LastObserved:  now.Unix(),
-				}
-
-				Process.cache.Set(processID, cachedProcess, cache.DefaultExpiration)
+				fillProcessCache(Process.cache, fp, now.Add(-5*time.Minute).Unix(), now.Unix())
 			}
 
 			chunked := chunkProcesses(Process.fmtProcesses(cfg, cur, containers, syst2, syst1, lastRun), cfg.MaxPerMessage, make([][]*model.Process, 0))
@@ -930,14 +923,7 @@ func TestProcessFormatting(t *testing.T) {
 
 			// fill in the real-time process cache
 			for _, fp := range tc.last {
-				processID := createProcessID(fp.Pid, fp.CreateTime)
-				cachedProcess := &ProcessCache{
-					Process:       fp,
-					FirstObserved: now.Add(-5 * time.Minute).Unix(),
-					LastObserved:  now.Unix(),
-				}
-
-				RTProcess.cache.Set(processID, cachedProcess, cache.DefaultExpiration)
+				fillProcessCache(RTProcess.cache, fp, now.Add(-5*time.Minute).Unix(), now.Unix())
 			}
 
 			chunkedStat := RTProcess.fmtProcessStats(cfg, cur, containers, syst2, syst1, lastRun)
@@ -990,7 +976,7 @@ func TestRateCalculation(t *testing.T) {
 func TestProcessCache(t *testing.T) {
 	cfg := config.NewDefaultAgentConfig()
 	cfg.ShortLivedProcessQualifierSecs = 500 * time.Millisecond
-	cfg.ProcessCacheDuration = 600 * time.Millisecond
+	cfg.ProcessCacheDurationMin = 600 * time.Millisecond
 	var containers []*containers.Container
 	lastRun := time.Now().Add(-5 * time.Second)
 	syst1, syst2 := cpu.TimesStat{
@@ -1008,7 +994,7 @@ func TestProcessCache(t *testing.T) {
 		makeProcessWithResource(3, "datadog-process-agent -ddconfig datadog.conf", 0, 0, 0, 0, 0),
 		makeProcessWithResource(4, "foo -bar -bim", 0, 0, 0, 0, 0),
 	} {
-		c.CpuTime.Timestamp = 60 * 100 //in Windows uses CpuTime.Timestamp set to now in nanos
+		c.CpuTime.Timestamp = 60 * 100 //in Windows uses CPUTime.Timestamp set to now in nanos
 		cur[c.Pid] = c
 	}
 
@@ -1036,8 +1022,8 @@ func TestProcessCache(t *testing.T) {
 	assert.Equal(t, 3, len(thirdRun), "Processes should contain 3 elements")
 	assert.Equal(t, 4, Process.cache.ItemCount(), "Cache should contain 4 elements")
 
-	// wait for cfg.ProcessCacheDuration + a 250 Millisecond buffer to allow the cache expiration to complete
-	time.Sleep(cfg.ProcessCacheDuration + 250*time.Millisecond)
+	// wait for cfg.ProcessCacheDurationMin + a 250 Millisecond buffer to allow the cache expiration to complete
+	time.Sleep(cfg.ProcessCacheDurationMin + 250*time.Millisecond)
 	assert.Zero(t, Process.cache.ItemCount(), "Cache should be empty again")
 
 	Process.cache.Flush()
@@ -1059,7 +1045,7 @@ func TestProcessShortLivedFiltering(t *testing.T) {
 		// generic processes
 		makeProcessWithResource(1, "git clone google.com", 0, 0, 0, 0, 0),
 	} {
-		c.CpuTime.Timestamp = 60 * 100 //in Windows uses CpuTime.Timestamp set to now in nanos
+		c.CpuTime.Timestamp = 60 * 100 //in Windows uses CPUTime.Timestamp set to now in nanos
 		cur[c.Pid] = c
 	}
 
@@ -1073,15 +1059,7 @@ func TestProcessShortLivedFiltering(t *testing.T) {
 			name: fmt.Sprintf("Should not filter a process that has been observed longer than the short-lived qualifier "+
 				"duration: %d", cfg.ShortLivedProcessQualifierSecs),
 			prepCache: func(c *cache.Cache) {
-				fp := cur[1]
-				processID := createProcessID(fp.Pid, fp.CreateTime)
-				cachedProcess := &ProcessCache{
-					Process:       fp,
-					FirstObserved: lastRun.Add(-5 * time.Minute).Unix(),
-					LastObserved:  lastRun.Unix(),
-				}
-
-				c.Set(processID, cachedProcess, cache.DefaultExpiration)
+				fillProcessCache(c, cur[1], lastRun.Add(-5*time.Minute).Unix(), lastRun.Unix())
 			},
 			expected:                 true,
 			processShortLivedEnabled: true,
@@ -1090,15 +1068,7 @@ func TestProcessShortLivedFiltering(t *testing.T) {
 			name: fmt.Sprintf("Should filter a process that has not been observed longer than the short-lived qualifier "+
 				"duration: %d", cfg.ShortLivedProcessQualifierSecs),
 			prepCache: func(c *cache.Cache) {
-				fp := cur[1]
-				processID := createProcessID(fp.Pid, fp.CreateTime)
-				cachedProcess := &ProcessCache{
-					Process:       fp,
-					FirstObserved: lastRun.Add(-5 * time.Second).Unix(),
-					LastObserved:  lastRun.Unix(),
-				}
-
-				c.Set(processID, cachedProcess, cache.DefaultExpiration)
+				fillProcessCache(c, cur[1], lastRun.Add(-5*time.Second).Unix(), lastRun.Unix())
 			},
 			expected:                 false,
 			processShortLivedEnabled: true,
@@ -1106,15 +1076,8 @@ func TestProcessShortLivedFiltering(t *testing.T) {
 		{
 			name: fmt.Sprintf("Should not filter a process when the processShortLivedEnabled is set to false"),
 			prepCache: func(c *cache.Cache) {
-				fp := cur[1]
-				processID := createProcessID(fp.Pid, fp.CreateTime)
-				cachedProcess := &ProcessCache{
-					Process:       fp,
-					FirstObserved: lastRun.Add(-5 * time.Second).Unix(),
-					LastObserved:  lastRun.Unix(),
-				}
 
-				c.Set(processID, cachedProcess, cache.DefaultExpiration)
+				fillProcessCache(c, cur[1], lastRun.Add(-5*time.Second).Unix(), lastRun.Unix())
 			},
 			expected:                 true,
 			processShortLivedEnabled: false,
@@ -1174,4 +1137,18 @@ func TestProcessShortLivedFiltering(t *testing.T) {
 func floatEquals(a, b float32) bool {
 	var e float32 = 0.00000001 // Difference less than some epsilon
 	return a-b < e && b-a < e
+}
+
+func fillProcessCache(c *cache.Cache, fp *process.FilledProcess, firstObserved, lastObserved int64) {
+	processID := createProcessID(fp.Pid, fp.CreateTime)
+	cachedProcess := &ProcessCache{
+		ProcessMetrics: ProcessMetrics{
+			CPUTime: fp.CpuTime,
+			IOStat:  fp.IOStat,
+		},
+		FirstObserved: firstObserved,
+		LastObserved:  lastObserved,
+	}
+
+	c.Set(processID, cachedProcess, cache.DefaultExpiration)
 }

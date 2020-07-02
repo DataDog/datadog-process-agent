@@ -46,7 +46,7 @@ type ProcessCheck struct {
 // Init initializes the singleton ProcessCheck.
 func (p *ProcessCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
 	p.sysInfo = info
-	p.cache = cache.New(cfg.ProcessCacheDuration, cfg.ProcessCacheDuration)
+	p.cache = cache.New(cfg.ProcessCacheDurationMin, cfg.ProcessCacheDurationMin)
 }
 
 // Name returns the name of the ProcessCheck.
@@ -84,7 +84,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, features features.Features, 
 	if p.lastRun.IsZero() {
 		// fill in the process cache
 		for _, fp := range procs {
-			putCache(p.cache, fp)
+			PutProcessCache(p.cache, fp)
 		}
 
 		p.lastCPUTime = cpuTimes[0]
@@ -360,21 +360,21 @@ func (p *ProcessCheck) fmtProcesses(
 		fp.Cmdline = cfg.Scrubber.ScrubProcessCommand(fp)
 
 		// Check to see if we have this process cached and whether we have observed it for the configured time, otherwise skip
-		if processCache, ok := isCached(p.cache, fp); ok {
+		if processCache, ok := IsProcessCached(p.cache, fp); ok {
 
 			// mapping to a common process type to do sorting
 			command := formatCommand(fp)
 			memory := formatMemory(fp)
-			cpu := formatCPU(fp, fp.CpuTime, processCache.Process.CpuTime, syst2, syst1)
-			ioStat := formatIO(fp, processCache.Process.IOStat, lastRun)
+			cpu := formatCPU(fp, fp.CpuTime, processCache.ProcessMetrics.CPUTime, syst2, syst1)
+			ioStat := formatIO(fp, processCache.ProcessMetrics.IOStat, lastRun)
 			commonProcesses = append(commonProcesses, &ProcessCommon{
-				Pid:     fp.Pid,
-				Identifier: createProcessID(fp.Pid, fp.CreateTime),
+				Pid:           fp.Pid,
+				Identifier:    createProcessID(fp.Pid, fp.CreateTime),
 				FirstObserved: processCache.FirstObserved,
-				Command: command,
-				Memory:  memory,
-				CPU:     cpu,
-				IOStat:  ioStat,
+				Command:       command,
+				Memory:        memory,
+				CPU:           cpu,
+				IOStat:        ioStat,
 			})
 
 			processMap[fp.Pid] = &model.Process{
@@ -397,7 +397,7 @@ func (p *ProcessCheck) fmtProcesses(
 		}
 
 		// put it in the cache for the next run
-		putCache(p.cache, fp)
+		PutProcessCache(p.cache, fp)
 	}
 
 	// Process inclusions

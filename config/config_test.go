@@ -262,6 +262,27 @@ func TestDefaultBlacklistNix(t *testing.T) {
 	}
 }
 
+func TestSetFiltersFromEnv(t *testing.T) {
+	os.Setenv("STS_PROCESS_CACHE_DURATION_MIN", "2")
+	os.Setenv("STS_NETWORK_RELATION_CACHE_DURATION_MIN", "4")
+	os.Setenv("STS_PROCESS_FILTER_SHORT_LIVED_QUALIFIER_SECS", "0")
+	os.Setenv("STS_NETWORK_RELATION_FILTER_SHORT_LIVED_QUALIFIER_SECS", "45")
+
+	agentConfig, _ := NewAgentConfig(nil, nil, nil)
+
+	assert.Equal(t, 2*time.Minute, agentConfig.ProcessCacheDurationMin)
+	assert.Equal(t, 4*time.Minute, agentConfig.NetworkRelationCacheDurationMin)
+	assert.Equal(t, false, agentConfig.EnableShortLivedProcessFilter)
+	assert.Equal(t, 0*time.Second, agentConfig.ShortLivedProcessQualifierSecs)
+	assert.Equal(t, true, agentConfig.EnableShortLivedNetworkRelationFilter)
+	assert.Equal(t, 45*time.Second, agentConfig.ShortLivedNetworkRelationQualifierSecs)
+
+	os.Unsetenv("STS_PROCESS_CACHE_DURATION_MIN")
+	os.Unsetenv("STS_NETWORK_RELATION_CACHE_DURATION_MIN")
+	os.Unsetenv("STS_PROCESS_FILTER_SHORT_LIVED_QUALIFIER_SECS")
+	os.Unsetenv("STS_NETWORK_RELATION_FILTER_SHORT_LIVED_QUALIFIER_SECS")
+}
+
 func TestSetBlacklistFromEnv(t *testing.T) {
 	os.Setenv("STS_PROCESS_BLACKLIST_PATTERNS", "^/usr/bin/bashbash,^sshd:")
 
@@ -281,6 +302,14 @@ func TestSetBlacklistFromEnv(t *testing.T) {
 	assert.Equal(t, agentConfig.AmountTopMemoryUsage, 6)
 	assert.Equal(t, agentConfig.CPUPercentageUsageThreshold, 30)
 	assert.Equal(t, agentConfig.MemoryUsageThreshold, 25)
+
+	os.Unsetenv("STS_PROCESS_BLACKLIST_PATTERNS")
+	os.Unsetenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_CPU")
+	os.Unsetenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_IO_READ")
+	os.Unsetenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_IO_WRITE")
+	os.Unsetenv("STS_PROCESS_BLACKLIST_INCLUSIONS_TOP_MEM")
+	os.Unsetenv("STS_PROCESS_BLACKLIST_INCLUSIONS_CPU_THRESHOLD")
+	os.Unsetenv("STS_PROCESS_BLACKLIST_INCLUSIONS_MEM_THRESHOLD")
 }
 
 func TestOnlyEnvConfig(t *testing.T) {
@@ -765,6 +794,15 @@ func TestStackStateNetworkConfigFromMainAgentConfig(t *testing.T) {
 		"  intervals:",
 		"    container: 8",
 		"    process: 30",
+		"  network_relation_cache_duration_min: 10",
+		"  process_cache_duration_min: 15",
+		"  filters:",
+		"    short_lived_processes:",
+		"      enabled: 'false'",
+		"      qualifier_secs: 20",
+		"    short_lived_network_relations:",
+		"      enabled: true",
+		"      qualifier_secs: 30",
 		"network_tracer_config:",
 		"  network_tracing_enabled: 'true'",
 		"  initial_connections_from_proc: 'true'",
@@ -784,6 +822,12 @@ func TestStackStateNetworkConfigFromMainAgentConfig(t *testing.T) {
 	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
 	assert.Equal(true, agentConfig.NetworkInitialConnectionsFromProc)
 	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
+	assert.Equal(10*time.Minute, agentConfig.NetworkRelationCacheDurationMin)
+	assert.Equal(15*time.Minute, agentConfig.ProcessCacheDurationMin)
+	assert.Equal(false, agentConfig.EnableShortLivedProcessFilter)
+	assert.Equal(20*time.Second, agentConfig.ShortLivedProcessQualifierSecs)
+	assert.Equal(true, agentConfig.EnableShortLivedNetworkRelationFilter)
+	assert.Equal(30*time.Second, agentConfig.ShortLivedNetworkRelationQualifierSecs)
 }
 
 func TestProxyEnv(t *testing.T) {
