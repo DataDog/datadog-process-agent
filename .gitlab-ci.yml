@@ -65,7 +65,7 @@ build_windows:
 
 pre_release_windows:
   stage: pre_release
-  dependencies:
+  needs:
     - build_windows
   before_script: []  
   script:
@@ -77,7 +77,7 @@ pre_release_windows:
 pre_release_linux:
   stage: pre_release
   image: stackstate/stackstate-process-agent-runner-gitlab:centos6
-  dependencies:
+  needs:
     - build_linux
   before_script:
     - mkdir -p /go/src/github.com/StackVista
@@ -93,7 +93,7 @@ pre_release_linux:
 pre_release_image:
   stage: pre_release
   image: docker:18.06.0
-  dependencies:
+  needs:
     - build_linux
   variables:
     DOCKER_DRIVER: overlay
@@ -106,7 +106,7 @@ pre_release_image:
 release_image:
   stage: release
   image: docker:18.06.0
-  dependencies:
+  needs:
     - build_linux
   variables:
     DOCKER_DRIVER: overlay
