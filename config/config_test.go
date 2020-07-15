@@ -72,6 +72,36 @@ func TestBlacklist(t *testing.T) {
 	}
 }
 
+
+func TestBlacklistIncludeOnly(t *testing.T) {
+	testBlacklist := []string{
+		"^[^bla].*",
+	}
+	blacklist := make([]*regexp.Regexp, 0, len(testBlacklist))
+	for _, b := range testBlacklist {
+		r, err := regexp.Compile(b)
+		if err == nil {
+			blacklist = append(blacklist, r)
+		}
+	}
+	cases := []struct {
+		cmdline     []string
+		blacklisted bool
+	}{
+		{[]string{"getty", "-foo", "-bar"}, true},
+		{[]string{"rpcbind", "-x"}, true},
+		{[]string{"my-rpc-app", "-config foo.ini"}, true},
+		{[]string{"rpc.statd", "-L"}, true},
+		{[]string{"bla"}, false},
+		{[]string{"bla -w arguments"}, false},
+	}
+
+	for _, c := range cases {
+		assert.Equal(t, c.blacklisted, IsBlacklisted(c.cmdline, blacklist),
+			fmt.Sprintf("Case %v failed", c))
+	}
+}
+
 func TestDefaultBlacklist(t *testing.T) {
 	var cf *YamlAgentConfig
 	err := yaml.Unmarshal([]byte(strings.Join([]string{
