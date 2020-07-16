@@ -465,7 +465,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 	}
 
 	if cfg.EnableShortLivedNetworkRelationFilter {
-		log.Infof("Relation ShortLived filter enabled for connections that are once off and were observed for less than %d seconds", cfg.EnableShortLivedNetworkRelationFilter)
+		log.Infof("Relation ShortLived filter enabled for connections that are once off and were observed for less than %d seconds", cfg.ShortLivedNetworkRelationQualifierSecs)
 	} else {
 		log.Infof("Relation ShortLived filter disabled")
 	}
