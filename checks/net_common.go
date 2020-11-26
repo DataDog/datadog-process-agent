@@ -8,28 +8,28 @@ import (
 	"strings"
 )
 
-type Ip struct {
+type ip struct {
 	Address string
 	IsIPv6  bool
 }
 
-type Endpoint struct {
-	Ip   *Ip
+type endpoint struct {
+	ip   *ip
 	Port int32
 }
 
-type EndpointId struct {
+type endpointID struct {
 	Namespace string
-	Endpoint  *Endpoint
+	Endpoint  *endpoint
 }
 
-// endpointKey returns a EndpointId as namespace:endpoint-ip-address:endpoint-port
-func endpointKey(e *EndpointId) string {
+// endpointKey returns a endpointID as namespace:endpoint-ip-address:endpoint-port
+func endpointKey(e *endpointID) string {
 	var values []string
 	values = append(values, e.Namespace)
 
-	if e.Endpoint != nil && e.Endpoint.Ip != nil {
-		values = append(values, e.Endpoint.Ip.Address)
+	if e.Endpoint != nil && e.Endpoint.ip != nil {
+		values = append(values, e.Endpoint.ip.Address)
 	}
 
 	if e.Endpoint != nil {
@@ -39,13 +39,13 @@ func endpointKey(e *EndpointId) string {
 	return strings.Join(values, ":")
 }
 
-// endpointKeyNoPort returns a EndpointId as scope:namespace:endpoint-ip-address
-func endpointKeyNoPort(e *EndpointId) string {
+// endpointKeyNoPort returns a endpointID as scope:namespace:endpoint-ip-address
+func endpointKeyNoPort(e *endpointID) string {
 	var values []string
 	values = append(values, e.Namespace)
 
-	if e.Endpoint != nil && e.Endpoint.Ip != nil {
-		values = append(values, e.Endpoint.Ip.Address)
+	if e.Endpoint != nil && e.Endpoint.ip != nil {
+		values = append(values, e.Endpoint.ip.Address)
 	}
 
 	return strings.Join(values, ":")
@@ -60,7 +60,7 @@ func CreateNetworkRelationIdentifier(namespace string, conn common.ConnectionSta
 }
 
 // connectionRelationIdentifier returns an identification for the relation this connection may contribute to
-func createRelationIdentifier(localEndpoint, remoteEndpoint *EndpointId, direction model.ConnectionDirection) string {
+func createRelationIdentifier(localEndpoint, remoteEndpoint *endpointID, direction model.ConnectionDirection) string {
 
 	// For directional relations, connections with the same source ip are grouped (port is ignored)
 	// For non-directed relations ports are ignored on both sides
@@ -75,17 +75,17 @@ func createRelationIdentifier(localEndpoint, remoteEndpoint *EndpointId, directi
 }
 
 
-// makeEndpointID returns a EndpointId if the ip is valid and the hostname as the scope for local ips
-func makeEndpointID(namespace string, ip string, isV6 bool, port int32) *EndpointId {
+// makeEndpointID returns a endpointID if the ip is valid and the hostname as the scope for local ips
+func makeEndpointID(namespace string, ipString string, isV6 bool, port int32) *endpointID {
 	// We parse the ip here for normalization
-	ipAddress := net.ParseIP(ip)
+	ipAddress := net.ParseIP(ipString)
 	if ipAddress == nil {
 		return nil
 	}
-	endpoint := &EndpointId{
+	endpoint := &endpointID{
 		Namespace: namespace,
-		Endpoint: &Endpoint{
-			Ip: &Ip{
+		Endpoint: &endpoint{
+			ip: &ip{
 				Address: ipAddress.String(),
 				IsIPv6:  isV6,
 			},
