@@ -113,7 +113,8 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 	for _, conn := range conns {
 		// Check to see if this is a process that we observed and that it's not short-lived / blacklisted in the Process check
 		if pidCreateTime, ok := isProcessPresent(createTimeForPID, conn.Pid); ok {
-			relationID := CreateNetworkRelationIdentifier(cfg.HostName, conn)
+			namespace := formatNamespace(cfg.ClusterName, cfg.HostName, conn)
+			relationID := CreateNetworkRelationIdentifier(namespace, conn)
 			// Check to see if we have this relation cached and whether we have observed it for the configured time, otherwise skip
 			if relationCache, ok := IsNetworkRelationCached(c.cache, relationID); ok {
 				if !isRelationShortLived(relationID, relationCache.FirstObserved, cfg) {
@@ -133,7 +134,7 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 						BytesSentPerSecond:     calculateRate(conn.SendBytes, relationCache.ConnectionMetrics.SendBytes, lastCheckTime),
 						BytesReceivedPerSecond: calculateRate(conn.RecvBytes, relationCache.ConnectionMetrics.RecvBytes, lastCheckTime),
 						Direction:              calculateDirection(conn.Direction),
-						Namespace:              formatNamespace(cfg.ClusterName, conn.NetworkNamespace),
+						Namespace:              namespace,
 						ConnectionIdentifier:   relationID,
 					})
 				}

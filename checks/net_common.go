@@ -8,10 +8,24 @@ import (
 	"strings"
 )
 
-// endpointKey returns a EndpointId as scope:namespace:endpoint-ip-address:endpoint-port
-func endpointKey(e *model.EndpointId) string {
+type Ip struct {
+	Address string
+	IsIPv6  bool
+}
+
+type Endpoint struct {
+	Ip   *Ip
+	Port int32
+}
+
+type EndpointId struct {
+	Namespace string
+	Endpoint  *Endpoint
+}
+
+// endpointKey returns a EndpointId as namespace:endpoint-ip-address:endpoint-port
+func endpointKey(e *EndpointId) string {
 	var values []string
-	values = append(values, e.Scope)
 	values = append(values, e.Namespace)
 
 	if e.Endpoint != nil && e.Endpoint.Ip != nil {
@@ -26,9 +40,8 @@ func endpointKey(e *model.EndpointId) string {
 }
 
 // endpointKeyNoPort returns a EndpointId as scope:namespace:endpoint-ip-address
-func endpointKeyNoPort(e *model.EndpointId) string {
+func endpointKeyNoPort(e *EndpointId) string {
 	var values []string
-	values = append(values, e.Scope)
 	values = append(values, e.Namespace)
 
 	if e.Endpoint != nil && e.Endpoint.Ip != nil {
@@ -39,15 +52,15 @@ func endpointKeyNoPort(e *model.EndpointId) string {
 }
 
 // CreateNetworkRelationIdentifier returns an identification for the relation this connection may contribute to
-func CreateNetworkRelationIdentifier(hostname string, conn common.ConnectionStats) string {
+func CreateNetworkRelationIdentifier(namespace string, conn common.ConnectionStats) string {
 	isV6 := conn.Family == common.AF_INET6
-	localEndpoint := makeEndpointID(hostname, conn.Local, isV6, int32(conn.LocalPort), conn.NetworkNamespace)
-	remoteEndpoint := makeEndpointID(hostname, conn.Remote, isV6, int32(conn.RemotePort), conn.NetworkNamespace)
+	localEndpoint := makeEndpointID(namespace, conn.Local, isV6, int32(conn.LocalPort))
+	remoteEndpoint := makeEndpointID(namespace, conn.Remote, isV6, int32(conn.RemotePort))
 	return createRelationIdentifier(localEndpoint, remoteEndpoint, calculateDirection(conn.Direction))
 }
 
 // connectionRelationIdentifier returns an identification for the relation this connection may contribute to
-func createRelationIdentifier(localEndpoint, remoteEndpoint *model.EndpointId, direction model.ConnectionDirection) string {
+func createRelationIdentifier(localEndpoint, remoteEndpoint *EndpointId, direction model.ConnectionDirection) string {
 
 	// For directional relations, connections with the same source ip are grouped (port is ignored)
 	// For non-directed relations ports are ignored on both sides
@@ -61,42 +74,58 @@ func createRelationIdentifier(localEndpoint, remoteEndpoint *model.EndpointId, d
 	}
 }
 
+
 // makeEndpointID returns a EndpointId if the ip is valid and the hostname as the scope for local ips
-func makeEndpointID(hostname, ip string, isV6 bool, port int32, namespace string) *model.EndpointId {
+func makeEndpointID(namespace string, ip string, isV6 bool, port int32) *EndpointId {
+	// We parse the ip here for normalization
 	ipAddress := net.ParseIP(ip)
 	if ipAddress == nil {
 		return nil
 	}
-	endpoint := &model.EndpointId{
+	endpoint := &EndpointId{
 		Namespace: namespace,
-		Endpoint: &model.Endpoint{
-			Ip: &model.Ip{
+		Endpoint: &Endpoint{
+			Ip: &Ip{
 				Address: ipAddress.String(),
 				IsIPv6:  isV6,
 			},
 			Port: port,
 		},
 	}
-	// In order to tell different pod-local ip addresses from each other,
-	// treat each loopback address as local to the network namespace
-	// Reference implementation: https://github.com/weaveworks/scope/blob/master/report/id.go#L40
-	if ipAddress.IsLoopback() {
-		endpoint.Scope = hostname
-	}
 
 	return endpoint
 }
 
-func formatNamespace(clusterName string, n string) string {
+func formatNamespace(clusterName string, hostname string, connection common.ConnectionStats) string {
 	// check if we're running in kubernetes, prepend the namespace with the kubernetes / openshift cluster name
 	var fragments []string
 	if clusterName != "" {
 		fragments = append(fragments, clusterName)
 	}
-	if n != "" {
-		fragments = append(fragments, n)
+
+	// In order to tell different pod-local ip addresses from each other,
+	// treat each loopback address as local to the network namespace
+	// Reference implementation: https://github.com/weaveworks/scope/blob/master/report/id.go#L40
+	// https://github.com/weaveworks/scope/blob/7163f42170d72702fd55d2324d203c5b7be5c5cc/probe/endpoint/ebpf.go#L34
+	// We disregard local ip addresses for now, those might be interesting when doing docker setups,
+	// which are not the highest priority atm
+	if (isLoopback(connection.Local) || isLoopback(connection.Remote)) {
+		// For sure this is scoped to the host
+		fragments = append(fragments, hostname)
+		// Maybe even to a namespace on the host in case of k8s
+		if connection.NetworkNamespace != "" {
+			fragments = append(fragments, connection.NetworkNamespace)
+		}
 	}
 	return strings.Join(fragments, ":")
+}
+
+func isLoopback(ip string) bool {
+	ipAddress := net.ParseIP(ip)
+	if ipAddress == nil {
+		return false
+	}
+	return ipAddress.IsLoopback()
 }
 
 func formatFamily(f common.ConnectionFamily) model.ConnectionFamily {
