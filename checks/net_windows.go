@@ -9,6 +9,7 @@ import (
 	tracerConfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 	log "github.com/cihub/seelog"
 	"github.com/patrickmn/go-cache"
+	"os"
 )
 
 // Init initializes a ConnectionsCheck instance.
