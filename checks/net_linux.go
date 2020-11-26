@@ -26,8 +26,8 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		// Checking whether the current kernel version is supported by the tracer
 		if _, err = tracer.IsTracerSupportedByOS(); err != nil {
 			// err is always returned when false, so the above catches the !ok case as well
-			log.Warnf("network tracer unsupported by OS: %s", err)
-			return
+			log.Errorf("network tracer unsupported by OS: %s", err)
+			os.Exit(1)
 		}
 
 		conf := tracerConfig.DefaultConfig
@@ -42,7 +42,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		t, err := tracer.NewTracer(conf)
 		if err != nil {
 			log.Errorf("failed to create network tracer: %s", err)
-			return
+			os.Exit(1)
 		}
 
 		c.localTracer = t

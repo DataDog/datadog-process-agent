@@ -32,7 +32,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		t, err := tracer.NewTracer(conf)
 		if err != nil {
 			log.Errorf("failed to create network tracer: %s", err)
-			return
+			os.Exit(1)
 		}
 
 		c.localTracer = t
