@@ -9,6 +9,7 @@ import (
 	tracerConfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 	log "github.com/cihub/seelog"
 	"github.com/patrickmn/go-cache"
+	"os"
 )
 
 // Init initializes a ConnectionsCheck instance.
@@ -32,7 +33,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		t, err := tracer.NewTracer(conf)
 		if err != nil {
 			log.Errorf("failed to create network tracer: %s", err)
-			return
+			os.Exit(1)
 		}
 
 		c.localTracer = t
