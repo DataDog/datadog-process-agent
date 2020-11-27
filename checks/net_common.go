@@ -109,10 +109,10 @@ func formatNamespace(clusterName string, hostname string, connection common.Conn
 	// https://github.com/weaveworks/scope/blob/7163f42170d72702fd55d2324d203c5b7be5c5cc/probe/endpoint/ebpf.go#L34
 	// We disregard local ip addresses for now, those might be interesting when doing docker setups,
 	// which are not the highest priority atm
-	if (isLoopback(connection.Local) || isLoopback(connection.Remote)) {
+	if (isLoopback(connection.Local) && isLoopback(connection.Remote)) {
 		// For sure this is scoped to the host
 		fragments = append(fragments, hostname)
-		// Maybe even to a namespace on the host in case of k8s
+		// Maybe even to a namespace on the host in case of k8s/docker containers
 		if connection.NetworkNamespace != "" {
 			fragments = append(fragments, connection.NetworkNamespace)
 		}
