@@ -96,11 +96,33 @@ func makeEndpointID(namespace string, ipString string, isV6 bool, port int32) *e
 	return endpoint
 }
 
-func formatNamespace(clusterName string, hostname string, connection common.ConnectionStats) string {
-	// check if we're running in kubernetes, prepend the namespace with the kubernetes / openshift cluster name
+// Represents the namespace part of connection identity. The connection namespace
+// determines its locality (e.g. the scope in which the network resides)
+type namespace struct {
+	ClusterName string
+	HostName string
+	NetworkNamespace string
+}
+
+func (ns namespace) toString() string {
 	var fragments []string
+	if ns.ClusterName != "" {
+		fragments = append(fragments, ns.ClusterName)
+	}
+	if ns.HostName != "" {
+		fragments = append(fragments, ns.HostName)
+	}
+	if ns.NetworkNamespace != "" {
+		fragments = append(fragments, ns.NetworkNamespace)
+	}
+	return strings.Join(fragments, ":")
+}
+
+func makeNamespace(clusterName string, hostname string, connection common.ConnectionStats) namespace {
+	// check if we're running in kubernetes, prepend the namespace with the kubernetes / openshift cluster name
+	var ns = namespace { "", "", ""}
 	if clusterName != "" {
-		fragments = append(fragments, clusterName)
+		ns.ClusterName = clusterName
 	}
 
 	// In order to tell different pod-local ip addresses from each other,
@@ -111,13 +133,18 @@ func formatNamespace(clusterName string, hostname string, connection common.Conn
 	// which are not the highest priority atm
 	if (isLoopback(connection.Local) && isLoopback(connection.Remote)) {
 		// For sure this is scoped to the host
-		fragments = append(fragments, hostname)
+		ns.HostName = hostname
 		// Maybe even to a namespace on the host in case of k8s/docker containers
 		if connection.NetworkNamespace != "" {
-			fragments = append(fragments, connection.NetworkNamespace)
+			ns.NetworkNamespace = connection.NetworkNamespace
 		}
 	}
-	return strings.Join(fragments, ":")
+
+	return ns
+}
+
+func formatNamespace(clusterName string, hostname string, connection common.ConnectionStats) string {
+	return makeNamespace(clusterName, hostname, connection).toString()
 }
 
 func isLoopback(ip string) bool {
