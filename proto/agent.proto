@@ -417,19 +417,3 @@ message HostTags {
 	uint32 sourceType = 1;
 	repeated string tags = 2;
 }
-
-message Ip {
-    string address = 1;
-    bool isIPv6 = 2;
-}
-
-message Endpoint {
-    Ip ip = 1;
-    int32 port = 2;
-}
-
-message EndpointId {
-    string scope = 1;
-    string namespace = 2;
-    Endpoint endpoint = 3;
-}

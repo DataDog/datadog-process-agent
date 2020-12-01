@@ -88,6 +88,23 @@ func makeConnectionStats(pid uint32, local, remote string, localPort, remotePort
 		Remote:     remote,
 		LocalPort:  localPort,
 		RemotePort: remotePort,
+		NetworkNamespace: "ns",
+		SendBytes:  0,
+		RecvBytes:  0,
+		State:      common.ACTIVE,
+	}
+}
+
+func makeConnectionStatsNoNs(pid uint32, local, remote string, localPort, remotePort uint16) common.ConnectionStats {
+	return common.ConnectionStats{
+		Pid:        pid,
+		Type:       common.TCP,
+		Family:     common.AF_INET,
+		Direction:  common.OUTGOING,
+		Local:      local,
+		Remote:     remote,
+		LocalPort:  localPort,
+		RemotePort: remotePort,
 		SendBytes:  0,
 		RecvBytes:  0,
 		State:      common.ACTIVE,
@@ -157,7 +174,8 @@ func TestNetworkConnectionNamespaceKubernetes(t *testing.T) {
 
 	// fill in the relation cache
 	for _, conn := range connStats {
-		fillNetworkRelationCache(cfg.HostName, c.cache, conn, now.Add(-5*time.Minute).Unix(), now.Unix())
+		namespace := formatNamespace(cfg.ClusterName, cfg.HostName, conn)
+		fillNetworkRelationCache(namespace, c.cache, conn, now.Add(-5*time.Minute).Unix(), now.Unix())
 	}
 
 	// fill in the procs in the lastProcState map to get process create time for the connection mapping
@@ -328,10 +346,12 @@ func TestRelationShortLivedFiltering(t *testing.T) {
 }
 
 func TestFormatNamespace(t *testing.T) {
-	assert.Equal(t, "c:n", formatNamespace("c", "n"))
-	assert.Equal(t, "c", formatNamespace("c", ""))
-	assert.Equal(t, "n", formatNamespace("", "n"))
-	assert.Equal(t, "", formatNamespace("", ""))
+	assert.Equal(t, "", formatNamespace("", "h", makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 12345, 8080)))
+	assert.Equal(t, "c", formatNamespace("c", "h", makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 12345, 8080)))
+	assert.Equal(t, "c", formatNamespace("c", "h", makeConnectionStats(1, "127.0.0.1", "10.0.0.2", 12345, 8080)))
+	assert.Equal(t, "c", formatNamespace("c", "h", makeConnectionStats(1, "10.0.0.1", "127.0.0.1", 12345, 8080)))
+	assert.Equal(t, "c:h:ns", formatNamespace("c", "h", makeConnectionStats(1, "127.0.0.1", "127.0.0.1", 12345, 8080)))
+	assert.Equal(t, "c:h", formatNamespace("c", "h", makeConnectionStatsNoNs(1, "127.0.0.1", "127.0.0.1", 12345, 8080)))
 }
 
 func fillNetworkRelationCache(hostname string, c *cache.Cache, conn common.ConnectionStats, firstObserved, lastObserved int64) {

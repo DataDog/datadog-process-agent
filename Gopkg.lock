@@ -99,18 +99,17 @@
   revision = "3185a432dfed61437a6c62ed5622006d9027f513"
 
 [[projects]]
-  digest = "1:a295d9113edd8ed348b64b803933573e308f367290768f60ab0aa279058466da"
+  digest = "1:8ec2e6106f7fe0214a16033f2df75760f348e103cf4588217d30e5742d5aaa69"
   name = "github.com/StackVista/tcptracer-bpf"
   packages = [
     "pkg/tracer",
     "pkg/tracer/collector",
     "pkg/tracer/common",
     "pkg/tracer/config",
-    "pkg/tracer/network",
     "pkg/tracer/procspy",
   ]
   pruneopts = ""
-  revision = "35f5365aa6dc974c01ee3af2e719ed302a3ecb37"
+  revision = "8db9a7ee3eb6be09daeb6c32d8a0d367297aae51"
 
 [[projects]]
   digest = "1:63776251fbaa60062742412a9d2fa1e4b7cd24bcf5527fa9656b314ea8d60913"
@@ -1142,6 +1141,7 @@
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
     "github.com/mailru/easyjson",
+    "github.com/patrickmn/go-cache",
     "github.com/shirou/w32",
     "github.com/stretchr/testify/assert",
     "golang.org/x/sys/windows/svc",
