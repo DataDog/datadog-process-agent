@@ -18,8 +18,9 @@ import (
 // YamlAgentConfig is a structure used for marshaling the datadog.yaml configuration
 // available in Agent versions >= 6
 type YamlAgentConfig struct {
-	APIKey string `yaml:"api_key"`
-	Site   string `yaml:"site"`
+	APIKey       string `yaml:"api_key"`
+	Site         string `yaml:"site"`
+	StsURL string `yaml:"sts_url"`
 	// Whether or not the process-agent should output logs to console
 	LogToConsole bool `yaml:"log_to_console"`
 	// Incremental publishing: send only changes to server, instead of snapshots
@@ -38,7 +39,8 @@ type YamlAgentConfig struct {
 		// The interval, in seconds, at which we will run each check. If you want consistent
 		// behavior between real-time you may set the Container/ProcessRT intervals to 10.
 		// Defaults to 10s for normal checks and 2s for others.
-		Intervals struct {
+		ProcessDDURL string `yaml:"process_sts_url"`
+		Intervals    struct {
 			Container         int `yaml:"container"`
 			ContainerRealTime int `yaml:"container_realtime"`
 			Process           int `yaml:"process"`
@@ -157,17 +159,40 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		agentConf.Enabled = true
 		agentConf.EnabledChecks = containerChecks
 	}
-	url, err := url.Parse(ddconfig.GetMainEndpoint("https://process.", "process_config.process_dd_url"))
-	if err != nil {
-		return nil, fmt.Errorf("error parsing process_dd_url: %s", err)
-	}
-	agentConf.APIEndpoints[0].Endpoint = url
+
 	if yc.LogToConsole {
 		agentConf.LogToConsole = true
 	}
 	if yc.Process.LogFile != "" {
 		agentConf.LogFile = yc.Process.LogFile
 	}
+
+	// (Re)configure the logging from our configuration
+	if err := NewLoggerLevel(agentConf.LogLevel, agentConf.LogFile, agentConf.LogToConsole); err != nil {
+		return nil, err
+	}
+
+	url, err := url.Parse(ddconfig.GetMainEndpoint("https://process.", "process_config.process_dd_url"))
+	if err != nil {
+		return nil, fmt.Errorf("error parsing process_dd_url: %s", err)
+	}
+	// STS custom
+	if yc.Process.ProcessDDURL != "" {
+		specificURL, err := url.Parse(yc.Process.ProcessDDURL)
+		if err == nil {
+			url = specificURL
+		}
+		log.Infof("Setting process api endpoint from config using `process_config.process_sts_url`: %s", specificURL)
+	} else if yc.StsURL != "" {
+		defaultURL, err := url.Parse(yc.StsURL)
+		if err == nil {
+			url = defaultURL
+		}
+		log.Infof("Setting process api endpoint from config using `sts_url`: %s", defaultURL)
+	}
+	// /STS custom
+	agentConf.APIEndpoints[0].Endpoint = url
+
 	if enabled, err := isAffirmative(yc.IncrementalPublishingEnabled); err == nil {
 		log.Infof("Overriding incremental publishing with %ds", yc.IncrementalPublishingEnabled)
 		agentConf.EnableIncrementalPublishing = enabled

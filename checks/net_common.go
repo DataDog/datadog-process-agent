@@ -74,7 +74,6 @@ func createRelationIdentifier(localEndpoint, remoteEndpoint *endpointID, directi
 	}
 }
 
-
 // makeEndpointID returns a endpointID if the ip is valid and the hostname as the scope for local ips
 func makeEndpointID(namespace string, ipString string, isV6 bool, port int32) *endpointID {
 	// We parse the ip here for normalization
@@ -99,8 +98,8 @@ func makeEndpointID(namespace string, ipString string, isV6 bool, port int32) *e
 // Represents the namespace part of connection identity. The connection namespace
 // determines its locality (e.g. the scope in which the network resides)
 type namespace struct {
-	ClusterName string
-	HostName string
+	ClusterName      string
+	HostName         string
 	NetworkNamespace string
 }
 
@@ -120,7 +119,7 @@ func (ns namespace) toString() string {
 
 func makeNamespace(clusterName string, hostname string, connection common.ConnectionStats) namespace {
 	// check if we're running in kubernetes, prepend the namespace with the kubernetes / openshift cluster name
-	var ns = namespace { "", "", ""}
+	var ns = namespace{"", "", ""}
 	if clusterName != "" {
 		ns.ClusterName = clusterName
 	}
@@ -131,7 +130,7 @@ func makeNamespace(clusterName string, hostname string, connection common.Connec
 	// https://github.com/weaveworks/scope/blob/7163f42170d72702fd55d2324d203c5b7be5c5cc/probe/endpoint/ebpf.go#L34
 	// We disregard local ip addresses for now, those might be interesting when doing docker setups,
 	// which are not the highest priority atm
-	if (isLoopback(connection.Local) && isLoopback(connection.Remote)) {
+	if isLoopback(connection.Local) && isLoopback(connection.Remote) {
 		// For sure this is scoped to the host
 		ns.HostName = hostname
 		// Maybe even to a namespace on the host in case of k8s/docker containers

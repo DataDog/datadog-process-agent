@@ -80,18 +80,18 @@ func TestNetworkConnectionMax(t *testing.T) {
 
 func makeConnectionStats(pid uint32, local, remote string, localPort, remotePort uint16) common.ConnectionStats {
 	return common.ConnectionStats{
-		Pid:        pid,
-		Type:       common.TCP,
-		Family:     common.AF_INET,
-		Direction:  common.OUTGOING,
-		Local:      local,
-		Remote:     remote,
-		LocalPort:  localPort,
-		RemotePort: remotePort,
+		Pid:              pid,
+		Type:             common.TCP,
+		Family:           common.AF_INET,
+		Direction:        common.OUTGOING,
+		Local:            local,
+		Remote:           remote,
+		LocalPort:        localPort,
+		RemotePort:       remotePort,
 		NetworkNamespace: "ns",
-		SendBytes:  0,
-		RecvBytes:  0,
-		State:      common.ACTIVE,
+		SendBytes:        0,
+		RecvBytes:        0,
+		State:            common.ACTIVE,
 	}
 }
 

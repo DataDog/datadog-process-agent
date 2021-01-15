@@ -1,19 +1,18 @@
 log_level: TRACE
+log_to_console: true
+# Use this when running process agent locally
+#sts_url: http://localhost:7077/stsAgent
 
+# Use this when running process agent in the vagrant vms
+sts_url: http://192.168.56.1:7077/stsAgent
+
+# Use this when running process agent with branch deploy
+#sts_url: https://<branch-name>.test.stackstate.io/stsAgent
 api_key: API_KEY
 process_agent_enabled: true
 incremental_publishing_enabled: true
 process_config:
   enabled: 'true'
-
-  # Use this when running process agent locally
-  #process_dd_url: http://localhost:7077/stsAgent
-
-  # Use this when running process agent in the vagrant vms
-  process_dd_url: http://192.168.56.1:7077/stsAgent
-
-  # Use this when running process agent with branch deploy
-  #process_dd_url: https://<branch-name>.test.stackstate.io/stsAgent
 
   queue_size: 10
   intervals:
