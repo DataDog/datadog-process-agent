@@ -113,11 +113,7 @@ func runAgent(exit chan bool) {
 	}
 
 	// Tagger must be initialized after agent config has been setup (via config.SetupDDAgentConfig)
-	if err := tagger.Init(); err == nil {
-		defer tagger.Stop()
-	} else {
-		log.Errorf("unable to initialize StackState entity tagger: %s", err)
-	}
+	tagger.Init()
 
 	networkConf, err := config.NewYamlIfExists(opts.netConfigPath)
 	if err != nil {

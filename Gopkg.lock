@@ -32,6 +32,14 @@
   revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
 
 [[projects]]
+  digest = "1:e9ca79fa28ff0fe0271b63d2d30f4118643746610cd0d75603c7b4255a44f161"
+  name = "github.com/DataDog/viper"
+  packages = ["."]
+  pruneopts = ""
+  revision = "23ced3bc6b3751855704445e48da2c53075ade86"
+  version = "v1.4.0"
+
+[[projects]]
   digest = "1:874c0d49e5c272ae160b7c26d2ad2a1e21b54565fc3a84efb8014a0afcf4e63f"
   name = "github.com/DataDog/zstd"
   packages = ["."]
@@ -55,7 +63,7 @@
   version = "1.0.0"
 
 [[projects]]
-  digest = "1:4eb5a7d274cc64b02f46f232e4ba0ac777ffde9d84e9fc08726e3cbf44f7d653"
+  digest = "1:1894a9ff4e26f0a89e56540d50ed15e8e622efb2cef17b6121c09d932c7d6839"
   name = "github.com/StackVista/stackstate-agent"
   packages = [
     "cmd/agent/api/response",
@@ -77,6 +85,7 @@
     "pkg/util",
     "pkg/util/cache",
     "pkg/util/clusteragent",
+    "pkg/util/common",
     "pkg/util/containers",
     "pkg/util/containers/collectors",
     "pkg/util/containers/metrics",
@@ -93,10 +102,12 @@
     "pkg/util/kubernetes/kubelet",
     "pkg/util/log",
     "pkg/util/retry",
+    "pkg/util/tmplvar",
+    "pkg/util/winutil",
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "3185a432dfed61437a6c62ed5622006d9027f513"
+  revision = "bcfb39d79bc7cd7ad5742b6d62837062af8d62a9"
 
 [[projects]]
   digest = "1:8ec2e6106f7fe0214a16033f2df75760f348e103cf4588217d30e5742d5aaa69"
@@ -663,14 +674,6 @@
   version = "v1.0.3"
 
 [[projects]]
-  digest = "1:3dab237cd3263a290d771d133fed777bb56c22e380b00ebe92e6531d5c8d3d0c"
-  name = "github.com/spf13/viper"
-  packages = ["."]
-  pruneopts = ""
-  revision = "b5e8006cbee93ec955a89ab31e0e3ce3204f3736"
-  version = "v1.0.2"
-
-[[projects]]
   digest = "1:c587772fb8ad29ad4db67575dad25ba17a51f072ff18a22b4f0257a4d9c24f75"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
@@ -1124,6 +1127,7 @@
     "github.com/StackVista/stackstate-agent/pkg/config",
     "github.com/StackVista/stackstate-agent/pkg/pidfile",
     "github.com/StackVista/stackstate-agent/pkg/tagger",
+    "github.com/StackVista/stackstate-agent/pkg/tagger/collectors",
     "github.com/StackVista/stackstate-agent/pkg/util",
     "github.com/StackVista/stackstate-agent/pkg/util/cache",
     "github.com/StackVista/stackstate-agent/pkg/util/containers",

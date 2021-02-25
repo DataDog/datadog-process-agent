@@ -18,8 +18,8 @@ import (
 // YamlAgentConfig is a structure used for marshaling the datadog.yaml configuration
 // available in Agent versions >= 6
 type YamlAgentConfig struct {
-	APIKey       string `yaml:"api_key"`
-	Site         string `yaml:"site"`
+	APIKey string `yaml:"api_key"`
+	Site   string `yaml:"site"`
 	StsURL string `yaml:"sts_url"`
 	// Whether or not the process-agent should output logs to console
 	LogToConsole bool `yaml:"log_to_console"`

@@ -1,10 +1,10 @@
-log_level: TRACE
+log_level: INFO
 log_to_console: true
 # Use this when running process agent locally
-#sts_url: http://localhost:7077/stsAgent
+sts_url: http://localhost:7077/stsAgent
 
 # Use this when running process agent in the vagrant vms
-sts_url: http://192.168.56.1:7077/stsAgent
+#sts_url: http://192.168.56.1:7077/stsAgent
 
 # Use this when running process agent with branch deploy
 #sts_url: https://<branch-name>.test.stackstate.io/stsAgent

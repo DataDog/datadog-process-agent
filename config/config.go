@@ -454,18 +454,21 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 	// sanity check. This element is used with the modulo operator (%), so it can't be zero.
 	// if it is, log the error, and assume the config was attempting to disable
 	if cfg.Windows.ArgsRefreshInterval == 0 {
-		log.Warnf("invalid configuration: windows_collect_skip_new_args was set to 0.  Disabling argument collection")
+		log.Warnf("invalid configuration: windows_collect_skip_new_args was set to 0. " +
+			"Disabling argument collection")
 		cfg.Windows.ArgsRefreshInterval = -1
 	}
 
 	if cfg.EnableShortLivedProcessFilter {
-		log.Infof("Process ShortLived filter enabled for processes younger than %s", cfg.ShortLivedProcessQualifierSecs)
+		log.Infof("Process ShortLived filter enabled for processes younger than %s",
+			cfg.ShortLivedProcessQualifierSecs)
 	} else {
 		log.Info("Process ShortLived filter disabled")
 	}
 
 	if cfg.EnableShortLivedNetworkRelationFilter {
-		log.Infof("Relation ShortLived filter enabled for connections that are once off and were observed for less than %d seconds", cfg.ShortLivedNetworkRelationQualifierSecs)
+		log.Infof("Relation ShortLived filter enabled for connections that are once off and were observed for "+
+			"less than %s seconds", cfg.ShortLivedNetworkRelationQualifierSecs)
 	} else {
 		log.Infof("Relation ShortLived filter disabled")
 	}

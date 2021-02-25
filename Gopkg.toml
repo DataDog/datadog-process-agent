@@ -1,6 +1,6 @@
 [[constraint]]
   name = "github.com/StackVista/stackstate-agent"
-  revision = "3185a432dfed61437a6c62ed5622006d9027f513"
+  revision = "bcfb39d79bc7cd7ad5742b6d62837062af8d62a9"
 
 [[constraint]]
   name = "github.com/DataDog/gopsutil"

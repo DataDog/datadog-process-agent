@@ -4,6 +4,7 @@ package checks
 
 import (
 	"fmt"
+	"github.com/StackVista/stackstate-agent/pkg/tagger/collectors"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"runtime"
 	"strings"
@@ -110,7 +111,7 @@ func fmtContainers(
 		sys2, sys1 := ctr.CPU.SystemUsage, lastCtr.CPU.SystemUsage
 
 		// Retrieves metadata tags
-		tags, err := tagger.Tag(ctr.EntityID, true)
+		tags, err := tagger.Tag(ctr.EntityID, collectors.HighCardinality)
 		if err != nil {
 			log.Errorf("unable to retrieve tags for container: %s", err)
 			tags = []string{}

@@ -9,7 +9,6 @@ import (
 	tracerConfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 	log "github.com/cihub/seelog"
 	"github.com/patrickmn/go-cache"
-	"os"
 )
 
 // Init initializes a ConnectionsCheck instance.
@@ -24,7 +23,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		if _, err = tracer.IsTracerSupportedByOS(); err != nil {
 			// err is always returned when false, so the above catches the !ok case as well
 			log.Errorf("network tracer unsupported by OS: %s. Set the environment STS_NETWORK_TRACING_ENABLED to false to disable network connections reporting", err)
-			os.Exit(1)
+			return
 		}
 
 		conf := tracerConfig.DefaultConfig
@@ -33,7 +32,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		t, err := tracer.NewTracer(conf)
 		if err != nil {
 			log.Errorf("failed to create network tracer: %s. Set the environment STS_NETWORK_TRACING_ENABLED to false to disable network connections reporting", err)
-			os.Exit(1)
+			return
 		}
 
 		c.localTracer = t

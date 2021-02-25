@@ -54,6 +54,7 @@ func (c *ConnectionsCheck) RealTime() bool { return false }
 func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32) ([]model.MessageBody, error) {
 	// If local tracer failed to initialize, so we shouldn't be doing any checks
 	if c.useLocalTracer && c.localTracer == nil {
+		log.Errorf("failed to create network tracer. Set the environment STS_NETWORK_TRACING_ENABLED to false to disable network connections reporting")
 		return nil, nil
 	}
 
