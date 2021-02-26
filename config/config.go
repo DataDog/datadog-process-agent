@@ -118,6 +118,8 @@ type AgentConfig struct {
 	NetworkInitialConnectionsFromProc bool
 	NetworkTracerSocketPath           string
 	NetworkTracerLogFile              string
+	NetworkTracerInitRetryDuration    time.Duration
+	NetworkTracerInitRetryAmount      int
 
 	// Check config
 	EnabledChecks  []string
@@ -236,6 +238,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 		NetworkInitialConnectionsFromProc: true,
 		NetworkTracerSocketPath:           defaultNetworkTracerSocketPath,
 		NetworkTracerLogFile:              defaultNetworkLogFilePath,
+		NetworkTracerInitRetryDuration:    5 * time.Second,
+		NetworkTracerInitRetryAmount:      3,
 
 		// Check config
 		EnabledChecks: containerChecks,
@@ -691,6 +695,15 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	if v := os.Getenv("STS_NETWORK_RELATION_CACHE_DURATION_MIN"); v != "" {
 		durationS, _ := strconv.Atoi(v)
 		c.NetworkRelationCacheDurationMin = time.Duration(durationS) * time.Minute
+	}
+
+	if v := os.Getenv("STS_NETWORK_TRACER_INIT_RETRY_DURATION_SEC"); v != "" {
+		durationS, _ := strconv.Atoi(v)
+		c.NetworkTracerInitRetryDuration = time.Duration(durationS) * time.Second
+	}
+
+	if v, err := strconv.Atoi(os.Getenv("STS_NETWORK_TRACER_INIT_RETRY_AMOUNT")); err == nil {
+		c.NetworkTracerInitRetryAmount = v
 	}
 
 	if v, err := strconv.Atoi(os.Getenv("STS_PROCESS_FILTER_SHORT_LIVED_QUALIFIER_SECS")); err == nil {

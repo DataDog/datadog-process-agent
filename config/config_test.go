@@ -341,6 +341,19 @@ func TestSetBlacklistFromEnv(t *testing.T) {
 	os.Unsetenv("STS_PROCESS_BLACKLIST_INCLUSIONS_MEM_THRESHOLD")
 }
 
+func TestSetNetworkTracerInitRetryFromEnv(t *testing.T) {
+	os.Setenv("STS_NETWORK_TRACER_INIT_RETRY_DURATION_SEC", "30")
+	os.Setenv("STS_NETWORK_TRACER_INIT_RETRY_AMOUNT", "4")
+
+	agentConfig, _ := NewAgentConfig(nil, nil, nil)
+
+	assert.Equal(t, 30*time.Second, agentConfig.NetworkTracerInitRetryDuration)
+	assert.Equal(t, 4, agentConfig.NetworkTracerInitRetryAmount)
+
+	os.Unsetenv("STS_NETWORK_TRACER_INIT_RETRY_DURATION_SEC")
+	os.Unsetenv("STS_NETWORK_TRACER_INIT_RETRY_AMOUNT")
+}
+
 func TestOnlyEnvConfig(t *testing.T) {
 	// setting an API Key should be enough to generate valid config
 	os.Setenv("DD_API_KEY", "apikey_from_env")
@@ -1279,4 +1292,20 @@ func TestStackStatePreferPROCESS_AGENT_URLOverYamlsts_sts_url(t *testing.T) {
 	ep := agentConfig.APIEndpoints[0]
 	assert.Equal("apikey_30", ep.APIKey)
 	assert.Equal("process-endpoint.test.stackstate.com", ep.Endpoint.Hostname())
+}
+
+func TestNetworkTracerInitRetry_FromYaml(t *testing.T) {
+	var ddy YamlAgentConfig
+	err := yaml.Unmarshal([]byte(strings.Join([]string{
+		"network_tracer_config:",
+		"  network_tracer_retry_init_duration_sec: 50",
+		"  network_tracer_retry_init_amount: 10",
+	}, "\n")), &ddy)
+	assert.NoError(t, err)
+
+	agentConfig, err := NewAgentConfig(nil, &ddy, nil)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 10, agentConfig.NetworkTracerInitRetryAmount)
+	assert.Equal(t, 50*time.Second, agentConfig.NetworkTracerInitRetryDuration)
 }

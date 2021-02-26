@@ -3,9 +3,13 @@ package checks
 import (
 	"fmt"
 	"github.com/StackVista/stackstate-process-agent/model"
+	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
+	tracerConfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
+	log "github.com/cihub/seelog"
 	"net"
 	"strings"
+	"time"
 )
 
 type ip struct {
@@ -185,4 +189,33 @@ func calculateDirection(d common.Direction) model.ConnectionDirection {
 	default:
 		return model.ConnectionDirection_none
 	}
+}
+
+// retryTracerInit tries to create a network tracer with a given retry duration and retry amount
+func retryTracerInit(retryDuration time.Duration, retryAmount int, config *tracerConfig.Config,
+	makeTracer func(*tracerConfig.Config) (tracer.Tracer, error)) (tracer.Tracer, error) {
+
+	retryTicker := time.NewTicker(retryDuration)
+	retriesLeft := retryAmount
+
+	var t tracer.Tracer
+	var err error
+
+retry:
+	for {
+		select {
+		case <-retryTicker.C:
+			t, err = makeTracer(config)
+			if err == nil {
+				break retry
+			}
+			log.Debugf("failed to create network tracer: %s. Retrying..", err)
+			retriesLeft = retriesLeft - 1
+			if retriesLeft == 0 {
+				break retry
+			}
+		}
+	}
+
+	return t, err
 }

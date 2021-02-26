@@ -121,6 +121,10 @@ type YamlAgentConfig struct {
 		UnixSocketPath string `yaml:"nettracer_socket"`
 		// The full path to the file where network-tracer logs will be written.
 		LogFile string `yaml:"log_file"`
+		// A integer indicating the amount of seconds for the retry interval for initializing the network tracer.
+		NetworkTracerInitRetryDuration int `yaml:"network_tracer_retry_init_duration_sec"`
+		// A integer indicating the amount of retries to use for initializing the network tracer.
+		NetworkTracerInitRetryAmount int `yaml:"network_tracer_retry_init_amount"`
 	} `yaml:"network_tracer_config"`
 }
 
@@ -245,6 +249,14 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 
 	if yc.Process.NetworkRelationCacheDurationMin > 0 {
 		agentConf.NetworkRelationCacheDurationMin = time.Duration(yc.Process.NetworkRelationCacheDurationMin) * time.Minute
+	}
+
+	if yc.Network.NetworkTracerInitRetryDuration > 0 {
+		agentConf.NetworkTracerInitRetryDuration = time.Duration(yc.Network.NetworkTracerInitRetryDuration) * time.Second
+	}
+
+	if yc.Network.NetworkTracerInitRetryAmount > 0 {
+		agentConf.NetworkTracerInitRetryAmount = yc.Network.NetworkTracerInitRetryAmount
 	}
 
 	// DataScrubber
