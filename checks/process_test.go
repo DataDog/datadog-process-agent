@@ -353,10 +353,10 @@ func TestProcessInclusions(t *testing.T) {
 				Pid  int
 				Tags Tags
 			}{
-				{2, map[string]struct{}{TopMemory: {}}},
-				{4, map[string]struct{}{TopCPU: {}}},
-				{6, map[string]struct{}{TopIORead: {}}},
-				{8, map[string]struct{}{TopIOWrite: {}}},
+				{2, map[string]struct{}{}},
+				{4, map[string]struct{}{}},
+				{6, map[string]struct{}{}},
+				{8, map[string]struct{}{}},
 			},
 			totalCPUpercentage: 25,
 			totalMemory:        40,
@@ -422,7 +422,7 @@ func TestProcessInclusions(t *testing.T) {
 			expectedPidsTags: []struct {
 				Pid  int
 				Tags Tags
-			}{{1, map[string]struct{}{TopMemory: {}, TopCPU: {}, TopIORead: {}, TopIOWrite: {}}}},
+			}{{1, map[string]struct{}{}}},
 			totalCPUpercentage: 25,
 			totalMemory:        40,
 		},
@@ -488,8 +488,8 @@ func TestProcessInclusions(t *testing.T) {
 				Pid  int
 				Tags Tags
 			}{
-				{6, map[string]struct{}{TopIORead: {}}},
-				{8, map[string]struct{}{TopIOWrite: {}}},
+				{6, map[string]struct{}{}},
+				{8, map[string]struct{}{}},
 			},
 			totalCPUpercentage: 10,
 			totalMemory:        10,
