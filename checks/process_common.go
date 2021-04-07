@@ -23,14 +23,6 @@ type ProcessCommon struct {
 	Tags          []string
 }
 
-// Process tags for top usage
-//const (
-//	TopCPU     string = "usage:top-cpu"
-//	TopMemory  string = "usage:top-mem"
-//	TopIORead  string = "usage:top-io-read"
-//	TopIOWrite string = "usage:top-io-write"
-//)
-
 // returns a function to filter short-lived and blacklisted processes based on the configuration provided
 func keepProcess(cfg *config.AgentConfig) func(*ProcessCommon) bool {
 	return func(process *ProcessCommon) bool {
@@ -66,13 +58,6 @@ func sortAndTakeN(processes []*ProcessCommon, sortingFunc func([]*ProcessCommon)
 	}
 
 	return topNProcesses
-}
-
-func addTagToProcessCommon(tag string) func(*ProcessCommon) *ProcessCommon {
-	return func(process *ProcessCommon) *ProcessCommon {
-		process.Tags = append(process.Tags, tag)
-		return process
-	}
 }
 
 func getProcessInclusions(commonProcesses []*ProcessCommon, cfg *config.AgentConfig, totalCPUUsage float32, totalMemUsage uint64) []*ProcessCommon {

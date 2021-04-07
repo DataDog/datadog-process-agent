@@ -274,7 +274,6 @@ func TestProcessBlacklisting(t *testing.T) {
 }
 
 func TestProcessInclusions(t *testing.T) {
-	type Tags = map[string]struct{}
 	for _, tc := range []struct {
 		name                        string
 		processes                   []*ProcessCommon
@@ -284,10 +283,7 @@ func TestProcessInclusions(t *testing.T) {
 		amountTopIOWriteUsage       int
 		amountTopMemoryUsage        int
 		memoryUsageThreshold        int
-		expectedPidsTags            []struct {
-			Pid  int
-			Tags Tags
-		}
+		expectedPids        		[]int
 		totalCPUpercentage float32
 		totalMemory        uint64
 	}{
@@ -349,15 +345,7 @@ func TestProcessInclusions(t *testing.T) {
 			amountTopIOWriteUsage:       1,
 			amountTopMemoryUsage:        1,
 			memoryUsageThreshold:        35,
-			expectedPidsTags: []struct {
-				Pid  int
-				Tags Tags
-			}{
-				{2, map[string]struct{}{}},
-				{4, map[string]struct{}{}},
-				{6, map[string]struct{}{}},
-				{8, map[string]struct{}{}},
-			},
+			expectedPids: 				 []int {2, 4, 6, 8},
 			totalCPUpercentage: 25,
 			totalMemory:        40,
 		},
@@ -419,10 +407,7 @@ func TestProcessInclusions(t *testing.T) {
 			amountTopIOWriteUsage:       1,
 			amountTopMemoryUsage:        1,
 			memoryUsageThreshold:        35,
-			expectedPidsTags: []struct {
-				Pid  int
-				Tags Tags
-			}{{1, map[string]struct{}{}}},
+			expectedPids: 				 []int {1},
 			totalCPUpercentage: 25,
 			totalMemory:        40,
 		},
@@ -484,13 +469,7 @@ func TestProcessInclusions(t *testing.T) {
 			amountTopIOWriteUsage:       1,
 			amountTopMemoryUsage:        1,
 			memoryUsageThreshold:        35,
-			expectedPidsTags: []struct {
-				Pid  int
-				Tags Tags
-			}{
-				{6, map[string]struct{}{}},
-				{8, map[string]struct{}{}},
-			},
+			expectedPids: 			     []int {6, 8},
 			totalCPUpercentage: 10,
 			totalMemory:        10,
 		},
@@ -509,12 +488,9 @@ func TestProcessInclusions(t *testing.T) {
 			assert.True(t, len(processInclusions) <= maxTopProcesses, fmt.Sprintf("Way too many top processes reported: %d > %d", len(processInclusions), maxTopProcesses))
 
 			for _, proc := range processInclusions {
-				sort.Strings(proc.Tags)
-				pidTags := struct {
-					Pid  int
-					Tags Tags
-				}{int(proc.Pid), deriveSet(proc.Tags)}
-				assert.Contains(t, tc.expectedPidsTags, pidTags, fmt.Sprintf("Expected pids/tags: %v, found pid/tag: %v", tc.expectedPidsTags, pidTags))
+				pids := make([]int, 0)
+				pids = append(pids, int(proc.Pid))
+				assert.Contains(t, tc.expectedPids, pids, fmt.Sprintf("Expected pids/tags: %v, found pid/tag: %v", tc.expectedPids, pids))
 			}
 		})
 	}
