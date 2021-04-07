@@ -488,8 +488,7 @@ func TestProcessInclusions(t *testing.T) {
 			assert.True(t, len(processInclusions) <= maxTopProcesses, fmt.Sprintf("Way too many top processes reported: %d > %d", len(processInclusions), maxTopProcesses))
 
 			for _, proc := range processInclusions {
-				pids := make([]int, 0)
-				pids = append(pids, int(proc.Pid))
+				pids := int(proc.Pid)
 				assert.Contains(t, tc.expectedPids, pids, fmt.Sprintf("Expected pids/tags: %v, found pid/tag: %v", tc.expectedPids, pids))
 			}
 		})
