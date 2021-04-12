@@ -16,7 +16,7 @@
 
 [[constraint]]
   name = "github.com/gogo/protobuf"
-  revision = "d76fbc1373015ced59b43ac267f28d546b955683"
+  version = "=v1.3.1"
 
 [[constraint]]
   name = "github.com/patrickmn/go-cache"
@@ -32,3 +32,12 @@
 [[override]]
   name = "gopkg.in/yaml.v2"
   revision = "d670f9405373e636a5a2765eea47fac0c9bc91a4"
+
+[[override]]
+  name = "github.com/mailru/easyjson"
+  version = "=v0.7.7"
+
+[[constraint]]
+  name = "github.com/iovisor/gobpf"
+  source = "github.com/StackVista/gobpf"
+  version = "=v0.1.2-fixbuf"

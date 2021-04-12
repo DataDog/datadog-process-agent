@@ -15,10 +15,10 @@ def os
 
 desc "Setup dependencies"
 task :deps do
-  system("go get -u github.com/golang/dep/cmd/dep")
-  system("go get -u golang.org/x/lint/golint")
-  system("go get -u github.com/awalterschulze/goderive")
-  system("dep ensure -v -vendor-only")
+  sh("go get -u github.com/golang/dep/cmd/dep")
+  sh("go get -u golang.org/x/lint/golint")
+  sh("go get -u github.com/awalterschulze/goderive")
+  sh("dep ensure -v -vendor-only")
 end
 
 task :default => [:ci]
@@ -118,9 +118,10 @@ end
 desc "Compile the protobuf files for the Process Agent"
 task :protobuf do
   protocv = `bash -c "protoc --version"`.strip
-  if protocv != 'libprotoc 3.3.0'
-    fail "Requires protoc version 3.3.0"
-  end
+#   if protocv != 'libprotoc 3.6.1'
+#     fail "Requires protoc version 3.3.0"
+#   end
+  sh "protoc proto/agent_payload.proto -I $GOPATH/src -I vendor -I proto --gogofaster_out $GOPATH/src"
   sh "protoc proto/agent.proto -I $GOPATH/src -I vendor -I proto --gogofaster_out $GOPATH/src"
 end
 

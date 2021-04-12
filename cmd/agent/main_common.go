@@ -235,7 +235,7 @@ func printResults(cfg *config.AgentConfig, ch checks.Check) error {
 	}
 
 	fmt.Printf("-----------------------------\n\n")
-	fmt.Printf("\nResults for check %s\n", ch.Name())
+	fmt.Printf("\nResults for check %v\n", ch)
 	fmt.Printf("-----------------------------\n\n")
 
 	msgs, err := ch.Run(cfg, features.All(), 1)

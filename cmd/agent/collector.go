@@ -213,6 +213,7 @@ func (l *Collector) postMessage(checkPath string, m model.MessageBody) {
 
 	responses := make(chan errorResponse)
 	for _, ep := range l.cfg.APIEndpoints {
+		fmt.Printf("POST to %v %v\n", ep, checkPath)
 		go l.postToAPI(ep, checkPath, body, responses)
 	}
 

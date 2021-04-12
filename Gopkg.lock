@@ -2,14 +2,6 @@
 
 
 [[projects]]
-  digest = "1:e614c1c911617d660f569202b4680239069793b7ca473a8c3e644240551b12b0"
-  name = "github.com/DataDog/agent-payload"
-  packages = ["gogen"]
-  pruneopts = ""
-  revision = "f0521943f60221829c6bb5de1c7f788cd4411372"
-  version = "4.8"
-
-[[projects]]
   digest = "1:e64fddc819e2abc68792a743dd857c379449a56f2b9eaf030c03fb0ec19de884"
   name = "github.com/DataDog/datadog-go"
   packages = ["statsd"]
@@ -284,7 +276,7 @@
   version = "v1.2.2"
 
 [[projects]]
-  digest = "1:66d1acfc23d239e491877b36617c85cd929a71feb604ed11868bc24f5a70879c"
+  digest = "1:d69d2ba23955582a64e367ff2b0808cdbd048458c178cea48f11ab8c40bd7aea"
   name = "github.com/gogo/protobuf"
   packages = [
     "gogoproto",
@@ -292,9 +284,11 @@
     "proto",
     "protoc-gen-gogo/descriptor",
     "sortkeys",
+    "types",
   ]
   pruneopts = ""
-  revision = "d76fbc1373015ced59b43ac267f28d546b955683"
+  revision = "5628607bb4c51c3157aacc3a50f0ab707582b805"
+  version = "v1.3.1"
 
 [[projects]]
   digest = "1:3dd078fda7500c341bc26cfbc6c6a34614f295a2457149fc1045cab767cbcf18"
@@ -425,6 +419,14 @@
   revision = "0b12d6b5"
 
 [[projects]]
+  digest = "1:3f2e33d49ad818172242d685bdc1fd6e78b61b4d89d223c873099c245c752828"
+  name = "github.com/josharian/intern"
+  packages = ["."]
+  pruneopts = ""
+  revision = "8e6ff32b3e7c0b018c43953085fe2ac330fe9acd"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:b79fc583e4dc7055ed86742e22164ac41bf8c0940722dbcb600f1a3ace1a8cb5"
   name = "github.com/json-iterator/go"
   packages = ["."]
@@ -449,7 +451,7 @@
   version = "v1.8.0"
 
 [[projects]]
-  digest = "1:212bebc561f4f654a653225868b2a97353cd5e160dc0b0bbc7232b06608474ec"
+  digest = "1:d615ad2b7190d4cd5656d83300b323aae692ade7df2a5695476d825a75204dce"
   name = "github.com/mailru/easyjson"
   packages = [
     ".",
@@ -458,7 +460,8 @@
     "jwriter",
   ]
   pruneopts = ""
-  revision = "60711f1a8329503b04e1c88535f419d0bb440bff"
+  revision = "c120ca7ced6051261161ce15e8f1542a4b2567fc"
+  version = "v0.7.7"
 
 [[projects]]
   digest = "1:63722a4b1e1717be7b98fc686e0b30d5e7f734b9e93d7dee86293b6deab7ea28"
@@ -1116,7 +1119,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/DataDog/agent-payload/gogen",
     "github.com/DataDog/datadog-go/statsd",
     "github.com/DataDog/gopsutil/cpu",
     "github.com/DataDog/gopsutil/host",
@@ -1142,6 +1144,7 @@
     "github.com/StackVista/tcptracer-bpf/pkg/tracer/config",
     "github.com/cihub/seelog",
     "github.com/go-ini/ini",
+    "github.com/gogo/protobuf/gogoproto",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
     "github.com/mailru/easyjson",

@@ -72,7 +72,10 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 	if c.prevCheckTime.IsZero() { // End check early if this is our first run.
 		// fill in the relation cache
 		for _, conn := range conns {
-			relationID := CreateNetworkRelationIdentifier(cfg.HostName, conn)
+			relationID, err := CreateNetworkRelationIdentifier(cfg.HostName, conn)
+			if err != nil {
+				log.Warnf("invalid connection description - can't determine ID: %v", err)
+			}
 			PutNetworkRelationCache(c.cache, relationID, conn)
 		}
 		c.prevCheckTime = time.Now()
@@ -115,10 +118,37 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 		// Check to see if this is a process that we observed and that it's not short-lived / blacklisted in the Process check
 		if pidCreateTime, ok := isProcessPresent(createTimeForPID, conn.Pid); ok {
 			namespace := formatNamespace(cfg.ClusterName, cfg.HostName, conn)
-			relationID := CreateNetworkRelationIdentifier(namespace, conn)
+			relationID, err := CreateNetworkRelationIdentifier(namespace, conn)
+			if err != nil {
+				log.Warnf("invalid connection description - can't determine ID: %v", err)
+				continue
+			}
 			// Check to see if we have this relation cached and whether we have observed it for the configured time, otherwise skip
 			if relationCache, ok := IsNetworkRelationCached(c.cache, relationID); ok {
 				if !isRelationShortLived(relationID, relationCache.FirstObserved, cfg) {
+					metrics := make([]*model.Metric, 0, len(conn.Metrics))
+					for i := range conn.Metrics {
+						metric := conn.Metrics[i]
+						labels := make([]*model.Label, 0, len(metric.Labels))
+						for k, v := range metric.Labels {
+							labels = append(labels, &model.Label{Key: k, Value: v})
+						}
+						histItems := make([]*model.HistogramItem, 0, len(metric.Histogram.Values))
+						for i := range metric.Histogram.Values {
+							if i < len(metric.Histogram.Quantiles) {
+								histItems = append(histItems, &model.HistogramItem{
+									Quantile: float32(metric.Histogram.Quantiles[i]),
+									Value:    float32(metric.Histogram.Values[i]),
+								})
+							}
+						}
+						metrics = append(metrics, &model.Metric{
+							Labels: labels,
+							Histogram: &model.Histogram{
+								Items: histItems,
+							},
+						})
+					}
 					cxs = append(cxs, &model.Connection{
 						Pid:           int32(conn.Pid),
 						PidCreateTime: pidCreateTime,
@@ -137,6 +167,8 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 						Direction:              calculateDirection(conn.Direction),
 						Namespace:              namespace,
 						ConnectionIdentifier:   relationID,
+						DetectedProtocol:       conn.ApplicationProtocol,
+						Metrics:                metrics,
 					})
 				}
 			}
@@ -160,6 +192,8 @@ func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Conne
 		GroupId:     groupID,
 		GroupSize:   1,
 	})
+
+	fmt.Printf("BITCHES %v\n", batches)
 
 	return batches
 }
