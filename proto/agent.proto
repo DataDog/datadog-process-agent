@@ -56,6 +56,9 @@ message CollectorConnections {
 	// Message batching metadata
 	int32 groupId = 5;
 	int32 groupSize = 6;
+
+	// The Kubernetes/OpenShift clustername
+	string clusterName = 7;
 }
 
 message CollectorRealTime {
@@ -331,7 +334,7 @@ enum ConnectionFamily {
 	v6 = 1;
 }
 
-enum ConnectionDirection { 
+enum ConnectionDirection {
 	none = 0;
 	outgoing = 1;
 	incoming = 2;
