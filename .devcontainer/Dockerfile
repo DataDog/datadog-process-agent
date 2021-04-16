@@ -59,7 +59,6 @@ RUN usermod --shell /bin/zsh root && \
     usermod --shell /bin/zsh ${USERNAME}
 
 COPY --chown=${USER_UID}:${USER_GID} shell/.p10k.zsh shell/.zshrc shell/.welcome.sh /home/${USERNAME}/
-COPY --chown=${USER_UID}:${USER_GID} config/kubeconfig /home/${USERNAME}/.kube/config
 
 RUN ln -s /home/${USERNAME}/.p10k.zsh /root/.p10k.zsh && \
     cp /home/${USERNAME}/.zshrc /root/.zshrc && \
@@ -99,6 +98,7 @@ RUN apt-get update -y \
     && apt-get -y install git iproute2 procps lsb-release \
     # Install Python2.7
     && apt-get install -y python2.7 python-pip unzip \
+    && apt-get install -y protobuf-compiler \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
@@ -112,6 +112,12 @@ ARG GOPLAY_VERSION=v1.0.0
 ARG GOTESTS_VERSION=v1.5.3
 ARG MOCK_VERSION=v1.5.0
 ARG MOCKERY_VERSION=v2.3.0
+
+RUN mkdir -p ${GOPATH}/src/github.com && \
+    chown -R ${USER_UID}:${USER_GID} ${GOPATH}
+
+USER ${USERNAME}
+
 COPY --from=golangci-lint /usr/bin/golangci-lint ${GOPATH}/bin
 RUN go get -v golang.org/x/tools/gopls@${GOPLS_VERSION} 2>&1
 RUN go get -v \
@@ -132,8 +138,7 @@ RUN go get -v \
     github.com/vektra/mockery/v2/...@${MOCKERY_VERSION} \
     2>&1
 
-RUN chown -R ${USER_UID}:${USER_GID} /go
-
+USER root
 
 # EXTRA TOOLS
 # Kubectl
@@ -172,6 +177,7 @@ RUN wget -qO awscli2.zip "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.z
 ENV DEBIAN_FRONTEND=dialog
 
 USER ${USERNAME}
+
 # Expose service ports.
 EXPOSE 8000
 

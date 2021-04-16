@@ -12,6 +12,7 @@
         "shardulm94.trailing-spaces", // Show trailing spaces
         "Gruntfuggly.todo-tree", // Highlights TODO comments
         "ms-python.vscode-pylance",
+        "zxh404.vscode-proto3",
     ],
     "containerEnv": {
         "GO111MODULE": "off",
@@ -25,16 +26,11 @@
     "workspaceFolder": "/go/src/github.com/StackVista/stackstate-process-agent",
     "postCreateCommand": "./.devcontainer/postCreateCommand.sh",
     "settings": {
-        "go.buildTags": "linux",
+        "go.buildTags": "linux,linux_bpf",
         "go.testFlags": [
             "-v"
         ],
         "go.useLanguageServer": true,
-        // "gopls": {
-        //     "buildFlags": [
-        //         "-tags=kubeapiserver,cpython,kubelet,etcd,docker,zk"
-        //     ],
-        // },
         "[go]": {
             "editor.formatOnSave": true,
             "editor.codeActionsOnSave": {
