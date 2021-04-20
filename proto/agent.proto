@@ -342,18 +342,9 @@ message Label {
   string value = 2;
 }
 
-message HistogramItem {
-  float quantile = 1;
-  float value = 2;
-}
-
-message Histogram {
-  repeated HistogramItem items = 1;
-}
-
 message Metric {
   repeated Label labels = 1;
-  Histogram histogram = 2;
+  bytes ddsketch = 2;
 }
 
 message Connection {

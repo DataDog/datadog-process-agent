@@ -133,20 +133,9 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 						for k, v := range metric.Labels {
 							labels = append(labels, &model.Label{Key: k, Value: v})
 						}
-						histItems := make([]*model.HistogramItem, 0, len(metric.Histogram.Values))
-						for i := range metric.Histogram.Values {
-							if i < len(metric.Histogram.Quantiles) {
-								histItems = append(histItems, &model.HistogramItem{
-									Quantile: float32(metric.Histogram.Quantiles[i]),
-									Value:    float32(metric.Histogram.Values[i]),
-								})
-							}
-						}
 						metrics = append(metrics, &model.Metric{
-							Labels: labels,
-							Histogram: &model.Histogram{
-								Items: histItems,
-							},
+							Labels:   labels,
+							Ddsketch: metric.DDSketch,
 						})
 					}
 					cxs = append(cxs, &model.Connection{
