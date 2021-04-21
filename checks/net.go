@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
@@ -12,7 +15,6 @@ import (
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	log "github.com/cihub/seelog"
 	"github.com/patrickmn/go-cache"
-	"time"
 )
 
 var (
@@ -175,12 +177,18 @@ func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Conne
 
 	// STS: Disable batching for now
 	batchSize := min(cfg.MaxPerMessage, len(cxs))
-	batches = append(batches, &model.CollectorConnections{
+	batch := &model.CollectorConnections{
 		HostName:    cfg.HostName,
 		Connections: cxs[:batchSize],
 		GroupId:     groupID,
 		GroupSize:   1,
-	})
+	}
+
+	if strings.TrimSpace(cfg.ClusterName) != "" {
+		batch.ClusterName = cfg.ClusterName
+	}
+
+	batches = append(batches, batch)
 
 	fmt.Printf("BITCHES %v\n", batches)
 

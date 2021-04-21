@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function resolveLatest() {
-	git tag --sort=-taggerdate | head -1
+	git describe --abbrev=0 --tag
 }
 
 function _hasGitChanges() {
@@ -16,7 +16,7 @@ function tagExists() {
 function differsFromLatest() {
   tag=$(resolveLatest)
   headtag=$(git tag -l --points-at HEAD)
-  if tagExists $tag; then
+  if tagExists "$tag"; then
     if [ "$tag" == "$headtag" ]; then
       #[I] tag $tag exists, and matches tag for the commit
       return 1
@@ -40,7 +40,7 @@ function getVersion() {
 	if _hasGitChanges ; then
 		result="$result-raw"
 	fi
-	echo $result
+	echo "$result"
 }
 
 getVersion
