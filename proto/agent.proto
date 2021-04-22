@@ -340,14 +340,14 @@ enum ConnectionDirection {
 	incoming = 2;
 }
 
-message Label {
-  string key = 1;
-  string value = 2;
+message ConnectionMetricLabel {
+    string key = 1;
+    string value = 2;
 }
 
-message Metric {
-  repeated Label labels = 1;
-  bytes ddsketch = 2;
+message ConnectionMetric {
+    repeated ConnectionMetricLabel labels = 1;
+    bytes ddsketch = 2;
 }
 
 message Connection {
@@ -367,7 +367,7 @@ message Connection {
 	ConnectionDirection direction = 51;
 	string connectionIdentifier = 52;
 	string detectedProtocol = 53;
-	repeated Metric metrics = 54;
+	repeated ConnectionMetric metrics = 54;
 }
 
 message Addr {

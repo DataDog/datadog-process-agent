@@ -192,7 +192,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		APIEndpoints:  []APIEndpoint{{Endpoint: u}},
 		LogFile:       defaultLogFilePath,
 		LogLevel:      "info",
-		LogToConsole:  true,
+		LogToConsole:  false,
 		QueueSize:     20,
 		MaxProcFDs:    200,
 		MaxPerMessage: 2000,
@@ -234,14 +234,14 @@ func NewDefaultAgentConfig() *AgentConfig {
 		ShortLivedProcessQualifierSecs: 60 * time.Second,
 
 		// Network collection configuration
-		EnableNetworkTracing:              true,
+		EnableNetworkTracing:              false,
 		EnableLocalNetworkTracer:          true,
 		NetworkInitialConnectionsFromProc: true,
 		NetworkTracerSocketPath:           defaultNetworkTracerSocketPath,
 		NetworkTracerLogFile:              defaultNetworkLogFilePath,
 		NetworkTracerInitRetryDuration:    5 * time.Second,
 		NetworkTracerInitRetryAmount:      3,
-		NetworkTracerDebuglogEnabled:      true,
+		NetworkTracerDebuglogEnabled:      false,
 
 		// Check config
 		EnabledChecks: containerChecks,

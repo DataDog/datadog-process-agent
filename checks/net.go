@@ -190,8 +190,6 @@ func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Conne
 
 	batches = append(batches, batch)
 
-	fmt.Printf("BITCHES %v\n", batches)
-
 	return batches
 }
 

@@ -2,6 +2,14 @@
 
 
 [[projects]]
+  digest = "1:e614c1c911617d660f569202b4680239069793b7ca473a8c3e644240551b12b0"
+  name = "github.com/DataDog/agent-payload"
+  packages = ["gogen"]
+  pruneopts = ""
+  revision = "f0521943f60221829c6bb5de1c7f788cd4411372"
+  version = "4.8"
+
+[[projects]]
   digest = "1:e64fddc819e2abc68792a743dd857c379449a56f2b9eaf030c03fb0ec19de884"
   name = "github.com/DataDog/datadog-go"
   packages = ["statsd"]
@@ -1119,6 +1127,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/DataDog/agent-payload/gogen",
     "github.com/DataDog/datadog-go/statsd",
     "github.com/DataDog/gopsutil/cpu",
     "github.com/DataDog/gopsutil/host",
