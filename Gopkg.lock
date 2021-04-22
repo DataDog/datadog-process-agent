@@ -2,14 +2,6 @@
 
 
 [[projects]]
-  digest = "1:e614c1c911617d660f569202b4680239069793b7ca473a8c3e644240551b12b0"
-  name = "github.com/DataDog/agent-payload"
-  packages = ["gogen"]
-  pruneopts = ""
-  revision = "f0521943f60221829c6bb5de1c7f788cd4411372"
-  version = "4.8"
-
-[[projects]]
   digest = "1:e64fddc819e2abc68792a743dd857c379449a56f2b9eaf030c03fb0ec19de884"
   name = "github.com/DataDog/datadog-go"
   packages = ["statsd"]
@@ -30,6 +22,19 @@
   ]
   pruneopts = ""
   revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
+
+[[projects]]
+  digest = "1:a83e9c59946d6b4c16a1b2529e654dd9d1d3d67255f0535f77b6c1484faa4bb3"
+  name = "github.com/DataDog/sketches-go"
+  packages = [
+    "ddsketch",
+    "ddsketch/mapping",
+    "ddsketch/pb/sketchpb",
+    "ddsketch/store",
+  ]
+  pruneopts = ""
+  revision = "32c0a6f2e8e5214d70e80b8c3895ded57046c4f2"
+  version = "v1.0.0"
 
 [[projects]]
   digest = "1:e9ca79fa28ff0fe0271b63d2d30f4118643746610cd0d75603c7b4255a44f161"
@@ -110,17 +115,19 @@
   revision = "bcfb39d79bc7cd7ad5742b6d62837062af8d62a9"
 
 [[projects]]
-  digest = "1:8ec2e6106f7fe0214a16033f2df75760f348e103cf4588217d30e5742d5aaa69"
+  digest = "1:f3e4c0fb012eecada858b5c237c62fe4f84335a1ddceb5c5bf3bd135fc657ed3"
   name = "github.com/StackVista/tcptracer-bpf"
   packages = [
     "pkg/tracer",
     "pkg/tracer/collector",
     "pkg/tracer/common",
     "pkg/tracer/config",
+    "pkg/tracer/network",
     "pkg/tracer/procspy",
   ]
   pruneopts = ""
-  revision = "8db9a7ee3eb6be09daeb6c32d8a0d367297aae51"
+  revision = "0f80d7e953ae93d8f2c469e4bb39762d0bbce2e4"
+  version = "v0.0.2-ebpf"
 
 [[projects]]
   digest = "1:63776251fbaa60062742412a9d2fa1e4b7cd24bcf5527fa9656b314ea8d60913"
@@ -409,15 +416,21 @@
   version = "v0.3.7"
 
 [[projects]]
-  digest = "1:ec4e79082b19b134e6d42d0947c0ebf73feb28fd8b9e15e744854efc73e9fa17"
+  digest = "1:04599fefed7f7f229c856859d77c4f242b251341ebd13b067a46f8c19a761fd0"
   name = "github.com/iovisor/gobpf"
   packages = [
     "elf",
+    "elf/include",
+    "elf/include/uapi/linux",
     "pkg/bpffs",
     "pkg/cpuonline",
+    "pkg/cpurange",
+    "pkg/tracepipe",
   ]
   pruneopts = ""
-  revision = "3b07770c6d5e2bd37e582ecd49460e6ef094f257"
+  revision = "f29a8c9f192810c38d3507fbe1e1ceb56fb6994d"
+  source = "github.com/StackVista/gobpf"
+  version = "v0.1.2"
 
 [[projects]]
   digest = "1:6f49eae0c1e5dab1dafafee34b207aeb7a42303105960944828c2079b92fc88e"
@@ -804,6 +817,40 @@
   version = "v1.4.0"
 
 [[projects]]
+  digest = "1:0411230c1d513425d5d96a6b193fc50e635cbabf0c27a58869c17c3c8edc67c4"
+  name = "google.golang.org/protobuf"
+  packages = [
+    "encoding/prototext",
+    "encoding/protowire",
+    "internal/descfmt",
+    "internal/descopts",
+    "internal/detrand",
+    "internal/encoding/defval",
+    "internal/encoding/messageset",
+    "internal/encoding/tag",
+    "internal/encoding/text",
+    "internal/errors",
+    "internal/filedesc",
+    "internal/filetype",
+    "internal/flags",
+    "internal/genid",
+    "internal/impl",
+    "internal/order",
+    "internal/pragma",
+    "internal/set",
+    "internal/strs",
+    "internal/version",
+    "proto",
+    "reflect/protoreflect",
+    "reflect/protoregistry",
+    "runtime/protoiface",
+    "runtime/protoimpl",
+  ]
+  pruneopts = ""
+  revision = "f2d1f6cbe10b90d22296ea09a7217081c2798009"
+  version = "v1.26.0"
+
+[[projects]]
   digest = "1:75fb3fcfc73a8c723efde7777b40e8e8ff9babf30d8c56160d01beffea8a95a6"
   name = "gopkg.in/inf.v0"
   packages = ["."]
@@ -1127,7 +1174,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/DataDog/agent-payload/gogen",
     "github.com/DataDog/datadog-go/statsd",
     "github.com/DataDog/gopsutil/cpu",
     "github.com/DataDog/gopsutil/host",

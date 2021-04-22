@@ -8,7 +8,7 @@
 
 [[constraint]]
   name = "github.com/StackVista/tcptracer-bpf"
-  revision = "=v0.0.1-ebpf"
+  version = "=v0.0.2-ebpf"
 
 [[constraint]]
   name = "github.com/DataDog/zstd"
@@ -36,8 +36,3 @@
 [[override]]
   name = "github.com/mailru/easyjson"
   version = "=v0.7.7"
-
-[[constraint]]
-  name = "github.com/iovisor/gobpf"
-  source = "github.com/StackVista/gobpf"
-  version = "=v0.1.2-fixbuf"
