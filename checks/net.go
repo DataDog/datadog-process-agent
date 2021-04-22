@@ -128,14 +128,14 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 			// Check to see if we have this relation cached and whether we have observed it for the configured time, otherwise skip
 			if relationCache, ok := IsNetworkRelationCached(c.cache, relationID); ok {
 				if !isRelationShortLived(relationID, relationCache.FirstObserved, cfg) {
-					metrics := make([]*model.Metric, 0, len(conn.Metrics))
+					metrics := make([]*model.ConnectionMetric, 0, len(conn.Metrics))
 					for i := range conn.Metrics {
 						metric := conn.Metrics[i]
-						labels := make([]*model.Label, 0, len(metric.Labels))
+						labels := make([]*model.ConnectionMetricLabel, 0, len(metric.Labels))
 						for k, v := range metric.Labels {
-							labels = append(labels, &model.Label{Key: k, Value: v})
+							labels = append(labels, &model.ConnectionMetricLabel{Key: k, Value: v})
 						}
-						metrics = append(metrics, &model.Metric{
+						metrics = append(metrics, &model.ConnectionMetric{
 							Labels:   labels,
 							Ddsketch: metric.DDSketch,
 						})
