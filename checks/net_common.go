@@ -1,7 +1,6 @@
 package checks
 
 import (
-	"errors"
 	"fmt"
 	"github.com/StackVista/stackstate-process-agent/model"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
@@ -90,7 +89,7 @@ func makeEndpointID(namespace string, ipString string, isV6 bool, port int32) (*
 	// We parse the ip here for normalization
 	ipAddress := net.ParseIP(ipString)
 	if ipAddress == nil {
-		return nil, errors.New(fmt.Sprintf("invalid endpoint address: %s", ipString))
+		return nil, fmt.Errorf("invalid endpoint address: %s", ipString)
 	}
 	endpoint := &endpointID{
 		Namespace: namespace,
