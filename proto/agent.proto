@@ -366,7 +366,7 @@ message Connection {
 	string namespace = 50; // local
 	ConnectionDirection direction = 51;
 	string connectionIdentifier = 52;
-	string detectedProtocol = 53;
+	string applicationProtocol = 53;
 	repeated ConnectionMetric metrics = 54;
 }
 

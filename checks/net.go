@@ -158,7 +158,7 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 						Direction:              calculateDirection(conn.Direction),
 						Namespace:              namespace,
 						ConnectionIdentifier:   relationID,
-						DetectedProtocol:       conn.ApplicationProtocol,
+						ApplicationProtocol:    conn.ApplicationProtocol,
 						Metrics:                metrics,
 					})
 				}
