@@ -117,7 +117,7 @@ func fmtContainers(
 			tags = []string{}
 		}
 
-		newContainer := &model.Container{
+		containers = append(containers, &model.Container{
 			Id:          ctr.ID,
 			Type:        ctr.Type,
 			CpuLimit:    float32(ctr.CPULimit),
@@ -138,10 +138,7 @@ func fmtContainers(
 			NetSentBps:  calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun),
 			Started:     ctr.StartedAt,
 			Tags:        transformKubernetesTags(tags, cfg.ClusterName),
-		}
-		//log.Info("Log from container:")
-		//log.Info(newContainer)
-		containers = append(containers, newContainer)
+		})
 	}
 
 	return containers
