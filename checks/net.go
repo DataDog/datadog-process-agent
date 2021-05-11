@@ -131,12 +131,13 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 					metrics := make([]*model.ConnectionMetric, 0, len(conn.Metrics))
 					for i := range conn.Metrics {
 						metric := conn.Metrics[i]
-						labels := make([]*model.ConnectionMetricLabel, 0, len(metric.Labels))
-						for k, v := range metric.Labels {
-							labels = append(labels, &model.ConnectionMetricLabel{Key: k, Value: v})
+						tags := make([]*model.ConnectionMetricTag, 0, len(metric.Tags))
+						for k, v := range metric.Tags {
+							tags = append(tags, &model.ConnectionMetricTag{Key: k, Value: v})
 						}
 						metrics = append(metrics, &model.ConnectionMetric{
-							Labels:   labels,
+							Name:     metric.Name,
+							Tags:     tags,
 							Ddsketch: metric.DDSketch,
 						})
 					}
