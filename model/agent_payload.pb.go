@@ -4662,10 +4662,7 @@ func (m *CommonMetadata) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -4785,10 +4782,7 @@ func (m *MetricsPayload) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -5032,10 +5026,7 @@ func (m *MetricsPayload_Sample) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -5115,10 +5106,7 @@ func (m *MetricsPayload_Sample_Point) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -5238,10 +5226,7 @@ func (m *ServiceChecksPayload) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -5457,10 +5442,7 @@ func (m *ServiceChecksPayload_ServiceCheck) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -5580,10 +5562,7 @@ func (m *EventsPayload) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -5908,10 +5887,7 @@ func (m *EventsPayload_Event) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -6028,10 +6004,7 @@ func (m *SketchPayload) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -6245,10 +6218,7 @@ func (m *SketchPayload_Sketch) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -6640,10 +6610,7 @@ func (m *SketchPayload_Sketch_Distribution) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -6929,10 +6896,7 @@ func (m *SketchPayload_Sketch_Dogsketch) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -7052,10 +7016,7 @@ func (m *HostMetadataPayload) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -7169,10 +7130,7 @@ func (m *HostMetadataPayload_TagSet) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -7320,10 +7278,7 @@ func (m *HostMetadataPayload_HostMetadata) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -7611,10 +7566,7 @@ func (m *KubeMetadataPayload) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -7760,10 +7712,7 @@ func (m *KubeMetadataPayload_Deployment) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -7941,10 +7890,7 @@ func (m *KubeMetadataPayload_ReplicaSet) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -8090,10 +8036,7 @@ func (m *KubeMetadataPayload_DaemonSet) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -8349,7 +8292,7 @@ func (m *KubeMetadataPayload_Service) Unmarshal(dAtA []byte) error {
 					if err != nil {
 						return err
 					}
-					if skippy < 0 {
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
 						return ErrInvalidLengthAgentPayload
 					}
 					if (iNdEx + skippy) > postIndex {
@@ -8398,10 +8341,7 @@ func (m *KubeMetadataPayload_Service) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -8547,10 +8487,7 @@ func (m *KubeMetadataPayload_Job) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -8870,7 +8807,7 @@ func (m *KubeMetadataPayload_Pod) Unmarshal(dAtA []byte) error {
 					if err != nil {
 						return err
 					}
-					if skippy < 0 {
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
 						return ErrInvalidLengthAgentPayload
 					}
 					if (iNdEx + skippy) > postIndex {
@@ -9079,10 +9016,7 @@ func (m *KubeMetadataPayload_Pod) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -9260,10 +9194,7 @@ func (m *KubeMetadataPayload_Container) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -9347,10 +9278,7 @@ func (m *ECSMetadataPayload) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -9594,10 +9522,7 @@ func (m *ECSMetadataPayload_Task) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
@@ -9743,10 +9668,7 @@ func (m *ECSMetadataPayload_Container) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if skippy < 0 {
-				return ErrInvalidLengthAgentPayload
-			}
-			if (iNdEx + skippy) < 0 {
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
 				return ErrInvalidLengthAgentPayload
 			}
 			if (iNdEx + skippy) > l {
