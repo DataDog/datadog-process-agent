@@ -30,6 +30,7 @@ var (
 )
 
 const (
+	// Metric name for HTTP response time
 	HTTPResponseTimeMetricName = "http response time"
 )
 
