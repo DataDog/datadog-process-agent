@@ -30,7 +30,7 @@ var (
 )
 
 const (
-	// Metric name for HTTP response time
+	// HTTPResponseTimeMetricName is for the metric that is sent with a connection
 	HTTPResponseTimeMetricName = "http response time"
 )
 
