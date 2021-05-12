@@ -114,7 +114,7 @@
   revision = "bcfb39d79bc7cd7ad5742b6d62837062af8d62a9"
 
 [[projects]]
-  digest = "1:6af711ddf60a936f32d7429054b8c0092b613845f1656680a7d2b89ff9c37499"
+  digest = "1:f6cd381360aa335164b75f38885fe730b19effaf1742ac2556d7f41c35ba6424"
   name = "github.com/StackVista/tcptracer-bpf"
   packages = [
     "pkg/tracer",
@@ -125,8 +125,8 @@
     "pkg/tracer/procspy",
   ]
   pruneopts = ""
-  revision = "de36bff5f64e61053fd6b03b8fceb9ef337e8c1a"
-  version = "v0.0.11-ebpf"
+  revision = "970827436bf653224fa3c1cfd3008a35ed84ffd6"
+  version = "v0.0.13-ebpf"
 
 [[projects]]
   digest = "1:63776251fbaa60062742412a9d2fa1e4b7cd24bcf5527fa9656b314ea8d60913"
@@ -1178,6 +1178,8 @@
     "github.com/DataDog/gopsutil/host",
     "github.com/DataDog/gopsutil/mem",
     "github.com/DataDog/gopsutil/process",
+    "github.com/DataDog/sketches-go/ddsketch",
+    "github.com/DataDog/sketches-go/ddsketch/pb/sketchpb",
     "github.com/DataDog/zstd",
     "github.com/StackExchange/wmi",
     "github.com/StackVista/stackstate-agent/pkg/config",
@@ -1201,6 +1203,7 @@
     "github.com/gogo/protobuf/gogoproto",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
+    "github.com/golang/protobuf/proto",
     "github.com/mailru/easyjson",
     "github.com/patrickmn/go-cache",
     "github.com/shirou/w32",
