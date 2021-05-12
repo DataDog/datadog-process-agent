@@ -345,10 +345,16 @@ message ConnectionMetricTag {
     string value = 2;
 }
 
+message ConnectionMetricValue {
+  oneof value {
+    bytes ddsketchHistogram = 1;
+  }
+}
+
 message ConnectionMetric {
     string name = 1;
     repeated ConnectionMetricTag tags = 2;
-    bytes ddsketch = 3;
+    ConnectionMetricValue value = 3;
 }
 
 message Connection {

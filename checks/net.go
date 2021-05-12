@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/DataDog/sketches-go/ddsketch"
+	"github.com/DataDog/sketches-go/ddsketch/pb/sketchpb"
+	"github.com/golang/protobuf/proto"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +27,10 @@ var (
 
 	// ErrTracerStillNotInitialized signals that the tracer is _still_ not ready, so we shouldn't log additional errors
 	ErrTracerStillNotInitialized = errors.New("remote tracer is still not initialized")
+)
+
+const (
+	HTTPResponseTimeMetricName = "http response time"
 )
 
 // ConnectionsCheck collects statistics about live TCP and UDP connections.
@@ -128,19 +136,6 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 			// Check to see if we have this relation cached and whether we have observed it for the configured time, otherwise skip
 			if relationCache, ok := IsNetworkRelationCached(c.cache, relationID); ok {
 				if !isRelationShortLived(relationID, relationCache.FirstObserved, cfg) {
-					metrics := make([]*model.ConnectionMetric, 0, len(conn.Metrics))
-					for i := range conn.Metrics {
-						metric := conn.Metrics[i]
-						tags := make([]*model.ConnectionMetricTag, 0, len(metric.Tags))
-						for k, v := range metric.Tags {
-							tags = append(tags, &model.ConnectionMetricTag{Key: k, Value: v})
-						}
-						metrics = append(metrics, &model.ConnectionMetric{
-							Name:     metric.Name,
-							Tags:     tags,
-							Ddsketch: metric.DDSketch,
-						})
-					}
 					cxs = append(cxs, &model.Connection{
 						Pid:           int32(conn.Pid),
 						PidCreateTime: pidCreateTime,
@@ -160,7 +155,7 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 						Namespace:              namespace,
 						ConnectionIdentifier:   relationID,
 						ApplicationProtocol:    conn.ApplicationProtocol,
-						Metrics:                metrics,
+						Metrics:                formatMetrics(conn),
 					})
 				}
 			}
@@ -171,6 +166,63 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 	}
 	c.prevCheckTime = time.Now()
 	return cxs
+}
+
+func formatMetrics(conn common.ConnectionStats) []*model.ConnectionMetric {
+	metrics := make([]*model.ConnectionMetric, 0, len(conn.HttpMetrics))
+
+	var successRTHist *ddsketch.DDSketch
+
+	for i := range conn.HttpMetrics {
+		metric := conn.HttpMetrics[i]
+		metrics = append(metrics, &model.ConnectionMetric{
+			Name: HTTPResponseTimeMetricName,
+			Tags: []*model.ConnectionMetricTag{
+				{Key: "code", Value: strconv.Itoa(metric.StatusCode)},
+			},
+			Value: &model.ConnectionMetricValue{
+				Value: &model.ConnectionMetricValue_DdsketchHistogram{
+					DdsketchHistogram: metric.DDSketch,
+				},
+			},
+		})
+		if 100 <= metric.StatusCode && metric.StatusCode <= 399 {
+			metricSketch, err := decodeDDSketch(metric.DDSketch)
+			if err != nil {
+				log.Warnf("can't decode ddsketch: %v", err)
+				continue
+			}
+			if successRTHist == nil {
+				successRTHist = metricSketch
+			} else {
+				err := successRTHist.MergeWith(metricSketch)
+				if err != nil {
+					log.Warnf("can't merge ddsketch: %v", err)
+					continue
+				}
+			}
+		}
+	}
+
+	if successRTHist != nil {
+		successMetricSketch, err := proto.Marshal(successRTHist.ToProto())
+		if err != nil {
+			log.Warnf("can't encode ddsketch: %v", err)
+		} else {
+			metrics = append(metrics, &model.ConnectionMetric{
+				Name: HTTPResponseTimeMetricName,
+				Tags: []*model.ConnectionMetricTag{
+					{Key: "code", Value: "success"},
+				},
+				Value: &model.ConnectionMetricValue{
+					Value: &model.ConnectionMetricValue_DdsketchHistogram{
+						DdsketchHistogram: successMetricSketch,
+					},
+				},
+			})
+		}
+	}
+	return metrics
 }
 
 func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
@@ -247,4 +299,14 @@ func isRelationShortLived(relationID string, firstObserved int64, cfg *config.Ag
 		relationID, cfg.ShortLivedNetworkRelationQualifierSecs,
 	)
 	return true
+}
+
+func decodeDDSketch(sketch []byte) (*ddsketch.DDSketch, error) {
+	var sketchPb sketchpb.DDSketch
+	err := proto.Unmarshal(sketch, &sketchPb)
+	if err != nil {
+		return nil, err
+	}
+	ddSketch, err := ddsketch.FromProto(&sketchPb)
+	return ddSketch, err
 }
