@@ -164,7 +164,10 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		agentConf.Enabled = false
 	} else if !enabled && err == nil {
 		agentConf.Enabled = true
-		agentConf.EnabledChecks = containerChecks
+		checks := []string{}
+		checks = append(checks, processChecks...)
+		checks = append(checks, containerChecks...)
+		agentConf.EnabledChecks = checks
 	}
 
 	if yc.LogToConsole {

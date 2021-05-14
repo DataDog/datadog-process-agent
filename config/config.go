@@ -323,7 +323,10 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 		v, _ := agentIni.Get("Main", "process_agent_enabled")
 		if enabled, err := isAffirmative(v); enabled {
 			cfg.Enabled = true
-			cfg.EnabledChecks = processChecks
+			checks := []string{}
+			checks = append(checks, processChecks...)
+			checks = append(checks, containerChecks...)
+			cfg.EnabledChecks = checks
 		} else if !enabled && err == nil { // Only want to disable the process agent if it's explicitly disabled
 			cfg.Enabled = false
 		}
