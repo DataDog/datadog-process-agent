@@ -507,7 +507,10 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	var err error
 	if enabled, err := isAffirmative(os.Getenv("DD_PROCESS_AGENT_ENABLED")); enabled {
 		c.Enabled = true
-		c.EnabledChecks = processChecks
+		checks = []string{}
+		checks = append(checks, processChecks...)
+		checks = append(checks, containerChecks...)
+		c.EnabledChecks = checks
 	} else if !enabled && err == nil {
 		c.Enabled = false
 	}
