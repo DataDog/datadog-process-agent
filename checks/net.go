@@ -48,6 +48,13 @@ type ConnectionsCheck struct {
 	cache *cache.Cache
 }
 
+type statusCodeGroup struct {
+	// Local network tracer
+	tag      string
+	inRange  func(int) bool
+	ddSketch *ddsketch.DDSketch
+}
+
 // Name returns the name of the ConnectionsCheck.
 func (c *ConnectionsCheck) Name() string { return "connections" }
 
@@ -172,19 +179,7 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 func formatMetrics(httpMetrics []common.HttpMetric) []*model.ConnectionMetric {
 	metrics := make([]*model.ConnectionMetric, 0, len(httpMetrics))
 
-	//var list
-	//
-	//
-	//var groups = map[string]func(int) bool {
-	//	"any":
-	//}
-	var anyHist *ddsketch.DDSketch
-	var successRTHist *ddsketch.DDSketch
-	//var success1xxRTHist *ddsketch.DDSketch
-	//var success2xxRTHist *ddsketch.DDSketch
-	//var success3xxRTHist *ddsketch.DDSketch
-	var error4xxRTHist *ddsketch.DDSketch
-	var error5xxRTHist *ddsketch.DDSketch
+	groups := initialStatusCodeGroups()
 
 	for i := range httpMetrics {
 		metric := httpMetrics[i]
@@ -199,29 +194,69 @@ func formatMetrics(httpMetrics []common.HttpMetric) []*model.ConnectionMetric {
 				},
 			},
 		})
-		anyHist = mergeWithHistogram(true, metric.DDSketch, anyHist)
-		successRTHist = mergeWithHistogram(successStatusCode(metric.StatusCode), metric.DDSketch, successRTHist)
-		error4xxRTHist = mergeWithHistogram(erro4xxStatusCode(metric.StatusCode), metric.DDSketch, error4xxRTHist)
-		error5xxRTHist = mergeWithHistogram(erro5xxStatusCode(metric.StatusCode), metric.DDSketch, error5xxRTHist)
+		for _, group := range groups {
+			group.ddSketch = mergeWithHistogram(group.inRange(metric.StatusCode), metric.DDSketch, group.ddSketch)
+		}
 	}
 
-	metrics = appendMetric(anyHist, "any", metrics)
-	metrics = appendMetric(successRTHist, "success", metrics)
-	metrics = appendMetric(error4xxRTHist, "4xx", metrics)
-	metrics = appendMetric(error5xxRTHist, "5xx", metrics)
+	for _, group := range groups {
+		metrics = appendMetric(group.ddSketch, group.tag, metrics)
+	}
 	return metrics
 }
 
-func successStatusCode(statusCode int) bool {
-	return 100 <= statusCode && statusCode <= 399
-}
-
-func erro4xxStatusCode(statusCode int) bool {
-	return 400 <= statusCode && statusCode <= 499
-}
-
-func erro5xxStatusCode(statusCode int) bool {
-	return 500 <= statusCode && statusCode <= 599
+func initialStatusCodeGroups() []*statusCodeGroup {
+	return []*statusCodeGroup{
+		{
+			tag: "any",
+			inRange: func(statusCode int) bool {
+				return true
+			},
+			ddSketch: nil,
+		},
+		{
+			tag: "success",
+			inRange: func(statusCode int) bool {
+				return 100 <= statusCode && statusCode <= 399
+			},
+			ddSketch: nil,
+		},
+		{
+			tag: "1xx",
+			inRange: func(statusCode int) bool {
+				return 100 <= statusCode && statusCode <= 199
+			},
+			ddSketch: nil,
+		},
+		{
+			tag: "2xx",
+			inRange: func(statusCode int) bool {
+				return 200 <= statusCode && statusCode <= 299
+			},
+			ddSketch: nil,
+		},
+		{
+			tag: "3xx",
+			inRange: func(statusCode int) bool {
+				return 300 <= statusCode && statusCode <= 399
+			},
+			ddSketch: nil,
+		},
+		{
+			tag: "4xx",
+			inRange: func(statusCode int) bool {
+				return 400 <= statusCode && statusCode <= 499
+			},
+			ddSketch: nil,
+		},
+		{
+			tag: "5xx",
+			inRange: func(statusCode int) bool {
+				return 500 <= statusCode && statusCode <= 599
+			},
+			ddSketch: nil,
+		},
+	}
 }
 
 func mergeWithHistogram(condition bool, ddSketch []byte, rtHist *ddsketch.DDSketch) *ddsketch.DDSketch {

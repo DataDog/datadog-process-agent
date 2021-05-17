@@ -408,18 +408,31 @@ func TestFormatMetrics(t *testing.T) {
 			StatusCode: 400,
 			DDSketch:   makeDDSketch(3),
 		},
+		{
+			StatusCode: 501,
+			DDSketch:   makeDDSketch(4),
+		},
 	}
 
 	metrics := formatMetrics(httpMetrics)
 
+	expected := []string{"200", "201", "400", "501", "any", "success", "2xx", "4xx", "5xx"}
+	actual := []string{}
+	for _, m := range metrics {
+		actual = append(actual, m.Tags[0].Value)
+	}
+	assert.Equal(t, expected, actual)
+
 	assertConnectionMetric(t, metrics[0], "200", 1, 1, 1)
 	assertConnectionMetric(t, metrics[1], "201", 2, 2, 1)
-	assertConnectionMetric(t, metrics[4], "success", 1, 2, 2)
-
 	assertConnectionMetric(t, metrics[2], "400", 3, 3, 1)
-	assertConnectionMetric(t, metrics[5], "4xx", 3, 3, 1)
+	assertConnectionMetric(t, metrics[3], "501", 4, 4, 1)
+	assertConnectionMetric(t, metrics[4], "any", 1, 4, 4)
+	assertConnectionMetric(t, metrics[5], "success", 1, 2, 2)
+	assertConnectionMetric(t, metrics[6], "2xx", 1, 2, 2)
+	assertConnectionMetric(t, metrics[7], "4xx", 3, 3, 1)
+	assertConnectionMetric(t, metrics[8], "5xx", 4, 4, 1)
 
-	assertConnectionMetric(t, metrics[3], "any", 1, 3, 3)
 }
 
 func assertConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, min int, max int, total int) {
