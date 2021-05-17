@@ -6,6 +6,7 @@ import (
 	"github.com/DataDog/sketches-go/ddsketch"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	"github.com/patrickmn/go-cache"
+	"math"
 	"testing"
 	"time"
 
@@ -410,20 +411,33 @@ func TestFormatMetrics(t *testing.T) {
 	}
 
 	metrics := formatMetrics(httpMetrics)
-	assert.Equal(t, connectionMetric("200", makeDDSketch(1)), *metrics[0])
-	assert.Equal(t, connectionMetric("201", makeDDSketch(2)), *metrics[1])
-	assert.Equal(t, connectionMetric("400", makeDDSketch(3)), *metrics[2])
-	//assert.Equal(t, connectionMetric("any", makeDDSketch(1,2,3)), *metrics[3])
-	//assert.Equal(t, connectionMetric("success", makeDDSketchMerge(1)(2)), *metrics[4])
-	sketch := makeDDSketch(3)
 
-	sketch4xx, _ := ddsketch.NewDefaultDDSketch(0.01)
+	assertConnectionMetric(t, metrics[0], "200", 1, 1, 1)
+	assertConnectionMetric(t, metrics[1], "201", 2, 2, 1)
+	assertConnectionMetric(t, metrics[4], "success", 1, 2, 2)
 
-	ddSketch, _ := decodeDDSketch(sketch)
-	sketch4xx.MergeWith(ddSketch)
-	result, _ := marshalDDSketch(sketch4xx)
-	assert.Equal(t, connectionMetric("4xx", result), *metrics[5])
+	assertConnectionMetric(t, metrics[2], "400", 3, 3, 1)
+	assertConnectionMetric(t, metrics[5], "4xx", 3, 3, 1)
 
+	assertConnectionMetric(t, metrics[3], "any", 1, 3, 3)
+}
+
+func assertConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, min int, max int, total int) {
+	assert.Equal(t, "http_response_time", formattedMetric.Name)
+	codeIsOk := assert.Equal(t, []*model.ConnectionMetricTag{
+		{Key: "code", Value: statusCode},
+	}, formattedMetric.Tags)
+	if codeIsOk {
+		actualSketch, err := decodeDDSketch(formattedMetric.Value.GetDdsketchHistogram())
+		assert.NoError(t, err)
+		assert.Equal(t, total, int(actualSketch.GetCount()), "Total doesn't match for status code `%s`", statusCode)
+		actualMin, err := actualSketch.GetMinValue()
+		assert.NoError(t, err)
+		assert.Equal(t, min, int(math.Round(actualMin)), "Min doesn't match for status code `%s`", statusCode)
+		actualMax, err := actualSketch.GetMaxValue()
+		assert.NoError(t, err)
+		assert.Equal(t, max, int(math.Round(actualMax)), "Max doesn't match for status code `%s`", statusCode)
+	}
 }
 
 func makeDDSketch(responseTimes ...float64) []byte {
