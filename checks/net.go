@@ -31,7 +31,7 @@ var (
 
 const (
 	// HTTPResponseTimeMetricName is for the metric that is sent with a connection
-	HTTPResponseTimeMetricName = "http response time"
+	HTTPResponseTimeMetricName = "http_response_time"
 )
 
 // ConnectionsCheck collects statistics about live TCP and UDP connections.
