@@ -3,6 +3,7 @@ package checks
 import (
 	"bytes"
 	"fmt"
+	"github.com/DataDog/sketches-go/ddsketch"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	"github.com/patrickmn/go-cache"
 	"testing"
@@ -390,4 +391,76 @@ func TestDDsketchDecode(t *testing.T) {
 	maxValue, err := ddsk.GetMaxValue()
 	assert.NoError(t, err)
 	assert.Equal(t, 1009, int(maxValue*1000))
+}
+
+func TestFormatMetrics(t *testing.T) {
+	httpMetrics := []common.HttpMetric{
+		{
+			StatusCode: 200,
+			DDSketch:   makeDDSketch(1),
+		},
+		{
+			StatusCode: 201,
+			DDSketch:   makeDDSketch(2),
+		},
+		{
+			StatusCode: 400,
+			DDSketch:   makeDDSketch(3),
+		},
+	}
+
+	metrics := formatMetrics(httpMetrics)
+	assert.Equal(t, connectionMetric("200", makeDDSketch(1)), *metrics[0])
+	assert.Equal(t, connectionMetric("201", makeDDSketch(2)), *metrics[1])
+	assert.Equal(t, connectionMetric("400", makeDDSketch(3)), *metrics[2])
+	//assert.Equal(t, connectionMetric("any", makeDDSketch(1,2,3)), *metrics[3])
+	//assert.Equal(t, connectionMetric("success", makeDDSketchMerge(1)(2)), *metrics[4])
+	sketch := makeDDSketch(3)
+
+	sketch4xx, _ := ddsketch.NewDefaultDDSketch(0.01)
+
+	ddSketch, _ := decodeDDSketch(sketch)
+	sketch4xx.MergeWith(ddSketch)
+	result, _ := marshalDDSketch(sketch4xx)
+	assert.Equal(t, connectionMetric("4xx", result), *metrics[5])
+
+}
+
+func makeDDSketch(responseTimes ...float64) []byte {
+	testDDSketch, _ := ddsketch.NewDefaultDDSketch(0.01)
+	for _, rt := range responseTimes {
+		testDDSketch.Add(rt)
+	}
+	sketch, _ := marshalDDSketch(testDDSketch)
+	return sketch
+}
+
+func makeDDSketchMerge(ones ...float64) func(...float64) []byte {
+	sketch1, _ := ddsketch.NewDefaultDDSketch(0.01)
+	for _, rt := range ones {
+		sketch1.Add(rt)
+	}
+	return func(others ...float64) []byte {
+		sketch2, _ := ddsketch.NewDefaultDDSketch(0.01)
+		for _, rt := range others {
+			sketch2.Add(rt)
+		}
+		sketch1.MergeWith(sketch2)
+		sketch, _ := marshalDDSketch(sketch1)
+		return sketch
+	}
+}
+
+func connectionMetric(statusCode string, histogram []byte) model.ConnectionMetric {
+	return model.ConnectionMetric{
+		Name: "http_response_time",
+		Tags: []*model.ConnectionMetricTag{
+			{Key: "code", Value: statusCode},
+		},
+		Value: &model.ConnectionMetricValue{
+			Value: &model.ConnectionMetricValue_DdsketchHistogram{
+				DdsketchHistogram: histogram,
+			},
+		},
+	}
 }

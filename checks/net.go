@@ -48,6 +48,10 @@ type ConnectionsCheck struct {
 	cache *cache.Cache
 }
 
+func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
+	return
+}
+
 // Name returns the name of the ConnectionsCheck.
 func (c *ConnectionsCheck) Name() string { return "connections" }
 
@@ -156,7 +160,7 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 						Namespace:              namespace,
 						ConnectionIdentifier:   relationID,
 						ApplicationProtocol:    conn.ApplicationProtocol,
-						Metrics:                formatMetrics(conn),
+						Metrics:                formatMetrics(conn.HttpMetrics),
 					})
 				}
 			}
@@ -169,13 +173,25 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 	return cxs
 }
 
-func formatMetrics(conn common.ConnectionStats) []*model.ConnectionMetric {
-	metrics := make([]*model.ConnectionMetric, 0, len(conn.HttpMetrics))
+func formatMetrics(httpMetrics []common.HttpMetric) []*model.ConnectionMetric {
+	metrics := make([]*model.ConnectionMetric, 0, len(httpMetrics))
 
+	//var list
+	//
+	//
+	//var groups = map[string]func(int) bool {
+	//	"any":
+	//}
+	var anyHist *ddsketch.DDSketch
 	var successRTHist *ddsketch.DDSketch
+	//var success1xxRTHist *ddsketch.DDSketch
+	//var success2xxRTHist *ddsketch.DDSketch
+	//var success3xxRTHist *ddsketch.DDSketch
+	var error4xxRTHist *ddsketch.DDSketch
+	var error5xxRTHist *ddsketch.DDSketch
 
-	for i := range conn.HttpMetrics {
-		metric := conn.HttpMetrics[i]
+	for i := range httpMetrics {
+		metric := httpMetrics[i]
 		metrics = append(metrics, &model.ConnectionMetric{
 			Name: HTTPResponseTimeMetricName,
 			Tags: []*model.ConnectionMetricTag{
@@ -187,43 +203,76 @@ func formatMetrics(conn common.ConnectionStats) []*model.ConnectionMetric {
 				},
 			},
 		})
-		if 100 <= metric.StatusCode && metric.StatusCode <= 399 {
-			metricSketch, err := decodeDDSketch(metric.DDSketch)
+		anyHist = mergeWithHistogram(true, metric.DDSketch, anyHist)
+		successRTHist = mergeWithHistogram(successStatusCode(metric.StatusCode), metric.DDSketch, successRTHist)
+		error4xxRTHist = mergeWithHistogram(erro4xxStatusCode(metric.StatusCode), metric.DDSketch, error4xxRTHist)
+		error5xxRTHist = mergeWithHistogram(erro5xxStatusCode(metric.StatusCode), metric.DDSketch, error5xxRTHist)
+	}
+
+	metrics = appendMetric(anyHist, "any", metrics)
+	metrics = appendMetric(successRTHist, "success", metrics)
+	metrics = appendMetric(error4xxRTHist, "4xx", metrics)
+	metrics = appendMetric(error5xxRTHist, "5xx", metrics)
+	return metrics
+}
+
+func successStatusCode(statusCode int) bool {
+	return 100 <= statusCode && statusCode <= 399
+}
+
+func erro4xxStatusCode(statusCode int) bool {
+	return 400 <= statusCode && statusCode <= 499
+}
+
+func erro5xxStatusCode(statusCode int) bool {
+	return 500 <= statusCode && statusCode <= 599
+}
+
+func mergeWithHistogram(condition bool, ddSketch []byte, rtHist *ddsketch.DDSketch) *ddsketch.DDSketch {
+	if condition {
+		metricSketch, err := decodeDDSketch(ddSketch)
+		if err != nil {
+			log.Warnf("can't decode ddsketch: %v", err)
+			//continue
+		}
+		if rtHist == nil {
+			rtHist = metricSketch
+		} else {
+			err := rtHist.MergeWith(metricSketch)
 			if err != nil {
-				log.Warnf("can't decode ddsketch: %v", err)
-				continue
-			}
-			if successRTHist == nil {
-				successRTHist = metricSketch
-			} else {
-				err := successRTHist.MergeWith(metricSketch)
-				if err != nil {
-					log.Warnf("can't merge ddsketch: %v", err)
-					continue
-				}
+				log.Warnf("can't merge ddsketch: %v", err)
+				//continue
 			}
 		}
 	}
+	return rtHist
+}
 
-	if successRTHist != nil {
-		successMetricSketch, err := proto.Marshal(successRTHist.ToProto())
+func appendMetric(rtHist *ddsketch.DDSketch, tag string, metrics []*model.ConnectionMetric) []*model.ConnectionMetric {
+	if rtHist != nil {
+		metricSketch, err := marshalDDSketch(rtHist)
 		if err != nil {
 			log.Warnf("can't encode ddsketch: %v", err)
 		} else {
+
 			metrics = append(metrics, &model.ConnectionMetric{
 				Name: HTTPResponseTimeMetricName,
 				Tags: []*model.ConnectionMetricTag{
-					{Key: "code", Value: "success"},
+					{Key: "code", Value: tag},
 				},
 				Value: &model.ConnectionMetricValue{
 					Value: &model.ConnectionMetricValue_DdsketchHistogram{
-						DdsketchHistogram: successMetricSketch,
+						DdsketchHistogram: metricSketch,
 					},
 				},
 			})
 		}
 	}
 	return metrics
+}
+
+func marshalDDSketch(rtHist *ddsketch.DDSketch) ([]byte, error) {
+	return proto.Marshal(rtHist.ToProto())
 }
 
 func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
