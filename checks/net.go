@@ -97,7 +97,8 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 			if err != nil {
 				log.Warnf("invalid connection description - can't determine ID: %v", err)
 			}
-			PutNetworkRelationCache(c.cache, relationID, conn, HttpConnectionMetrics{ReqCounts: map[string]int{}})
+			_, accumulatedMetrics := formatMetrics(conn.HttpMetrics, HttpConnectionMetrics{ReqCounts: map[string]int{}})
+			PutNetworkRelationCache(c.cache, relationID, conn, accumulatedMetrics)
 		}
 		c.prevCheckTime = time.Now()
 		return nil, nil
@@ -208,8 +209,7 @@ func formatMetrics(httpMetrics []common.HttpMetric, previousMetrics HttpConnecti
 		for _, group := range groups {
 			if group.inRange(metric.StatusCode) {
 				group.ddSketch = mergeWithHistogram(metricSketch, group.ddSketch)
-				accumulatedGroupCount := accumulatedMetrics.ReqCounts[group.tag] + int(statusCodeCount)
-				accumulatedMetrics.ReqCounts[group.tag] = accumulatedGroupCount
+				accumulatedMetrics.ReqCounts[group.tag] = accumulatedMetrics.ReqCounts[group.tag] + int(statusCodeCount)
 			}
 		}
 	}
