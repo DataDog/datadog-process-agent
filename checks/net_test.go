@@ -461,33 +461,3 @@ func makeDDSketch(responseTimes ...float64) []byte {
 	sketch, _ := marshalDDSketch(testDDSketch)
 	return sketch
 }
-
-func makeDDSketchMerge(ones ...float64) func(...float64) []byte {
-	sketch1, _ := ddsketch.NewDefaultDDSketch(0.01)
-	for _, rt := range ones {
-		sketch1.Add(rt)
-	}
-	return func(others ...float64) []byte {
-		sketch2, _ := ddsketch.NewDefaultDDSketch(0.01)
-		for _, rt := range others {
-			sketch2.Add(rt)
-		}
-		sketch1.MergeWith(sketch2)
-		sketch, _ := marshalDDSketch(sketch1)
-		return sketch
-	}
-}
-
-func connectionMetric(statusCode string, histogram []byte) model.ConnectionMetric {
-	return model.ConnectionMetric{
-		Name: "http_response_time",
-		Tags: []*model.ConnectionMetricTag{
-			{Key: "code", Value: statusCode},
-		},
-		Value: &model.ConnectionMetricValue{
-			Value: &model.ConnectionMetricValue_DdsketchHistogram{
-				DdsketchHistogram: histogram,
-			},
-		},
-	}
-}
