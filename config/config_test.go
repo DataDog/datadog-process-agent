@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"github.com/StackVista/stackstate-process-agent/util"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/StackVista/stackstate-process-agent/util"
 
 	"github.com/DataDog/gopsutil/process"
 	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
@@ -616,7 +617,8 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(true, agentConfig.Enabled)
 	assert.Equal(true, agentConfig.EnableIncrementalPublishing)
 	assert.Equal(1*time.Minute, agentConfig.IncrementalPublishingRefreshInterval)
-	assert.Equal(processChecks, agentConfig.EnabledChecks)
+	containsAllOf(assert, processChecks, agentConfig.EnabledChecks)
+	containsAllOf(assert, containerChecks, agentConfig.EnabledChecks)
 	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
 	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
 	assert.Equal(100, agentConfig.Windows.ArgsRefreshInterval)
@@ -652,7 +654,8 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(true, agentConfig.Enabled)
 	assert.Equal(false, agentConfig.EnableIncrementalPublishing)
 	assert.Equal(2*time.Minute, agentConfig.IncrementalPublishingRefreshInterval)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	containsAllOf(assert, processChecks, agentConfig.EnabledChecks)
+	containsAllOf(assert, containerChecks, agentConfig.EnabledChecks)
 	assert.Equal(-1, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(true, agentConfig.Windows.AddNewArgs)
 	assert.Equal(true, agentConfig.Scrubber.Enabled)
@@ -793,7 +796,8 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(10, agentConfig.QueueSize)
 	assert.Equal(true, agentConfig.AllowRealTime)
 	assert.Equal(true, agentConfig.Enabled)
-	assert.Equal(processChecks, agentConfig.EnabledChecks)
+	containsAllOf(assert, processChecks, agentConfig.EnabledChecks)
+	containsAllOf(assert, containerChecks, agentConfig.EnabledChecks)
 	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
 	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
 	assert.Equal(100, agentConfig.Windows.ArgsRefreshInterval)
@@ -821,7 +825,9 @@ func TestDDAgentConfigYamlAndNetworkConfig(t *testing.T) {
 	assert.Equal(false, agentConfig.Windows.AddNewArgs)
 	assert.Equal(false, agentConfig.Scrubber.Enabled)
 	assert.Equal("/var/my-location/network-tracer.log", agentConfig.NetworkTracerSocketPath)
-	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
+	containsAllOf(assert, processChecks, agentConfig.EnabledChecks)
+	containsAllOf(assert, containerChecks, agentConfig.EnabledChecks)
+	assert.Contains(agentConfig.EnabledChecks, "connections")
 }
 
 func TestStackStateNetworkConfigFromMainAgentConfig(t *testing.T) {
@@ -865,7 +871,9 @@ func TestStackStateNetworkConfigFromMainAgentConfig(t *testing.T) {
 	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
 	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
 	assert.Equal(true, agentConfig.NetworkInitialConnectionsFromProc)
-	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
+	containsAllOf(assert, processChecks, agentConfig.EnabledChecks)
+	containsAllOf(assert, containerChecks, agentConfig.EnabledChecks)
+	assert.Contains(agentConfig.EnabledChecks, "connections")
 	assert.Equal(10*time.Minute, agentConfig.NetworkRelationCacheDurationMin)
 	assert.Equal(15*time.Minute, agentConfig.ProcessCacheDurationMin)
 	assert.Equal(false, agentConfig.EnableShortLivedProcessFilter)
@@ -1308,4 +1316,10 @@ func TestNetworkTracerInitRetry_FromYaml(t *testing.T) {
 
 	assert.Equal(t, 10, agentConfig.NetworkTracerInitRetryAmount)
 	assert.Equal(t, 50*time.Second, agentConfig.NetworkTracerInitRetryDuration)
+}
+
+func containsAllOf(a *assert.Assertions, contains, coll []string) {
+	for _, c := range contains {
+		a.Contains(coll, c)
+	}
 }
