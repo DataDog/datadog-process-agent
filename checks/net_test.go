@@ -7,6 +7,8 @@ import (
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	"github.com/patrickmn/go-cache"
 	"math"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -414,28 +416,55 @@ func TestFormatMetrics(t *testing.T) {
 		},
 	}
 
-	metrics := formatMetrics(httpMetrics)
+	previousMetrics := HttpConnectionMetrics{ReqCounts: map[string]int{}}
 
-	expected := []string{"200", "201", "400", "501", "any", "success", "2xx", "4xx", "5xx"}
+	metrics, accumulatedMetrics := formatMetrics(httpMetrics, previousMetrics)
+
+	sort.Slice(metrics, func(i, j int) bool {
+		switch strings.Compare(metrics[i].Name, metrics[j].Name) {
+		case -1:
+			return false
+		case 1:
+			return true
+		default:
+			return strings.Compare(metrics[i].Tags[0].Value, metrics[j].Tags[0].Value) < 0
+		}
+	})
+
+	expected := []string{"200", "201", "2xx", "400", "4xx", "501", "5xx", "any", "success", "1xx", "200", "201", "2xx", "3xx", "400", "4xx", "501", "5xx", "any", "success"}
 	actual := []string{}
 	for _, m := range metrics {
 		actual = append(actual, m.Tags[0].Value)
 	}
 	assert.Equal(t, expected, actual)
 
-	assertConnectionMetric(t, metrics[0], "200", 1, 1, 1)
-	assertConnectionMetric(t, metrics[1], "201", 2, 2, 1)
-	assertConnectionMetric(t, metrics[2], "400", 3, 3, 1)
-	assertConnectionMetric(t, metrics[3], "501", 4, 4, 1)
-	assertConnectionMetric(t, metrics[4], "any", 1, 4, 4)
-	assertConnectionMetric(t, metrics[5], "success", 1, 2, 2)
-	assertConnectionMetric(t, metrics[6], "2xx", 1, 2, 2)
-	assertConnectionMetric(t, metrics[7], "4xx", 3, 3, 1)
-	assertConnectionMetric(t, metrics[8], "5xx", 4, 4, 1)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[0], "200", 1, 1, 1)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[1], "201", 2, 2, 1)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[2], "2xx", 1, 2, 2)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[3], "400", 3, 3, 1)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[4], "4xx", 3, 3, 1)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[5], "501", 4, 4, 1)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[6], "5xx", 4, 4, 1)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[7], "any", 1, 4, 4)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[8], "success", 1, 2, 2)
+
+	assertHTTPRequestCountConnectionMetric(t, metrics[9], "1xx", 0)
+	assertHTTPRequestCountConnectionMetric(t, metrics[10], "200", 1)
+	assertHTTPRequestCountConnectionMetric(t, metrics[11], "201", 1)
+	assertHTTPRequestCountConnectionMetric(t, metrics[12], "2xx", 2)
+	assertHTTPRequestCountConnectionMetric(t, metrics[13], "3xx", 0)
+	assertHTTPRequestCountConnectionMetric(t, metrics[14], "400", 1)
+	assertHTTPRequestCountConnectionMetric(t, metrics[15], "4xx", 1)
+	assertHTTPRequestCountConnectionMetric(t, metrics[16], "501", 1)
+	assertHTTPRequestCountConnectionMetric(t, metrics[17], "5xx", 1)
+	assertHTTPRequestCountConnectionMetric(t, metrics[18], "any", 4)
+	assertHTTPRequestCountConnectionMetric(t, metrics[19], "success", 2)
+
+	assert.Equal(t, 1, accumulatedMetrics)
 
 }
 
-func assertConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, min int, max int, total int) {
+func assertHTTPResponseTimeConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, min int, max int, total int) {
 	assert.Equal(t, "http_response_time", formattedMetric.Name)
 	codeIsOk := assert.Equal(t, []*model.ConnectionMetricTag{
 		{Key: "code", Value: statusCode},
@@ -450,6 +479,16 @@ func assertConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetri
 		actualMax, err := actualSketch.GetMaxValue()
 		assert.NoError(t, err)
 		assert.Equal(t, max, int(math.Round(actualMax)), "Max doesn't match for status code `%s`", statusCode)
+	}
+}
+
+func assertHTTPRequestCountConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, expectedCount int) {
+	assert.Equal(t, "http_request_count", formattedMetric.Name)
+	codeIsOk := assert.Equal(t, []*model.ConnectionMetricTag{
+		{Key: "code", Value: statusCode},
+	}, formattedMetric.Tags)
+	if codeIsOk {
+		assert.Equal(t, expectedCount, formattedMetric.Value.GetNumber())
 	}
 }
 

@@ -348,6 +348,7 @@ message ConnectionMetricTag {
 message ConnectionMetricValue {
   oneof value {
     bytes ddsketchHistogram = 1;
+    double number = 2;
   }
 }
 

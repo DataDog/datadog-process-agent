@@ -32,6 +32,9 @@ var (
 const (
 	// HTTPResponseTimeMetricName is for the metric that is sent with a connection
 	HTTPResponseTimeMetricName = "http_response_time"
+
+	// HTTPResponseCountMetricName is for the metric that is sent with a connection
+	HTTPRequestCountMetricName = "http_request_count"
 )
 
 // ConnectionsCheck collects statistics about live TCP and UDP connections.
@@ -53,6 +56,10 @@ type statusCodeGroup struct {
 	tag      string
 	inRange  func(int) bool
 	ddSketch *ddsketch.DDSketch
+}
+
+func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
+
 }
 
 // Name returns the name of the ConnectionsCheck.
@@ -94,7 +101,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 			if err != nil {
 				log.Warnf("invalid connection description - can't determine ID: %v", err)
 			}
-			PutNetworkRelationCache(c.cache, relationID, conn)
+			PutNetworkRelationCache(c.cache, relationID, conn, HttpConnectionMetrics{ReqCounts: map[string]int{}})
 		}
 		c.prevCheckTime = time.Now()
 		return nil, nil
@@ -142,8 +149,10 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 				continue
 			}
 			// Check to see if we have this relation cached and whether we have observed it for the configured time, otherwise skip
+			httpConnectionMetrics := HttpConnectionMetrics{ReqCounts: map[string]int{}}
 			if relationCache, ok := IsNetworkRelationCached(c.cache, relationID); ok {
 				if !isRelationShortLived(relationID, relationCache.FirstObserved, cfg) {
+					metrics, accumulatedHttpConnMetrics := formatMetrics(conn.HttpMetrics, relationCache.HttpConnectionMetrics)
 					cxs = append(cxs, &model.Connection{
 						Pid:           int32(conn.Pid),
 						PidCreateTime: pidCreateTime,
@@ -163,46 +172,81 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 						Namespace:              namespace,
 						ConnectionIdentifier:   relationID,
 						ApplicationProtocol:    conn.ApplicationProtocol,
-						Metrics:                formatMetrics(conn.HttpMetrics),
+						Metrics:                metrics,
 					})
+					httpConnectionMetrics = accumulatedHttpConnMetrics
 				}
 			}
 
 			// put it in the cache for the next run
-			PutNetworkRelationCache(c.cache, relationID, conn)
+			PutNetworkRelationCache(c.cache, relationID, conn, httpConnectionMetrics)
 		}
 	}
 	c.prevCheckTime = time.Now()
 	return cxs
 }
 
-func formatMetrics(httpMetrics []common.HttpMetric) []*model.ConnectionMetric {
+func formatMetrics(httpMetrics []common.HttpMetric, previousMetrics HttpConnectionMetrics) ([]*model.ConnectionMetric, HttpConnectionMetrics) {
 	metrics := make([]*model.ConnectionMetric, 0, len(httpMetrics))
 
 	groups := initialStatusCodeGroups()
-
+	accumulatedMetrics := HttpConnectionMetrics{ReqCounts: map[string]int{}}
+	for key, value := range previousMetrics.ReqCounts {
+		accumulatedMetrics.ReqCounts[key] = value
+	}
 	for i := range httpMetrics {
 		metric := httpMetrics[i]
-		metrics = append(metrics, &model.ConnectionMetric{
-			Name: HTTPResponseTimeMetricName,
-			Tags: []*model.ConnectionMetricTag{
-				{Key: "code", Value: strconv.Itoa(metric.StatusCode)},
-			},
-			Value: &model.ConnectionMetricValue{
-				Value: &model.ConnectionMetricValue_DdsketchHistogram{
-					DdsketchHistogram: metric.DDSketch,
-				},
-			},
-		})
+		tag := strconv.Itoa(metric.StatusCode)
+		metrics = append(metrics, newHTTPResponseTimeConnectionMetric(tag, metric.DDSketch))
+		metricSketch, err := decodeDDSketch(metric.DDSketch)
+		if err != nil {
+			log.Warnf("can't decode ddsketch: %v", err)
+			continue
+		}
+		accumulatedCount := accumulatedMetrics.ReqCounts[tag] + int(metricSketch.GetCount())
+		accumulatedMetrics.ReqCounts[tag] = accumulatedCount
 		for _, group := range groups {
-			group.ddSketch = mergeWithHistogram(group.inRange(metric.StatusCode), metric.DDSketch, group.ddSketch)
+			group.ddSketch = mergeWithHistogram(group.inRange(metric.StatusCode), metricSketch, group.ddSketch)
+			accumulatedGroupCount := accumulatedMetrics.ReqCounts[group.tag] + int(metricSketch.GetCount())
+			accumulatedMetrics.ReqCounts[group.tag] = accumulatedGroupCount
 		}
 	}
 
 	for _, group := range groups {
 		metrics = appendMetric(group.ddSketch, group.tag, metrics)
 	}
-	return metrics
+	for key, value := range accumulatedMetrics.ReqCounts {
+		metrics = append(metrics, newHTTPRequestCountConnectionMetric(key, float64(value)))
+	}
+	return metrics, accumulatedMetrics
+}
+
+func newHTTPResponseTimeConnectionMetric(tag string, ddSketch []byte) *model.ConnectionMetric {
+	return &model.ConnectionMetric{
+		Name: HTTPResponseTimeMetricName,
+		Tags: []*model.ConnectionMetricTag{
+			{Key: "code", Value: tag},
+		},
+		Value: &model.ConnectionMetricValue{
+			Value: &model.ConnectionMetricValue_DdsketchHistogram{
+				DdsketchHistogram: ddSketch,
+			},
+		},
+	}
+}
+
+func newHTTPRequestCountConnectionMetric(tag string, number float64) *model.ConnectionMetric {
+	return &model.ConnectionMetric{
+		Name: HTTPRequestCountMetricName,
+		Tags: []*model.ConnectionMetricTag{
+			{Key: "code", Value: tag},
+		},
+		Value: &model.ConnectionMetricValue{
+			Value: &model.ConnectionMetricValue_Number{
+				Number: number,
+			},
+		},
+	}
 }
 
 func initialStatusCodeGroups() []*statusCodeGroup {
@@ -259,20 +303,14 @@ func initialStatusCodeGroups() []*statusCodeGroup {
 	}
 }
 
-func mergeWithHistogram(condition bool, ddSketch []byte, rtHist *ddsketch.DDSketch) *ddsketch.DDSketch {
+func mergeWithHistogram(condition bool, metricSketch *ddsketch.DDSketch, rtHist *ddsketch.DDSketch) *ddsketch.DDSketch {
 	if condition {
-		metricSketch, err := decodeDDSketch(ddSketch)
-		if err != nil {
-			log.Warnf("can't decode ddsketch: %v", err)
-			//continue
-		}
 		if rtHist == nil {
 			rtHist = metricSketch
 		} else {
 			err := rtHist.MergeWith(metricSketch)
 			if err != nil {
 				log.Warnf("can't merge ddsketch: %v", err)
-				//continue
 			}
 		}
 	}
