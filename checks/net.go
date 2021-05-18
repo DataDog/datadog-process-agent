@@ -187,6 +187,9 @@ func formatMetrics(httpMetrics []common.HttpMetric, previousMetrics HttpConnecti
 
 	groups := initialStatusCodeGroups()
 	accumulatedMetrics := HttpConnectionMetrics{ReqCounts: map[string]int{}}
+	for _, group := range groups {
+		accumulatedMetrics.ReqCounts[group.tag] = 0
+	}
 	for key, value := range previousMetrics.ReqCounts {
 		accumulatedMetrics.ReqCounts[key] = value
 	}
@@ -199,12 +202,15 @@ func formatMetrics(httpMetrics []common.HttpMetric, previousMetrics HttpConnecti
 			log.Warnf("can't decode ddsketch: %v", err)
 			continue
 		}
-		accumulatedCount := accumulatedMetrics.ReqCounts[tag] + int(metricSketch.GetCount())
+		statusCodeCount := metricSketch.GetCount()
+		accumulatedCount := accumulatedMetrics.ReqCounts[tag] + int(statusCodeCount)
 		accumulatedMetrics.ReqCounts[tag] = accumulatedCount
 		for _, group := range groups {
-			group.ddSketch = mergeWithHistogram(group.inRange(metric.StatusCode), metricSketch, group.ddSketch)
-			accumulatedGroupCount := accumulatedMetrics.ReqCounts[group.tag] + int(metricSketch.GetCount())
-			accumulatedMetrics.ReqCounts[group.tag] = accumulatedGroupCount
+			if group.inRange(metric.StatusCode) {
+				group.ddSketch = mergeWithHistogram(metricSketch, group.ddSketch)
+				accumulatedGroupCount := accumulatedMetrics.ReqCounts[group.tag] + int(statusCodeCount)
+				accumulatedMetrics.ReqCounts[group.tag] = accumulatedGroupCount
+			}
 		}
 	}
 
@@ -299,15 +305,13 @@ func initialStatusCodeGroups() []*statusCodeGroup {
 	}
 }
 
-func mergeWithHistogram(condition bool, metricSketch *ddsketch.DDSketch, rtHist *ddsketch.DDSketch) *ddsketch.DDSketch {
-	if condition {
-		if rtHist == nil {
-			rtHist = metricSketch
-		} else {
-			err := rtHist.MergeWith(metricSketch)
-			if err != nil {
-				log.Warnf("can't merge ddsketch: %v", err)
-			}
+func mergeWithHistogram(metricSketch *ddsketch.DDSketch, rtHist *ddsketch.DDSketch) *ddsketch.DDSketch {
+	if rtHist == nil {
+		rtHist = metricSketch.Copy()
+	} else {
+		err := rtHist.MergeWith(metricSketch)
+		if err != nil {
+			log.Warnf("can't merge ddsketch: %v", err)
 		}
 	}
 	return rtHist
