@@ -33,7 +33,7 @@ const (
 	// HTTPResponseTimeMetricName is for the metric that is sent with a connection
 	HTTPResponseTimeMetricName = "http_response_time_seconds"
 
-	// HTTPResponseCountMetricName is for the metric that is sent with a connection
+	// HTTPRequestsPerSecondMetricName is for the metric that is sent with a connection
 	HTTPRequestsPerSecondMetricName = "http_requests_per_second"
 )
 
