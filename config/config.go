@@ -323,10 +323,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 		v, _ := agentIni.Get("Main", "process_agent_enabled")
 		if enabled, err := isAffirmative(v); enabled {
 			cfg.Enabled = true
-			checks := []string{}
-			checks = append(checks, processChecks...)
-			checks = append(checks, containerChecks...)
-			cfg.EnabledChecks = checks
+			cfg.EnabledChecks = processChecks
 		} else if !enabled && err == nil { // Only want to disable the process agent if it's explicitly disabled
 			cfg.Enabled = false
 		}
@@ -510,10 +507,7 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	var err error
 	if enabled, err := isAffirmative(os.Getenv("DD_PROCESS_AGENT_ENABLED")); enabled {
 		c.Enabled = true
-		checks := []string{}
-		checks = append(checks, processChecks...)
-		checks = append(checks, containerChecks...)
-		c.EnabledChecks = checks
+		c.EnabledChecks = processChecks
 	} else if !enabled && err == nil {
 		c.Enabled = false
 	}
