@@ -404,21 +404,19 @@ func TestFormatMetrics(t *testing.T) {
 		},
 		{
 			StatusCode: 201,
-			DDSketch:   makeDDSketch(2),
+			DDSketch:   makeDDSketch(2, 2),
 		},
 		{
 			StatusCode: 400,
-			DDSketch:   makeDDSketch(3),
+			DDSketch:   makeDDSketch(3, 3, 3),
 		},
 		{
 			StatusCode: 501,
-			DDSketch:   makeDDSketch(4),
+			DDSketch:   makeDDSketch(4, 4, 4, 4),
 		},
 	}
 
-	previousMetrics := HttpConnectionMetrics{ReqCounts: map[string]int{}}
-
-	metrics, accumulatedMetrics := formatMetrics(httpMetrics, previousMetrics)
+	metrics := formatMetrics(httpMetrics, 2*time.Second)
 
 	sort.Slice(metrics, func(i, j int) bool {
 		switch strings.Compare(metrics[i].Name, metrics[j].Name) {
@@ -439,132 +437,30 @@ func TestFormatMetrics(t *testing.T) {
 	assert.Equal(t, expected, actual)
 
 	assertHTTPResponseTimeConnectionMetric(t, metrics[0], "200", 1, 1, 1)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[1], "201", 2, 2, 1)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[2], "2xx", 1, 2, 2)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[3], "400", 3, 3, 1)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[4], "4xx", 3, 3, 1)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[5], "501", 4, 4, 1)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[6], "5xx", 4, 4, 1)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[7], "any", 1, 4, 4)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[8], "success", 1, 2, 2)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[1], "201", 2, 2, 2)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[2], "2xx", 1, 2, 3)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[3], "400", 3, 3, 3)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[4], "4xx", 3, 3, 3)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[5], "501", 4, 4, 4)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[6], "5xx", 4, 4, 4)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[7], "any", 1, 4, 10)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[8], "success", 1, 2, 3)
 
-	assertHTTPRequestCountConnectionMetric(t, metrics[9], "1xx", 0)
-	assertHTTPRequestCountConnectionMetric(t, metrics[10], "200", 1)
-	assertHTTPRequestCountConnectionMetric(t, metrics[11], "201", 1)
-	assertHTTPRequestCountConnectionMetric(t, metrics[12], "2xx", 2)
-	assertHTTPRequestCountConnectionMetric(t, metrics[13], "3xx", 0)
-	assertHTTPRequestCountConnectionMetric(t, metrics[14], "400", 1)
-	assertHTTPRequestCountConnectionMetric(t, metrics[15], "4xx", 1)
-	assertHTTPRequestCountConnectionMetric(t, metrics[16], "501", 1)
-	assertHTTPRequestCountConnectionMetric(t, metrics[17], "5xx", 1)
-	assertHTTPRequestCountConnectionMetric(t, metrics[18], "any", 4)
-	assertHTTPRequestCountConnectionMetric(t, metrics[19], "success", 2)
-
-	assert.Equal(t, 0, accumulatedMetrics.ReqCounts["1xx"])
-	assert.Equal(t, 1, accumulatedMetrics.ReqCounts["200"])
-	assert.Equal(t, 1, accumulatedMetrics.ReqCounts["201"])
-	assert.Equal(t, 2, accumulatedMetrics.ReqCounts["2xx"])
-	assert.Equal(t, 0, accumulatedMetrics.ReqCounts["3xx"])
-	assert.Equal(t, 1, accumulatedMetrics.ReqCounts["400"])
-	assert.Equal(t, 1, accumulatedMetrics.ReqCounts["4xx"])
-	assert.Equal(t, 1, accumulatedMetrics.ReqCounts["501"])
-	assert.Equal(t, 1, accumulatedMetrics.ReqCounts["5xx"])
-	assert.Equal(t, 4, accumulatedMetrics.ReqCounts["any"])
-	assert.Equal(t, 2, accumulatedMetrics.ReqCounts["success"])
-}
-
-func TestFormatMetrics_AccumulatedMetrics(t *testing.T) {
-	httpMetrics := []common.HttpMetric{
-		{
-			StatusCode: 200,
-			DDSketch:   makeDDSketch(1),
-		},
-		{
-			StatusCode: 201,
-			DDSketch:   makeDDSketch(2),
-		},
-		{
-			StatusCode: 400,
-			DDSketch:   makeDDSketch(3),
-		},
-		{
-			StatusCode: 501,
-			DDSketch:   makeDDSketch(4),
-		},
-	}
-
-	previousMetrics := HttpConnectionMetrics{ReqCounts: map[string]int{
-		"200":     5,
-		"2xx":     7,
-		"401":     2,
-		"4xx":     2,
-		"502":     3,
-		"5xx":     4,
-		"any":     12,
-		"success": 8,
-	}}
-
-	metrics, accumulatedMetrics := formatMetrics(httpMetrics, previousMetrics)
-
-	sort.Slice(metrics, func(i, j int) bool {
-		switch strings.Compare(metrics[i].Name, metrics[j].Name) {
-		case -1:
-			return false
-		case 1:
-			return true
-		default:
-			return strings.Compare(metrics[i].Tags[0].Value, metrics[j].Tags[0].Value) < 0
-		}
-	})
-
-	expected := []string{"200", "201", "2xx", "400", "4xx", "501", "5xx", "any", "success", "1xx", "200", "201", "2xx", "3xx", "400", "401", "4xx", "501", "502", "5xx", "any", "success"}
-	actual := []string{}
-	for _, m := range metrics {
-		actual = append(actual, m.Tags[0].Value)
-	}
-	assert.Equal(t, expected, actual)
-
-	assertHTTPResponseTimeConnectionMetric(t, metrics[0], "200", 1, 1, 1)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[1], "201", 2, 2, 1)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[2], "2xx", 1, 2, 2)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[3], "400", 3, 3, 1)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[4], "4xx", 3, 3, 1)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[5], "501", 4, 4, 1)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[6], "5xx", 4, 4, 1)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[7], "any", 1, 4, 4)
-	assertHTTPResponseTimeConnectionMetric(t, metrics[8], "success", 1, 2, 2)
-
-	assertHTTPRequestCountConnectionMetric(t, metrics[9], "1xx", 0)
-	assertHTTPRequestCountConnectionMetric(t, metrics[10], "200", 5+1)
-	assertHTTPRequestCountConnectionMetric(t, metrics[11], "201", 1)
-	assertHTTPRequestCountConnectionMetric(t, metrics[12], "2xx", 7+2)
-	assertHTTPRequestCountConnectionMetric(t, metrics[13], "3xx", 0)
-	assertHTTPRequestCountConnectionMetric(t, metrics[14], "400", 1)
-	assertHTTPRequestCountConnectionMetric(t, metrics[15], "401", 2)
-	assertHTTPRequestCountConnectionMetric(t, metrics[16], "4xx", 3)
-	assertHTTPRequestCountConnectionMetric(t, metrics[17], "501", 1)
-	assertHTTPRequestCountConnectionMetric(t, metrics[18], "502", 3)
-	assertHTTPRequestCountConnectionMetric(t, metrics[19], "5xx", 4+1)
-	assertHTTPRequestCountConnectionMetric(t, metrics[20], "any", 12+4)
-	assertHTTPRequestCountConnectionMetric(t, metrics[21], "success", 8+2)
-
-	assert.Equal(t, 0, accumulatedMetrics.ReqCounts["1xx"])
-	assert.Equal(t, 5+1, accumulatedMetrics.ReqCounts["200"])
-	assert.Equal(t, 1, accumulatedMetrics.ReqCounts["201"])
-	assert.Equal(t, 7+2, accumulatedMetrics.ReqCounts["2xx"])
-	assert.Equal(t, 0, accumulatedMetrics.ReqCounts["3xx"])
-	assert.Equal(t, 1, accumulatedMetrics.ReqCounts["400"])
-	assert.Equal(t, 2, accumulatedMetrics.ReqCounts["401"])
-	assert.Equal(t, 3, accumulatedMetrics.ReqCounts["4xx"])
-	assert.Equal(t, 1, accumulatedMetrics.ReqCounts["501"])
-	assert.Equal(t, 3, accumulatedMetrics.ReqCounts["502"])
-	assert.Equal(t, 4+1, accumulatedMetrics.ReqCounts["5xx"])
-	assert.Equal(t, 12+4, accumulatedMetrics.ReqCounts["any"])
-	assert.Equal(t, 8+2, accumulatedMetrics.ReqCounts["success"])
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[9], "1xx", 0)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[10], "200", 0.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[11], "201", 1)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[12], "2xx", 1.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[13], "3xx", 0)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[14], "400", 1.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[15], "4xx", 1.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[16], "501", 2)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[17], "5xx", 2)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[18], "any", 5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[19], "success", 1.5)
 }
 
 func assertHTTPResponseTimeConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, min int, max int, total int) {
-	assert.Equal(t, "http_response_time", formattedMetric.Name)
+	assert.Equal(t, "http_response_time_seconds", formattedMetric.Name)
 	codeIsOk := assert.Equal(t, []*model.ConnectionMetricTag{
 		{Key: "code", Value: statusCode},
 	}, formattedMetric.Tags)
@@ -581,13 +477,13 @@ func assertHTTPResponseTimeConnectionMetric(t *testing.T, formattedMetric *model
 	}
 }
 
-func assertHTTPRequestCountConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, expectedCount float64) {
-	assert.Equal(t, "http_request_count", formattedMetric.Name)
+func assertHTTPRequestsPerSecondConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, expectedRate float64) {
+	assert.Equal(t, "http_requests_per_second", formattedMetric.Name)
 	codeIsOk := assert.Equal(t, []*model.ConnectionMetricTag{
 		{Key: "code", Value: statusCode},
 	}, formattedMetric.Tags)
 	if codeIsOk {
-		assert.Equal(t, expectedCount, formattedMetric.Value.GetNumber())
+		assert.Equal(t, expectedRate, formattedMetric.Value.GetNumber())
 	}
 }
 

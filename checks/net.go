@@ -31,10 +31,10 @@ var (
 
 const (
 	// HTTPResponseTimeMetricName is for the metric that is sent with a connection
-	HTTPResponseTimeMetricName = "http_response_time"
+	HTTPResponseTimeMetricName = "http_response_time_seconds"
 
 	// HTTPResponseCountMetricName is for the metric that is sent with a connection
-	HTTPRequestCountMetricName = "http_request_count"
+	HTTPRequestsPerSecondMetricName = "http_requests_per_second"
 )
 
 // ConnectionsCheck collects statistics about live TCP and UDP connections.
@@ -97,8 +97,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 			if err != nil {
 				log.Warnf("invalid connection description - can't determine ID: %v", err)
 			}
-			_, accumulatedMetrics := formatMetrics(conn.HttpMetrics, HttpConnectionMetrics{ReqCounts: map[string]int{}})
-			PutNetworkRelationCache(c.cache, relationID, conn, accumulatedMetrics)
+			PutNetworkRelationCache(c.cache, relationID, conn)
 		}
 		c.prevCheckTime = time.Now()
 		return nil, nil
@@ -146,10 +145,8 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 				continue
 			}
 			// Check to see if we have this relation cached and whether we have observed it for the configured time, otherwise skip
-			httpConnectionMetrics := HttpConnectionMetrics{ReqCounts: map[string]int{}}
 			if relationCache, ok := IsNetworkRelationCached(c.cache, relationID); ok {
 				if !isRelationShortLived(relationID, relationCache.FirstObserved, cfg) {
-					metrics, accumulatedHttpConnMetrics := formatMetrics(conn.HttpMetrics, relationCache.HttpConnectionMetrics)
 					cxs = append(cxs, &model.Connection{
 						Pid:           int32(conn.Pid),
 						PidCreateTime: pidCreateTime,
@@ -169,30 +166,26 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 						Namespace:              namespace,
 						ConnectionIdentifier:   relationID,
 						ApplicationProtocol:    conn.ApplicationProtocol,
-						Metrics:                metrics,
+						Metrics:                formatMetrics(conn.HttpMetrics, time.Now().Sub(lastCheckTime)),
 					})
-					httpConnectionMetrics = accumulatedHttpConnMetrics
 				}
 			}
 
 			// put it in the cache for the next run
-			PutNetworkRelationCache(c.cache, relationID, conn, httpConnectionMetrics)
+			PutNetworkRelationCache(c.cache, relationID, conn)
 		}
 	}
 	c.prevCheckTime = time.Now()
 	return cxs
 }
 
-func formatMetrics(httpMetrics []common.HttpMetric, previousMetrics HttpConnectionMetrics) ([]*model.ConnectionMetric, HttpConnectionMetrics) {
+func formatMetrics(httpMetrics []common.HttpMetric, duration time.Duration) []*model.ConnectionMetric {
 	metrics := make([]*model.ConnectionMetric, 0, len(httpMetrics))
 
 	groups := initialStatusCodeGroups()
-	accumulatedMetrics := HttpConnectionMetrics{ReqCounts: map[string]int{}}
+	reqCounts := map[string]uint64{}
 	for _, group := range groups {
-		accumulatedMetrics.ReqCounts[group.tag] = 0
-	}
-	for key, value := range previousMetrics.ReqCounts {
-		accumulatedMetrics.ReqCounts[key] = value
+		reqCounts[group.tag] = 0
 	}
 	for i := range httpMetrics {
 		metric := httpMetrics[i]
@@ -204,12 +197,12 @@ func formatMetrics(httpMetrics []common.HttpMetric, previousMetrics HttpConnecti
 			continue
 		}
 		statusCodeCount := metricSketch.GetCount()
-		accumulatedCount := accumulatedMetrics.ReqCounts[tag] + int(statusCodeCount)
-		accumulatedMetrics.ReqCounts[tag] = accumulatedCount
+		accumulatedCount := reqCounts[tag] + uint64(statusCodeCount)
+		reqCounts[tag] = accumulatedCount
 		for _, group := range groups {
 			if group.inRange(metric.StatusCode) {
 				group.ddSketch = mergeWithHistogram(metricSketch, group.ddSketch)
-				accumulatedMetrics.ReqCounts[group.tag] = accumulatedMetrics.ReqCounts[group.tag] + int(statusCodeCount)
+				reqCounts[group.tag] = reqCounts[group.tag] + uint64(statusCodeCount)
 			}
 		}
 	}
@@ -217,10 +210,10 @@ func formatMetrics(httpMetrics []common.HttpMetric, previousMetrics HttpConnecti
 	for _, group := range groups {
 		metrics = appendMetric(group.ddSketch, group.tag, metrics)
 	}
-	for key, value := range accumulatedMetrics.ReqCounts {
-		metrics = append(metrics, newHTTPRequestCountConnectionMetric(key, float64(value)))
+	for key, value := range reqCounts {
+		metrics = append(metrics, newHTTPRequestsPerSecondConnectionMetric(key, float64(calculateNormalizedRate(value, duration))))
 	}
-	return metrics, accumulatedMetrics
+	return metrics
 }
 
 func newHTTPResponseTimeConnectionMetric(tag string, ddSketch []byte) *model.ConnectionMetric {
@@ -237,9 +230,9 @@ func newHTTPResponseTimeConnectionMetric(tag string, ddSketch []byte) *model.Con
 	}
 }
 
-func newHTTPRequestCountConnectionMetric(tag string, number float64) *model.ConnectionMetric {
+func newHTTPRequestsPerSecondConnectionMetric(tag string, number float64) *model.ConnectionMetric {
 	return &model.ConnectionMetric{
-		Name: HTTPRequestCountMetricName,
+		Name: HTTPRequestsPerSecondMetricName,
 		Tags: []*model.ConnectionMetricTag{
 			{Key: "code", Value: tag},
 		},
