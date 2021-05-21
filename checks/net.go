@@ -29,14 +29,6 @@ var (
 	ErrTracerStillNotInitialized = errors.New("remote tracer is still not initialized")
 )
 
-const (
-	// HTTPResponseTimeMetricName is for the metric that is sent with a connection
-	HTTPResponseTimeMetricName = "http_response_time_seconds"
-
-	// HTTPRequestsPerSecondMetricName is for the metric that is sent with a connection
-	HTTPRequestsPerSecondMetricName = "http_requests_per_second"
-)
-
 // ConnectionsCheck collects statistics about live TCP and UDP connections.
 type ConnectionsCheck struct {
 	// Local network tracer
@@ -166,7 +158,7 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 						Namespace:              namespace,
 						ConnectionIdentifier:   relationID,
 						ApplicationProtocol:    conn.ApplicationProtocol,
-						Metrics:                formatMetrics(conn.HttpMetrics, time.Now().Sub(lastCheckTime)),
+						Metrics:                formatMetrics(conn.Metrics, time.Now().Sub(lastCheckTime)),
 					})
 				}
 			}
@@ -179,63 +171,74 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 	return cxs
 }
 
-func formatMetrics(httpMetrics []common.HttpMetric, duration time.Duration) []*model.ConnectionMetric {
-	metrics := make([]*model.ConnectionMetric, 0, len(httpMetrics))
+func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Duration) []*model.ConnectionMetric {
+	formattedMetrics := make([]*model.ConnectionMetric, 0, len(metrics))
 
 	groups := initialStatusCodeGroups()
 	reqCounts := map[string]uint64{}
 	for _, group := range groups {
 		reqCounts[group.tag] = 0
 	}
-	for i := range httpMetrics {
-		metric := httpMetrics[i]
-		tag := strconv.Itoa(metric.StatusCode)
-		metrics = append(metrics, newHTTPResponseTimeConnectionMetric(tag, metric.DDSketch))
-		metricSketch, err := decodeDDSketch(metric.DDSketch)
-		if err != nil {
-			log.Warnf("can't decode ddsketch: %v", err)
-			continue
-		}
-		statusCodeCount := metricSketch.GetCount()
-		accumulatedCount := reqCounts[tag] + uint64(statusCodeCount)
-		reqCounts[tag] = accumulatedCount
-		for _, group := range groups {
-			if group.inRange(metric.StatusCode) {
-				group.ddSketch = mergeWithHistogram(metricSketch, group.ddSketch)
-				reqCounts[group.tag] = reqCounts[group.tag] + uint64(statusCodeCount)
+	for i := range metrics {
+		metric := metrics[i]
+		if metric.Name == common.HTTPResponseTime {
+			tag := metric.Tags[common.HTTPStatusCodeTagName]
+			newFormattedMetrics, err := newHTTPResponseTimeConnectionMetric(metric)
+			if err != nil {
+				log.Warnf("can't decode ddsketch: %v", err)
+				continue
+			}
+
+			formattedMetrics = append(formattedMetrics, newFormattedMetrics)
+
+			statusCodeCount := metric.Value.Histogram.DDSketch.GetCount()
+			accumulatedCount := reqCounts[tag] + uint64(statusCodeCount)
+			reqCounts[tag] = accumulatedCount
+			for _, group := range groups {
+				c, err := strconv.Atoi(tag)
+				if err == nil && group.inRange(c) {
+					group.ddSketch = mergeWithHistogram(metric.Value.Histogram.DDSketch, group.ddSketch)
+					reqCounts[group.tag] = reqCounts[group.tag] + uint64(statusCodeCount)
+				} else if err != nil{
+					log.Warnf("could not convert tag(%s) to int error(%v)", tag, err)
+				}
 			}
 		}
 	}
 
 	for _, group := range groups {
-		metrics = appendMetric(group.ddSketch, group.tag, metrics)
+		formattedMetrics = appendMetric(group.ddSketch, group.tag, formattedMetrics)
 	}
 	for key, value := range reqCounts {
-		metrics = append(metrics, newHTTPRequestsPerSecondConnectionMetric(key, float64(calculateNormalizedRate(value, duration))))
+		formattedMetrics = append(formattedMetrics, newHTTPRequestsPerSecondConnectionMetric(key, float64(calculateNormalizedRate(value, elapsedDuration))))
 	}
-	return metrics
+	return formattedMetrics
 }
 
-func newHTTPResponseTimeConnectionMetric(tag string, ddSketch []byte) *model.ConnectionMetric {
+func newHTTPResponseTimeConnectionMetric(metric common.ConnectionMetric) (*model.ConnectionMetric, error) {
+	data, err := proto.Marshal(metric.Value.Histogram.DDSketch.ToProto())
+	if err != nil {
+		return nil, err
+	}
+
 	return &model.ConnectionMetric{
-		Name: HTTPResponseTimeMetricName,
-		Tags: []*model.ConnectionMetricTag{
-			{Key: "code", Value: tag},
-		},
+		Name: string(metric.Name),
+		Tags: metric.Tags,
 		Value: &model.ConnectionMetricValue{
 			Value: &model.ConnectionMetricValue_DdsketchHistogram{
-				DdsketchHistogram: ddSketch,
+				DdsketchHistogram: data,
 			},
 		},
-	}
+	}, nil
 }
 
 func newHTTPRequestsPerSecondConnectionMetric(tag string, number float64) *model.ConnectionMetric {
 	return &model.ConnectionMetric{
-		Name: HTTPRequestsPerSecondMetricName,
-		Tags: []*model.ConnectionMetricTag{
-			{Key: "code", Value: tag},
+		Name: string(common.HTTPRequestsPerSecond),
+		Tags: map[string]string{
+			common.HTTPStatusCodeTagName: tag,
 		},
+
 		Value: &model.ConnectionMetricValue{
 			Value: &model.ConnectionMetricValue_Number{
 				Number: number,
@@ -318,9 +321,9 @@ func appendMetric(rtHist *ddsketch.DDSketch, tag string, metrics []*model.Connec
 		} else {
 
 			metrics = append(metrics, &model.ConnectionMetric{
-				Name: HTTPResponseTimeMetricName,
-				Tags: []*model.ConnectionMetricTag{
-					{Key: "code", Value: tag},
+				Name: string(common.HTTPResponseTime),
+				Tags: map[string]string{
+					common.HTTPStatusCodeTagName: tag,
 				},
 				Value: &model.ConnectionMetricValue{
 					Value: &model.ConnectionMetricValue_DdsketchHistogram{

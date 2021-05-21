@@ -397,22 +397,42 @@ func TestDDsketchDecode(t *testing.T) {
 }
 
 func TestFormatMetrics(t *testing.T) {
-	httpMetrics := []common.HttpMetric{
+	httpMetrics := []common.ConnectionMetric{
 		{
-			StatusCode: 200,
-			DDSketch:   makeDDSketch(1),
+			Name: "http_response_time_seconds",
+			Tags: map[string]string{"code": "200"},
+			Value: common.ConnectionMetricValue{
+				&common.Histogram{
+					DDSketch: makeDDSketch(1),
+				},
+			},
 		},
 		{
-			StatusCode: 201,
-			DDSketch:   makeDDSketch(2, 2),
+			Name: "http_response_time_seconds",
+			Tags: map[string]string{"code": "201"},
+			Value: common.ConnectionMetricValue{
+				&common.Histogram{
+					DDSketch: makeDDSketch(2, 2),
+				},
+			},
 		},
 		{
-			StatusCode: 400,
-			DDSketch:   makeDDSketch(3, 3, 3),
+			Name: "http_response_time_seconds",
+			Tags: map[string]string{"code": "400"},
+			Value: common.ConnectionMetricValue{
+				&common.Histogram{
+					DDSketch: makeDDSketch(3, 3, 3),
+				},
+			},
 		},
 		{
-			StatusCode: 501,
-			DDSketch:   makeDDSketch(4, 4, 4, 4),
+			Name: "http_response_time_seconds",
+			Tags: map[string]string{"code": "501"},
+			Value: common.ConnectionMetricValue{
+				&common.Histogram{
+					DDSketch: makeDDSketch(4, 4, 4, 4),
+				},
+			},
 		},
 	}
 
@@ -425,14 +445,14 @@ func TestFormatMetrics(t *testing.T) {
 		case 1:
 			return true
 		default:
-			return strings.Compare(metrics[i].Tags[0].Value, metrics[j].Tags[0].Value) < 0
+			return strings.Compare(metrics[i].Tags["code"], metrics[j].Tags["code"]) < 0
 		}
 	})
 
 	expected := []string{"200", "201", "2xx", "400", "4xx", "501", "5xx", "any", "success", "1xx", "200", "201", "2xx", "3xx", "400", "4xx", "501", "5xx", "any", "success"}
 	actual := []string{}
 	for _, m := range metrics {
-		actual = append(actual, m.Tags[0].Value)
+		actual = append(actual, m.Tags["code"])
 	}
 	assert.Equal(t, expected, actual)
 
@@ -461,8 +481,8 @@ func TestFormatMetrics(t *testing.T) {
 
 func assertHTTPResponseTimeConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, min int, max int, total int) {
 	assert.Equal(t, "http_response_time_seconds", formattedMetric.Name)
-	codeIsOk := assert.Equal(t, []*model.ConnectionMetricTag{
-		{Key: "code", Value: statusCode},
+	codeIsOk := assert.Equal(t, map[string]string{
+		"code": statusCode,
 	}, formattedMetric.Tags)
 	if codeIsOk {
 		actualSketch, err := decodeDDSketch(formattedMetric.Value.GetDdsketchHistogram())
@@ -479,19 +499,18 @@ func assertHTTPResponseTimeConnectionMetric(t *testing.T, formattedMetric *model
 
 func assertHTTPRequestsPerSecondConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, expectedRate float64) {
 	assert.Equal(t, "http_requests_per_second", formattedMetric.Name)
-	codeIsOk := assert.Equal(t, []*model.ConnectionMetricTag{
-		{Key: "code", Value: statusCode},
+	codeIsOk := assert.Equal(t, map[string]string{
+		"code": statusCode,
 	}, formattedMetric.Tags)
 	if codeIsOk {
 		assert.Equal(t, expectedRate, formattedMetric.Value.GetNumber())
 	}
 }
 
-func makeDDSketch(responseTimes ...float64) []byte {
+func makeDDSketch(responseTimes ...float64) *ddsketch.DDSketch {
 	testDDSketch, _ := ddsketch.NewDefaultDDSketch(0.01)
 	for _, rt := range responseTimes {
 		testDDSketch.Add(rt)
 	}
-	sketch, _ := marshalDDSketch(testDDSketch)
-	return sketch
+	return testDDSketch
 }
