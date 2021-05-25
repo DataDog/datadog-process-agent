@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/DataDog/sketches-go/ddsketch"
-	"github.com/DataDog/sketches-go/ddsketch/pb/sketchpb"
-	"github.com/golang/protobuf/proto"
 	"strconv"
 	"strings"
 	"time"
@@ -199,7 +197,7 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 				if err == nil && group.inRange(c) {
 					group.ddSketch = mergeWithHistogram(metric.Value.Histogram.DDSketch, group.ddSketch)
 					reqCounts[group.tag] = reqCounts[group.tag] + uint64(statusCodeCount)
-				} else if err != nil{
+				} else if err != nil {
 					log.Warnf("could not convert tag(%s) to int error(%v)", tag, err)
 				}
 			}
@@ -216,17 +214,12 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 }
 
 func newHTTPResponseTimeConnectionMetric(metric common.ConnectionMetric) (*model.ConnectionMetric, error) {
-	data, err := proto.Marshal(metric.Value.Histogram.DDSketch.ToProto())
-	if err != nil {
-		return nil, err
-	}
-
 	return &model.ConnectionMetric{
 		Name: string(metric.Name),
 		Tags: metric.Tags,
 		Value: &model.ConnectionMetricValue{
-			Value: &model.ConnectionMetricValue_DdsketchHistogram{
-				DdsketchHistogram: data,
+			Value: &model.ConnectionMetricValue_Histogram{
+				Histogram: metric.Value.Histogram.DDSketch.ToProto(),
 			},
 		},
 	}, nil
@@ -315,29 +308,19 @@ func mergeWithHistogram(metricSketch *ddsketch.DDSketch, rtHist *ddsketch.DDSket
 
 func appendMetric(rtHist *ddsketch.DDSketch, tag string, metrics []*model.ConnectionMetric) []*model.ConnectionMetric {
 	if rtHist != nil {
-		metricSketch, err := marshalDDSketch(rtHist)
-		if err != nil {
-			log.Warnf("can't encode ddsketch: %v", err)
-		} else {
-
-			metrics = append(metrics, &model.ConnectionMetric{
-				Name: string(common.HTTPResponseTime),
-				Tags: map[string]string{
-					common.HTTPStatusCodeTagName: tag,
+		metrics = append(metrics, &model.ConnectionMetric{
+			Name: string(common.HTTPResponseTime),
+			Tags: map[string]string{
+				common.HTTPStatusCodeTagName: tag,
+			},
+			Value: &model.ConnectionMetricValue{
+				Value: &model.ConnectionMetricValue_Histogram{
+					Histogram: rtHist.ToProto(),
 				},
-				Value: &model.ConnectionMetricValue{
-					Value: &model.ConnectionMetricValue_DdsketchHistogram{
-						DdsketchHistogram: metricSketch,
-					},
-				},
-			})
-		}
+			},
+		})
 	}
 	return metrics
-}
-
-func marshalDDSketch(rtHist *ddsketch.DDSketch) ([]byte, error) {
-	return proto.Marshal(rtHist.ToProto())
 }
 
 func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
@@ -414,14 +397,4 @@ func isRelationShortLived(relationID string, firstObserved int64, cfg *config.Ag
 		relationID, cfg.ShortLivedNetworkRelationQualifierSecs,
 	)
 	return true
-}
-
-func decodeDDSketch(sketch []byte) (*ddsketch.DDSketch, error) {
-	var sketchPb sketchpb.DDSketch
-	err := proto.Unmarshal(sketch, &sketchPb)
-	if err != nil {
-		return nil, err
-	}
-	ddSketch, err := ddsketch.FromProto(&sketchPb)
-	return ddSketch, err
 }

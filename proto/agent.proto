@@ -5,6 +5,7 @@ option go_package = "github.com/StackVista/stackstate-process-agent/model";
 package datadog.process_agent;
 
 import "github.com/StackVista/stackstate-process-agent/proto/agent_payload.proto";
+import "github.com/DataDog/sketches-go/ddsketch/pb/ddsketch.proto";
 
 //
 // Message Types
@@ -342,7 +343,7 @@ enum ConnectionDirection {
 
 message ConnectionMetricValue {
   oneof value {
-    bytes ddsketchHistogram = 1;
+    DDSketch histogram = 1;
     double number = 2;
   }
 }

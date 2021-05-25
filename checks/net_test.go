@@ -382,20 +382,6 @@ func fillNetworkRelationCache(hostname string, c *cache.Cache, conn common.Conne
 	return nil
 }
 
-func TestDDsketchDecode(t *testing.T) {
-	testData := []byte{
-		0x0a, 0x09, 0x09, 0xfd, 0x4a, 0x81, 0x5a, 0xbf, 0x52, 0xf0, 0x3f, 0x12, 0x0a, 0x12, 0x08, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f, 0x1a, 0x00,
-	}
-	ddsk, err := decodeDDSketch(testData)
-	assert.NoError(t, err)
-	assert.NotNil(t, ddsk)
-	assert.Equal(t, 1, int(ddsk.GetCount()))
-	maxValue, err := ddsk.GetMaxValue()
-	assert.NoError(t, err)
-	assert.Equal(t, 1009, int(maxValue*1000))
-}
-
 func TestFormatMetrics(t *testing.T) {
 	httpMetrics := []common.ConnectionMetric{
 		{
@@ -485,7 +471,7 @@ func assertHTTPResponseTimeConnectionMetric(t *testing.T, formattedMetric *model
 		"code": statusCode,
 	}, formattedMetric.Tags)
 	if codeIsOk {
-		actualSketch, err := decodeDDSketch(formattedMetric.Value.GetDdsketchHistogram())
+		actualSketch, err := ddsketch.FromProto(formattedMetric.Value.GetHistogram())
 		assert.NoError(t, err)
 		assert.Equal(t, total, int(actualSketch.GetCount()), "Total doesn't match for status code `%s`", statusCode)
 		actualMin, err := actualSketch.GetMinValue()

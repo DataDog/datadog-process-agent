@@ -8,7 +8,12 @@
 
 [[constraint]]
   name = "github.com/StackVista/tcptracer-bpf"
-  version = "=v0.0.17-ebpf"
+  version = "=v0.0.18-ebpf"
+
+[[constraint]]
+  name = "github.com/DataDog/sketches-go"
+  source = "github.com/StackVista/sketches-go"
+  version = "=v1.1.0"
 
 [[constraint]]
   name = "github.com/DataDog/zstd"
