@@ -181,13 +181,8 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 		metric := metrics[i]
 		if metric.Name == common.HTTPResponseTime {
 			tag := metric.Tags[common.HTTPStatusCodeTagName]
-			newFormattedMetrics, err := newHTTPResponseTimeConnectionMetric(metric)
-			if err != nil {
-				log.Warnf("can't decode ddsketch: %v", err)
-				continue
-			}
 
-			formattedMetrics = append(formattedMetrics, newFormattedMetrics)
+			formattedMetrics = append(formattedMetrics, newHTTPResponseTimeConnectionMetric(metric))
 
 			statusCodeCount := metric.Value.Histogram.DDSketch.GetCount()
 			accumulatedCount := reqCounts[tag] + uint64(statusCodeCount)
@@ -213,7 +208,7 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 	return formattedMetrics
 }
 
-func newHTTPResponseTimeConnectionMetric(metric common.ConnectionMetric) (*model.ConnectionMetric, error) {
+func newHTTPResponseTimeConnectionMetric(metric common.ConnectionMetric) *model.ConnectionMetric {
 	return &model.ConnectionMetric{
 		Name: string(metric.Name),
 		Tags: metric.Tags,
@@ -222,7 +217,7 @@ func newHTTPResponseTimeConnectionMetric(metric common.ConnectionMetric) (*model
 				Histogram: metric.Value.Histogram.DDSketch.ToProto(),
 			},
 		},
-	}, nil
+	}
 }
 
 func newHTTPRequestsPerSecondConnectionMetric(tag string, number float64) *model.ConnectionMetric {
