@@ -8,7 +8,7 @@
 
 [[constraint]]
   name = "github.com/StackVista/tcptracer-bpf"
-  version = "=v0.0.18-ebpf"
+  version = "=v0.0.19-ebpf"
 
 [[constraint]]
   name = "github.com/DataDog/sketches-go"
@@ -22,10 +22,6 @@
 [[constraint]]
   name = "github.com/gogo/protobuf"
   version = "=v1.3.1"
-
-[[constraint]]
-  name = "github.com/golang/protobuf"
-  version = "=v1.5.2"
 
 [[constraint]]
   name = "github.com/patrickmn/go-cache"

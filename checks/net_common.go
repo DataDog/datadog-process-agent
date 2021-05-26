@@ -215,10 +215,12 @@ retry:
 			if err == nil {
 				break retry
 			}
-			log.Debugf("failed to create network tracer: %s. Retrying..", err)
 			retriesLeft = retriesLeft - 1
 			if retriesLeft == 0 {
+				log.Errorf("failed to create network tracer: %s. No retries left.", err)
 				break retry
+			} else {
+				log.Warnf("failed to create network tracer: %s. Retrying...", err)
 			}
 		}
 	}
