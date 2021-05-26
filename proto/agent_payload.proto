@@ -1,4 +1,4 @@
-// Source: https://github.com/DataDog/agent-payload/blob/b949bc3c5209423b6fe334eedbb64016844b0439/proto/metrics/agent_payload.proto
+// Source: https://raw.githubusercontent.com/DataDog/agent-payload/f0521943f60221829c6bb5de1c7f788cd4411372/agent_payload.proto
 
 syntax = "proto3";
 
@@ -91,8 +91,8 @@ message SketchPayload {
 		string host = 2;
 		repeated Distribution distributions = 3 [(gogoproto.nullable) = false];
 		repeated string tags = 4;
-                reserved 5, 6;
-				reserved "distributionsK", "distributionsC";
+		reserved 5, 6;
+		reserved "distributionsK", "distributionsC";
 		repeated Dogsketch dogsketches = 7 [(gogoproto.nullable) = false];
 	}
 	repeated Sketch sketches = 1 [(gogoproto.nullable) = false];
