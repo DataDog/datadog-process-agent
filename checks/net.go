@@ -182,7 +182,12 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 		if metric.Name == common.HTTPResponseTime {
 			tag := metric.Tags[common.HTTPStatusCodeTagName]
 
-			formattedMetrics = append(formattedMetrics, newHTTPResponseTimeConnectionMetric(metric))
+			formattedMetrics = append(
+				formattedMetrics,
+				makeConnectionMetricWithNumber(
+					metric.Name, metric.Tags, metric.Value.Histogram.DDSketch,
+				),
+			)
 
 			statusCodeCount := metric.Value.Histogram.DDSketch.GetCount()
 			accumulatedCount := reqCounts[tag] + uint64(statusCodeCount)
@@ -203,30 +208,34 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 		formattedMetrics = appendMetric(group.ddSketch, group.tag, formattedMetrics)
 	}
 	for key, value := range reqCounts {
-		formattedMetrics = append(formattedMetrics, newHTTPRequestsPerSecondConnectionMetric(key, float64(calculateNormalizedRate(value, elapsedDuration))))
+		formattedMetrics = append(
+			formattedMetrics,
+			makeConnectionMetricWithNumberHistogram(
+				common.HTTPRequestsPerSecond,
+				map[string]string{common.HTTPStatusCodeTagName: key},
+				calculateNormalizedRate(value, elapsedDuration),
+			),
+		)
 	}
 	return formattedMetrics
 }
 
-func newHTTPResponseTimeConnectionMetric(metric common.ConnectionMetric) *model.ConnectionMetric {
+func makeConnectionMetricWithNumber(name common.MetricName, tags map[string]string, histogram *ddsketch.DDSketch) *model.ConnectionMetric {
 	return &model.ConnectionMetric{
-		Name: string(metric.Name),
-		Tags: metric.Tags,
+		Name: string(name),
+		Tags: tags,
 		Value: &model.ConnectionMetricValue{
 			Value: &model.ConnectionMetricValue_Histogram{
-				Histogram: metric.Value.Histogram.DDSketch.ToProto(),
+				Histogram: histogram.ToProto(),
 			},
 		},
 	}
 }
 
-func newHTTPRequestsPerSecondConnectionMetric(tag string, number float64) *model.ConnectionMetric {
+func makeConnectionMetricWithNumberHistogram(name common.MetricName, tags map[string]string, number float64) *model.ConnectionMetric {
 	return &model.ConnectionMetric{
-		Name: string(common.HTTPRequestsPerSecond),
-		Tags: map[string]string{
-			common.HTTPStatusCodeTagName: tag,
-		},
-
+		Name: string(name),
+		Tags: tags,
 		Value: &model.ConnectionMetricValue{
 			Value: &model.ConnectionMetricValue_Number{
 				Number: number,
