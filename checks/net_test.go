@@ -388,7 +388,7 @@ func TestFormatMetrics(t *testing.T) {
 			Name: "http_response_time_seconds",
 			Tags: map[string]string{"code": "200"},
 			Value: common.ConnectionMetricValue{
-				&common.Histogram{
+				Histogram: &common.Histogram{
 					DDSketch: makeDDSketch(1),
 				},
 			},
@@ -397,7 +397,7 @@ func TestFormatMetrics(t *testing.T) {
 			Name: "http_response_time_seconds",
 			Tags: map[string]string{"code": "201"},
 			Value: common.ConnectionMetricValue{
-				&common.Histogram{
+				Histogram: &common.Histogram{
 					DDSketch: makeDDSketch(2, 2),
 				},
 			},
@@ -406,7 +406,7 @@ func TestFormatMetrics(t *testing.T) {
 			Name: "http_response_time_seconds",
 			Tags: map[string]string{"code": "400"},
 			Value: common.ConnectionMetricValue{
-				&common.Histogram{
+				Histogram: &common.Histogram{
 					DDSketch: makeDDSketch(3, 3, 3),
 				},
 			},
@@ -415,7 +415,7 @@ func TestFormatMetrics(t *testing.T) {
 			Name: "http_response_time_seconds",
 			Tags: map[string]string{"code": "501"},
 			Value: common.ConnectionMetricValue{
-				&common.Histogram{
+				Histogram: &common.Histogram{
 					DDSketch: makeDDSketch(4, 4, 4, 4),
 				},
 			},
@@ -436,7 +436,7 @@ func TestFormatMetrics(t *testing.T) {
 	})
 
 	expected := []string{"200", "201", "2xx", "400", "4xx", "501", "5xx", "any", "success", "1xx", "200", "201", "2xx", "3xx", "400", "4xx", "501", "5xx", "any", "success"}
-	actual := []string{}
+	var actual []string
 	for _, m := range metrics {
 		actual = append(actual, m.Tags["code"])
 	}
@@ -496,7 +496,7 @@ func assertHTTPRequestsPerSecondConnectionMetric(t *testing.T, formattedMetric *
 func makeDDSketch(responseTimes ...float64) *ddsketch.DDSketch {
 	testDDSketch, _ := ddsketch.NewDefaultDDSketch(0.01)
 	for _, rt := range responseTimes {
-		testDDSketch.Add(rt)
+		_ = testDDSketch.Add(rt)
 	}
 	return testDDSketch
 }
