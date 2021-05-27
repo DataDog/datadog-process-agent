@@ -15,10 +15,10 @@ def os
 
 desc "Setup dependencies"
 task :deps do
-  sh("go get -u github.com/golang/dep/cmd/dep")
-  sh("go get -u golang.org/x/lint/golint")
-  sh("go get -u github.com/awalterschulze/goderive")
-  sh("dep ensure -v -vendor-only")
+  system("go get -u github.com/golang/dep/cmd/dep")
+  system("go get -u golang.org/x/lint/golint")
+  system("go get -u github.com/awalterschulze/goderive")
+  system("dep ensure -v -vendor-only")
 end
 
 task :default => [:ci]
