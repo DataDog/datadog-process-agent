@@ -184,7 +184,7 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 
 			formattedMetrics = append(
 				formattedMetrics,
-				makeConnectionMetricWithNumber(
+				makeConnectionMetricWithHistogram(
 					metric.Name, metric.Tags, metric.Value.Histogram.DDSketch,
 				),
 			)
@@ -205,12 +205,19 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 	}
 
 	for _, group := range groups {
-		formattedMetrics = appendMetric(group.ddSketch, group.tag, formattedMetrics)
+		if group.ddSketch != nil {
+			formattedMetrics = append(formattedMetrics,
+				makeConnectionMetricWithHistogram(
+					common.HTTPResponseTime,
+					map[string]string{common.HTTPStatusCodeTagName: group.tag},
+					group.ddSketch,
+				))
+		}
 	}
 	for key, value := range reqCounts {
 		formattedMetrics = append(
 			formattedMetrics,
-			makeConnectionMetricWithNumberHistogram(
+			makeConnectionMetricWithNumber(
 				common.HTTPRequestsPerSecond,
 				map[string]string{common.HTTPStatusCodeTagName: key},
 				calculateNormalizedRate(value, elapsedDuration),
@@ -220,7 +227,7 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 	return formattedMetrics
 }
 
-func makeConnectionMetricWithNumber(name common.MetricName, tags map[string]string, histogram *ddsketch.DDSketch) *model.ConnectionMetric {
+func makeConnectionMetricWithHistogram(name common.MetricName, tags map[string]string, histogram *ddsketch.DDSketch) *model.ConnectionMetric {
 	return &model.ConnectionMetric{
 		Name: string(name),
 		Tags: tags,
@@ -232,7 +239,7 @@ func makeConnectionMetricWithNumber(name common.MetricName, tags map[string]stri
 	}
 }
 
-func makeConnectionMetricWithNumberHistogram(name common.MetricName, tags map[string]string, number float64) *model.ConnectionMetric {
+func makeConnectionMetricWithNumber(name common.MetricName, tags map[string]string, number float64) *model.ConnectionMetric {
 	return &model.ConnectionMetric{
 		Name: string(name),
 		Tags: tags,
@@ -308,23 +315,6 @@ func mergeWithHistogram(metricSketch *ddsketch.DDSketch, rtHist *ddsketch.DDSket
 		}
 	}
 	return rtHist
-}
-
-func appendMetric(rtHist *ddsketch.DDSketch, tag string, metrics []*model.ConnectionMetric) []*model.ConnectionMetric {
-	if rtHist != nil {
-		metrics = append(metrics, &model.ConnectionMetric{
-			Name: string(common.HTTPResponseTime),
-			Tags: map[string]string{
-				common.HTTPStatusCodeTagName: tag,
-			},
-			Value: &model.ConnectionMetricValue{
-				Value: &model.ConnectionMetricValue_Histogram{
-					Histogram: rtHist.ToProto(),
-				},
-			},
-		})
-	}
-	return metrics
 }
 
 func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
