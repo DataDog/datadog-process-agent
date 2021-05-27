@@ -60,7 +60,7 @@ type NetworkTracerConfig struct {
 	// Enables redirection of ebpf code debug messages as logs of the process agent
 	EbpfDebuglogEnabled bool
 	// Settings related to gathering & aggregation of http metrics
-	HttpMetrics *tracerconfig.HttpMetricConfig
+	HTTPMetrics *tracerconfig.HttpMetricConfig
 }
 
 // APIEndpoint is a single endpoint where process data will be submitted.
@@ -252,7 +252,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		NetworkTracerInitRetryAmount:      3,
 		NetworkTracer: &NetworkTracerConfig{
 			EbpfDebuglogEnabled: false,
-			HttpMetrics: &tracerconfig.HttpMetricConfig{
+			HTTPMetrics: &tracerconfig.HttpMetricConfig{
 				SketchType: tracerconfig.CollapsingLowest,
 				MaxNumBins: 1024,
 				Accuracy:   0.01,

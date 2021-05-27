@@ -38,7 +38,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		conf.MaxConnections = cfg.MaxPerMessage
 		conf.BackfillFromProc = cfg.NetworkInitialConnectionsFromProc
 		conf.EnableTracepipeLogging = cfg.NetworkTracer.EbpfDebuglogEnabled
-		conf.HttpMetricConfig = *cfg.NetworkTracer.HttpMetrics
+		conf.HttpMetricConfig = *cfg.NetworkTracer.HTTPMetrics
 
 		t, err := retryTracerInit(cfg.NetworkTracerInitRetryDuration, cfg.NetworkTracerInitRetryAmount, conf, tracer.NewTracer)
 		if err != nil {

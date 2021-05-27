@@ -896,9 +896,9 @@ network_tracer_config:
 	assert.NoError(err)
 
 	assert.Equal(true, agentConfig.NetworkTracer.EbpfDebuglogEnabled)
-	assert.Equal(config.CollapsingHighest, agentConfig.NetworkTracer.HttpMetrics.SketchType)
-	assert.Equal(42, agentConfig.NetworkTracer.HttpMetrics.MaxNumBins)
-	assert.Equal(0.123, agentConfig.NetworkTracer.HttpMetrics.Accuracy)
+	assert.Equal(config.CollapsingHighest, agentConfig.NetworkTracer.HTTPMetrics.SketchType)
+	assert.Equal(42, agentConfig.NetworkTracer.HTTPMetrics.MaxNumBins)
+	assert.Equal(0.123, agentConfig.NetworkTracer.HTTPMetrics.Accuracy)
 }
 
 func TestStackStateNetworkConfigDefaultValuesForHttpMetrics(t *testing.T) {
@@ -918,9 +918,9 @@ network_tracer_config:
 	agentConfig, err := NewAgentConfig(nil, &ddy, nil)
 	assert.NoError(err)
 
-	assert.Equal(config.CollapsingLowest, agentConfig.NetworkTracer.HttpMetrics.SketchType)
-	assert.Equal(1024, agentConfig.NetworkTracer.HttpMetrics.MaxNumBins)
-	assert.Equal(0.01, agentConfig.NetworkTracer.HttpMetrics.Accuracy)
+	assert.Equal(config.CollapsingLowest, agentConfig.NetworkTracer.HTTPMetrics.SketchType)
+	assert.Equal(1024, agentConfig.NetworkTracer.HTTPMetrics.MaxNumBins)
+	assert.Equal(0.01, agentConfig.NetworkTracer.HTTPMetrics.Accuracy)
 }
 
 func TestProxyEnv(t *testing.T) {
