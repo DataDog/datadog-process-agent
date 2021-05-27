@@ -382,6 +382,11 @@ func fillNetworkRelationCache(hostname string, c *cache.Cache, conn common.Conne
 	return nil
 }
 
+func TestFormatMetricsEmpty(t *testing.T) {
+	metrics := formatMetrics([]common.ConnectionMetric{}, 2*time.Second)
+	assert.Len(t, metrics, 0)
+}
+
 func TestFormatMetrics(t *testing.T) {
 	httpMetrics := []common.ConnectionMetric{
 		{

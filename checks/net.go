@@ -177,9 +177,11 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 	for _, group := range groups {
 		reqCounts[group.tag] = 0
 	}
+	isThereAnyHttp := false
 	for i := range metrics {
 		metric := metrics[i]
 		if metric.Name == common.HTTPResponseTime {
+			isThereAnyHttp = true
 			tag := metric.Tags[common.HTTPStatusCodeTagName]
 
 			formattedMetrics = append(
@@ -204,25 +206,27 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 		}
 	}
 
-	for _, group := range groups {
-		if group.ddSketch != nil {
-			formattedMetrics = append(formattedMetrics,
-				makeConnectionMetricWithHistogram(
-					common.HTTPResponseTime,
-					map[string]string{common.HTTPStatusCodeTagName: group.tag},
-					group.ddSketch,
-				))
+	if isThereAnyHttp {
+		for _, group := range groups {
+			if group.ddSketch != nil {
+				formattedMetrics = append(formattedMetrics,
+					makeConnectionMetricWithHistogram(
+						common.HTTPResponseTime,
+						map[string]string{common.HTTPStatusCodeTagName: group.tag},
+						group.ddSketch,
+					))
+			}
 		}
-	}
-	for key, value := range reqCounts {
-		formattedMetrics = append(
-			formattedMetrics,
-			makeConnectionMetricWithNumber(
-				common.HTTPRequestsPerSecond,
-				map[string]string{common.HTTPStatusCodeTagName: key},
-				calculateNormalizedRate(value, elapsedDuration),
-			),
-		)
+		for key, value := range reqCounts {
+			formattedMetrics = append(
+				formattedMetrics,
+				makeConnectionMetricWithNumber(
+					common.HTTPRequestsPerSecond,
+					map[string]string{common.HTTPStatusCodeTagName: key},
+					calculateNormalizedRate(value, elapsedDuration),
+				),
+			)
+		}
 	}
 	return formattedMetrics
 }
