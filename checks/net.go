@@ -177,11 +177,11 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 	for _, group := range groups {
 		reqCounts[group.tag] = 0
 	}
-	isThereAnyHttp := false
+	isThereAnyHTTP := false
 	for i := range metrics {
 		metric := metrics[i]
 		if metric.Name == common.HTTPResponseTime {
-			isThereAnyHttp = true
+			isThereAnyHTTP = true
 			tag := metric.Tags[common.HTTPStatusCodeTagName]
 
 			formattedMetrics = append(
@@ -206,7 +206,7 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 		}
 	}
 
-	if isThereAnyHttp {
+	if isThereAnyHTTP {
 		for _, group := range groups {
 			if group.ddSketch != nil {
 				formattedMetrics = append(formattedMetrics,
