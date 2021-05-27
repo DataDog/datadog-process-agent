@@ -5,6 +5,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	tracerconfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 	"net"
 	"net/http"
 	"net/url"
@@ -52,6 +53,14 @@ type WindowsConfig struct {
 	ArgsRefreshInterval int
 	// Controls getting process arguments immediately when a new process is discovered
 	AddNewArgs bool
+}
+
+// NetworkTracerConfig contains some[1] of the network tracer configuration options
+type NetworkTracerConfig struct {
+	// Enables redirection of ebpf code debug messages as logs of the process agent
+	EbpfDebuglogEnabled bool
+	// Settings related to gathering & aggregation of http metrics
+	HttpMetrics *tracerconfig.HttpMetricConfig
 }
 
 // APIEndpoint is a single endpoint where process data will be submitted.
@@ -120,7 +129,7 @@ type AgentConfig struct {
 	NetworkTracerLogFile              string
 	NetworkTracerInitRetryDuration    time.Duration
 	NetworkTracerInitRetryAmount      int
-	NetworkTracerDebuglogEnabled      bool
+	NetworkTracer                     *NetworkTracerConfig
 
 	// Check config
 	EnabledChecks  []string
@@ -241,7 +250,14 @@ func NewDefaultAgentConfig() *AgentConfig {
 		NetworkTracerLogFile:              defaultNetworkLogFilePath,
 		NetworkTracerInitRetryDuration:    5 * time.Second,
 		NetworkTracerInitRetryAmount:      3,
-		NetworkTracerDebuglogEnabled:      false,
+		NetworkTracer: &NetworkTracerConfig{
+			EbpfDebuglogEnabled: false,
+			HttpMetrics: &tracerconfig.HttpMetricConfig{
+				SketchType: tracerconfig.CollapsingLowest,
+				MaxNumBins: 1024,
+				Accuracy:   0.01,
+			},
+		},
 
 		// Check config
 		EnabledChecks: containerChecks,
@@ -821,6 +837,19 @@ func isAffirmative(value string) (bool, error) {
 	}
 	v := strings.ToLower(value)
 	return v == "true" || v == "yes" || v == "1", nil
+}
+
+func getSketchType(value string) (tracerconfig.MetricSketchType, error) {
+	switch value {
+	case string(tracerconfig.Unbounded):
+		return tracerconfig.Unbounded, nil
+	case string(tracerconfig.CollapsingLowest):
+		return tracerconfig.CollapsingLowest, nil
+	case string(tracerconfig.CollapsingHighest):
+		return tracerconfig.CollapsingHighest, nil
+	default:
+		return "", fmt.Errorf("unknown sketch type")
+	}
 }
 
 // getHostname shells out to obtain the hostname used by the infra agent

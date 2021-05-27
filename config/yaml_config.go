@@ -121,10 +121,20 @@ type YamlAgentConfig struct {
 		UnixSocketPath string `yaml:"nettracer_socket"`
 		// The full path to the file where network-tracer logs will be written.
 		LogFile string `yaml:"log_file"`
-		// A integer indicating the amount of seconds for the retry interval for initializing the network tracer.
+		// An integer indicating the amount of seconds for the retry interval for initializing the network tracer.
 		NetworkTracerInitRetryDuration int `yaml:"network_tracer_retry_init_duration_sec"`
-		// A integer indicating the amount of retries to use for initializing the network tracer.
+		// An integer indicating the amount of retries to use for initializing the network tracer.
 		NetworkTracerInitRetryAmount int `yaml:"network_tracer_retry_init_amount"`
+		// Whenever debugging statements of eBPF code of network tracer should be redirected to the agent log
+		EbpfDebuglogEnabled string `yaml:"ebpf_debuglog_enabled"`
+		HttpMetrics         struct {
+			// Specifies which algorithm to use to collapse measurements: collapsing_lowest_dense, collapsing_highest_dense, unbounded
+			SketchType string `yaml:"sketch_type"`
+			// A maximum number of bins of the ddSketch we use to store percentiles
+			MaxNumBins int `yaml:"max_num_bins"`
+			// Desired accuracy for computed percentiles. 0.01 means, for example, we can say that p99 is 100ms +- 1ms
+			Accuracy float64 `yaml:"accuracy"`
+		} `yaml:"http_metrics"`
 	} `yaml:"network_tracer_config"`
 }
 
@@ -176,7 +186,7 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		return nil, err
 	}
 
-	url, err := url.Parse(ddconfig.GetMainEndpoint("https://process.", "process_config.process_dd_url"))
+	parsedUrl, err := url.Parse(ddconfig.GetMainEndpoint("https://process.", "process_config.process_dd_url"))
 	if err != nil {
 		return nil, fmt.Errorf("error parsing process_dd_url: %s", err)
 	}
@@ -184,18 +194,18 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	if yc.Process.ProcessDDURL != "" {
 		specificURL, err := url.Parse(yc.Process.ProcessDDURL)
 		if err == nil {
-			url = specificURL
+			parsedUrl = specificURL
 		}
 		log.Infof("Setting process api endpoint from config using `process_config.process_sts_url`: %s", specificURL)
 	} else if yc.StsURL != "" {
 		defaultURL, err := url.Parse(yc.StsURL)
 		if err == nil {
-			url = defaultURL
+			parsedUrl = defaultURL
 		}
 		log.Infof("Setting process api endpoint from config using `sts_url`: %s", defaultURL)
 	}
 	// /STS custom
-	agentConf.APIEndpoints[0].Endpoint = url
+	agentConf.APIEndpoints[0].Endpoint = parsedUrl
 
 	if enabled, err := isAffirmative(yc.IncrementalPublishingEnabled); err == nil {
 		log.Infof("Overriding incremental publishing with %ds", yc.IncrementalPublishingEnabled)
@@ -327,6 +337,18 @@ func mergeNetworkYamlConfig(agentConf *AgentConfig, networkConf *YamlAgentConfig
 	}
 	if networkConf.Network.LogFile != "" {
 		agentConf.LogFile = networkConf.Network.LogFile
+	}
+	if enabled, err := isAffirmative(networkConf.Network.EbpfDebuglogEnabled); err == nil {
+		agentConf.NetworkTracer.EbpfDebuglogEnabled = enabled
+	}
+	if networkConf.Network.HttpMetrics.MaxNumBins != 0 {
+		agentConf.NetworkTracer.HttpMetrics.MaxNumBins = networkConf.Network.HttpMetrics.MaxNumBins
+	}
+	if networkConf.Network.HttpMetrics.Accuracy != 0 {
+		agentConf.NetworkTracer.HttpMetrics.Accuracy = networkConf.Network.HttpMetrics.Accuracy
+	}
+	if sketchType, err := getSketchType(networkConf.Network.HttpMetrics.SketchType); err == nil {
+		agentConf.NetworkTracer.HttpMetrics.SketchType = sketchType
 	}
 
 	return agentConf, nil
