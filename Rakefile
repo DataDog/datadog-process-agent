@@ -118,9 +118,10 @@ end
 desc "Compile the protobuf files for the Process Agent"
 task :protobuf do
   protocv = `bash -c "protoc --version"`.strip
-  if protocv != 'libprotoc 3.3.0'
-    fail "Requires protoc version 3.3.0"
+  if protocv != 'libprotoc 3.6.1'
+    fail "Requires protoc version 3.6.1"
   end
+  sh "protoc proto/agent_payload.proto -I $GOPATH/src -I vendor -I proto --gogofaster_out $GOPATH/src"
   sh "protoc proto/agent.proto -I $GOPATH/src -I vendor -I proto --gogofaster_out $GOPATH/src"
 end
 

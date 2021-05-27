@@ -3,8 +3,12 @@ package checks
 import (
 	"bytes"
 	"fmt"
+	"github.com/DataDog/sketches-go/ddsketch"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	"github.com/patrickmn/go-cache"
+	"math"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -129,7 +133,8 @@ func TestFilterConnectionsByProcess(t *testing.T) {
 
 	// fill in the relation cache
 	for _, conn := range connStats {
-		fillNetworkRelationCache(cfg.HostName, c.cache, conn, now.Add(-5*time.Minute).Unix(), now.Unix())
+		err := fillNetworkRelationCache(cfg.HostName, c.cache, conn, now.Add(-5*time.Minute).Unix(), now.Unix())
+		assert.NoError(t, err)
 	}
 
 	// fill in the procs in the lastProcState map to get process create time for the connection mapping
@@ -175,7 +180,8 @@ func TestNetworkConnectionNamespaceKubernetes(t *testing.T) {
 	// fill in the relation cache
 	for _, conn := range connStats {
 		namespace := formatNamespace(cfg.ClusterName, cfg.HostName, conn)
-		fillNetworkRelationCache(namespace, c.cache, conn, now.Add(-5*time.Minute).Unix(), now.Unix())
+		err := fillNetworkRelationCache(namespace, c.cache, conn, now.Add(-5*time.Minute).Unix(), now.Unix())
+		assert.NoError(t, err)
 	}
 
 	// fill in the procs in the lastProcState map to get process create time for the connection mapping
@@ -277,7 +283,8 @@ func TestRelationShortLivedFiltering(t *testing.T) {
 			name: fmt.Sprintf("Should not filter a relation that has been observed longer than the short-lived qualifier "+
 				"duration: %d", cfg.ShortLivedProcessQualifierSecs),
 			prepCache: func(c *cache.Cache) {
-				fillNetworkRelationCache(cfg.HostName, c, connStats[0], lastRun.Add(-5*time.Minute).Unix(), lastRun.Unix())
+				err := fillNetworkRelationCache(cfg.HostName, c, connStats[0], lastRun.Add(-5*time.Minute).Unix(), lastRun.Unix())
+				assert.NoError(t, err)
 			},
 			expected:                         true,
 			networkRelationShortLivedEnabled: true,
@@ -288,7 +295,8 @@ func TestRelationShortLivedFiltering(t *testing.T) {
 			prepCache: func(c *cache.Cache) {
 				// use a "similar" connection; thus we observed a similar connection in the previous run
 				conn := makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 54321, 8080)
-				fillNetworkRelationCache(cfg.HostName, c, conn, lastRun.Add(-5*time.Minute).Unix(), lastRun.Unix())
+				err := fillNetworkRelationCache(cfg.HostName, c, conn, lastRun.Add(-5*time.Minute).Unix(), lastRun.Unix())
+				assert.NoError(t, err)
 			},
 			expected:                         true,
 			networkRelationShortLivedEnabled: true,
@@ -297,7 +305,8 @@ func TestRelationShortLivedFiltering(t *testing.T) {
 			name: fmt.Sprintf("Should filter a relation that has not been observed longer than the short-lived qualifier "+
 				"duration: %d", cfg.ShortLivedProcessQualifierSecs),
 			prepCache: func(c *cache.Cache) {
-				fillNetworkRelationCache(cfg.HostName, c, connStats[0], lastRun.Add(-5*time.Second).Unix(), lastRun.Unix())
+				err := fillNetworkRelationCache(cfg.HostName, c, connStats[0], lastRun.Add(-5*time.Second).Unix(), lastRun.Unix())
+				assert.NoError(t, err)
 			},
 			expected:                         false,
 			networkRelationShortLivedEnabled: true,
@@ -305,7 +314,8 @@ func TestRelationShortLivedFiltering(t *testing.T) {
 		{
 			name: fmt.Sprintf("Should not filter a relation when the networkRelationShortLivedEnabled is set to false"),
 			prepCache: func(c *cache.Cache) {
-				fillNetworkRelationCache(cfg.HostName, c, connStats[0], lastRun.Add(-5*time.Second).Unix(), lastRun.Unix())
+				err := fillNetworkRelationCache(cfg.HostName, c, connStats[0], lastRun.Add(-5*time.Second).Unix(), lastRun.Unix())
+				assert.NoError(t, err)
 			},
 			expected:                         true,
 			networkRelationShortLivedEnabled: false,
@@ -330,7 +340,8 @@ func TestRelationShortLivedFiltering(t *testing.T) {
 			}
 
 			conn := connStats[0]
-			relationID := CreateNetworkRelationIdentifier(cfg.HostName, conn)
+			relationID, err := CreateNetworkRelationIdentifier(cfg.HostName, conn)
+			assert.NoError(t, err)
 
 			if tc.expected {
 				assert.Len(t, connections, 1, "The connection should be present in the returned payload for the Connection Check")
@@ -354,8 +365,11 @@ func TestFormatNamespace(t *testing.T) {
 	assert.Equal(t, "c:h", formatNamespace("c", "h", makeConnectionStatsNoNs(1, "127.0.0.1", "127.0.0.1", 12345, 8080)))
 }
 
-func fillNetworkRelationCache(hostname string, c *cache.Cache, conn common.ConnectionStats, firstObserved, lastObserved int64) {
-	relationID := CreateNetworkRelationIdentifier(hostname, conn)
+func fillNetworkRelationCache(hostname string, c *cache.Cache, conn common.ConnectionStats, firstObserved, lastObserved int64) error {
+	relationID, err := CreateNetworkRelationIdentifier(hostname, conn)
+	if err != nil {
+		return err
+	}
 	cachedRelation := &NetworkRelationCache{
 		ConnectionMetrics: ConnectionMetrics{
 			SendBytes: conn.SendBytes,
@@ -365,4 +379,129 @@ func fillNetworkRelationCache(hostname string, c *cache.Cache, conn common.Conne
 		LastObserved:  lastObserved,
 	}
 	c.Set(relationID, cachedRelation, cache.DefaultExpiration)
+	return nil
+}
+
+func TestFormatMetricsEmpty(t *testing.T) {
+	metrics := formatMetrics([]common.ConnectionMetric{}, 2*time.Second)
+	assert.Len(t, metrics, 0)
+}
+
+func TestFormatMetrics(t *testing.T) {
+	httpMetrics := []common.ConnectionMetric{
+		{
+			Name: "http_response_time_seconds",
+			Tags: map[string]string{"code": "200"},
+			Value: common.ConnectionMetricValue{
+				Histogram: &common.Histogram{
+					DDSketch: makeDDSketch(1),
+				},
+			},
+		},
+		{
+			Name: "http_response_time_seconds",
+			Tags: map[string]string{"code": "201"},
+			Value: common.ConnectionMetricValue{
+				Histogram: &common.Histogram{
+					DDSketch: makeDDSketch(2, 2),
+				},
+			},
+		},
+		{
+			Name: "http_response_time_seconds",
+			Tags: map[string]string{"code": "400"},
+			Value: common.ConnectionMetricValue{
+				Histogram: &common.Histogram{
+					DDSketch: makeDDSketch(3, 3, 3),
+				},
+			},
+		},
+		{
+			Name: "http_response_time_seconds",
+			Tags: map[string]string{"code": "501"},
+			Value: common.ConnectionMetricValue{
+				Histogram: &common.Histogram{
+					DDSketch: makeDDSketch(4, 4, 4, 4),
+				},
+			},
+		},
+	}
+
+	metrics := formatMetrics(httpMetrics, 2*time.Second)
+
+	sort.Slice(metrics, func(i, j int) bool {
+		switch strings.Compare(metrics[i].Name, metrics[j].Name) {
+		case -1:
+			return false
+		case 1:
+			return true
+		default:
+			return strings.Compare(metrics[i].Tags["code"], metrics[j].Tags["code"]) < 0
+		}
+	})
+
+	expected := []string{"200", "201", "2xx", "400", "4xx", "501", "5xx", "any", "success", "1xx", "200", "201", "2xx", "3xx", "400", "4xx", "501", "5xx", "any", "success"}
+	var actual []string
+	for _, m := range metrics {
+		actual = append(actual, m.Tags["code"])
+	}
+	assert.Equal(t, expected, actual)
+
+	assertHTTPResponseTimeConnectionMetric(t, metrics[0], "200", 1, 1, 1)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[1], "201", 2, 2, 2)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[2], "2xx", 1, 2, 3)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[3], "400", 3, 3, 3)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[4], "4xx", 3, 3, 3)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[5], "501", 4, 4, 4)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[6], "5xx", 4, 4, 4)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[7], "any", 1, 4, 10)
+	assertHTTPResponseTimeConnectionMetric(t, metrics[8], "success", 1, 2, 3)
+
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[9], "1xx", 0)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[10], "200", 0.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[11], "201", 1)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[12], "2xx", 1.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[13], "3xx", 0)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[14], "400", 1.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[15], "4xx", 1.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[16], "501", 2)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[17], "5xx", 2)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[18], "any", 5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[19], "success", 1.5)
+}
+
+func assertHTTPResponseTimeConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, min int, max int, total int) {
+	assert.Equal(t, "http_response_time_seconds", formattedMetric.Name)
+	codeIsOk := assert.Equal(t, map[string]string{
+		"code": statusCode,
+	}, formattedMetric.Tags)
+	if codeIsOk {
+		actualSketch, err := ddsketch.FromProto(formattedMetric.Value.GetHistogram())
+		assert.NoError(t, err)
+		assert.Equal(t, total, int(actualSketch.GetCount()), "Total doesn't match for status code `%s`", statusCode)
+		actualMin, err := actualSketch.GetMinValue()
+		assert.NoError(t, err)
+		assert.Equal(t, min, int(math.Round(actualMin)), "Min doesn't match for status code `%s`", statusCode)
+		actualMax, err := actualSketch.GetMaxValue()
+		assert.NoError(t, err)
+		assert.Equal(t, max, int(math.Round(actualMax)), "Max doesn't match for status code `%s`", statusCode)
+	}
+}
+
+func assertHTTPRequestsPerSecondConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, expectedRate float64) {
+	assert.Equal(t, "http_requests_per_second", formattedMetric.Name)
+	codeIsOk := assert.Equal(t, map[string]string{
+		"code": statusCode,
+	}, formattedMetric.Tags)
+	if codeIsOk {
+		assert.Equal(t, expectedRate, formattedMetric.Value.GetNumber())
+	}
+}
+
+func makeDDSketch(responseTimes ...float64) *ddsketch.DDSketch {
+	testDDSketch, _ := ddsketch.NewDefaultDDSketch(0.01)
+	for _, rt := range responseTimes {
+		_ = testDDSketch.Add(rt)
+	}
+	return testDDSketch
 }

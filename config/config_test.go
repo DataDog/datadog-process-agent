@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"github.com/StackVista/stackstate-process-agent/util"
+	"github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 	"net/http"
 	"net/url"
 	"os"
@@ -872,6 +873,54 @@ func TestStackStateNetworkConfigFromMainAgentConfig(t *testing.T) {
 	assert.Equal(20*time.Second, agentConfig.ShortLivedProcessQualifierSecs)
 	assert.Equal(true, agentConfig.EnableShortLivedNetworkRelationFilter)
 	assert.Equal(30*time.Second, agentConfig.ShortLivedNetworkRelationQualifierSecs)
+}
+
+func TestStackStateNetworkConfigWithHttpMetricsOptions(t *testing.T) {
+	assert := assert.New(t)
+	var ddy YamlAgentConfig
+	err := yaml.Unmarshal(
+		[]byte(`
+network_tracer_config:
+  network_tracing_enabled: 'true'
+  ebpf_debuglog_enabled: 'true'
+  http_metrics:
+    sketch_type: 'collapsing_highest_dense'
+    max_num_bins: 42
+    accuracy: 0.123
+`),
+		&ddy,
+	)
+	assert.NoError(err)
+
+	agentConfig, err := NewAgentConfig(nil, &ddy, nil)
+	assert.NoError(err)
+
+	assert.Equal(true, agentConfig.NetworkTracer.EbpfDebuglogEnabled)
+	assert.Equal(config.CollapsingHighest, agentConfig.NetworkTracer.HTTPMetrics.SketchType)
+	assert.Equal(42, agentConfig.NetworkTracer.HTTPMetrics.MaxNumBins)
+	assert.Equal(0.123, agentConfig.NetworkTracer.HTTPMetrics.Accuracy)
+}
+
+func TestStackStateNetworkConfigDefaultValuesForHttpMetrics(t *testing.T) {
+	assert := assert.New(t)
+	var ddy YamlAgentConfig
+	err := yaml.Unmarshal(
+		[]byte(`
+network_tracer_config:
+  network_tracing_enabled: 'true'
+  http_metrics:
+
+`),
+		&ddy,
+	)
+	assert.NoError(err)
+
+	agentConfig, err := NewAgentConfig(nil, &ddy, nil)
+	assert.NoError(err)
+
+	assert.Equal(config.CollapsingLowest, agentConfig.NetworkTracer.HTTPMetrics.SketchType)
+	assert.Equal(1024, agentConfig.NetworkTracer.HTTPMetrics.MaxNumBins)
+	assert.Equal(0.01, agentConfig.NetworkTracer.HTTPMetrics.Accuracy)
 }
 
 func TestProxyEnv(t *testing.T) {

@@ -249,6 +249,13 @@ func calculateRate(cur, prev uint64, before time.Time) float32 {
 	return float32(cur-prev) / float32(diff)
 }
 
+func calculateNormalizedRate(cur uint64, duration time.Duration) float64 {
+	if duration <= 0 {
+		return 0
+	}
+	return float64(cur) / duration.Seconds()
+}
+
 func formatMemory(fp *process.FilledProcess) *model.MemoryStat {
 	ms := &model.MemoryStat{
 		Rss:  fp.MemInfo.RSS,

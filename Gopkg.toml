@@ -8,7 +8,12 @@
 
 [[constraint]]
   name = "github.com/StackVista/tcptracer-bpf"
-  revision = "8db9a7ee3eb6be09daeb6c32d8a0d367297aae51"
+  version = "=v7.0.0"
+
+[[constraint]]
+  name = "github.com/DataDog/sketches-go"
+  source = "github.com/StackVista/sketches-go"
+  version = "=v1.1.0"
 
 [[constraint]]
   name = "github.com/DataDog/zstd"
@@ -16,7 +21,7 @@
 
 [[constraint]]
   name = "github.com/gogo/protobuf"
-  revision = "d76fbc1373015ced59b43ac267f28d546b955683"
+  version = "=v1.3.1"
 
 [[constraint]]
   name = "github.com/patrickmn/go-cache"
@@ -32,3 +37,7 @@
 [[override]]
   name = "gopkg.in/yaml.v2"
   revision = "d670f9405373e636a5a2765eea47fac0c9bc91a4"
+
+[[override]]
+  name = "github.com/mailru/easyjson"
+  version = "=v0.7.7"

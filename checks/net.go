@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/DataDog/sketches-go/ddsketch"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,6 +39,13 @@ type ConnectionsCheck struct {
 
 	// Use this as the network relation cache to calculate rate metrics and drop short-lived network relations
 	cache *cache.Cache
+}
+
+type statusCodeGroup struct {
+	// Local network tracer
+	tag      string
+	inRange  func(int) bool
+	ddSketch *ddsketch.DDSketch
 }
 
 // Name returns the name of the ConnectionsCheck.
@@ -74,7 +83,10 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 	if c.prevCheckTime.IsZero() { // End check early if this is our first run.
 		// fill in the relation cache
 		for _, conn := range conns {
-			relationID := CreateNetworkRelationIdentifier(cfg.HostName, conn)
+			relationID, err := CreateNetworkRelationIdentifier(cfg.HostName, conn)
+			if err != nil {
+				log.Warnf("invalid connection description - can't determine ID: %v", err)
+			}
 			PutNetworkRelationCache(c.cache, relationID, conn)
 		}
 		c.prevCheckTime = time.Now()
@@ -117,7 +129,11 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 		// Check to see if this is a process that we observed and that it's not short-lived / blacklisted in the Process check
 		if pidCreateTime, ok := isProcessPresent(createTimeForPID, conn.Pid); ok {
 			namespace := formatNamespace(cfg.ClusterName, cfg.HostName, conn)
-			relationID := CreateNetworkRelationIdentifier(namespace, conn)
+			relationID, err := CreateNetworkRelationIdentifier(namespace, conn)
+			if err != nil {
+				log.Warnf("invalid connection description - can't determine ID: %v", err)
+				continue
+			}
 			// Check to see if we have this relation cached and whether we have observed it for the configured time, otherwise skip
 			if relationCache, ok := IsNetworkRelationCached(c.cache, relationID); ok {
 				if !isRelationShortLived(relationID, relationCache.FirstObserved, cfg) {
@@ -139,6 +155,8 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 						Direction:              calculateDirection(conn.Direction),
 						Namespace:              namespace,
 						ConnectionIdentifier:   relationID,
+						ApplicationProtocol:    conn.ApplicationProtocol,
+						Metrics:                formatMetrics(conn.Metrics, time.Now().Sub(lastCheckTime)),
 					})
 				}
 			}
@@ -149,6 +167,158 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 	}
 	c.prevCheckTime = time.Now()
 	return cxs
+}
+
+func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Duration) []*model.ConnectionMetric {
+	formattedMetrics := make([]*model.ConnectionMetric, 0, len(metrics))
+
+	groups := initialStatusCodeGroups()
+	reqCounts := map[string]uint64{}
+	for _, group := range groups {
+		reqCounts[group.tag] = 0
+	}
+	isThereAnyHTTP := false
+	for i := range metrics {
+		metric := metrics[i]
+		if metric.Name == common.HTTPResponseTime {
+			isThereAnyHTTP = true
+			tag := metric.Tags[common.HTTPStatusCodeTagName]
+
+			formattedMetrics = append(
+				formattedMetrics,
+				makeConnectionMetricWithHistogram(
+					metric.Name, metric.Tags, metric.Value.Histogram.DDSketch,
+				),
+			)
+
+			statusCodeCount := metric.Value.Histogram.DDSketch.GetCount()
+			accumulatedCount := reqCounts[tag] + uint64(statusCodeCount)
+			reqCounts[tag] = accumulatedCount
+			for _, group := range groups {
+				c, err := strconv.Atoi(tag)
+				if err == nil && group.inRange(c) {
+					group.ddSketch = mergeWithHistogram(metric.Value.Histogram.DDSketch, group.ddSketch)
+					reqCounts[group.tag] = reqCounts[group.tag] + uint64(statusCodeCount)
+				} else if err != nil {
+					log.Warnf("could not convert tag(%s) to int error(%v)", tag, err)
+				}
+			}
+		}
+	}
+
+	if isThereAnyHTTP {
+		for _, group := range groups {
+			if group.ddSketch != nil {
+				formattedMetrics = append(formattedMetrics,
+					makeConnectionMetricWithHistogram(
+						common.HTTPResponseTime,
+						map[string]string{common.HTTPStatusCodeTagName: group.tag},
+						group.ddSketch,
+					))
+			}
+		}
+		for key, value := range reqCounts {
+			formattedMetrics = append(
+				formattedMetrics,
+				makeConnectionMetricWithNumber(
+					common.HTTPRequestsPerSecond,
+					map[string]string{common.HTTPStatusCodeTagName: key},
+					calculateNormalizedRate(value, elapsedDuration),
+				),
+			)
+		}
+	}
+	return formattedMetrics
+}
+
+func makeConnectionMetricWithHistogram(name common.MetricName, tags map[string]string, histogram *ddsketch.DDSketch) *model.ConnectionMetric {
+	return &model.ConnectionMetric{
+		Name: string(name),
+		Tags: tags,
+		Value: &model.ConnectionMetricValue{
+			Value: &model.ConnectionMetricValue_Histogram{
+				Histogram: histogram.ToProto(),
+			},
+		},
+	}
+}
+
+func makeConnectionMetricWithNumber(name common.MetricName, tags map[string]string, number float64) *model.ConnectionMetric {
+	return &model.ConnectionMetric{
+		Name: string(name),
+		Tags: tags,
+		Value: &model.ConnectionMetricValue{
+			Value: &model.ConnectionMetricValue_Number{
+				Number: number,
+			},
+		},
+	}
+}
+
+func initialStatusCodeGroups() []*statusCodeGroup {
+	return []*statusCodeGroup{
+		{
+			tag: "any",
+			inRange: func(statusCode int) bool {
+				return true
+			},
+			ddSketch: nil,
+		},
+		{
+			tag: "success",
+			inRange: func(statusCode int) bool {
+				return 100 <= statusCode && statusCode <= 399
+			},
+			ddSketch: nil,
+		},
+		{
+			tag: "1xx",
+			inRange: func(statusCode int) bool {
+				return 100 <= statusCode && statusCode <= 199
+			},
+			ddSketch: nil,
+		},
+		{
+			tag: "2xx",
+			inRange: func(statusCode int) bool {
+				return 200 <= statusCode && statusCode <= 299
+			},
+			ddSketch: nil,
+		},
+		{
+			tag: "3xx",
+			inRange: func(statusCode int) bool {
+				return 300 <= statusCode && statusCode <= 399
+			},
+			ddSketch: nil,
+		},
+		{
+			tag: "4xx",
+			inRange: func(statusCode int) bool {
+				return 400 <= statusCode && statusCode <= 499
+			},
+			ddSketch: nil,
+		},
+		{
+			tag: "5xx",
+			inRange: func(statusCode int) bool {
+				return 500 <= statusCode && statusCode <= 599
+			},
+			ddSketch: nil,
+		},
+	}
+}
+
+func mergeWithHistogram(metricSketch *ddsketch.DDSketch, rtHist *ddsketch.DDSketch) *ddsketch.DDSketch {
+	if rtHist == nil {
+		rtHist = metricSketch.Copy()
+	} else {
+		err := rtHist.MergeWith(metricSketch)
+		if err != nil {
+			log.Warnf("can't merge ddsketch: %v", err)
+		}
+	}
+	return rtHist
 }
 
 func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {

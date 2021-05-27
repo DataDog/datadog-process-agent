@@ -56,11 +56,17 @@ func endpointKeyNoPort(e *endpointID) string {
 }
 
 // CreateNetworkRelationIdentifier returns an identification for the relation this connection may contribute to
-func CreateNetworkRelationIdentifier(namespace string, conn common.ConnectionStats) string {
+func CreateNetworkRelationIdentifier(namespace string, conn common.ConnectionStats) (string, error) {
 	isV6 := conn.Family == common.AF_INET6
-	localEndpoint := makeEndpointID(namespace, conn.Local, isV6, int32(conn.LocalPort))
-	remoteEndpoint := makeEndpointID(namespace, conn.Remote, isV6, int32(conn.RemotePort))
-	return createRelationIdentifier(localEndpoint, remoteEndpoint, calculateDirection(conn.Direction))
+	localEndpoint, err := makeEndpointID(namespace, conn.Local, isV6, int32(conn.LocalPort))
+	if err != nil {
+		return "", err
+	}
+	remoteEndpoint, err := makeEndpointID(namespace, conn.Remote, isV6, int32(conn.RemotePort))
+	if err != nil {
+		return "", err
+	}
+	return createRelationIdentifier(localEndpoint, remoteEndpoint, calculateDirection(conn.Direction)), nil
 }
 
 // connectionRelationIdentifier returns an identification for the relation this connection may contribute to
@@ -79,11 +85,11 @@ func createRelationIdentifier(localEndpoint, remoteEndpoint *endpointID, directi
 }
 
 // makeEndpointID returns a endpointID if the ip is valid and the hostname as the scope for local ips
-func makeEndpointID(namespace string, ipString string, isV6 bool, port int32) *endpointID {
+func makeEndpointID(namespace string, ipString string, isV6 bool, port int32) (*endpointID, error) {
 	// We parse the ip here for normalization
 	ipAddress := net.ParseIP(ipString)
 	if ipAddress == nil {
-		return nil
+		return nil, fmt.Errorf("invalid endpoint address: %s", ipString)
 	}
 	endpoint := &endpointID{
 		Namespace: namespace,
@@ -96,7 +102,7 @@ func makeEndpointID(namespace string, ipString string, isV6 bool, port int32) *e
 		},
 	}
 
-	return endpoint
+	return endpoint, nil
 }
 
 // Represents the namespace part of connection identity. The connection namespace
@@ -209,10 +215,12 @@ retry:
 			if err == nil {
 				break retry
 			}
-			log.Debugf("failed to create network tracer: %s. Retrying..", err)
 			retriesLeft = retriesLeft - 1
 			if retriesLeft == 0 {
+				log.Errorf("failed to create network tracer: %s. No retries left.", err)
 				break retry
+			} else {
+				log.Warnf("failed to create network tracer: %s. Retrying...", err)
 			}
 		}
 	}

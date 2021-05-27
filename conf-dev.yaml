@@ -31,3 +31,4 @@ process_config:
 network_tracer_config:
   network_tracing_enabled: 'true'
   initial_connections_from_proc: 'true'
+  ebpf_debuglog_enabled: 'true'

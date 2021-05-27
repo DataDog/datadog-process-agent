@@ -2,14 +2,6 @@
 
 
 [[projects]]
-  digest = "1:e614c1c911617d660f569202b4680239069793b7ca473a8c3e644240551b12b0"
-  name = "github.com/DataDog/agent-payload"
-  packages = ["gogen"]
-  pruneopts = ""
-  revision = "f0521943f60221829c6bb5de1c7f788cd4411372"
-  version = "4.8"
-
-[[projects]]
   digest = "1:e64fddc819e2abc68792a743dd857c379449a56f2b9eaf030c03fb0ec19de884"
   name = "github.com/DataDog/datadog-go"
   packages = ["statsd"]
@@ -30,6 +22,20 @@
   ]
   pruneopts = ""
   revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
+
+[[projects]]
+  digest = "1:03ff95071fd82409af9f8595de8674f1f5791a289fce9fc7dfb5470a91ee0207"
+  name = "github.com/DataDog/sketches-go"
+  packages = [
+    "ddsketch",
+    "ddsketch/mapping",
+    "ddsketch/pb/sketchpb",
+    "ddsketch/store",
+  ]
+  pruneopts = ""
+  revision = "ba0ca7b0dab22fe45f5a76fea3c416de41f74edc"
+  source = "github.com/StackVista/sketches-go"
+  version = "v1.1.0"
 
 [[projects]]
   digest = "1:e9ca79fa28ff0fe0271b63d2d30f4118643746610cd0d75603c7b4255a44f161"
@@ -110,17 +116,19 @@
   revision = "bcfb39d79bc7cd7ad5742b6d62837062af8d62a9"
 
 [[projects]]
-  digest = "1:8ec2e6106f7fe0214a16033f2df75760f348e103cf4588217d30e5742d5aaa69"
+  digest = "1:eafed989a150c9d3f37a3662501b7ada283c1291c652cda2594bb72462e087ab"
   name = "github.com/StackVista/tcptracer-bpf"
   packages = [
     "pkg/tracer",
     "pkg/tracer/collector",
     "pkg/tracer/common",
     "pkg/tracer/config",
+    "pkg/tracer/network",
     "pkg/tracer/procspy",
   ]
   pruneopts = ""
-  revision = "8db9a7ee3eb6be09daeb6c32d8a0d367297aae51"
+  revision = "254948615a8d19623608c8a64ae2fa01d48b8ab8"
+  version = "v7.0.0"
 
 [[projects]]
   digest = "1:63776251fbaa60062742412a9d2fa1e4b7cd24bcf5527fa9656b314ea8d60913"
@@ -284,7 +292,7 @@
   version = "v1.2.2"
 
 [[projects]]
-  digest = "1:66d1acfc23d239e491877b36617c85cd929a71feb604ed11868bc24f5a70879c"
+  digest = "1:d69d2ba23955582a64e367ff2b0808cdbd048458c178cea48f11ab8c40bd7aea"
   name = "github.com/gogo/protobuf"
   packages = [
     "gogoproto",
@@ -292,12 +300,14 @@
     "proto",
     "protoc-gen-gogo/descriptor",
     "sortkeys",
+    "types",
   ]
   pruneopts = ""
-  revision = "d76fbc1373015ced59b43ac267f28d546b955683"
+  revision = "5628607bb4c51c3157aacc3a50f0ab707582b805"
+  version = "v1.3.1"
 
 [[projects]]
-  digest = "1:3dd078fda7500c341bc26cfbc6c6a34614f295a2457149fc1045cab767cbcf18"
+  digest = "1:019270a39e03c8ff951f6e536014c87b418bb0ad90b358929dd7d556546ea093"
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -307,8 +317,8 @@
     "ptypes/timestamp",
   ]
   pruneopts = ""
-  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
-  version = "v1.2.0"
+  revision = "ae97035608a719c7a1c1c41bed0ae0744bdb0c6f"
+  version = "v1.5.2"
 
 [[projects]]
   branch = "master"
@@ -407,15 +417,21 @@
   version = "v0.3.7"
 
 [[projects]]
-  digest = "1:ec4e79082b19b134e6d42d0947c0ebf73feb28fd8b9e15e744854efc73e9fa17"
+  digest = "1:04599fefed7f7f229c856859d77c4f242b251341ebd13b067a46f8c19a761fd0"
   name = "github.com/iovisor/gobpf"
   packages = [
     "elf",
+    "elf/include",
+    "elf/include/uapi/linux",
     "pkg/bpffs",
     "pkg/cpuonline",
+    "pkg/cpurange",
+    "pkg/tracepipe",
   ]
   pruneopts = ""
-  revision = "3b07770c6d5e2bd37e582ecd49460e6ef094f257"
+  revision = "f29a8c9f192810c38d3507fbe1e1ceb56fb6994d"
+  source = "github.com/StackVista/gobpf"
+  version = "v0.1.2"
 
 [[projects]]
   digest = "1:6f49eae0c1e5dab1dafafee34b207aeb7a42303105960944828c2079b92fc88e"
@@ -423,6 +439,14 @@
   packages = ["."]
   pruneopts = ""
   revision = "0b12d6b5"
+
+[[projects]]
+  digest = "1:3f2e33d49ad818172242d685bdc1fd6e78b61b4d89d223c873099c245c752828"
+  name = "github.com/josharian/intern"
+  packages = ["."]
+  pruneopts = ""
+  revision = "8e6ff32b3e7c0b018c43953085fe2ac330fe9acd"
+  version = "v1.0.0"
 
 [[projects]]
   digest = "1:b79fc583e4dc7055ed86742e22164ac41bf8c0940722dbcb600f1a3ace1a8cb5"
@@ -449,7 +473,7 @@
   version = "v1.8.0"
 
 [[projects]]
-  digest = "1:212bebc561f4f654a653225868b2a97353cd5e160dc0b0bbc7232b06608474ec"
+  digest = "1:d615ad2b7190d4cd5656d83300b323aae692ade7df2a5695476d825a75204dce"
   name = "github.com/mailru/easyjson"
   packages = [
     ".",
@@ -458,7 +482,8 @@
     "jwriter",
   ]
   pruneopts = ""
-  revision = "60711f1a8329503b04e1c88535f419d0bb440bff"
+  revision = "c120ca7ced6051261161ce15e8f1542a4b2567fc"
+  version = "v0.7.7"
 
 [[projects]]
   digest = "1:63722a4b1e1717be7b98fc686e0b30d5e7f734b9e93d7dee86293b6deab7ea28"
@@ -793,6 +818,45 @@
   version = "v1.4.0"
 
 [[projects]]
+  digest = "1:0411230c1d513425d5d96a6b193fc50e635cbabf0c27a58869c17c3c8edc67c4"
+  name = "google.golang.org/protobuf"
+  packages = [
+    "encoding/prototext",
+    "encoding/protowire",
+    "internal/descfmt",
+    "internal/descopts",
+    "internal/detrand",
+    "internal/encoding/defval",
+    "internal/encoding/messageset",
+    "internal/encoding/tag",
+    "internal/encoding/text",
+    "internal/errors",
+    "internal/filedesc",
+    "internal/filetype",
+    "internal/flags",
+    "internal/genid",
+    "internal/impl",
+    "internal/order",
+    "internal/pragma",
+    "internal/set",
+    "internal/strs",
+    "internal/version",
+    "proto",
+    "reflect/protodesc",
+    "reflect/protoreflect",
+    "reflect/protoregistry",
+    "runtime/protoiface",
+    "runtime/protoimpl",
+    "types/descriptorpb",
+    "types/known/anypb",
+    "types/known/durationpb",
+    "types/known/timestamppb",
+  ]
+  pruneopts = ""
+  revision = "f2d1f6cbe10b90d22296ea09a7217081c2798009"
+  version = "v1.26.0"
+
+[[projects]]
   digest = "1:75fb3fcfc73a8c723efde7777b40e8e8ff9babf30d8c56160d01beffea8a95a6"
   name = "gopkg.in/inf.v0"
   packages = ["."]
@@ -1116,12 +1180,13 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/DataDog/agent-payload/gogen",
     "github.com/DataDog/datadog-go/statsd",
     "github.com/DataDog/gopsutil/cpu",
     "github.com/DataDog/gopsutil/host",
     "github.com/DataDog/gopsutil/mem",
     "github.com/DataDog/gopsutil/process",
+    "github.com/DataDog/sketches-go/ddsketch",
+    "github.com/DataDog/sketches-go/ddsketch/pb/sketchpb",
     "github.com/DataDog/zstd",
     "github.com/StackExchange/wmi",
     "github.com/StackVista/stackstate-agent/pkg/config",
@@ -1142,6 +1207,7 @@
     "github.com/StackVista/tcptracer-bpf/pkg/tracer/config",
     "github.com/cihub/seelog",
     "github.com/go-ini/ini",
+    "github.com/gogo/protobuf/gogoproto",
     "github.com/gogo/protobuf/jsonpb",
     "github.com/gogo/protobuf/proto",
     "github.com/mailru/easyjson",

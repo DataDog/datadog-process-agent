@@ -366,7 +366,7 @@ func (l *Collector) accessAPIwithEncoding(endpoint config.APIEndpoint, method st
 	if resp.StatusCode < 200 || resp.StatusCode > 300 {
 		defer resp.Body.Close()
 		io.Copy(ioutil.Discard, resp.Body)
-		return resp, fmt.Errorf("unexpected response from %s. Status: %s", url, resp.Status)
+		return resp, fmt.Errorf("unexpected response from %s. Status: %s, Body: %v", url, resp.Status, resp.Body)
 	}
 
 	return resp, nil

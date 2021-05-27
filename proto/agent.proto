@@ -4,7 +4,8 @@ option go_package = "github.com/StackVista/stackstate-process-agent/model";
 
 package datadog.process_agent;
 
-import "github.com/DataDog/agent-payload/agent_payload.proto";
+import "github.com/StackVista/stackstate-process-agent/proto/agent_payload.proto";
+import "github.com/DataDog/sketches-go/ddsketch/pb/ddsketch.proto";
 
 //
 // Message Types
@@ -340,6 +341,19 @@ enum ConnectionDirection {
 	incoming = 2;
 }
 
+message ConnectionMetricValue {
+  oneof value {
+    DDSketch histogram = 1;
+    double number = 2;
+  }
+}
+
+message ConnectionMetric {
+    string name = 1;
+    map<string, string> tags = 2;
+    ConnectionMetricValue value = 3;
+}
+
 message Connection {
 	int32 pid = 1;
 	// 2 is deprecated
@@ -356,6 +370,8 @@ message Connection {
 	string namespace = 50; // local
 	ConnectionDirection direction = 51;
 	string connectionIdentifier = 52;
+	string applicationProtocol = 53;
+	repeated ConnectionMetric metrics = 54;
 }
 
 message Addr {
