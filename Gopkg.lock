@@ -69,7 +69,7 @@
   version = "1.0.0"
 
 [[projects]]
-  digest = "1:1894a9ff4e26f0a89e56540d50ed15e8e622efb2cef17b6121c09d932c7d6839"
+  digest = "1:b930e4b216972a0dd91a14333888c781008a255ddf028120f58c9f8b7fb988aa"
   name = "github.com/StackVista/stackstate-agent"
   packages = [
     "cmd/agent/api/response",
@@ -113,7 +113,7 @@
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "bcfb39d79bc7cd7ad5742b6d62837062af8d62a9"
+  revision = "47c48e2bb871163107bd639eec579a9b6f7149ea"
 
 [[projects]]
   digest = "1:eafed989a150c9d3f37a3662501b7ada283c1291c652cda2594bb72462e087ab"
