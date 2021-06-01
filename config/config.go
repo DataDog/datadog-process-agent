@@ -57,6 +57,8 @@ type WindowsConfig struct {
 
 // NetworkTracerConfig contains some[1] of the network tracer configuration options
 type NetworkTracerConfig struct {
+	// Enables protocol inspection from eBPF code
+	EnableProtocolInspection bool
 	// Enables redirection of ebpf code debug messages as logs of the process agent
 	EbpfDebuglogEnabled bool
 	// Settings related to gathering & aggregation of http metrics
@@ -251,7 +253,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 		NetworkTracerInitRetryDuration:    5 * time.Second,
 		NetworkTracerInitRetryAmount:      3,
 		NetworkTracer: &NetworkTracerConfig{
-			EbpfDebuglogEnabled: false,
+			EnableProtocolInspection: true,
+			EbpfDebuglogEnabled:      false,
 			HTTPMetrics: &tracerconfig.HttpMetricConfig{
 				SketchType: tracerconfig.CollapsingLowest,
 				MaxNumBins: 1024,

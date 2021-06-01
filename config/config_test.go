@@ -882,19 +882,19 @@ func TestStackStateNetworkConfigWithHttpMetricsOptions(t *testing.T) {
 		[]byte(`
 network_tracer_config:
   network_tracing_enabled: 'true'
+  protocol_inspection_enabled: 'true'
   ebpf_debuglog_enabled: 'true'
   http_metrics:
     sketch_type: 'collapsing_highest_dense'
     max_num_bins: 42
     accuracy: 0.123
-`),
-		&ddy,
-	)
+`), &ddy)
 	assert.NoError(err)
 
 	agentConfig, err := NewAgentConfig(nil, &ddy, nil)
 	assert.NoError(err)
 
+	assert.Equal(true, agentConfig.NetworkTracer.EnableProtocolInspection)
 	assert.Equal(true, agentConfig.NetworkTracer.EbpfDebuglogEnabled)
 	assert.Equal(config.CollapsingHighest, agentConfig.NetworkTracer.HTTPMetrics.SketchType)
 	assert.Equal(42, agentConfig.NetworkTracer.HTTPMetrics.MaxNumBins)
@@ -910,17 +910,31 @@ network_tracer_config:
   network_tracing_enabled: 'true'
   http_metrics:
 
-`),
-		&ddy,
-	)
+`), &ddy)
 	assert.NoError(err)
 
 	agentConfig, err := NewAgentConfig(nil, &ddy, nil)
 	assert.NoError(err)
 
+	assert.Equal(true, agentConfig.NetworkTracer.EnableProtocolInspection)
 	assert.Equal(config.CollapsingLowest, agentConfig.NetworkTracer.HTTPMetrics.SketchType)
 	assert.Equal(1024, agentConfig.NetworkTracer.HTTPMetrics.MaxNumBins)
 	assert.Equal(0.01, agentConfig.NetworkTracer.HTTPMetrics.Accuracy)
+}
+func TestStackStateNetworkConfigProtocolInspectionDisabled(t *testing.T) {
+	assert := assert.New(t)
+	var ddy YamlAgentConfig
+	err := yaml.Unmarshal(
+		[]byte(`
+network_tracer_config:
+  protocol_inspection_enabled: 'false'
+`), &ddy)
+	assert.NoError(err)
+
+	agentConfig, err := NewAgentConfig(nil, &ddy, nil)
+	assert.NoError(err)
+
+	assert.Equal(false, agentConfig.NetworkTracer.EnableProtocolInspection)
 }
 
 func TestProxyEnv(t *testing.T) {
