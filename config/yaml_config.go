@@ -127,7 +127,7 @@ type YamlAgentConfig struct {
 		NetworkTracerInitRetryAmount int `yaml:"network_tracer_retry_init_amount"`
 		// Whenever debugging statements of eBPF code of network tracer should be redirected to the agent log
 		EBPFDebuglogEnabled string `yaml:"ebpf_debuglog_enabled"`
-		// A string indicating the enabled state of the protocol metrics.
+		// A string indicating the enabled state of the protocol inspection.
 		ProtocolInspectionEnabled string `yaml:"protocol_inspection_enabled"`
 		HTTPMetrics               struct {
 			// Specifies which algorithm to use to collapse measurements: collapsing_lowest_dense, collapsing_highest_dense, unbounded
