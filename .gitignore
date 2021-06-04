@@ -1,4 +1,7 @@
 vendor/
+vendor.orig/
+vendor.new/
+
 download/
 
 .vscode
@@ -24,5 +27,5 @@ derived.gen.go
 .vagrant/
 *.log
 
-#MAC OS 
+#MAC OS
 .DS_STORE
