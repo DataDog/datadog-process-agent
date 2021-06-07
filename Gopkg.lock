@@ -127,7 +127,8 @@
     "pkg/tracer/procspy",
   ]
   pruneopts = ""
-  revision = "d54255be430dd616a306e3cd76599220e5b7ece1"
+  revision = "c7b090c4555c7508e8c9502e55c40a03bcc06d6c"
+  version = "v7.0.1"
 
 [[projects]]
   digest = "1:63776251fbaa60062742412a9d2fa1e4b7cd24bcf5527fa9656b314ea8d60913"
