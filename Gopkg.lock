@@ -116,7 +116,7 @@
   revision = "4bff1c1cc2aaec39eb753d831d483eaacfb2deda"
 
 [[projects]]
-  digest = "1:23ea502690373d70da1a5e603d343920331be15a971e431bd4a0f3cdc4460716"
+  digest = "1:efbb8faeab2b366ce438a2824de47bc835a3a46a61ba075b5df8a838bf9a7d27"
   name = "github.com/StackVista/tcptracer-bpf"
   packages = [
     "pkg/tracer",
@@ -127,8 +127,8 @@
     "pkg/tracer/procspy",
   ]
   pruneopts = ""
-  revision = "c7b090c4555c7508e8c9502e55c40a03bcc06d6c"
-  version = "v7.0.1"
+  revision = "be2a128639a021a0a3c6020f7a60e6c83ece044d"
+  version = "v7.0.2"
 
 [[projects]]
   digest = "1:63776251fbaa60062742412a9d2fa1e4b7cd24bcf5527fa9656b314ea8d60913"
