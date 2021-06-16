@@ -727,8 +727,6 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		c.NetworkTracerInitRetryDuration = time.Duration(durationS) * time.Second
 	}
 
-
-
 	if v, err := strconv.Atoi(os.Getenv("STS_NETWORK_TRACER_INIT_RETRY_AMOUNT")); err == nil {
 		c.NetworkTracerInitRetryAmount = v
 	}
@@ -739,11 +737,6 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 
 	if v, err := strconv.Atoi(os.Getenv("STS_NETWORK_RELATION_FILTER_SHORT_LIVED_QUALIFIER_SECS")); err == nil {
 		setNetworkRelationFilters(c, true, v)
-	}
-
-	if v := os.Getenv("STS_NETWORK_TRACER_INIT_RETRY_DURATION_SEC"); v != "" {
-		durationS, _ := strconv.Atoi(v)
-		c.NetworkTracerInitRetryDuration = time.Duration(durationS) * time.Second
 	}
 
 	return c
