@@ -675,6 +675,10 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		c.EnableIncrementalPublishing = ok
 	}
 
+	if ok, _ := isAffirmative(os.Getenv("STS_PROTOCOL_INSPECTION_ENABLED")); ok {
+		c.NetworkTracer.EnableProtocolInspection = ok
+	}
+
 	var patterns []string
 	amountTopCPUPercentageUsage, amountTopIOReadUsage, amountTopIOWriteUsage, amountTopMemoryUsage := 0, 0, 0, 0
 	CPUPercentageUsageThreshold, memoryUsageThreshold := 0, 0
