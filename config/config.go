@@ -448,6 +448,7 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 
 	// Use environment to override any additional config.
 	cfg = mergeEnvironmentVariables(cfg)
+	log.Infof("cfg.NetworkTracer.EnableProtocolInspection => %s", cfg.NetworkTracer.EnableProtocolInspection)
 
 	// Python-style log level has WARNING vs WARN
 	if strings.ToLower(cfg.LogLevel) == "warning" {
@@ -675,7 +676,7 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		c.EnableIncrementalPublishing = ok
 	}
 
-	if ok, _ := isAffirmative(os.Getenv("STS_PROTOCOL_INSPECTION_ENABLED")); ok {
+	if ok, err := isAffirmative(os.Getenv("STS_PROTOCOL_INSPECTION_ENABLED")); err == nil {
 		c.NetworkTracer.EnableProtocolInspection = ok
 	}
 
