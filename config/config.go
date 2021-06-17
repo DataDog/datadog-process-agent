@@ -448,7 +448,6 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 
 	// Use environment to override any additional config.
 	cfg = mergeEnvironmentVariables(cfg)
-	log.Infof("cfg.NetworkTracer.EnableProtocolInspection => %s", cfg.NetworkTracer.EnableProtocolInspection)
 
 	// Python-style log level has WARNING vs WARN
 	if strings.ToLower(cfg.LogLevel) == "warning" {
