@@ -675,7 +675,7 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		c.EnableIncrementalPublishing = ok
 	}
 
-	if ok, _ := isAffirmative(os.Getenv("STS_PROTOCOL_INSPECTION_ENABLED")); ok {
+	if ok, err := isAffirmative(os.Getenv("STS_PROTOCOL_INSPECTION_ENABLED")); err == nil {
 		c.NetworkTracer.EnableProtocolInspection = ok
 	}
 
