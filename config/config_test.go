@@ -2,8 +2,6 @@ package config
 
 import (
 	"fmt"
-	"github.com/StackVista/stackstate-process-agent/util"
-	"github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/StackVista/stackstate-process-agent/util"
+	"github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 
 	"github.com/DataDog/gopsutil/process"
 	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
@@ -866,6 +867,7 @@ func TestStackStateNetworkConfigFromMainAgentConfig(t *testing.T) {
 	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
 	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
 	assert.Equal(true, agentConfig.NetworkInitialConnectionsFromProc)
+	assert.Equal(10000, agentConfig.NetworkTracerMaxConnections)
 	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
 	assert.Equal(10*time.Minute, agentConfig.NetworkRelationCacheDurationMin)
 	assert.Equal(15*time.Minute, agentConfig.ProcessCacheDurationMin)
@@ -881,6 +883,7 @@ func TestStackStateNetworkConfigWithHttpMetricsOptions(t *testing.T) {
 	err := yaml.Unmarshal(
 		[]byte(`
 network_tracer_config:
+  max_connections: 2000
   network_tracing_enabled: 'true'
   protocol_inspection_enabled: 'true'
   ebpf_debuglog_enabled: 'true'
@@ -897,6 +900,7 @@ network_tracer_config:
 	assert.Equal(true, agentConfig.NetworkTracer.EnableProtocolInspection)
 	assert.Equal(true, agentConfig.NetworkTracer.EbpfDebuglogEnabled)
 	assert.Equal(config.CollapsingHighest, agentConfig.NetworkTracer.HTTPMetrics.SketchType)
+	assert.Equal(2000, agentConfig.NetworkTracerMaxConnections)
 	assert.Equal(42, agentConfig.NetworkTracer.HTTPMetrics.MaxNumBins)
 	assert.Equal(0.123, agentConfig.NetworkTracer.HTTPMetrics.Accuracy)
 }

@@ -4,6 +4,8 @@ package checks
 
 import (
 	"bytes"
+	"os"
+
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
 	"github.com/StackVista/stackstate-process-agent/net"
@@ -11,7 +13,6 @@ import (
 	tracerConfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 	log "github.com/cihub/seelog"
 	"github.com/patrickmn/go-cache"
-	"os"
 )
 
 // Init initializes a ConnectionsCheck instance.
@@ -35,7 +36,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		if proc := os.Getenv("HOST_PROC"); proc != "" {
 			conf.ProcRoot = proc
 		}
-		conf.MaxConnections = cfg.MaxPerMessage
+		conf.MaxConnections = cfg.NetworkTracerMaxConnections
 		conf.BackfillFromProc = cfg.NetworkInitialConnectionsFromProc
 		conf.EnableTracepipeLogging = cfg.NetworkTracer.EbpfDebuglogEnabled
 		conf.HttpMetricConfig = *cfg.NetworkTracer.HTTPMetrics
