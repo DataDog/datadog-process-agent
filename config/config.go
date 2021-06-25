@@ -738,6 +738,16 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		c.NetworkTracerMaxConnections = maxConnections
 	}
 
+	if v := os.Getenv("STS_MAX_PROCESSES_PER_MESSAGE"); v != "" {
+		maxConnections, _ := strconv.Atoi(v)
+		c.MaxPerMessage = maxConnections
+	}
+
+	if v := os.Getenv("STS_MAX_CONNECTIONS_PER_MESSAGE"); v != "" {
+		maxConnections, _ := strconv.Atoi(v)
+		c.MaxConnectionsPerMessage = maxConnections
+	}
+
 	if v, err := strconv.Atoi(os.Getenv("STS_NETWORK_TRACER_INIT_RETRY_AMOUNT")); err == nil {
 		c.NetworkTracerInitRetryAmount = v
 	}
