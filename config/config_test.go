@@ -995,7 +995,7 @@ func TestEnvOverrides(t *testing.T) {
 	os.Setenv("STS_MAX_PROCESSES_PER_MESSAGE", "501")
 	os.Setenv("STS_MAX_CONNECTIONS_PER_MESSAGE", "502")
 	os.Setenv("STS_PROTOCOL_INSPECTION_ENABLED", "false")
-	os.Setenv("DD_ENABLE_NETWORK_TRACING", "false")
+	os.Setenv("DD_NETWORK_TRACING_ENABLED", "true")
 	os.Setenv("STS_EBPF_DEBUG_LOG_ENABLED", "true")
 
 	agentConfig, _ := NewAgentConfig(nil, nil, nil)
@@ -1004,7 +1004,7 @@ func TestEnvOverrides(t *testing.T) {
 	assert.Equal(501, agentConfig.MaxPerMessage)
 	assert.Equal(502, agentConfig.MaxConnectionsPerMessage)
 	assert.Equal(false, agentConfig.NetworkTracer.EnableProtocolInspection)
-	assert.Equal(false, agentConfig.EnableNetworkTracing)
+	assert.Equal(true, agentConfig.EnableNetworkTracing)
 	assert.Equal(true, agentConfig.NetworkTracer.EbpfDebuglogEnabled)
 }
 
