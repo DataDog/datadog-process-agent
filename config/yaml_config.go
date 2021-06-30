@@ -93,9 +93,12 @@ type YamlAgentConfig struct {
 		// The maximum number of file descriptors to open when collecting net connections.
 		// Only change if you are running out of file descriptors from the Agent.
 		MaxProcFDs int `yaml:"max_proc_fds"`
-		// The maximum number of processes, connections or containers per message.
+		// The maximum number of processes or containers per message.
 		// Only change if the defaults are causing issues.
 		MaxPerMessage int `yaml:"max_per_message"`
+		// The maximum number of connections per message.
+		// Only change if the defaults are causing issues.
+		MaxConnectionsPerMessage int `yaml:"max_connections_per_message"`
 		// Overrides the path to the Agent bin used for getting the hostname. The default is usually fine.
 		DDAgentBin string `yaml:"dd_agent_bin"`
 		// Overrides of the environment we pass to fetch the hostname. The default is usually fine.
@@ -121,6 +124,8 @@ type YamlAgentConfig struct {
 		UnixSocketPath string `yaml:"nettracer_socket"`
 		// The full path to the file where network-tracer logs will be written.
 		LogFile string `yaml:"log_file"`
+		// The maximum number of in flight connections the network tracer keeps track of
+		NetworkMaxConnections int `yaml:"max_connections"`
 		// An integer indicating the amount of seconds for the retry interval for initializing the network tracer.
 		NetworkTracerInitRetryDuration int `yaml:"network_tracer_retry_init_duration_sec"`
 		// An integer indicating the amount of retries to use for initializing the network tracer.
@@ -293,6 +298,9 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 			log.Warn("Overriding the configured item count per message limit because it exceeds maximum")
 		}
 	}
+	if yc.Process.MaxConnectionsPerMessage > 0 {
+		agentConf.MaxConnectionsPerMessage = yc.Process.MaxConnectionsPerMessage
+	}
 	agentConf.DDAgentBin = defaultDDAgentBin
 	if yc.Process.DDAgentBin != "" {
 		agentConf.DDAgentBin = yc.Process.DDAgentBin
@@ -354,6 +362,9 @@ func mergeNetworkYamlConfig(agentConf *AgentConfig, networkConf *YamlAgentConfig
 	}
 	if protMetrEnabled, err := isAffirmative(networkConf.Network.ProtocolInspectionEnabled); err == nil {
 		agentConf.NetworkTracer.EnableProtocolInspection = protMetrEnabled
+	}
+	if networkConf.Network.NetworkMaxConnections != 0 {
+		agentConf.NetworkTracerMaxConnections = networkConf.Network.NetworkMaxConnections
 	}
 
 	return agentConf, nil

@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/DataDog/sketches-go/ddsketch"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/DataDog/sketches-go/ddsketch"
 
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"github.com/StackVista/stackstate-process-agent/config"
@@ -322,24 +323,35 @@ func mergeWithHistogram(metricSketch *ddsketch.DDSketch, rtHist *ddsketch.DDSket
 }
 
 func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
-	batches := make([]model.MessageBody, 0, 1)
+	groupSize := groupSize(len(cxs), cfg.MaxConnectionsPerMessage)
+	batches := make([]model.MessageBody, 0, groupSize)
 
-	// STS: Disable batching for now
-	batchSize := min(cfg.MaxPerMessage, len(cxs))
-	batch := &model.CollectorConnections{
-		HostName:    cfg.HostName,
-		Connections: cxs[:batchSize],
-		GroupId:     groupID,
-		GroupSize:   1,
+	for len(cxs) > 0 {
+		batchSize := min(cfg.MaxConnectionsPerMessage, len(cxs))
+
+		batch := &model.CollectorConnections{
+			HostName:    cfg.HostName,
+			Connections: cxs[:batchSize],
+			GroupId:     groupID,
+			GroupSize:   groupSize,
+		}
+		if strings.TrimSpace(cfg.ClusterName) != "" {
+			batch.ClusterName = cfg.ClusterName
+		}
+
+		batches = append(batches, batch)
+		cxs = cxs[batchSize:]
 	}
-
-	if strings.TrimSpace(cfg.ClusterName) != "" {
-		batch.ClusterName = cfg.ClusterName
-	}
-
-	batches = append(batches, batch)
 
 	return batches
+}
+
+func groupSize(total, maxBatchSize int) int32 {
+	groupSize := total / maxBatchSize
+	if total%maxBatchSize > 0 {
+		groupSize++
+	}
+	return int32(groupSize)
 }
 
 func min(a, b int) int {

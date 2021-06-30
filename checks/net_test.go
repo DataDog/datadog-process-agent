@@ -3,14 +3,15 @@ package checks
 import (
 	"bytes"
 	"fmt"
-	"github.com/DataDog/sketches-go/ddsketch"
-	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
-	"github.com/patrickmn/go-cache"
 	"math"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/DataDog/sketches-go/ddsketch"
+	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
+	"github.com/patrickmn/go-cache"
 
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
@@ -21,7 +22,7 @@ func makeConnection(pid int32) *model.Connection {
 	return &model.Connection{Pid: pid}
 }
 
-func TestNetworkConnectionMax(t *testing.T) {
+func TestNetworkConnectionBatching(t *testing.T) {
 	p := []*model.Connection{
 		makeConnection(1),
 		makeConnection(2),
@@ -40,14 +41,14 @@ func TestNetworkConnectionMax(t *testing.T) {
 		{
 			cur:            []*model.Connection{p[0], p[1], p[2]},
 			maxSize:        1,
-			expectedTotal:  1,
-			expectedChunks: 1,
+			expectedTotal:  3,
+			expectedChunks: 3,
 		},
 		{
 			cur:            []*model.Connection{p[0], p[1], p[2]},
 			maxSize:        2,
-			expectedTotal:  2,
-			expectedChunks: 1,
+			expectedTotal:  3,
+			expectedChunks: 2,
 		},
 		{
 			cur:            []*model.Connection{p[0], p[1], p[2], p[3]},
@@ -58,17 +59,17 @@ func TestNetworkConnectionMax(t *testing.T) {
 		{
 			cur:            []*model.Connection{p[0], p[1], p[2], p[3]},
 			maxSize:        3,
-			expectedTotal:  3,
-			expectedChunks: 1,
+			expectedTotal:  4,
+			expectedChunks: 2,
 		},
 		{
 			cur:            []*model.Connection{p[0], p[1], p[2], p[3], p[2], p[3]},
 			maxSize:        2,
-			expectedTotal:  2,
-			expectedChunks: 1,
+			expectedTotal:  6,
+			expectedChunks: 3,
 		},
 	} {
-		cfg.MaxPerMessage = tc.maxSize
+		cfg.MaxConnectionsPerMessage = tc.maxSize
 		chunks := batchConnections(cfg, 0, tc.cur)
 
 		assert.Len(t, chunks, tc.expectedChunks, "len %d", i)

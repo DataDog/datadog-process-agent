@@ -27,7 +27,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		}
 
 		conf := tracerConfig.DefaultConfig
-		conf.MaxConnections = cfg.MaxPerMessage
+		conf.MaxConnections = cfg.NetworkTracerMaxConnections
 
 		t, err := tracer.NewTracer(conf)
 		if err != nil {

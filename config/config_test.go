@@ -2,8 +2,6 @@ package config
 
 import (
 	"fmt"
-	"github.com/StackVista/stackstate-process-agent/util"
-	"github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/StackVista/stackstate-process-agent/util"
+	"github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 
 	"github.com/DataDog/gopsutil/process"
 	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
@@ -866,6 +867,7 @@ func TestStackStateNetworkConfigFromMainAgentConfig(t *testing.T) {
 	assert.Equal(8*time.Second, agentConfig.CheckIntervals["container"])
 	assert.Equal(30*time.Second, agentConfig.CheckIntervals["process"])
 	assert.Equal(true, agentConfig.NetworkInitialConnectionsFromProc)
+	assert.Equal(10000, agentConfig.NetworkTracerMaxConnections)
 	assert.Equal(append(processChecks, "connections"), agentConfig.EnabledChecks)
 	assert.Equal(10*time.Minute, agentConfig.NetworkRelationCacheDurationMin)
 	assert.Equal(15*time.Minute, agentConfig.ProcessCacheDurationMin)
@@ -881,6 +883,7 @@ func TestStackStateNetworkConfigWithHttpMetricsOptions(t *testing.T) {
 	err := yaml.Unmarshal(
 		[]byte(`
 network_tracer_config:
+  max_connections: 2000
   network_tracing_enabled: 'true'
   protocol_inspection_enabled: 'true'
   ebpf_debuglog_enabled: 'true'
@@ -897,6 +900,7 @@ network_tracer_config:
 	assert.Equal(true, agentConfig.NetworkTracer.EnableProtocolInspection)
 	assert.Equal(true, agentConfig.NetworkTracer.EbpfDebuglogEnabled)
 	assert.Equal(config.CollapsingHighest, agentConfig.NetworkTracer.HTTPMetrics.SketchType)
+	assert.Equal(2000, agentConfig.NetworkTracerMaxConnections)
 	assert.Equal(42, agentConfig.NetworkTracer.HTTPMetrics.MaxNumBins)
 	assert.Equal(0.123, agentConfig.NetworkTracer.HTTPMetrics.Accuracy)
 }
@@ -982,6 +986,26 @@ func TestProxyEnv(t *testing.T) {
 		assert.NoError(err)
 		assert.Equal(tc.expected, u.String())
 	}
+}
+
+func TestEnvOverrides(t *testing.T) {
+	assert := assert.New(t)
+	os.Setenv("STS_NETWORK_TRACER_MAX_CONNECTIONS", "500")
+	os.Setenv("STS_CLUSTER_NAME", "test-override")
+	os.Setenv("STS_MAX_PROCESSES_PER_MESSAGE", "501")
+	os.Setenv("STS_MAX_CONNECTIONS_PER_MESSAGE", "502")
+	os.Setenv("STS_PROTOCOL_INSPECTION_ENABLED", "false")
+	os.Setenv("DD_NETWORK_TRACING_ENABLED", "true")
+	os.Setenv("STS_EBPF_DEBUG_LOG_ENABLED", "true")
+
+	agentConfig, _ := NewAgentConfig(nil, nil, nil)
+
+	assert.Equal(500, agentConfig.NetworkTracerMaxConnections)
+	assert.Equal(501, agentConfig.MaxPerMessage)
+	assert.Equal(502, agentConfig.MaxConnectionsPerMessage)
+	assert.Equal(false, agentConfig.NetworkTracer.EnableProtocolInspection)
+	assert.Equal(true, agentConfig.EnableNetworkTracing)
+	assert.Equal(true, agentConfig.NetworkTracer.EbpfDebuglogEnabled)
 }
 
 func getURL(f *ini.File) (*url.URL, error) {

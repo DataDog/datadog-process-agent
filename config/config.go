@@ -5,7 +5,6 @@ package config
 import (
 	"bytes"
 	"fmt"
-	tracerconfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	tracerconfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 
 	"github.com/StackVista/stackstate-process-agent/util"
 
@@ -74,25 +75,26 @@ type APIEndpoint struct {
 // AgentConfig is the global config for the process-agent. This information
 // is sourced from config files and the environment variables.
 type AgentConfig struct {
-	Enabled       bool
-	HostName      string
-	APIEndpoints  []APIEndpoint
-	LogFile       string
-	LogLevel      string
-	LogToConsole  bool
-	QueueSize     int
-	Blacklist     []*regexp.Regexp
-	Scrubber      *DataScrubber
-	MaxProcFDs    int
-	MaxPerMessage int
-	AllowRealTime bool
-	Transport     *http.Transport `json:"-"`
-	Logger        *LoggerConfig
-	DDAgentPy     string
-	DDAgentBin    string
-	DDAgentPyEnv  []string
-	StatsdHost    string
-	StatsdPort    int
+	Enabled                  bool
+	HostName                 string
+	APIEndpoints             []APIEndpoint
+	LogFile                  string
+	LogLevel                 string
+	LogToConsole             bool
+	QueueSize                int
+	Blacklist                []*regexp.Regexp
+	Scrubber                 *DataScrubber
+	MaxProcFDs               int
+	MaxPerMessage            int
+	MaxConnectionsPerMessage int
+	AllowRealTime            bool
+	Transport                *http.Transport `json:"-"`
+	Logger                   *LoggerConfig
+	DDAgentPy                string
+	DDAgentBin               string
+	DDAgentPyEnv             []string
+	StatsdHost               string
+	StatsdPort               int
 
 	// Process Cache Expiration, In Minutes
 	ProcessCacheDurationMin time.Duration
@@ -132,6 +134,8 @@ type AgentConfig struct {
 	NetworkTracerInitRetryDuration    time.Duration
 	NetworkTracerInitRetryAmount      int
 	NetworkTracer                     *NetworkTracerConfig
+	// Maximum connections the network tracer keeps track of
+	NetworkTracerMaxConnections int
 
 	// Check config
 	EnabledChecks  []string
@@ -199,17 +203,18 @@ func NewDefaultAgentConfig() *AgentConfig {
 	canAccessContainers := err == nil
 
 	ac := &AgentConfig{
-		Enabled:       canAccessContainers, // We'll always run inside of a container.
-		APIEndpoints:  []APIEndpoint{{Endpoint: u}},
-		LogFile:       defaultLogFilePath,
-		LogLevel:      "info",
-		LogToConsole:  false,
-		QueueSize:     20,
-		MaxProcFDs:    200,
-		MaxPerMessage: 2000,
-		AllowRealTime: true,
-		HostName:      "",
-		Transport:     NewDefaultTransport(),
+		Enabled:                  canAccessContainers, // We'll always run inside of a container.
+		APIEndpoints:             []APIEndpoint{{Endpoint: u}},
+		LogFile:                  defaultLogFilePath,
+		LogLevel:                 "info",
+		LogToConsole:             false,
+		QueueSize:                20,
+		MaxProcFDs:               200,
+		MaxPerMessage:            maxMessageBatch,
+		MaxConnectionsPerMessage: 100,
+		AllowRealTime:            true,
+		HostName:                 "",
+		Transport:                NewDefaultTransport(),
 
 		// Statsd for internal instrumentation
 		StatsdHost: "127.0.0.1",
@@ -248,6 +253,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		EnableNetworkTracing:              false,
 		EnableLocalNetworkTracer:          true,
 		NetworkInitialConnectionsFromProc: true,
+		NetworkTracerMaxConnections:       10000,
 		NetworkTracerSocketPath:           defaultNetworkTracerSocketPath,
 		NetworkTracerLogFile:              defaultNetworkLogFilePath,
 		NetworkTracerInitRetryDuration:    5 * time.Second,
@@ -725,6 +731,25 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	if v := os.Getenv("STS_NETWORK_TRACER_INIT_RETRY_DURATION_SEC"); v != "" {
 		durationS, _ := strconv.Atoi(v)
 		c.NetworkTracerInitRetryDuration = time.Duration(durationS) * time.Second
+	}
+
+	if v := os.Getenv("STS_NETWORK_TRACER_MAX_CONNECTIONS"); v != "" {
+		maxConnections, _ := strconv.Atoi(v)
+		c.NetworkTracerMaxConnections = maxConnections
+	}
+
+	if v := os.Getenv("STS_MAX_PROCESSES_PER_MESSAGE"); v != "" {
+		maxConnections, _ := strconv.Atoi(v)
+		c.MaxPerMessage = maxConnections
+	}
+
+	if v := os.Getenv("STS_MAX_CONNECTIONS_PER_MESSAGE"); v != "" {
+		maxConnections, _ := strconv.Atoi(v)
+		c.MaxConnectionsPerMessage = maxConnections
+	}
+
+	if ok, _ := isAffirmative(os.Getenv("STS_EBPF_DEBUG_LOG_ENABLED")); ok {
+		c.NetworkTracer.EbpfDebuglogEnabled = true
 	}
 
 	if v, err := strconv.Atoi(os.Getenv("STS_NETWORK_TRACER_INIT_RETRY_AMOUNT")); err == nil {
