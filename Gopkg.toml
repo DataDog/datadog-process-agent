@@ -8,7 +8,7 @@
 
 [[constraint]]
   name = "github.com/StackVista/tcptracer-bpf"
-  revision = "dd10e1ac736a5bf240ba785c16a6a50a933cb9af"
+  version = "7.0.4"
 
 [[constraint]]
   name = "github.com/DataDog/sketches-go"
