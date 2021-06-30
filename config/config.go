@@ -748,6 +748,10 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		c.MaxConnectionsPerMessage = maxConnections
 	}
 
+	if ok, _ := isAffirmative(os.Getenv("STS_EBPF_DEBUG_LOG_ENABLED")); ok {
+		c.NetworkTracer.EbpfDebuglogEnabled = true
+	}
+
 	if v, err := strconv.Atoi(os.Getenv("STS_NETWORK_TRACER_INIT_RETRY_AMOUNT")); err == nil {
 		c.NetworkTracerInitRetryAmount = v
 	}

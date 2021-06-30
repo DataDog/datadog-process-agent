@@ -988,6 +988,26 @@ func TestProxyEnv(t *testing.T) {
 	}
 }
 
+func TestEnvOverrides(t *testing.T) {
+	assert := assert.New(t)
+	os.Setenv("STS_NETWORK_TRACER_MAX_CONNECTIONS", "500")
+	os.Setenv("STS_CLUSTER_NAME", "test-override")
+	os.Setenv("STS_MAX_PROCESSES_PER_MESSAGE", "501")
+	os.Setenv("STS_MAX_CONNECTIONS_PER_MESSAGE", "502")
+	os.Setenv("STS_PROTOCOL_INSPECTION_ENABLED", "false")
+	os.Setenv("DD_ENABLE_NETWORK_TRACING", "false")
+	os.Setenv("STS_EBPF_DEBUG_LOG_ENABLED", "true")
+
+	agentConfig, _ := NewAgentConfig(nil, nil, nil)
+
+	assert.Equal(500, agentConfig.NetworkTracerMaxConnections)
+	assert.Equal(501, agentConfig.MaxPerMessage)
+	assert.Equal(502, agentConfig.MaxConnectionsPerMessage)
+	assert.Equal(false, agentConfig.NetworkTracer.EnableProtocolInspection)
+	assert.Equal(false, agentConfig.EnableNetworkTracing)
+	assert.Equal(true, agentConfig.NetworkTracer.EbpfDebuglogEnabled)
+}
+
 func getURL(f *ini.File) (*url.URL, error) {
 	conf := File{
 		f,
