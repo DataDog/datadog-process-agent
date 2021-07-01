@@ -174,23 +174,28 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 	formattedMetrics := make([]*model.ConnectionMetric, 0, len(metrics))
 
 	groups := initialStatusCodeGroups()
+
 	reqCounts := map[string]uint64{}
 	for _, group := range groups {
 		reqCounts[group.tag] = 0
 	}
+
 	isThereAnyHTTP := false
+
 	for i := range metrics {
 		metric := metrics[i]
 		if metric.Name == common.HTTPResponseTime {
 			isThereAnyHTTP = true
 			tag := metric.Tags[common.HTTPStatusCodeTagName]
 
-			formattedMetrics = append(
-				formattedMetrics,
-				makeConnectionMetricWithHistogram(
-					metric.Name, metric.Tags, metric.Value.Histogram.DDSketch,
-				),
-			)
+			if metric.Value.Histogram.DDSketch != nil && !metric.Value.Histogram.DDSketch.IsEmpty() {
+				formattedMetrics = append(
+					formattedMetrics,
+					makeConnectionMetricWithHistogram(
+						metric.Name, metric.Tags, metric.Value.Histogram.DDSketch,
+					),
+				)
+			}
 
 			statusCodeCount := metric.Value.Histogram.DDSketch.GetCount()
 			accumulatedCount := reqCounts[tag] + uint64(statusCodeCount)
@@ -209,7 +214,7 @@ func formatMetrics(metrics []common.ConnectionMetric, elapsedDuration time.Durat
 
 	if isThereAnyHTTP {
 		for _, group := range groups {
-			if group.ddSketch != nil {
+			if group.ddSketch != nil && !group.ddSketch.IsEmpty() {
 				formattedMetrics = append(formattedMetrics,
 					makeConnectionMetricWithHistogram(
 						common.HTTPResponseTime,

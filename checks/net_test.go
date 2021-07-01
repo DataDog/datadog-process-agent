@@ -392,6 +392,15 @@ func TestFormatMetrics(t *testing.T) {
 	httpMetrics := []common.ConnectionMetric{
 		{
 			Name: "http_response_time_seconds",
+			Tags: map[string]string{"code": "100"},
+			Value: common.ConnectionMetricValue{
+				Histogram: &common.Histogram{
+					DDSketch: makeDDSketch(),
+				},
+			},
+		},
+		{
+			Name: "http_response_time_seconds",
 			Tags: map[string]string{"code": "200"},
 			Value: common.ConnectionMetricValue{
 				Histogram: &common.Histogram{
@@ -441,7 +450,7 @@ func TestFormatMetrics(t *testing.T) {
 		}
 	})
 
-	expected := []string{"200", "201", "2xx", "400", "4xx", "501", "5xx", "any", "success", "1xx", "200", "201", "2xx", "3xx", "400", "4xx", "501", "5xx", "any", "success"}
+	expected := []string{"200", "201", "2xx", "400", "4xx", "501", "5xx", "any", "success", "100", "1xx", "200", "201", "2xx", "3xx", "400", "4xx", "501", "5xx", "any", "success"}
 	var actual []string
 	for _, m := range metrics {
 		actual = append(actual, m.Tags["code"])
@@ -458,17 +467,18 @@ func TestFormatMetrics(t *testing.T) {
 	assertHTTPResponseTimeConnectionMetric(t, metrics[7], "any", 1, 4, 10)
 	assertHTTPResponseTimeConnectionMetric(t, metrics[8], "success", 1, 2, 3)
 
-	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[9], "1xx", 0)
-	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[10], "200", 0.5)
-	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[11], "201", 1)
-	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[12], "2xx", 1.5)
-	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[13], "3xx", 0)
-	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[14], "400", 1.5)
-	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[15], "4xx", 1.5)
-	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[16], "501", 2)
-	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[17], "5xx", 2)
-	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[18], "any", 5)
-	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[19], "success", 1.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[9], "100", 0)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[10], "1xx", 0)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[11], "200", 0.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[12], "201", 1)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[13], "2xx", 1.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[14], "3xx", 0)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[15], "400", 1.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[16], "4xx", 1.5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[17], "501", 2)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[18], "5xx", 2)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[19], "any", 5)
+	assertHTTPRequestsPerSecondConnectionMetric(t, metrics[20], "success", 1.5)
 }
 
 func assertHTTPResponseTimeConnectionMetric(t *testing.T, formattedMetric *model.ConnectionMetric, statusCode string, min int, max int, total int) {
