@@ -121,7 +121,7 @@ func TestFilterConnectionsByProcess(t *testing.T) {
 	now := time.Now()
 	c := &ConnectionsCheck{
 		buf:   new(bytes.Buffer),
-		cache: cache.New(cfg.NetworkRelationCacheDurationMin, cfg.NetworkRelationCacheDurationMin),
+		cache: NewNetworkRelationCache(cfg.NetworkRelationCacheDurationMin),
 	}
 
 	// create the connection stats
@@ -146,7 +146,7 @@ func TestFilterConnectionsByProcess(t *testing.T) {
 		// pid 4 filtered by process blacklisting, so we expect no connections for pid 4
 	}
 
-	connections := c.formatConnections(cfg, connStats, now.Add(-15*time.Second))
+	connections := c.formatConnections(cfg, connStats, 15*time.Second)
 
 	assert.Len(t, connections, 3)
 
@@ -167,7 +167,7 @@ func TestNetworkConnectionNamespaceKubernetes(t *testing.T) {
 
 	c := &ConnectionsCheck{
 		buf:   new(bytes.Buffer),
-		cache: cache.New(cfg.NetworkRelationCacheDurationMin, cfg.NetworkRelationCacheDurationMin),
+		cache: NewNetworkRelationCache(cfg.NetworkRelationCacheDurationMin),
 	}
 
 	// create the connection stats
@@ -193,7 +193,7 @@ func TestNetworkConnectionNamespaceKubernetes(t *testing.T) {
 		4: {Pid: 4, CreateTime: now.Add(-5 * time.Minute).Unix()},
 	}
 
-	connections := c.formatConnections(cfg, connStats, now.Add(-15*time.Second))
+	connections := c.formatConnections(cfg, connStats, 15*time.Second)
 
 	assert.Len(t, connections, 4)
 	for _, c := range connections {
@@ -212,7 +212,7 @@ func TestRelationCache(t *testing.T) {
 	now := time.Now()
 	c := &ConnectionsCheck{
 		buf:   new(bytes.Buffer),
-		cache: cache.New(cfg.NetworkRelationCacheDurationMin, cfg.NetworkRelationCacheDurationMin),
+		cache: NewNetworkRelationCache(cfg.NetworkRelationCacheDurationMin),
 	}
 
 	// create the connection stats
@@ -235,7 +235,7 @@ func TestRelationCache(t *testing.T) {
 	assert.Zero(t, c.cache.ItemCount(), "Cache should be empty before running")
 
 	// first run on an empty cache; expect no process, but cache should be filled in now.
-	firstRun := c.formatConnections(cfg, connStats, now.Add(-15*time.Second))
+	firstRun := c.formatConnections(cfg, connStats, 15*time.Second)
 	assert.Zero(t, len(firstRun), "Connections should be empty when the cache is not present")
 	assert.Equal(t, 4, c.cache.ItemCount(), "Cache should contain 4 elements")
 
@@ -243,13 +243,13 @@ func TestRelationCache(t *testing.T) {
 	time.Sleep(cfg.ShortLivedNetworkRelationQualifierSecs)
 
 	// second run with filled in cache; expect all processes.
-	secondRun := c.formatConnections(cfg, connStats, now.Add(-10*time.Second))
+	secondRun := c.formatConnections(cfg, connStats, 10*time.Second)
 	assert.Equal(t, 4, len(secondRun), "Connections should contain 4 elements")
 	assert.Equal(t, 4, c.cache.ItemCount(), "Cache should contain 4 elements")
 
 	// delete last connection from the connection stats slice, expect it to be excluded from the connection list, but not the cache
 	connStats = connStats[:len(connStats)-1]
-	thirdRun := c.formatConnections(cfg, connStats, now.Add(-5*time.Second))
+	thirdRun := c.formatConnections(cfg, connStats, 5*time.Second)
 	assert.Equal(t, 3, len(thirdRun), "Connections should contain 3 elements")
 	assert.Equal(t, 4, c.cache.ItemCount(), "Cache should contain 4 elements")
 
@@ -276,14 +276,14 @@ func TestRelationShortLivedFiltering(t *testing.T) {
 
 	for _, tc := range []struct {
 		name                             string
-		prepCache                        func(c *cache.Cache)
+		prepCache                        func(c *NetworkRelationCache)
 		expected                         bool
 		networkRelationShortLivedEnabled bool
 	}{
 		{
 			name: fmt.Sprintf("Should not filter a relation that has been observed longer than the short-lived qualifier "+
 				"duration: %d", cfg.ShortLivedProcessQualifierSecs),
-			prepCache: func(c *cache.Cache) {
+			prepCache: func(c *NetworkRelationCache) {
 				err := fillNetworkRelationCache(cfg.HostName, c, connStats[0], lastRun.Add(-5*time.Minute).Unix(), lastRun.Unix())
 				assert.NoError(t, err)
 			},
@@ -293,7 +293,7 @@ func TestRelationShortLivedFiltering(t *testing.T) {
 		{
 			name: fmt.Sprintf("Should not filter a similar relation that has been observed longer than the short-lived qualifier "+
 				"duration: %d", cfg.ShortLivedProcessQualifierSecs),
-			prepCache: func(c *cache.Cache) {
+			prepCache: func(c *NetworkRelationCache) {
 				// use a "similar" connection; thus we observed a similar connection in the previous run
 				conn := makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 54321, 8080)
 				err := fillNetworkRelationCache(cfg.HostName, c, conn, lastRun.Add(-5*time.Minute).Unix(), lastRun.Unix())
@@ -305,7 +305,7 @@ func TestRelationShortLivedFiltering(t *testing.T) {
 		{
 			name: fmt.Sprintf("Should filter a relation that has not been observed longer than the short-lived qualifier "+
 				"duration: %d", cfg.ShortLivedProcessQualifierSecs),
-			prepCache: func(c *cache.Cache) {
+			prepCache: func(c *NetworkRelationCache) {
 				err := fillNetworkRelationCache(cfg.HostName, c, connStats[0], lastRun.Add(-5*time.Second).Unix(), lastRun.Unix())
 				assert.NoError(t, err)
 			},
@@ -314,7 +314,7 @@ func TestRelationShortLivedFiltering(t *testing.T) {
 		},
 		{
 			name: fmt.Sprintf("Should not filter a relation when the networkRelationShortLivedEnabled is set to false"),
-			prepCache: func(c *cache.Cache) {
+			prepCache: func(c *NetworkRelationCache) {
 				err := fillNetworkRelationCache(cfg.HostName, c, connStats[0], lastRun.Add(-5*time.Second).Unix(), lastRun.Unix())
 				assert.NoError(t, err)
 			},
@@ -329,12 +329,12 @@ func TestRelationShortLivedFiltering(t *testing.T) {
 			// Connections Check
 			c := &ConnectionsCheck{
 				buf:   new(bytes.Buffer),
-				cache: cache.New(cfg.NetworkRelationCacheDurationMin, cfg.NetworkRelationCacheDurationMin),
+				cache: NewNetworkRelationCache(cfg.NetworkRelationCacheDurationMin),
 			}
 			// fill in the relation cache
 			tc.prepCache(c.cache)
 
-			connections := c.formatConnections(cfg, connStats, lastRun)
+			connections := c.formatConnections(cfg, connStats, time.Now().Sub(lastRun))
 			var rIDs []string
 			for _, conn := range connections {
 				rIDs = append(rIDs, conn.ConnectionIdentifier)
@@ -366,20 +366,28 @@ func TestFormatNamespace(t *testing.T) {
 	assert.Equal(t, "c:h", formatNamespace("c", "h", makeConnectionStatsNoNs(1, "127.0.0.1", "127.0.0.1", 12345, 8080)))
 }
 
-func fillNetworkRelationCache(hostname string, c *cache.Cache, conn common.ConnectionStats, firstObserved, lastObserved int64) error {
+func fillNetworkRelationCache(hostname string, c *NetworkRelationCache, conn common.ConnectionStats, firstObserved, lastObserved int64) error {
 	relationID, err := CreateNetworkRelationIdentifier(hostname, conn)
 	if err != nil {
 		return err
 	}
-	cachedRelation := &NetworkRelationCache{
-		ConnectionMetrics: ConnectionMetrics{
+
+	metricsCache := cache.New(c.minCacheDuration, c.minCacheDuration)
+	metricsCache.Set(
+		fmt.Sprintf("%v", conn.GetConnection()),
+		&ConnectionMetrics{
 			SendBytes: conn.SendBytes,
 			RecvBytes: conn.RecvBytes,
 		},
-		FirstObserved: firstObserved,
-		LastObserved:  lastObserved,
+		cache.DefaultExpiration,
+	)
+
+	cachedRelation := &NetworkRelationCacheItem{
+		connectionMetrics: metricsCache,
+		FirstObserved:     firstObserved,
+		LastObserved:      lastObserved,
 	}
-	c.Set(relationID, cachedRelation, cache.DefaultExpiration)
+	c.cache.Set(relationID, cachedRelation, cache.DefaultExpiration)
 	return nil
 }
 
