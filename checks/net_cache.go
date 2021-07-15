@@ -7,11 +7,13 @@ import (
 	"time"
 )
 
+// NetworkRelationCache is used to track age of network relations and to keep metrics for connection for calculating rates
 type NetworkRelationCache struct {
 	cache            *cache.Cache
 	minCacheDuration time.Duration
 }
 
+// NewNetworkRelationCache create network relation cache with specified minimum duration for stored items
 func NewNetworkRelationCache(minCacheDuration time.Duration) *NetworkRelationCache {
 	relationCache := cache.New(minCacheDuration, minCacheDuration)
 	return &NetworkRelationCache{
@@ -38,8 +40,9 @@ type NetworkRelationCacheItem struct {
 	connectionMetrics *cache.Cache
 }
 
-func (nrci *NetworkRelationCacheItem) GetMetrics(connId common.ConnTuple) (*ConnectionMetrics, bool) {
-	result, found := nrci.connectionMetrics.Get(fmt.Sprintf("%v", connId))
+// GetMetrics return metrics for particular network connection (not relation)
+func (nrci *NetworkRelationCacheItem) GetMetrics(connID common.ConnTuple) (*ConnectionMetrics, bool) {
+	result, found := nrci.connectionMetrics.Get(fmt.Sprintf("%v", connID))
 	if found {
 		return result.(*ConnectionMetrics), true
 	}
@@ -95,13 +98,12 @@ func (nrc *NetworkRelationCache) PutNetworkRelationCache(relationID string, conn
 	return cachedRelation
 }
 
+// Flush removes all items from cache
 func (nrc *NetworkRelationCache) Flush() {
 	nrc.cache.Flush()
-	for _, item := range nrc.cache.Items() {
-		item.Object.(*NetworkRelationCacheItem).connectionMetrics.Flush()
-	}
 }
 
+// ItemCount returns count of network relations in cache
 func (nrc *NetworkRelationCache) ItemCount() int {
 	return nrc.cache.ItemCount()
 }
