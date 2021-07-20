@@ -12,7 +12,6 @@ import (
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
 	tracerConfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 	log "github.com/cihub/seelog"
-	"github.com/patrickmn/go-cache"
 )
 
 // Init initializes a ConnectionsCheck instance.
@@ -56,7 +55,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		net.GetRemoteNetworkTracerUtil()
 	}
 
-	c.cache = cache.New(cfg.NetworkRelationCacheDurationMin, cfg.NetworkRelationCacheDurationMin)
+	c.cache = NewNetworkRelationCache(cfg.NetworkRelationCacheDurationMin)
 
 	c.buf = new(bytes.Buffer)
 }
