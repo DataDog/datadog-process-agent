@@ -100,6 +100,12 @@ func makeConnectionStats(pid uint32, local, remote string, localPort, remotePort
 	}
 }
 
+func amendConnectionStats(stats common.ConnectionStats, sent, received uint64) common.ConnectionStats {
+	stats.SendBytes = sent
+	stats.RecvBytes = received
+	return stats
+}
+
 func makeConnectionStatsNoNs(pid uint32, local, remote string, localPort, remotePort uint16) common.ConnectionStats {
 	return common.ConnectionStats{
 		Pid:        pid,
@@ -256,6 +262,121 @@ func TestRelationCache(t *testing.T) {
 	// wait for cfg.NetworkRelationCacheDurationMin + a 250 Millisecond buffer to allow the cache expiration to complete
 	time.Sleep(cfg.NetworkRelationCacheDurationMin + 250*time.Millisecond)
 	assert.Zero(t, c.cache.ItemCount(), "Cache should be empty again")
+	//}
+
+	c.cache.Flush()
+}
+
+const (
+	PID1CONN1SEND1 = uint64(1234)
+	PID1CONN1RECV1 = uint64(123)
+	PID1CONN2SEND1 = uint64(4321)
+	PID1CONN2RECV1 = uint64(1432)
+	PID2CONN1SEND1 = uint64(1324)
+	PID2CONN1RECV1 = uint64(2132)
+
+	PID1CONN1SEND2 = uint64(12340)
+	PID1CONN1RECV2 = uint64(1230)
+	PID1CONN2SEND2 = uint64(43210)
+	PID1CONN2RECV2 = uint64(14320)
+	PID2CONN1SEND2 = uint64(13240)
+	PID2CONN1RECV2 = uint64(21320)
+
+	PID1CONN1SEND3 = uint64(123400)
+	PID1CONN1RECV3 = uint64(12300)
+	PID1CONN2SEND3 = uint64(432100)
+	PID1CONN2RECV3 = uint64(143200)
+	PID2CONN1SEND3 = uint64(132400)
+	PID2CONN1RECV3 = uint64(213200)
+
+	TIME1 = float32(10)
+	PID1CONN1SEND2EXPECT = float32(PID1CONN1SEND2 - PID1CONN1SEND1)/TIME1
+	PID1CONN2SEND2EXPECT = float32(PID1CONN2SEND2 - PID1CONN2SEND1)/TIME1
+	PID2CONN1SEND2EXPECT = float32(PID2CONN1SEND2 - PID2CONN1SEND1)/TIME1
+
+	PID1CONN1RECV2EXPECT = float32(PID1CONN1RECV2 - PID1CONN1RECV1)/TIME1
+	PID1CONN2RECV2EXPECT = float32(PID1CONN2RECV2 - PID1CONN2RECV1)/TIME1
+	PID2CONN1RECV2EXPECT = float32(PID2CONN1RECV2 - PID2CONN1RECV1)/TIME1
+
+	TIME2 = float32(100)
+	PID1CONN1SEND3EXPECT = float32(PID1CONN1SEND3 - PID1CONN1SEND2)/TIME2
+	PID1CONN2SEND3EXPECT = float32(PID1CONN2SEND3 - PID1CONN2SEND2)/TIME2
+	PID2CONN1SEND3EXPECT = float32(PID2CONN1SEND3 - PID2CONN1SEND2)/TIME2
+	
+	TIME3 = float32(5)
+	PID1CONN1RECV3EXPECT = float32(PID1CONN1RECV3 - PID1CONN1RECV2)/TIME3
+	PID1CONN2RECV3EXPECT = float32(PID1CONN2RECV3 - PID1CONN2RECV2)/TIME3
+	PID2CONN1RECV3EXPECT = float32(PID2CONN1RECV3 - PID2CONN1RECV2)/TIME3
+)
+
+func TestRelationCacheOrdering(t *testing.T) {
+	cfg := config.NewDefaultAgentConfig()
+	cfg.ShortLivedNetworkRelationQualifierSecs = 500 * time.Millisecond
+	cfg.NetworkRelationCacheDurationMin = 600 * time.Millisecond
+
+	now := time.Now()
+	c := &ConnectionsCheck{
+		buf:   new(bytes.Buffer),
+		cache: NewNetworkRelationCache(cfg.NetworkRelationCacheDurationMin),
+	}
+
+	// create the connection stats
+	connStats := []common.ConnectionStats{
+		makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 12345, 8080),
+		makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 12346, 8080),
+		makeConnectionStats(2, "10.0.0.1", "10.0.0.3", 12347, 8080),
+		makeConnectionStats(3, "10.0.0.1", "10.0.0.4", 12348, 8080),
+	}
+
+	connStats[0] = amendConnectionStats(connStats[0], PID1CONN1SEND1,PID1CONN1RECV1)
+	connStats[1] = amendConnectionStats(connStats[1], PID1CONN2SEND1,PID1CONN2RECV1)
+	connStats[2] = amendConnectionStats(connStats[2], PID2CONN1SEND1,PID2CONN1RECV1)
+
+	// fill in the procs in the lastProcState map to get process create time for the connection mapping
+	Process.lastProcState = map[int32]*model.Process{
+		1: {Pid: 1, CreateTime: now.Add(-5 * time.Minute).Unix()},
+		2: {Pid: 2, CreateTime: now.Add(-5 * time.Minute).Unix()},
+		3: {Pid: 3, CreateTime: now.Add(-5 * time.Minute).Unix()},
+		4: {Pid: 4, CreateTime: now.Add(-5 * time.Minute).Unix()},
+	}
+
+	// first run on an empty cache; expect no process, but cache should be filled in now.
+	c.formatConnections(cfg, connStats, 15*time.Second)
+
+	connStats[0] = amendConnectionStats(connStats[0], PID1CONN1SEND2,PID1CONN1RECV2)
+	connStats[1] = amendConnectionStats(connStats[1], PID1CONN2SEND2,PID1CONN2RECV2)
+	connStats[2] = amendConnectionStats(connStats[2], PID2CONN1SEND2,PID2CONN1RECV2)
+
+	// wait for cfg.ShortLivedNetworkRelationQualifierSecs duration
+	time.Sleep(cfg.ShortLivedNetworkRelationQualifierSecs)
+
+	// second run with filled in cache; expect all processes.
+	secondRun := c.formatConnections(cfg, connStats, 10*time.Second)
+
+	assert.Equal(t, PID1CONN1SEND2EXPECT, secondRun[0].BytesSentPerSecond, "BytesSentPerSecond")
+	assert.Equal(t, PID1CONN2SEND2EXPECT, secondRun[1].BytesSentPerSecond, "BytesSentPerSecond")
+	assert.Equal(t, PID2CONN1SEND2EXPECT, secondRun[2].BytesSentPerSecond, "BytesSentPerSecond")
+
+	assert.Equal(t, PID1CONN1RECV2EXPECT, secondRun[0].BytesReceivedPerSecond, "BytesReceivedPerSecond")
+	assert.Equal(t, PID1CONN2RECV2EXPECT, secondRun[1].BytesReceivedPerSecond, "BytesReceivedPerSecond")
+	assert.Equal(t, PID2CONN1RECV2EXPECT, secondRun[2].BytesReceivedPerSecond, "BytesReceivedPerSecond")
+
+	connStats[0] = amendConnectionStats(connStats[0], PID1CONN1SEND3,PID1CONN1RECV3)
+	connStats[1] = amendConnectionStats(connStats[1], PID1CONN2SEND3,PID1CONN2RECV3)
+	connStats[2] = amendConnectionStats(connStats[2], PID2CONN1SEND3,PID2CONN1RECV3)
+
+	thirdRun := c.formatConnections(cfg, connStats, 5*time.Second)
+
+	assert.Equal(t, PID1CONN1SEND3EXPECT, secondRun[0].BytesSentPerSecond, "BytesSentPerSecond")
+	assert.Equal(t, PID1CONN2SEND3EXPECT, secondRun[1].BytesSentPerSecond, "BytesSentPerSecond")
+	assert.Equal(t, PID2CONN1SEND3EXPECT, secondRun[2].BytesSentPerSecond, "BytesSentPerSecond")
+
+	assert.Equal(t, PID1CONN1RECV3EXPECT, thirdRun[0].BytesReceivedPerSecond, "BytesReceivedPerSecond")
+	assert.Equal(t, PID1CONN2RECV3EXPECT, thirdRun[1].BytesReceivedPerSecond, "BytesReceivedPerSecond")
+	assert.Equal(t, PID2CONN1RECV3EXPECT, thirdRun[2].BytesReceivedPerSecond, "BytesReceivedPerSecond")
+
+	// wait for cfg.NetworkRelationCacheDurationMin + a 250 Millisecond buffer to allow the cache expiration to complete
+	time.Sleep(cfg.NetworkRelationCacheDurationMin + 250*time.Millisecond)
 
 	c.cache.Flush()
 }
