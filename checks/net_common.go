@@ -8,6 +8,7 @@ import (
 	tracerConfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 	log "github.com/cihub/seelog"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -37,7 +38,7 @@ func endpointKey(e *endpointID) string {
 	}
 
 	if e.Endpoint != nil {
-		values = append(values, string(e.Endpoint.Port))
+		values = append(values, strconv.Itoa(int(e.Endpoint.Port)))
 	}
 
 	return strings.Join(values, ":")

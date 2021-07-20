@@ -17,7 +17,6 @@ import (
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	log "github.com/cihub/seelog"
-	"github.com/patrickmn/go-cache"
 )
 
 var (
@@ -39,7 +38,7 @@ type ConnectionsCheck struct {
 	buf *bytes.Buffer // Internal buffer
 
 	// Use this as the network relation cache to calculate rate metrics and drop short-lived network relations
-	cache *cache.Cache
+	cache *NetworkRelationCache
 }
 
 type statusCodeGroup struct {
@@ -88,13 +87,16 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 			if err != nil {
 				log.Warnf("invalid connection description - can't determine ID: %v", err)
 			}
-			PutNetworkRelationCache(c.cache, relationID, conn)
+			c.cache.PutNetworkRelationCache(relationID, conn)
 		}
 		c.prevCheckTime = time.Now()
 		return nil, nil
 	}
 
-	formattedConnections := c.formatConnections(cfg, conns, c.prevCheckTime)
+	currentTime := time.Now()
+	formattedConnections := c.formatConnections(cfg, conns, currentTime.Sub(c.prevCheckTime))
+	c.prevCheckTime = currentTime
+
 	log.Debugf("collected connections in %s, connections found: %v", time.Since(start), formattedConnections)
 	return batchConnections(cfg, groupID, formattedConnections), nil
 }
@@ -121,7 +123,7 @@ func (c *ConnectionsCheck) getConnections() ([]common.ConnectionStats, error) {
 
 // Connections are split up into a chunks of at most 100 connections per message to
 // limit the message size on intake.
-func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []common.ConnectionStats, lastCheckTime time.Time) []*model.Connection {
+func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []common.ConnectionStats, prevCheckTimeDiff time.Duration) []*model.Connection {
 	// Process create-times required to construct unique process hash keys on the backend
 	createTimeForPID := Process.createTimesForPIDs(connectionPIDs(conns))
 
@@ -136,8 +138,15 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 				continue
 			}
 			// Check to see if we have this relation cached and whether we have observed it for the configured time, otherwise skip
-			if relationCache, ok := IsNetworkRelationCached(c.cache, relationID); ok {
+			if relationCache, ok := c.cache.IsNetworkRelationCached(relationID); ok {
 				if !isRelationShortLived(relationID, relationCache.FirstObserved, cfg) {
+					prevValues, found := relationCache.GetMetrics(conn.GetConnection())
+					var prevSentBytes, prevRecvBytes uint64 = 0, 0
+					if found {
+						prevSentBytes = prevValues.SendBytes
+						prevRecvBytes = prevValues.RecvBytes
+					}
+
 					cxs = append(cxs, &model.Connection{
 						Pid:           int32(conn.Pid),
 						PidCreateTime: pidCreateTime,
@@ -151,22 +160,21 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 							Ip:   conn.Remote,
 							Port: int32(conn.RemotePort),
 						},
-						BytesSentPerSecond:     calculateRate(conn.SendBytes, relationCache.ConnectionMetrics.SendBytes, lastCheckTime),
-						BytesReceivedPerSecond: calculateRate(conn.RecvBytes, relationCache.ConnectionMetrics.RecvBytes, lastCheckTime),
+						BytesSentPerSecond:     float32(calculateNormalizedRate(conn.SendBytes-prevSentBytes, prevCheckTimeDiff)),
+						BytesReceivedPerSecond: float32(calculateNormalizedRate(conn.RecvBytes-prevRecvBytes, prevCheckTimeDiff)),
 						Direction:              calculateDirection(conn.Direction),
 						Namespace:              namespace,
 						ConnectionIdentifier:   relationID,
 						ApplicationProtocol:    conn.ApplicationProtocol,
-						Metrics:                formatMetrics(conn.Metrics, time.Now().Sub(lastCheckTime)),
+						Metrics:                formatMetrics(conn.Metrics, prevCheckTimeDiff),
 					})
 				}
 			}
 
 			// put it in the cache for the next run
-			PutNetworkRelationCache(c.cache, relationID, conn)
+			c.cache.PutNetworkRelationCache(relationID, conn)
 		}
 	}
-	c.prevCheckTime = time.Now()
 	return cxs
 }
 
