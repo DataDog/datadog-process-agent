@@ -60,6 +60,9 @@ message CollectorConnections {
 
 	// The Kubernetes/OpenShift clustername
 	string clusterName = 7;
+
+	// The interval which the connections are checked
+	int32 aggregationInterval = 8;
 }
 
 message CollectorRealTime {

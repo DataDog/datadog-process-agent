@@ -70,7 +70,7 @@ func TestNetworkConnectionBatching(t *testing.T) {
 		},
 	} {
 		cfg.MaxConnectionsPerMessage = tc.maxSize
-		chunks := batchConnections(cfg, 0, tc.cur)
+		chunks := batchConnections(cfg, 0, tc.cur, 10000000)
 
 		assert.Len(t, chunks, tc.expectedChunks, "len %d", i)
 		total := 0
@@ -78,6 +78,7 @@ func TestNetworkConnectionBatching(t *testing.T) {
 			connections := c.(*model.CollectorConnections)
 			total += len(connections.Connections)
 			assert.Equal(t, int32(tc.expectedChunks), connections.GroupSize, "group size test %d", i)
+			assert.Equal(t, int32(10), connections.GetAggregationInterval())
 		}
 		assert.Equal(t, tc.expectedTotal, total, "total test %d", i)
 	}

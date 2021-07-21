@@ -94,11 +94,12 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 	}
 
 	currentTime := time.Now()
-	formattedConnections := c.formatConnections(cfg, conns, currentTime.Sub(c.prevCheckTime))
+	aggregatedInterval := currentTime.Sub(c.prevCheckTime)
+	formattedConnections := c.formatConnections(cfg, conns, aggregatedInterval)
 	c.prevCheckTime = currentTime
 
 	log.Debugf("collected connections in %s, connections found: %v", time.Since(start), formattedConnections)
-	return batchConnections(cfg, groupID, formattedConnections), nil
+	return batchConnections(cfg, groupID, formattedConnections, aggregatedInterval), nil
 }
 
 func (c *ConnectionsCheck) getConnections() ([]common.ConnectionStats, error) {
@@ -335,7 +336,7 @@ func mergeWithHistogram(metricSketch *ddsketch.DDSketch, rtHist *ddsketch.DDSket
 	return rtHist
 }
 
-func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
+func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection, interval time.Duration) []model.MessageBody {
 	groupSize := groupSize(len(cxs), cfg.MaxConnectionsPerMessage)
 	batches := make([]model.MessageBody, 0, groupSize)
 
@@ -343,10 +344,11 @@ func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Conne
 		batchSize := min(cfg.MaxConnectionsPerMessage, len(cxs))
 
 		batch := &model.CollectorConnections{
-			HostName:    cfg.HostName,
-			Connections: cxs[:batchSize],
-			GroupId:     groupID,
-			GroupSize:   groupSize,
+			HostName:            cfg.HostName,
+			Connections:         cxs[:batchSize],
+			GroupId:             groupID,
+			GroupSize:           groupSize,
+			AggregationInterval: int32(interval.Milliseconds()),
 		}
 		if strings.TrimSpace(cfg.ClusterName) != "" {
 			batch.ClusterName = cfg.ClusterName
