@@ -348,7 +348,7 @@ func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Conne
 			Connections:         cxs[:batchSize],
 			GroupId:             groupID,
 			GroupSize:           groupSize,
-			AggregationInterval: int32(interval.Milliseconds()),
+			AggregationInterval: int32(interval / time.Millisecond),
 		}
 		if strings.TrimSpace(cfg.ClusterName) != "" {
 			batch.ClusterName = cfg.ClusterName
