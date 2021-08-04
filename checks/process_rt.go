@@ -52,7 +52,7 @@ func (r *RTProcessCheck) RealTime() bool { return true }
 // Processes are split up into a chunks of at most 100 processes per message to
 // limit the message size on intake.
 // See agent.proto for the schema of the message and models used.
-func (r *RTProcessCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32) ([]model.MessageBody, error) {
+func (r *RTProcessCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {
 	cpuTimes, err := cpu.Times(false)
 	if err != nil {
 		return nil, err

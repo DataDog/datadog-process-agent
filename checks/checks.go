@@ -4,6 +4,7 @@ import (
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
+	"time"
 )
 
 // Check is an interface for Agent checks that collect data. Each check returns
@@ -15,7 +16,7 @@ type Check interface {
 	Name() string
 	Endpoint() string
 	RealTime() bool
-	Run(cfg *config.AgentConfig, features features.Features, groupID int32) ([]model.MessageBody, error)
+	Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error)
 }
 
 // All is all the singleton check instances.

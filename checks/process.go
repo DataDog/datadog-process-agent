@@ -65,7 +65,7 @@ func (p *ProcessCheck) RealTime() bool { return false }
 // Processes are split up into a chunks of at most 100 processes per message to
 // limit the message size on intake.
 // See agent.proto for the schema of the message and models used.
-func (p *ProcessCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32) ([]model.MessageBody, error) {
+func (p *ProcessCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {
 	p.Lock()
 	defer p.Unlock()
 
