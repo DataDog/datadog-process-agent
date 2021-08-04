@@ -343,11 +343,11 @@ func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Conne
 		batchSize := min(cfg.MaxConnectionsPerMessage, len(cxs))
 
 		batch := &model.CollectorConnections{
-			HostName:            cfg.HostName,
-			Connections:         cxs[:batchSize],
-			GroupId:             groupID,
-			GroupSize:           groupSize,
-			AggregationInterval: int32(interval / time.Millisecond),
+			HostName:           cfg.HostName,
+			Connections:        cxs[:batchSize],
+			GroupId:            groupID,
+			GroupSize:          groupSize,
+			CollectionInterval: int32(interval / time.Millisecond),
 		}
 		if strings.TrimSpace(cfg.ClusterName) != "" {
 			batch.ClusterName = cfg.ClusterName

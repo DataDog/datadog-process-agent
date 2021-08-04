@@ -78,7 +78,7 @@ func TestNetworkConnectionBatching(t *testing.T) {
 			connections := c.(*model.CollectorConnections)
 			total += len(connections.Connections)
 			assert.Equal(t, int32(tc.expectedChunks), connections.GroupSize, "group size test %d", i)
-			assert.Equal(t, int32(10), connections.GetAggregationInterval())
+			assert.Equal(t, int32(10), connections.GetCollectionInterval())
 		}
 		assert.Equal(t, tc.expectedTotal, total, "total test %d", i)
 	}
