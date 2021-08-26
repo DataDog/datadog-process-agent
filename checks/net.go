@@ -62,7 +62,7 @@ func (c *ConnectionsCheck) RealTime() bool { return false }
 // this information. For each connection we'll return a `model.Connection`
 // that will be bundled up into a `CollectorConnections`.
 // See agent.proto for the schema of the message and models.
-func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32) ([]model.MessageBody, error) {
+func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {
 	// If local tracer failed to initialize, so we shouldn't be doing any checks
 	if c.useLocalTracer && c.localTracer == nil {
 		log.Errorf("failed to create network tracer. Set the environment STS_NETWORK_TRACING_ENABLED to false to disable network connections reporting")
@@ -89,16 +89,16 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 			}
 			c.cache.PutNetworkRelationCache(relationID, conn)
 		}
-		c.prevCheckTime = time.Now()
+		c.prevCheckTime = currentTime
 		return nil, nil
 	}
 
-	currentTime := time.Now()
-	formattedConnections := c.formatConnections(cfg, conns, currentTime.Sub(c.prevCheckTime))
+	aggregatedInterval := currentTime.Sub(c.prevCheckTime)
+	formattedConnections := c.formatConnections(cfg, conns, aggregatedInterval)
 	c.prevCheckTime = currentTime
 
 	log.Debugf("collected connections in %s, connections found: %v", time.Since(start), formattedConnections)
-	return batchConnections(cfg, groupID, formattedConnections), nil
+	return batchConnections(cfg, groupID, formattedConnections, aggregatedInterval), nil
 }
 
 func (c *ConnectionsCheck) getConnections() ([]common.ConnectionStats, error) {
@@ -335,7 +335,7 @@ func mergeWithHistogram(metricSketch *ddsketch.DDSketch, rtHist *ddsketch.DDSket
 	return rtHist
 }
 
-func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection) []model.MessageBody {
+func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Connection, interval time.Duration) []model.MessageBody {
 	groupSize := groupSize(len(cxs), cfg.MaxConnectionsPerMessage)
 	batches := make([]model.MessageBody, 0, groupSize)
 
@@ -343,10 +343,11 @@ func batchConnections(cfg *config.AgentConfig, groupID int32, cxs []*model.Conne
 		batchSize := min(cfg.MaxConnectionsPerMessage, len(cxs))
 
 		batch := &model.CollectorConnections{
-			HostName:    cfg.HostName,
-			Connections: cxs[:batchSize],
-			GroupId:     groupID,
-			GroupSize:   groupSize,
+			HostName:           cfg.HostName,
+			Connections:        cxs[:batchSize],
+			GroupId:            groupID,
+			GroupSize:          groupSize,
+			CollectionInterval: int32(interval / time.Millisecond),
 		}
 		if strings.TrimSpace(cfg.ClusterName) != "" {
 			batch.ClusterName = cfg.ClusterName

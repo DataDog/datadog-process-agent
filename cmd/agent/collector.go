@@ -23,8 +23,9 @@ import (
 )
 
 type checkPayload struct {
-	messages []model.MessageBody
-	endpoint string
+	messages  []model.MessageBody
+	endpoint  string
+	timestamp time.Time
 }
 
 // Collector will collect metrics from the local system and ship to the backend.
@@ -77,18 +78,18 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 
 func (l *Collector) runCheck(c checks.Check, features features.Features) {
 	runCounter := atomic.AddInt32(&l.runCounter, 1)
-	s := time.Now()
+	currentTime := time.Now()
 	// update the last collected timestamp for info
-	updateLastCollectTime(time.Now())
-	messages, err := c.Run(l.cfg, features, atomic.AddInt32(&l.groupID, 1))
+	updateLastCollectTime(currentTime)
+	messages, err := c.Run(l.cfg, features, atomic.AddInt32(&l.groupID, 1), currentTime)
 	if err != nil {
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
-		l.send <- checkPayload{messages, c.Endpoint()}
+		l.send <- checkPayload{messages, c.Endpoint(), currentTime}
 		// update proc and container count for info
 		updateProcContainerCount(messages)
 		if !c.RealTime() {
-			d := time.Since(s)
+			d := time.Since(currentTime)
 			switch {
 			case runCounter < 5:
 				log.Infof("Finished check #%d in %s", runCounter, d)
@@ -134,7 +135,7 @@ func (l *Collector) run(exit chan bool) {
 					<-l.send
 				}
 				for _, m := range payload.messages {
-					l.postMessage(payload.endpoint, m)
+					l.postMessage(payload.endpoint, m, payload.timestamp)
 				}
 			case <-heartbeat.C:
 				statsd.Client.Gauge("datadog.process.agent", 1, []string{"version:" + Version}, 1)
@@ -193,7 +194,7 @@ func (l *Collector) run(exit chan bool) {
 	<-exit
 }
 
-func (l *Collector) postMessage(checkPath string, m model.MessageBody) {
+func (l *Collector) postMessage(checkPath string, m model.MessageBody, timestamp time.Time) {
 	msgType, err := model.DetectMessageType(m)
 	if err != nil {
 		log.Errorf("Unable to detect message type: %s", err)
@@ -202,9 +203,10 @@ func (l *Collector) postMessage(checkPath string, m model.MessageBody) {
 
 	body, err := model.EncodeMessage(model.Message{
 		Header: model.MessageHeader{
-			Version:  model.MessageV3,
-			Encoding: model.MessageEncodingZstdPB,
-			Type:     msgType,
+			Version:   model.MessageV3,
+			Encoding:  model.MessageEncodingZstdPB,
+			Type:      msgType,
+			Timestamp: timestamp.UnixNano() / int64(time.Millisecond),
 		}, Body: m})
 
 	if err != nil {

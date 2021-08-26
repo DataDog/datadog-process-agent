@@ -38,7 +38,7 @@ func (c *ContainerCheck) RealTime() bool { return false }
 
 // Run runs the ContainerCheck to collect a list of running containers and the
 // stats for each container.
-func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32) ([]model.MessageBody, error) {
+func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {
 
 	return nil, nil
 }
