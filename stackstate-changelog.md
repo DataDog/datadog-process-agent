@@ -1,5 +1,15 @@
 # StackState Process Agent releases
 
+## 2.7.8
+
+**Features**
+- Added collection interval to payload 
+
+## 2.7.7
+
+**Bugfix**
+- Fixed bytes sent/received metrics for network connections going enormously high sometimes
+
 ## 2.7.6
 
 **Bugfix**
