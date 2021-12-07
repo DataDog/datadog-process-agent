@@ -38,8 +38,6 @@ const (
 	MessageV3                = 3
 )
 
-const headerLength = 1 + 1 + 1 + 1 + 4
-
 // MessageHeader is attached to all messages at the head of the message. Some
 // fields are added in later versions so make sure you're only using fields that
 // are available in the defined Version.
@@ -306,27 +304,27 @@ func encodeHeader(h MessageHeader) ([]byte, error) {
 
 func encodeHeaderV3(h MessageHeader) ([]byte, error) {
 	b := new(bytes.Buffer)
-	err := binary.Write(b, binary.LittleEndian, uint8(h.Version))
+	err := binary.Write(b, binary.BigEndian, uint8(h.Version))
 	if err != nil {
 		return nil, err
 	}
-	err = binary.Write(b, binary.LittleEndian, uint8(h.Encoding))
+	err = binary.Write(b, binary.BigEndian, uint8(h.Encoding))
 	if err != nil {
 		return nil, err
 	}
-	err = binary.Write(b, binary.LittleEndian, uint8(h.Type))
+	err = binary.Write(b, binary.BigEndian, uint8(h.Type))
 	if err != nil {
 		return nil, err
 	}
-	err = binary.Write(b, binary.LittleEndian, uint8(h.SubscriptionID))
+	err = binary.Write(b, binary.BigEndian, uint8(h.SubscriptionID))
 	if err != nil {
 		return nil, err
 	}
-	err = binary.Write(b, binary.LittleEndian, h.OrgID)
+	err = binary.Write(b, binary.BigEndian, h.OrgID)
 	if err != nil {
 		return nil, err
 	}
-	err = binary.Write(b, binary.LittleEndian, h.Timestamp)
+	err = binary.Write(b, binary.BigEndian, h.Timestamp)
 	if err != nil {
 		return nil, err
 	}
