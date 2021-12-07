@@ -19,6 +19,8 @@ func TestEncodeZeroTimestamp(t *testing.T) {
 	assert.NoError(t, err)
 	headerB64 := base64.StdEncoding.EncodeToString(headerBytes)
 
+	// the same values are expected in the StackState receiver
+	// make sure of backward compatibility when changing it
 	assert.EqualValues(t, "AwIMAAAAAAAAAAAAAAAAAA==", headerB64)
 }
 
@@ -35,5 +37,7 @@ func TestEncodeNonZeroTimestamp(t *testing.T) {
 	assert.NoError(t, err)
 	headerB64 := base64.StdEncoding.EncodeToString(headerBytes)
 
+	// the same values are expected in the StackState receiver
+	// make sure of backward compatibility when changing it
 	assert.EqualValues(t, "AwIMAAAAAAAAAAF9f9vd9A==", headerB64)
 }
