@@ -15,10 +15,8 @@ def os
 
 desc "Setup dependencies"
 task :deps do
-  system("go get -u github.com/golang/dep/cmd/dep")
   system("go get -u golang.org/x/lint/golint")
   system("go get -u github.com/awalterschulze/goderive")
-  system("dep ensure -v -vendor-only")
 end
 
 task :default => [:ci]

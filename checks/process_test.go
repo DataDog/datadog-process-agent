@@ -283,9 +283,9 @@ func TestProcessInclusions(t *testing.T) {
 		amountTopIOWriteUsage       int
 		amountTopMemoryUsage        int
 		memoryUsageThreshold        int
-		expectedPids        		[]int
-		totalCPUpercentage float32
-		totalMemory        uint64
+		expectedPids                []int
+		totalCPUpercentage          float32
+		totalMemory                 uint64
 	}{
 		{
 			name: "Should return the correct top resource using processes",
@@ -345,9 +345,9 @@ func TestProcessInclusions(t *testing.T) {
 			amountTopIOWriteUsage:       1,
 			amountTopMemoryUsage:        1,
 			memoryUsageThreshold:        35,
-			expectedPids: 				 []int {2, 4, 6, 8},
-			totalCPUpercentage: 25,
-			totalMemory:        40,
+			expectedPids:                []int{2, 4, 6, 8},
+			totalCPUpercentage:          25,
+			totalMemory:                 40,
 		},
 		{
 			name: "Should independently return the process which consumed the most resources for each of the categories",
@@ -407,9 +407,9 @@ func TestProcessInclusions(t *testing.T) {
 			amountTopIOWriteUsage:       1,
 			amountTopMemoryUsage:        1,
 			memoryUsageThreshold:        35,
-			expectedPids: 				 []int {1},
-			totalCPUpercentage: 25,
-			totalMemory:        40,
+			expectedPids:                []int{1},
+			totalCPUpercentage:          25,
+			totalMemory:                 40,
 		},
 		{
 			name: "Should not return CPU / Memory top consuming processes when the thresholds are not exceeded",
@@ -469,9 +469,9 @@ func TestProcessInclusions(t *testing.T) {
 			amountTopIOWriteUsage:       1,
 			amountTopMemoryUsage:        1,
 			memoryUsageThreshold:        35,
-			expectedPids: 			     []int {6, 8},
-			totalCPUpercentage: 10,
-			totalMemory:        10,
+			expectedPids:                []int{6, 8},
+			totalCPUpercentage:          10,
+			totalMemory:                 10,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
