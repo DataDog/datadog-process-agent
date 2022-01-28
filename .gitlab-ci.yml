@@ -1,7 +1,7 @@
 stages:
-- build
-- pre_release
-- release
+  - build
+  - pre_release
+  - release
 
 variables:
   SRC_PATH: /src/github.com/StackVista/stackstate-process-agent
@@ -11,15 +11,16 @@ variables:
   BUILD_ENV: /root/.bashrc
   STS_DOCKER_RELEASE_REPO: stackstate-process-agent
   STS_DOCKER_TEST_REPO: stackstate-process-agent-test
+  GO111MODULE: "on"
 
 before_script:
-    - mkdir -p /go/src/github.com/StackVista
-    - ln -s $CI_PROJECT_DIR  /go/src/github.com/StackVista/stackstate-process-agent
+  - mkdir -p /go/src/github.com/StackVista
+  - ln -s $CI_PROJECT_DIR  /go/src/github.com/StackVista/stackstate-process-agent
 
 build_linux:
   image: stackstate/stackstate-process-agent-runner-gitlab:centos6
   stage: build
-  
+
   script:
     - touch $BUILD_ENV
     - echo 'export IMPORT_PATH=$GOPATH/src/github.com/StackVista/stackstate-process-agent' >> $BUILD_ENV
@@ -73,7 +74,7 @@ pre_release_windows:
   stage: pre_release
   needs:
     - build_windows
-  before_script: []  
+  before_script: []
   script:
     - call rake windows-versioned-artifact
     - aws.exe s3 cp . s3://stackstate-process-agent-2-test/%CI_COMMIT_REF_NAME% --recursive --exclude "*" --include "*.exe" --acl public-read
@@ -101,16 +102,16 @@ pre_release_linux:
     - ls -la $IMPORT_PATH
     - ls -la $IMPORT_PATH/packaging
     - cd $IMPORT_PATH/packaging && ./publish_staging_package.sh
-    
+
 pre_release_image:
   stage: pre_release
   image: docker:18.06.0
   needs:
     - build_linux
   variables:
-      DOCKER_DRIVER: overlay
-      DOCKER_HOST: tcp://docker:2375
-      DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   services:
     - docker:18.09-dind
   script:
@@ -123,9 +124,9 @@ release_image:
   needs:
     - build_linux
   variables:
-      DOCKER_DRIVER: overlay
-      DOCKER_HOST: tcp://docker:2375
-      DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   services:
     - docker:18.09-dind
   script:
@@ -135,4 +136,4 @@ release_image:
   when: manual
   only:
     - tags
-    - trigger   
+    - trigger
