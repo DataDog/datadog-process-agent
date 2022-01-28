@@ -15,7 +15,7 @@
         "zxh404.vscode-proto3",
     ],
     "containerEnv": {
-        "GO111MODULE": "off",
+        "GO111MODULE": "on",
         "GOMOD": "",
     },
     "remoteEnv": {
