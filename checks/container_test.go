@@ -4,9 +4,10 @@
 package checks
 
 import (
-	"github.com/StackVista/stackstate-process-agent/config"
 	"testing"
 	"time"
+
+	"github.com/StackVista/stackstate-process-agent/config"
 
 	"github.com/StackVista/stackstate-agent/pkg/util/containers"
 	"github.com/StackVista/stackstate-agent/pkg/util/containers/metrics"
@@ -16,12 +17,18 @@ import (
 )
 
 func makeContainer(id string) *containers.Container {
-	return &containers.Container{
-		ID:     id,
-		CPU:    &metrics.CgroupTimesStat{},
-		Memory: &metrics.CgroupMemStat{},
-		IO:     &metrics.CgroupIOStat{},
+	ctn := &containers.Container{
+		ID: id,
+		ContainerMetrics: metrics.ContainerMetrics{
+			CPU:    &metrics.ContainerCPUStats{},
+			Memory: &metrics.ContainerMemStats{},
+			IO:     &metrics.ContainerIOStats{},
+		},
+		Limits:  metrics.ContainerLimits{},
+		Network: metrics.ContainerNetStats{},
 	}
+
+	return ctn
 }
 
 func TestTransformKubernetesTags(t *testing.T) {
@@ -120,13 +127,15 @@ func TestContainerNils(t *testing.T) {
 	// Make sure we get values when we have nils in last.
 	cur = []*containers.Container{
 		{
-			ID:  "1",
-			CPU: &metrics.CgroupTimesStat{},
+			ID: "1",
+			ContainerMetrics: metrics.ContainerMetrics{
+				CPU: &metrics.ContainerCPUStats{},
+			},
 		},
 	}
 	last = map[string]util.ContainerRateMetrics{
 		"1": {
-			CPU: &metrics.CgroupTimesStat{},
+			CPU: &metrics.ContainerCPUStats{},
 		},
 	}
 	fmtContainers(cfg, cur, last, time.Now())

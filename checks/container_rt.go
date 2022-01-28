@@ -4,9 +4,10 @@
 package checks
 
 import (
-	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"runtime"
 	"time"
+
+	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 
 	"github.com/StackVista/stackstate-agent/pkg/util/containers"
 
@@ -107,10 +108,10 @@ func fmtContainerStats(
 			UserPct:    calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun),
 			SystemPct:  calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
 			TotalPct:   calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
-			CpuLimit:   float32(ctr.CPULimit),
+			CpuLimit:   float32(ctr.Limits.CPULimit),
 			MemRss:     ctr.Memory.RSS,
 			MemCache:   ctr.Memory.Cache,
-			MemLimit:   ctr.MemLimit,
+			MemLimit:   ctr.Limits.MemLimit,
 			Rbps:       calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun),
 			Wbps:       calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun),
 			NetRcvdPs:  calculateRate(ifStats.PacketsRcvd, lastCtr.NetworkSum.PacketsRcvd, lastRun),

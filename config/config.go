@@ -20,7 +20,7 @@ import (
 	"github.com/StackVista/stackstate-process-agent/util"
 
 	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
-	ecsutil "github.com/StackVista/stackstate-agent/pkg/util/ecs"
+	"github.com/StackVista/stackstate-agent/pkg/util/fargate"
 
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"
@@ -466,10 +466,10 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 	}
 
 	if cfg.HostName == "" {
-		if ecsutil.IsFargateInstance() {
+		if fargate.IsFargateInstance() {
 			// Fargate tasks should have no concept of host names, so we're using the task ARN.
-			if taskMeta, err := ecsutil.GetTaskMetadata(); err == nil {
-				cfg.HostName = fmt.Sprintf("fargate_task:%s", taskMeta.TaskARN)
+			if hostname, err := fargate.GetFargateHost(); err == nil {
+				cfg.HostName = fmt.Sprintf("fargate_task:%s", hostname)
 			} else {
 				log.Errorf("Failed to retrieve Fargate task metadata: %s", err)
 			}

@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
-	ddutil "github.com/StackVista/stackstate-agent/pkg/util"
+	httputils "github.com/StackVista/stackstate-agent/pkg/util/http"
 
 	"github.com/StackVista/stackstate-process-agent/util"
 )
@@ -329,7 +329,7 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 	// Pull additional parameters from the global config file.
 	agentConf.LogLevel = ddconfig.Datadog.GetString("log_level")
 	agentConf.StatsdPort = ddconfig.Datadog.GetInt("dogstatsd_port")
-	agentConf.Transport = ddutil.CreateHTTPTransport()
+	agentConf.Transport = httputils.CreateHTTPTransport()
 
 	return agentConf, nil
 }
@@ -380,7 +380,7 @@ func SetupDDAgentConfig(configPath string) error {
 	}
 
 	// load the configuration
-	if err := ddconfig.Load(); err != nil {
+	if _, err := ddconfig.Load(); err != nil {
 		return fmt.Errorf("unable to load Datadog config file: %s", err)
 	}
 

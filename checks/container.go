@@ -5,11 +5,12 @@ package checks
 
 import (
 	"fmt"
-	"github.com/StackVista/stackstate-agent/pkg/tagger/collectors"
-	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/StackVista/stackstate-agent/pkg/tagger/collectors"
+	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 
 	"github.com/StackVista/stackstate-agent/pkg/tagger"
 	"github.com/StackVista/stackstate-agent/pkg/util/containers"
@@ -121,11 +122,11 @@ func fmtContainers(
 		containers = append(containers, &model.Container{
 			Id:          ctr.ID,
 			Type:        ctr.Type,
-			CpuLimit:    float32(ctr.CPULimit),
+			CpuLimit:    float32(ctr.Limits.CPULimit),
 			UserPct:     calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun),
 			SystemPct:   calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
 			TotalPct:    calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
-			MemoryLimit: ctr.MemLimit,
+			MemoryLimit: ctr.Limits.MemLimit,
 			MemRss:      ctr.Memory.RSS,
 			MemCache:    ctr.Memory.Cache,
 			Created:     ctr.Created,
@@ -173,7 +174,7 @@ func fillNilContainer(ctr *containers.Container) *containers.Container {
 		ctr.Network = util.NullContainerRates.Network
 	}
 	if ctr.Memory == nil {
-		ctr.Memory = &metrics.CgroupMemStat{}
+		ctr.Memory = &metrics.ContainerMemStats{}
 	}
 	return ctr
 }
