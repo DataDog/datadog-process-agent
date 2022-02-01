@@ -18,7 +18,7 @@ before_script:
   - ln -s $CI_PROJECT_DIR  /go/src/github.com/StackVista/stackstate-process-agent
 
 build_linux:
-  image: stackstate/stackstate-process-agent-runner-gitlab:centos6
+  image: stackstate/stackstate-agent-runner-gitlab:centos7_20211004_v7_0
   stage: build
 
   script:
@@ -89,7 +89,7 @@ pre_release_windows:
 
 pre_release_linux:
   stage: pre_release
-  image: stackstate/stackstate-process-agent-runner-gitlab:centos6
+  image: stackstate/stackstate-agent-runner-gitlab:centos7_20211004_v7_0
   needs:
     - build_linux
   before_script:
