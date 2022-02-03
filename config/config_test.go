@@ -1396,3 +1396,10 @@ func TestNetworkTracerInitRetry_FromYaml(t *testing.T) {
 	assert.Equal(t, 10, agentConfig.NetworkTracerInitRetryAmount)
 	assert.Equal(t, 50*time.Second, agentConfig.NetworkTracerInitRetryDuration)
 }
+
+func TestStsSkipSllValidation(t *testing.T) {
+	_ = os.Setenv("STS_SKIP_SSL_VALIDATION", "true")
+	_, err := NewAgentConfig(nil, &YamlAgentConfig{}, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, "true", ddconfig.Datadog.GetString("skip_ssl_validation"))
+}

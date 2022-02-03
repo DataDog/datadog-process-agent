@@ -10,8 +10,8 @@ Vagrant.configure("2") do |config|
 
     agent1.vm.network :private_network, ip: "192.168.56.101"
 
-    config.vm.synced_folder "../../../..", "/opt/stackstate-go"
-    config.vm.provision :shell, :path => "bootstrap.sh", :privileged => false, :args => processes_to_install
+    agent1.vm.synced_folder "../../../..", "/opt/stackstate-go"
+    agent1.vm.provision :shell, :path => "bootstrap.sh", :privileged => false, :args => processes_to_install
 
     agent1.vm.provider :virtualbox do |v|
       v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
@@ -27,7 +27,7 @@ Vagrant.configure("2") do |config|
 
     agent2.vm.network :private_network, ip: "192.168.56.102"
 
-    config.vm.synced_folder "../../../..", "/opt/stackstate-go"
+    agent2.vm.synced_folder "../../../..", "/opt/stackstate-go"
 
     agent2.vm.provider :virtualbox do |v|
       v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
@@ -36,15 +36,15 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  config.vm.define "process-agent-win" do |agent1|
-    agent1.vm.box = "gusztavvargadr/w16s"
-    agent1.vm.hostname = 'process-agent-win'
+  config.vm.define "process-agent-win" do |agent3|
+    agent3.vm.box = "gusztavvargadr/w16s"
+    agent3.vm.hostname = 'process-agent-win'
 
-    agent1.vm.network :private_network, ip: "192.168.56.103"
+    agent3.vm.network :private_network, ip: "192.168.56.103"
 
-    config.vm.provision "shell", path: "bootstrap.ps1"
+    agent3.vm.provision "shell", path: "bootstrap.ps1"
 
-    agent1.vm.provider :virtualbox do |v|
+    agent3.vm.provider :virtualbox do |v|
       v.customize ["modifyvm", :id, "--name", "process-agent-win"]
     end
   end

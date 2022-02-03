@@ -17,7 +17,7 @@ cp $ARTIFACT_PATH DockerFiles/agent
 docker build -t stackstate/${IMAGE_REPO}:${IMAGE_TAG} DockerFiles/agent
 
 
-docker login -u $DOCKER_USER -p $DOCKER_PASS
+docker login -u $docker_user -p $docker_password
 docker push stackstate/${IMAGE_REPO}:${IMAGE_TAG}
 
 if [ "$PUSH_LATEST" = "true" ]; then

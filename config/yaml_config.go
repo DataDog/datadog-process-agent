@@ -326,6 +326,10 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		}
 	}
 
+	// Ugly fix until we merge process agent to main agent repo.
+	ddconfig.Datadog.SetEnvPrefix("STS")
+	_ = ddconfig.Datadog.BindEnv("skip_ssl_validation")
+	log.Infof("STS_SKIP_SSL_VALIDATION: %v", ddconfig.Datadog.GetString("skip_ssl_validation"))
 	// Pull additional parameters from the global config file.
 	agentConf.LogLevel = ddconfig.Datadog.GetString("log_level")
 	agentConf.StatsdPort = ddconfig.Datadog.GetInt("dogstatsd_port")

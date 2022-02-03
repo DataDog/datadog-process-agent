@@ -18,6 +18,7 @@ task :deps do
   system("go get -u github.com/golang/dep/cmd/dep")
   system("go get -u golang.org/x/lint/golint")
   system("go get -u github.com/awalterschulze/goderive")
+  system("go get -u github.com/gogo/protobuf")
   system("dep ensure -v -vendor-only")
 end
 
