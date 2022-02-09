@@ -17,6 +17,7 @@ build_linux:
   stage: build
 
   script:
+    - printenv
     - source .gitlab-scripts/build_linux.sh
   artifacts:
     paths:
