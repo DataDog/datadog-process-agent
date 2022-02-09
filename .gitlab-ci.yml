@@ -17,16 +17,7 @@ build_linux:
   stage: build
 
   script:
-    - export PROCESS_AGENT_VERSION=$(packaging/version.sh)
-    - export EBPF=${EBPF:-true}
-    - "source ~/.bashrc"
-    - go get golang.org/x/tools/cmd/gorename
-    - go get golang.org/x/tools/cmd/eg
-    - go get golang.org/x/lint/golint
-    - printenv
-    - (cd packaging; ./apply_branding.sh)
-    - rake ci
-    - (cd packaging; ./build_staging_package.sh)
+    - source .gitlab-scripts/build_linux.sh
   artifacts:
     paths:
       - $CI_PROJECT_DIR/process-agent
