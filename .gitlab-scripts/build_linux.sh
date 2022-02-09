@@ -1,6 +1,6 @@
 export PROCESS_AGENT_VERSION=$(packaging/version.sh)
 export EBPF=${EBPF:-true}
-"source ~/.bashrc"
+source ~/.bashrc
 go get golang.org/x/tools/cmd/gorename
 go get golang.org/x/tools/cmd/eg
 go get golang.org/x/lint/golint
