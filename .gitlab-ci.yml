@@ -17,6 +17,7 @@ build_linux:
   stage: build
 
   script:
+    - export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH
     - printenv
     - source .gitlab-scripts/build_linux.sh
   artifacts:
