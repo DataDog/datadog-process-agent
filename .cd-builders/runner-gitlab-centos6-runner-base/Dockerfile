@@ -32,7 +32,7 @@ RUN curl "https://www.python.org/ftp/python/$PYTHON_VERSION/Python-$PYTHON_VERSI
     && ./configure --enable-optimizations \
     && make altinstall
 
-RUN curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py" \
+RUN curl "https://bootstrap.pypa.io/pip/2.7/get-pip.py" -o "get-pip.py" \
     && python get-pip.py \
     && rm get-pip.py \
     && pip install virtualenv==15.2.0
