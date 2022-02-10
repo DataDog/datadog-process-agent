@@ -11,6 +11,12 @@ variables:
   STS_DOCKER_RELEASE_REPO: stackstate-process-agent
   STS_DOCKER_TEST_REPO: stackstate-process-agent-test
   GO111MODULE: "on"
+  BUILDER_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-rpm
+
+before_script:
+  # login to both docker registries
+  - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
+  - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
 
 build_linux:
   image: stackstate/stackstate-agent-runner-gitlab:latest7
@@ -109,3 +115,19 @@ release_image:
   only:
     - tags
     - trigger
+
+
+
+build_runners:
+  stage: triggers
+  image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
+  services:
+    - name: artifactory.tooling.stackstate.io/docker-virtual/docker:18.09-dind
+      alias: docker
+  script:
+    - cd $BUILDER_DIR
+    - make build
+    - make push
+  rules:
+    # make a manual job only on the master branch
+    - when: manual
