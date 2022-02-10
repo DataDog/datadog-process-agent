@@ -117,12 +117,7 @@ release_image:
   stage: build
   image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
   services:
-    - name: artifactory.tooling.stackstate.io/docker-virtual/docker:18.09-dind
-      alias: docker
-  before_script:
-    # login to both docker registries
-    - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
-    - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
+    - docker:dind
   retry:
     max: 2
     when:
@@ -130,6 +125,8 @@ release_image:
   rules:
     - when: manual
   script:
+    - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
+    - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
     - cd $RUNNER_DIR
     - make build
     - make push
