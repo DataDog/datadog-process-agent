@@ -137,7 +137,7 @@ release_image:
     - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
   script:
     - cd $RUNNER_DIR_PREFIX$RUNNER
-    - RUNTIMETAG=$(shell date +%Y%m%d)
+    - RUNTIMETAG=$(date +%Y%m%d)
     - docker build -t stackstate/stackstate-process-agent-runner-gitlab:$(RUNNER)-$(RUNTIMETAG) .
     - docker push stackstate/stackstate-process-agent-runner-gitlab:$(RUNNER)-$(RUNTIMETAG)
 
