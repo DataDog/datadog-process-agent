@@ -65,7 +65,7 @@ pre_release_windows:
 
 pre_release_linux:
   stage: pre_release
-  image: stackstate/stackstate-agent-runner-gitlab:centos7_20211004_v7_0
+  image: stackstate/stackstate-agent-runner-gitlab:latest7
   needs:
     - build_linux
   before_script:
@@ -73,7 +73,7 @@ pre_release_linux:
   script:
     - ls -la $CI_PROJECT_DIR
     - ls -la $CI_PROJECT_DIR/packaging
-    - (cd $CI_PROJECT_DIR/packaging; ./publish_staging_package.sh)
+    - cd $CI_PROJECT_DIR/packaging && ./publish_staging_package.sh
 
 pre_release_image:
   stage: pre_release
