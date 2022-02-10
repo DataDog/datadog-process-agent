@@ -1,4 +1,5 @@
 stages:
+  - build_runner
   - build
   - pre_release
   - release
@@ -11,7 +12,9 @@ variables:
   STS_DOCKER_RELEASE_REPO: stackstate-process-agent
   STS_DOCKER_TEST_REPO: stackstate-process-agent-test
   GO111MODULE: "on"
-  BUILDER_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-rpm
+  RUNNER_CENTOS6_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-centos6
+  RUNNER_RUNNER_BASE_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-centos6-runner-base
+  RUNNER_RPM_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-rpm
 
 before_script:
   # login to both docker registries
@@ -116,16 +119,34 @@ release_image:
     - tags
     - trigger
 
-build_runners:
-  stage: build
-  image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
+.runner_base: &runner_base
+  stage: build_runner
   services:
     - name: artifactory.tooling.stackstate.io/docker-virtual/docker:18.09-dind
       alias: docker
+  image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
+  retry:
+    max: 2
+    when:
+      - always
+  rules:
+    - when: manual
   script:
-    - cd $BUILDER_DIR
+    - cd $RUNNER_DIR
     - make build
     - make push
-  rules:
-    # make a manual job only on the master branch
-    - when: manual
+
+build_centos6:
+  <<: *runner_base
+  variables:
+    RUNNER_DIR: $RUNNER_CENTOS6_DIR
+
+build_runner_base:
+  <<: *runner_base
+  variables:
+    RUNNER_DIR: $RUNNER_RUNNER_BASE_DIR
+
+build_rpm:
+  <<: *runner_base
+  variables:
+    RUNNER_DIR: $RUNNER_RPM_DIR
