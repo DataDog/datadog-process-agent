@@ -11,6 +11,8 @@ variables:
   STS_DOCKER_RELEASE_REPO: stackstate-process-agent
   STS_DOCKER_TEST_REPO: stackstate-process-agent-test
   GO111MODULE: "on"
+  QUAY_REGISTRY: quay.io
+  DOCKER_REGISTRY: docker.io
   RUNNER_CENTOS6_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-centos6
   RUNNER_RUNNER_BASE_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-centos6-runner-base
   RUNNER_RPM_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-rpm
@@ -113,13 +115,14 @@ release_image:
     - tags
     - trigger
 
+.docker_vars: &docker_vars
+  DOCKER_DRIVER: overlay
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
 .runner_base: &runner_base
   stage: build
   image: docker:18.06.0
-  variables:
-    DOCKER_DRIVER: overlay
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
   services:
     - docker:18.09-dind
   retry:
@@ -138,23 +141,17 @@ release_image:
 build_centos6:
   <<: *runner_base
   variables:
-    DOCKER_DRIVER: overlay
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
+    <<: *docker_vars
     RUNNER_DIR: $RUNNER_CENTOS6_DIR
 
 build_runner_base:
   <<: *runner_base
   variables:
-    DOCKER_DRIVER: overlay
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
+    <<: *docker_vars
     RUNNER_DIR: $RUNNER_RUNNER_BASE_DIR
 
 build_rpm:
   <<: *runner_base
   variables:
-    DOCKER_DRIVER: overlay
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
+    <<: *docker_vars
     RUNNER_DIR: $RUNNER_RPM_DIR
