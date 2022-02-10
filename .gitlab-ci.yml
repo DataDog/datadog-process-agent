@@ -1,4 +1,5 @@
 stages:
+  - builder
   - build
   - pre_release
   - release
@@ -119,7 +120,7 @@ release_image:
 
 
 build_runners:
-  stage: triggers
+  stage: builder
   image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
   services:
     - name: artifactory.tooling.stackstate.io/docker-virtual/docker:18.09-dind
