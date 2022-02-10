@@ -1,5 +1,4 @@
 stages:
-  - build_runner
   - build
   - pre_release
   - release
@@ -15,11 +14,6 @@ variables:
   RUNNER_CENTOS6_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-centos6
   RUNNER_RUNNER_BASE_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-centos6-runner-base
   RUNNER_RPM_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-rpm
-
-before_script:
-  # login to both docker registries
-  - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
-  - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
 
 build_linux:
   image: stackstate/stackstate-agent-runner-gitlab:latest7
@@ -120,11 +114,15 @@ release_image:
     - trigger
 
 .runner_base: &runner_base
-  stage: build_runner
+  stage: build
+  image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
   services:
     - name: artifactory.tooling.stackstate.io/docker-virtual/docker:18.09-dind
       alias: docker
-  image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
+  before_script:
+    # login to both docker registries
+    - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
+    - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
   retry:
     max: 2
     when:
