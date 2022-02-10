@@ -138,14 +138,23 @@ release_image:
 build_centos6:
   <<: *runner_base
   variables:
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
     RUNNER_DIR: $RUNNER_CENTOS6_DIR
 
 build_runner_base:
   <<: *runner_base
   variables:
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
     RUNNER_DIR: $RUNNER_RUNNER_BASE_DIR
 
 build_rpm:
   <<: *runner_base
   variables:
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
     RUNNER_DIR: $RUNNER_RPM_DIR
