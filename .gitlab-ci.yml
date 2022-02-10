@@ -117,7 +117,7 @@ release_image:
   stage: build
   image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
   services:
-    - docker:dind
+    - name: docker:18.09.7-dind
   retry:
     max: 2
     when:
