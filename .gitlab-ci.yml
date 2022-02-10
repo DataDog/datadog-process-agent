@@ -115,20 +115,19 @@ release_image:
 
 .runner_base: &runner_base
   stage: build
-  image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
+  image: docker:18.06.0
+  variables:
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   services:
-    - name: artifactory.tooling.stackstate.io/docker-virtual/docker:18.09-dind
-      alias: docker
+    - docker:18.09-dind
   retry:
     max: 2
     when:
       - always
   rules:
     - when: manual
-  variables:
-    DOCKER_DRIVER: overlay2
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
   script:
     - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
     - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
