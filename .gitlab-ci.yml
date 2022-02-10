@@ -13,9 +13,10 @@ variables:
   GO111MODULE: "on"
   QUAY_REGISTRY: quay.io
   DOCKER_REGISTRY: docker.io
-  RUNNER_CENTOS6_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-centos6
-  RUNNER_RUNNER_BASE_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-centos6-runner-base
-  RUNNER_RPM_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-rpm
+  RUNNER_DIR_PREFIX: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-
+  RUNNER_CENTOS6: centos6
+  RUNNER_RUNNER_BASE: centos6-runner-base
+  RUNNER_RPM: rpm
 
 build_linux:
   image: stackstate/stackstate-agent-runner-gitlab:latest7
@@ -131,27 +132,29 @@ release_image:
       - always
   rules:
     - when: manual
-  script:
+  before_script:
     - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
     - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
-    - cd $RUNNER_DIR
-    - make build
-    - make push
+  script:
+    - cd $RUNNER_DIR_PREFIX$RUNNER
+    - RUNTIMETAG=$(shell date +%Y%m%d)
+    - docker build -t stackstate/stackstate-process-agent-runner-gitlab:$(RUNNER)-$(RUNTIMETAG) .
+    - docker push stackstate/stackstate-process-agent-runner-gitlab:$(RUNNER)-$(RUNTIMETAG)
 
 build_centos6:
   <<: *runner_base
   variables:
     <<: *docker_vars
-    RUNNER_DIR: $RUNNER_CENTOS6_DIR
+    RUNNER: $RUNNER_CENTOS6
 
 build_runner_base:
   <<: *runner_base
   variables:
     <<: *docker_vars
-    RUNNER_DIR: $RUNNER_RUNNER_BASE_DIR
+    RUNNER: $RUNNER_RUNNER_BASE
 
 build_rpm:
   <<: *runner_base
   variables:
     <<: *docker_vars
-    RUNNER_DIR: $RUNNER_RPM_DIR
+    RUNNER: $RUNNER_RPM
