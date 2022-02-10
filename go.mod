@@ -74,7 +74,7 @@ require (
 	github.com/smartystreets/goconvey v1.7.2 // indirect
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27
+	golang.org/x/sys v0.0.0-20220207234003-57398862261d
 	golang.org/x/tools v0.1.9 // indirect
 	gopkg.in/ini.v1 v1.66.3 // indirect
 	gopkg.in/yaml.v2 v2.2.8
