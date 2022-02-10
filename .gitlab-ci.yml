@@ -13,7 +13,7 @@ variables:
   GO111MODULE: "on"
 
 build_linux:
-  image: stackstate/stackstate-agent-runner-gitlab:centos7_20211004_v7_0
+  image: stackstate/stackstate-agent-runner-gitlab:latest7
   stage: build
 
   script:
