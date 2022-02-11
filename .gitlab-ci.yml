@@ -17,6 +17,7 @@ variables:
   RUNNER_CENTOS6: centos6
   RUNNER_RUNNER_BASE: centos6-runner-base
   RUNNER_RPM: rpm
+  RUNNER7_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-centos7
 
 build_linux:
   image: stackstate/stackstate-agent-runner-gitlab:latest7
@@ -116,12 +117,7 @@ release_image:
     - tags
     - trigger
 
-.docker_vars: &docker_vars
-  DOCKER_DRIVER: overlay
-  DOCKER_HOST: tcp://docker:2375
-  DOCKER_TLS_CERTDIR: ""
-
-.runner_base: &runner_base
+build_runner_centos7:
   stage: build
   image: docker:18.06.0
   services:
@@ -135,27 +131,13 @@ release_image:
   before_script:
     - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
     - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
+  variables:
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   script:
-    - cd $RUNNER_DIR_PREFIX$RUNNER
+    - cd $RUNNER7_DIR
     - pwd
     - export RUNTIMETAG=$(date +%Y%m%d)
-    - docker build -t stackstate/stackstate-process-agent-runner-gitlab:${RUNNER}-${RUNTIMETAG} .
-    - docker push stackstate/stackstate-process-agent-runner-gitlab:${RUNNER}-${RUNTIMETAG}
-
-build_centos6:
-  <<: *runner_base
-  variables:
-    <<: *docker_vars
-    RUNNER: $RUNNER_CENTOS6
-
-build_runner_base:
-  <<: *runner_base
-  variables:
-    <<: *docker_vars
-    RUNNER: $RUNNER_RUNNER_BASE
-
-build_rpm:
-  <<: *runner_base
-  variables:
-    <<: *docker_vars
-    RUNNER: $RUNNER_RPM
+    - docker build -t stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-${RUNTIMETAG} .
+    - docker push stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-${RUNTIMETAG}
