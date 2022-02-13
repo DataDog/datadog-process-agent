@@ -20,7 +20,7 @@ variables:
   RUNNER7_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-centos7
 
 build_linux:
-  image: stackstate/stackstate-agent-runner-gitlab:latest7
+  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-20220211
   stage: build
 
   script:
@@ -72,7 +72,7 @@ pre_release_windows:
 
 pre_release_linux:
   stage: pre_release
-  image: stackstate/stackstate-agent-runner-gitlab:latest7
+  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-20220211
   needs:
     - build_linux
   before_script:
@@ -84,7 +84,7 @@ pre_release_linux:
 
 pre_release_image:
   stage: pre_release
-  image: docker:18.06.0
+  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/docker:18.06.0
   needs:
     - build_linux
   variables:
@@ -99,7 +99,7 @@ pre_release_image:
 
 release_image:
   stage: release
-  image: docker:18.06.0
+  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/docker:18.06.0
   needs:
     - build_linux
   variables:
@@ -119,7 +119,7 @@ release_image:
 
 build_runner_centos7:
   stage: build
-  image: docker:18.06.0
+  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/docker:18.06.0
   services:
     - docker:18.09-dind
   retry:
