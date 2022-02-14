@@ -1,5 +1,10 @@
 # StackState Process Agent releases
 
+## 3.0.2
+
+**Bugfix**
+- Process agent will send HTTP response times when they are zero's
+
 ## 3.0.1
 
 **Bugfix**

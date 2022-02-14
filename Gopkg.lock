@@ -24,7 +24,7 @@
   revision = "771928d86fa878b9d62f073a7a6f91ee0a358105"
 
 [[projects]]
-  digest = "1:03ff95071fd82409af9f8595de8674f1f5791a289fce9fc7dfb5470a91ee0207"
+  digest = "1:fd9cdbf2069f2cad8833d901506e318e94020f56ce3853d473176c7d13606130"
   name = "github.com/DataDog/sketches-go"
   packages = [
     "ddsketch",
@@ -33,9 +33,9 @@
     "ddsketch/store",
   ]
   pruneopts = ""
-  revision = "ba0ca7b0dab22fe45f5a76fea3c416de41f74edc"
+  revision = "6890d4ec3ac2bbb2fedbf90264f7a93597b635a2"
   source = "github.com/StackVista/sketches-go"
-  version = "v1.1.0"
+  version = "v1.1.1"
 
 [[projects]]
   digest = "1:e9ca79fa28ff0fe0271b63d2d30f4118643746610cd0d75603c7b4255a44f161"
@@ -116,7 +116,7 @@
   revision = "4bff1c1cc2aaec39eb753d831d483eaacfb2deda"
 
 [[projects]]
-  digest = "1:e117fde63e30a641ac2c92eed0265473732dfd4005c169ce72d23a860d467924"
+  digest = "1:37638ee6139030de328e36246981a4a5fccb858ed23613dbdb4cb3fe2c254a1b"
   name = "github.com/StackVista/tcptracer-bpf"
   packages = [
     "pkg/tracer",
@@ -127,8 +127,8 @@
     "pkg/tracer/procspy",
   ]
   pruneopts = ""
-  revision = "5da2b312bc80874e491e5b5f108554ef7cd3e12d"
-  version = "v7.0.4"
+  revision = "491986e3a0689809095176843261714cf109849b"
+  version = "v7.0.5"
 
 [[projects]]
   digest = "1:63776251fbaa60062742412a9d2fa1e4b7cd24bcf5527fa9656b314ea8d60913"
