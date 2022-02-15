@@ -24,9 +24,24 @@ build_linux:
   stage: build
 
   script:
-    - export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH
     - printenv
-    - source .gitlab-scripts/build_linux.sh
+    - export PROCESS_AGENT_VERSION=$(packaging/version.sh)
+    - export EBPF=${EBPF:-true}
+    - source ~/.bashrc
+    - go get golang.org/x/tools/cmd/gorename
+    - go get golang.org/x/tools/cmd/eg
+    - go get golang.org/x/lint/golint
+    - printenv
+    - (cd packaging; ./apply_branding.sh)
+#    - rake ci
+    - rake deps
+    - rake derive
+    - rake fmt
+#    - rake vet
+    - rake test
+    - rake lint
+    - rake build
+    - (cd packaging; ./build_staging_package.sh)
   artifacts:
     paths:
       - $CI_PROJECT_DIR/process-agent
