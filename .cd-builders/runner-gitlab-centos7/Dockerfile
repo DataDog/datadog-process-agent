@@ -2,7 +2,7 @@ FROM centos:7
 
 ENV SYSTEMD_VERSION=219
 ENV GIT_VERSION=2.21.0
-ENV GOLANG_VERSION=1.13.11
+ENV GOLANG_VERSION=1.13.15
 ARG GIMME_URL=raw.githubusercontent.com/travis-ci/gimme/master/gimme
 ARG GIMME_DEBUG=0
 ENV RBENV_VERSION=2.4.4
@@ -96,3 +96,13 @@ ADD rpmmacros /root/.rpmmacros
 RUN yum install -y rsync \
     && gem install rake fpm deb-s3 \
     && curl https://glide.sh/get | sh
+
+# Provide kernel 4.4 header that include eBPF header needed to build linux network tracer
+RUN curl -OL https://mirror.rackspace.com/elrepo/kernel/el7/x86_64/RPMS/kernel-lt-headers-5.4.179-1.el7.elrepo.x86_64.rpm \
+    && rpm2cpio kernel-lt-headers-5.4.179-1.el7.elrepo.x86_64.rpm | cpio -idm \
+    && rsync -r ./usr/ /usr/ \
+    && rm -rf kernel-lt-headers-4.4.176-1.el6.elrepo.x86_64.rpm ./usr
+
+## Upgrade gcc to 4.7 needed to build gobpf/elf
+#RUN curl https://people.centos.org/tru/devtools-1.1/devtools-1.1.repo -o /etc/yum.repos.d/devtools-1.1.repo \
+#    && yum install -y devtoolset-1.1-gcc
