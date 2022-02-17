@@ -123,7 +123,11 @@ release_image:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
   services:
-    - docker:18.09-dind
+    - name: artifactory.tooling.stackstate.io/docker-virtual/docker:18.09-dind
+      alias: docker
+  before_script:
+    - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
+    - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
   script:
     - cd $CI_PROJECT_DIR
     - export PUSH_LATEST=true
