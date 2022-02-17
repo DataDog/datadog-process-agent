@@ -149,9 +149,6 @@ build_runner_centos7:
       - always
   rules:
     - when: manual
-  before_script:
-    - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
-    - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
   variables:
     DOCKER_DRIVER: overlay
     DOCKER_HOST: tcp://docker:2375
