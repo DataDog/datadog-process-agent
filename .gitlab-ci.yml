@@ -157,5 +157,7 @@ build_runner_centos7:
     - cd $RUNNER7_DIR
     - pwd
     - export RUNTIMETAG=$(date +%Y%m%d)
+    - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
+    - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
     - docker build -t stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-${RUNTIMETAG} .
     - docker push stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-${RUNTIMETAG}
