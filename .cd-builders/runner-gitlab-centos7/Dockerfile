@@ -98,10 +98,10 @@ RUN yum install -y rsync \
     && curl https://glide.sh/get | sh
 
 # Provide kernel 4.4 header that include eBPF header needed to build linux network tracer
-RUN curl -OL https://mirror.rackspace.com/elrepo/kernel/el7/x86_64/RPMS/kernel-lt-headers-5.4.179-1.el7.elrepo.x86_64.rpm \
-    && rpm2cpio kernel-lt-headers-5.4.179-1.el7.elrepo.x86_64.rpm | cpio -idm \
+RUN curl -OL http://mirrors.coreix.net/elrepo-archive-archive/kernel/el6/x86_64/RPMS/kernel-lt-headers-4.4.176-1.el6.elrepo.x86_64.rpm  \
+    && rpm2cpio kernel-lt-headers-4.4.176-1.el6.elrepo.x86_64.rpm | cpio -idm \
     && rsync -r ./usr/ /usr/ \
-    && rm -rf kernel-lt-headers-5.4.179-1.el7.elrepo.x86_64.rpm ./usr
+    && rm -rf kernel-lt-headers-4.4.176-1.el6.elrepo.x86_64.rpm ./usr
 
 ## Upgrade gcc to 4.7 needed to build gobpf/elf
 #RUN curl https://people.centos.org/tru/devtools-1.1/devtools-1.1.repo -o /etc/yum.repos.d/devtools-1.1.repo \
