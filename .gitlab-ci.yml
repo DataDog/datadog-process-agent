@@ -33,14 +33,7 @@ build_linux:
     - go get golang.org/x/lint/golint
     - printenv
     - (cd packaging; ./apply_branding.sh)
-#    - rake ci
-    - rake deps
-    - rake derive
-    - rake fmt
-#    - rake vet
-    - rake test
-    - rake lint
-    - rake build
+    - rake ci
     - (cd packaging; ./build_staging_package.sh)
   artifacts:
     paths:
