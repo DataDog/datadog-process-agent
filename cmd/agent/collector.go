@@ -19,7 +19,6 @@ import (
 	"github.com/StackVista/stackstate-process-agent/checks"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
-	"github.com/StackVista/stackstate-process-agent/statsd"
 )
 
 type checkPayload struct {
@@ -138,7 +137,9 @@ func (l *Collector) run(exit chan bool) {
 					l.postMessage(payload.endpoint, m, payload.timestamp)
 				}
 			case <-heartbeat.C:
-				statsd.Client.Gauge("datadog.process.agent", 1, []string{"version:" + Version}, 1)
+				log.Tracef("got heartbeat.C message. (Ignored)")
+				// sts ignored
+				//statsd.Client.Gauge("datadog.process.agent", 1, []string{"version:" + Version}, 1)
 			case <-queueSizeTicker.C:
 				updateQueueSize(l.send)
 			case <-featuresTicker.C:

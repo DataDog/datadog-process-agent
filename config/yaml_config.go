@@ -341,7 +341,8 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 
 	// Pull additional parameters from the global config file.
 	agentConf.LogLevel = ddconfig.Datadog.GetString("log_level")
-	agentConf.StatsdPort = ddconfig.Datadog.GetInt("dogstatsd_port")
+	// sts ignored
+	//agentConf.StatsdPort = ddconfig.Datadog.GetInt("dogstatsd_port")
 	agentConf.Transport = httputils.CreateHTTPTransport()
 
 	return agentConf, nil

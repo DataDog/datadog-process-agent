@@ -17,7 +17,6 @@ import (
 	"github.com/StackVista/stackstate-agent/pkg/tagger"
 	"github.com/StackVista/stackstate-process-agent/checks"
 	"github.com/StackVista/stackstate-process-agent/config"
-	"github.com/StackVista/stackstate-process-agent/statsd"
 )
 
 var opts struct {
@@ -131,10 +130,11 @@ func runAgent(exit chan bool) {
 		log.Criticalf("Error initializing info: %s", err)
 		os.Exit(1)
 	}
-	if err := statsd.Configure(cfg); err != nil {
-		log.Criticalf("Error configuring statsd: %s", err)
-		os.Exit(1)
-	}
+	// sts ignored
+	//if err := statsd.Configure(cfg); err != nil {
+	//	log.Criticalf("Error configuring statsd: %s", err)
+	//	os.Exit(1)
+	//}
 
 	// Exit if agent is not enabled and we're not debugging a check.
 	if !cfg.Enabled && opts.check == "" {

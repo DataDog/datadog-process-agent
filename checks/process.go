@@ -13,7 +13,6 @@ import (
 	"github.com/StackVista/stackstate-agent/pkg/util/containers"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
-	"github.com/StackVista/stackstate-process-agent/statsd"
 	log "github.com/cihub/seelog"
 	cache "github.com/patrickmn/go-cache"
 )
@@ -125,8 +124,9 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, features features.Features, 
 	p.lastProcState = buildProcState(processes)
 	p.lastCtrState = buildCtrState(containers)
 
-	statsd.Client.Gauge("datadog.process.containers.host_count", float64(len(containers)), []string{}, 1)
-	statsd.Client.Gauge("datadog.process.processes.host_count", float64(len(processes)), []string{}, 1)
+	// sts ignored
+	//statsd.Client.Gauge("datadog.process.containers.host_count", float64(len(containers)), []string{}, 1)
+	//statsd.Client.Gauge("datadog.process.processes.host_count", float64(len(processes)), []string{}, 1)
 
 	checkRunDuration := time.Now().Sub(start)
 	log.Debugf("collected processes in %s, processes found: %v", checkRunDuration, processes)
