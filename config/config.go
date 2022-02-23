@@ -664,7 +664,7 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	// Used to override container source auto-detection.
 	// "docker", "ecs_fargate", "kubelet", etc
 	// sts ignore
-	//if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
+	//if v := os.Getenv("STS_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
 	//	util.SetContainerSource(v)
 	//}
 
