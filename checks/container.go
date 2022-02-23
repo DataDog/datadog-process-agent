@@ -16,11 +16,10 @@ import (
 	"github.com/StackVista/stackstate-agent/pkg/util/containers"
 	log "github.com/cihub/seelog"
 
+	"github.com/StackVista/stackstate-agent/pkg/process/util"
 	"github.com/StackVista/stackstate-agent/pkg/util/containers/metrics"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
-	"github.com/StackVista/stackstate-process-agent/statsd"
-	"github.com/StackVista/stackstate-process-agent/util"
 )
 
 // Container is a singleton ContainerCheck.
@@ -84,7 +83,8 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 	c.lastRates = util.ExtractContainerRateMetric(ctrList)
 	c.lastRun = time.Now()
 
-	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
+	// sts ignored
+	//statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
 	log.Debugf("collected %d containers in %s", int(totalContainers), time.Now().Sub(start))
 	return messages, nil
 }

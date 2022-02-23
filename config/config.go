@@ -17,7 +17,7 @@ import (
 
 	tracerconfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 
-	"github.com/StackVista/stackstate-process-agent/util"
+	"github.com/StackVista/stackstate-agent/pkg/process/util"
 
 	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
 	"github.com/StackVista/stackstate-agent/pkg/util/fargate"
@@ -663,9 +663,10 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 
 	// Used to override container source auto-detection.
 	// "docker", "ecs_fargate", "kubelet", etc
-	if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
-		util.SetContainerSource(v)
-	}
+	// sts ignore
+	//if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
+	//	util.SetContainerSource(v)
+	//}
 
 	// Note: this feature is in development and should not be used in production environments
 	// STS: ignore DD notes, this will enable our tcptracer-ebpf and that is production ready

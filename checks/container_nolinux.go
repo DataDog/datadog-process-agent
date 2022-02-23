@@ -9,9 +9,9 @@ import (
 
 	"github.com/StackVista/stackstate-agent/pkg/util/containers"
 
+	"github.com/StackVista/stackstate-agent/pkg/process/util"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
-	"github.com/StackVista/stackstate-process-agent/util"
 )
 
 // Container is a singleton ContainerCheck.

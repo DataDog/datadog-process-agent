@@ -13,7 +13,7 @@ import (
 	"github.com/StackVista/stackstate-agent/pkg/util/containers/metrics"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/StackVista/stackstate-process-agent/util"
+	"github.com/StackVista/stackstate-agent/pkg/process/util"
 )
 
 func makeContainer(id string) *containers.Container {
