@@ -330,6 +330,11 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		}
 	}
 
+	// Ugly fix until we merge process agent to main agent repo.
+	ddconfig.Datadog.SetEnvPrefix("STS")
+	_ = ddconfig.Datadog.BindEnv("skip_ssl_validation")
+	log.Infof("STS_SKIP_SSL_VALIDATION: %v", ddconfig.Datadog.GetString("skip_ssl_validation"))
+
 	// sts begin
 	// Used to override container source auto-detection
 	// and to enable multiple collector sources if needed.

@@ -16,3 +16,34 @@ docker-compose up -d
 ```bash
 http://${DOCKER_HOST_IP}:7070/api/topic/sts_topo_process_agents?limit=500
 ```
+
+## Mac development
+
+### Setup
+Project can be build on Mac with the help of Vagrant VM. After you clone the project do the following steps.
+
+On macOS get dependencies.
+```shell
+cd stackstate-process-agent
+rake deps
+rake derive
+```
+
+Start Vagrant VM and build the process agent binary.
+```shell
+vagrant up process-agent-test
+vagrant ssh process-agent-test
+cd $GOPATH
+cd cd src/github.com/StackVista/stackstate-process-agent/
+rake build
+```
+
+### Running the agent
+
+Start StackState or Simulator on macOS listening on port 7077.
+Edit the `conf-dev.yaml` to use `sts_url` that is pointing to host macOS. For Vagrant VM it's usually `10.0.2.2`. It should look like this: `sts_url: http://10.0.2.2:7077/stsAgent`
+
+In Vagrant VM start process agent with following command.
+```shell
+sudo ./process-agent -config conf-dev.yaml
+```

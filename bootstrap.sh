@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+
+sudo apt-get update
+
 sudo apt-get install -y \
     rake \
     apt-transport-https \
@@ -16,7 +19,7 @@ sudo add-apt-repository \
 
 sudo add-apt-repository ppa:gophers/archive
 
-sudo apt-get update && sudo apt-get install -y mercurial golang-1.10-go docker-ce go-dep
+sudo sudo apt-get install -y mercurial golang-1.10-go docker-ce go-dep
 
 # Install additional dependencies to test with the process agent
 arr=($@)
@@ -72,6 +75,7 @@ PROTOC_VERSION=3.6.1
 curl -OL https://github.com/google/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip
 
 # Unzip
+sudo apt install -y unzip
 unzip protoc-${PROTOC_VERSION}-linux-x86_64.zip -d protoc3
 
 # Move protoc to /usr/local/bin/

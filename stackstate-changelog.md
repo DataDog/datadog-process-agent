@@ -1,5 +1,32 @@
 # StackState Process Agent releases
 
+## 3.0.2
+
+**Bugfix**
+- Process agent will send HTTP response times when they are zero's
+
+## 3.0.1
+
+**Bugfix**
+- Process agent now acknowledges STS_SKIP_SSL_VALIDATION environment variable
+
+## 3.0.0
+
+**Bugfix**
+- Fixed endianness in payload data
+
+## 2.8.7
+
+**Bugfix**
+- Fixed bytes sent/received metrics for network connections going enormously high sometimes. 
+
+## 2.8.6
+
+**Bugfix**
+- Namespaces are not always reported for containers/processes running in k8s
+- Increase network connection tracking limits and make them configurable 
+- Pods merge with the same ip address while using argo 
+
 ## 2.7.8
 
 **Features**
