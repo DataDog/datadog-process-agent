@@ -148,6 +148,8 @@ github.com/StackVista/stackstate-agent v0.0.0-20220224135041-ad44a38e6603 h1:I8Q
 github.com/StackVista/stackstate-agent v0.0.0-20220224135041-ad44a38e6603/go.mod h1:0a+Krg1XhPiDCnnuwR6Wzf+S8hjIfLHmMYzrcu/jlHk=
 github.com/StackVista/stackstate-agent v0.0.0-20220224221258-a1b268ad970e h1:RfqRWbXxYT+bClqSXAS4AY8ReIL9kpfHxQPNRp8ktEs=
 github.com/StackVista/stackstate-agent v0.0.0-20220224221258-a1b268ad970e/go.mod h1:0a+Krg1XhPiDCnnuwR6Wzf+S8hjIfLHmMYzrcu/jlHk=
+github.com/StackVista/stackstate-agent v0.0.0-20220225103734-cf9a6f049128 h1:0sqxedKfm5bS9ItcTDZilFeLTvpLWoS/qm3mS0mDmhI=
+github.com/StackVista/stackstate-agent v0.0.0-20220225103734-cf9a6f049128/go.mod h1:0a+Krg1XhPiDCnnuwR6Wzf+S8hjIfLHmMYzrcu/jlHk=
 github.com/StackVista/tcptracer-bpf v7.0.4+incompatible h1:KPd3FQSHbQ+JS9SKBiamddB/j6+Cf1BEcWINBBy/JRo=
 github.com/StackVista/tcptracer-bpf v7.0.4+incompatible/go.mod h1:+Nq8JZ/t2qRoubch8CWCiD9ppwX349HP3FJeTQ3RR20=
 github.com/VividCortex/gohistogram v1.0.0/go.mod h1:Pf5mBqqDxYaXu3hDrrU+w6nw50o/4+TcAqDqk/vUH7g=
