@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
+	"github.com/StackVista/stackstate-process-agent/statsd"
 	"io"
 	"io/ioutil"
 	"math/rand"
@@ -137,9 +138,7 @@ func (l *Collector) run(exit chan bool) {
 					l.postMessage(payload.endpoint, m, payload.timestamp)
 				}
 			case <-heartbeat.C:
-				log.Tracef("got heartbeat.C message. (Ignored)")
-				// sts ignored
-				//statsd.Client.Gauge("datadog.process.agent", 1, []string{"version:" + Version}, 1)
+				statsd.Client.Gauge("datadog.process.agent", 1, []string{"version:" + Version}, 1)
 			case <-queueSizeTicker.C:
 				updateQueueSize(l.send)
 			case <-featuresTicker.C:

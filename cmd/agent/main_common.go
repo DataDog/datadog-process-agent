@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
+	"github.com/StackVista/stackstate-process-agent/statsd"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -130,11 +131,10 @@ func runAgent(exit chan bool) {
 		log.Criticalf("Error initializing info: %s", err)
 		os.Exit(1)
 	}
-	// sts ignored
-	//if err := statsd.Configure(cfg); err != nil {
-	//	log.Criticalf("Error configuring statsd: %s", err)
-	//	os.Exit(1)
-	//}
+	if err := statsd.Configure(cfg); err != nil {
+		log.Criticalf("Error configuring statsd: %s", err)
+		os.Exit(1)
+	}
 
 	// Exit if agent is not enabled and we're not debugging a check.
 	if !cfg.Enabled && opts.check == "" {
