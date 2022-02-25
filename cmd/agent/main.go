@@ -5,7 +5,6 @@ package main
 
 import (
 	"flag"
-	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
 	_ "net/http/pprof"
 
 	"github.com/StackVista/stackstate-process-agent/config"
@@ -29,8 +28,6 @@ func main() {
 
 	exit := make(chan bool)
 
-	// Set Stackstate environment prefix
-	ddconfig.Datadog.SetEnvPrefix("STS")
 	// Invoke the Agent
 	runAgent(exit)
 }
