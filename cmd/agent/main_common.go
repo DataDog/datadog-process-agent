@@ -4,6 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/StackVista/stackstate-agent/cmd/agent/common"
+	"github.com/StackVista/stackstate-agent/pkg/aggregator"
+	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
+	"github.com/StackVista/stackstate-agent/pkg/forwarder"
+	"github.com/StackVista/stackstate-agent/pkg/logs/sender"
+	"github.com/StackVista/stackstate-agent/pkg/serializer"
+	"github.com/StackVista/stackstate-agent/pkg/util/flavor"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"net/http"
 	_ "net/http/pprof"
@@ -37,6 +44,10 @@ var (
 	GitBranch string
 	BuildDate string
 	GoVersion string
+
+	// Forwarder is the global forwarder instance
+	Forwarder forwarder.Forwarder
+	Sender    sender.Sender
 )
 
 // versionString returns the version information filled in at build time
@@ -135,6 +146,24 @@ func runAgent(exit chan bool) {
 	//	log.Criticalf("Error configuring statsd: %s", err)
 	//	os.Exit(1)
 	//}
+
+	// set the flavor to the Process Agent
+	flavor.SetFlavor("process_agent")
+
+	// setup the forwarder
+	keysPerDomain, err := ddconfig.GetMultipleEndpoints()
+	if err != nil {
+		log.Error("Misconfiguration of agent endpoints: ", err)
+	}
+	common.Forwarder = forwarder.NewDefaultForwarder(forwarder.NewOptions(keysPerDomain))
+	log.Debugf("Starting forwarder")
+	common.Forwarder.Start() //nolint:errcheck
+	log.Debugf("Forwarder started")
+
+	// setup the aggregator
+	s := serializer.NewSerializer(common.Forwarder)
+	agg := aggregator.InitAggregator(s, cfg.HostName)
+	agg.AddAgentStartupTelemetry(versionString())
 
 	// Exit if agent is not enabled and we're not debugging a check.
 	if !cfg.Enabled && opts.check == "" {

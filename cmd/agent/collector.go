@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"io"
 	"io/ioutil"
@@ -113,6 +114,12 @@ func (l *Collector) run(exit chan bool) {
 	queueSizeTicker := time.NewTicker(10 * time.Second)
 	featuresTicker := time.NewTicker(5 * time.Second)
 
+	s, err := aggregator.GetDefaultSender()
+	if err != nil {
+		_ = log.Error("No default sender available: ", err)
+
+	}
+
 	// Channel to announce new features detected
 	featuresCh := make(chan features.Features, 1)
 
@@ -138,8 +145,7 @@ func (l *Collector) run(exit chan bool) {
 				}
 			case <-heartbeat.C:
 				log.Tracef("got heartbeat.C message. (Ignored)")
-				// sts ignored
-				//statsd.Client.Gauge("datadog.process.agent", 1, []string{"version:" + Version}, 1)
+				s.Gauge("datadog.process.agent", 1, l.cfg.HostName, []string{"version:" + Version})
 			case <-queueSizeTicker.C:
 				updateQueueSize(l.send)
 			case <-featuresTicker.C:
