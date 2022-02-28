@@ -166,8 +166,16 @@ func runAgent(exit chan bool) {
 
 	// setup the aggregator
 	s := serializer.NewSerializer(common.Forwarder)
-	agg := aggregator.InitAggregator(s, cfg.HostName)
-	agg.AddAgentStartupTelemetry(versionString())
+	aggregator.InitAggregator(s, cfg.HostName)
+
+	// sts send metrics
+	snd, err := aggregator.GetDefaultSender()
+	if err != nil {
+		_ = log.Error("No default sender available: ", err)
+
+	}
+	snd.Gauge("stackstate.process_agent.running", 1, cfg.HostName,
+		[]string{fmt.Sprintf("version:%s", versionString())})
 
 	// Exit if agent is not enabled and we're not debugging a check.
 	if !cfg.Enabled && opts.check == "" {
