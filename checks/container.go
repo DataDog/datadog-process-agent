@@ -5,6 +5,7 @@ package checks
 
 import (
 	"fmt"
+	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"runtime"
 	"strings"
 	"time"
@@ -88,8 +89,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 	c.lastRates = util.ExtractContainerRateMetric(ctrList)
 	c.lastRun = time.Now()
 
-	s.Gauge("datadog.process.processes.host_count", float64(len(processes)), cfg.HostName, []string{})
-
+	s.Gauge("datadog.process.containers.host_count", totalContainers, cfg.HostName, []string{})
 	log.Debugf("collected %d containers in %s", int(totalContainers), time.Now().Sub(start))
 	return messages, nil
 }
