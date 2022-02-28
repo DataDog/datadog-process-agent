@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/StackVista/stackstate-agent/cmd/agent/common"
 	"github.com/StackVista/stackstate-agent/pkg/aggregator"
-	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
 	"github.com/StackVista/stackstate-agent/pkg/forwarder"
 	"github.com/StackVista/stackstate-agent/pkg/logs/sender"
 	"github.com/StackVista/stackstate-agent/pkg/serializer"
@@ -107,9 +106,6 @@ func runAgent(exit chan bool) {
 			os.Remove(opts.pidfilePath)
 		}()
 	}
-
-	// Set the environment prefix to STS
-	ddconfig.Datadog.SetEnvPrefix("STS")
 
 	agentConf, err := config.NewIfExists(opts.ddConfigPath)
 	//if err != nil {
