@@ -1403,3 +1403,68 @@ func TestStsSkipSllValidation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "true", ddconfig.Datadog.GetString("skip_ssl_validation"))
 }
+
+func TestCheckIntervalCodeDefaults(t *testing.T) {
+	agentConfig, err := NewAgentConfig(nil, nil, nil)
+	assert.NoError(t, err)
+
+	assert.Equal(t, time.Duration(30) * time.Second, agentConfig.CheckIntervals["container"])
+	assert.Equal(t, time.Duration(30) * time.Second, agentConfig.CheckIntervals["process"])
+	assert.Equal(t, time.Duration(30) * time.Second, agentConfig.CheckIntervals["connections"])
+}
+
+func TestCheckIntervalCodeDefaults_FromYaml(t *testing.T) {
+	var ddy YamlAgentConfig
+	err := yaml.Unmarshal([]byte(strings.Join([]string{
+		"process_config:",
+		"  intervals:",
+		"    container: 10",
+		"    process: 10",
+		"    connections: 10",
+	}, "\n")), &ddy)
+	assert.NoError(t, err)
+
+	agentConfig, err := NewAgentConfig(nil, &ddy, nil)
+	assert.NoError(t, err)
+
+	assert.Equal(t, time.Duration(10) * time.Second, agentConfig.CheckIntervals["container"])
+	assert.Equal(t, time.Duration(10) * time.Second, agentConfig.CheckIntervals["process"])
+	assert.Equal(t, time.Duration(10) * time.Second, agentConfig.CheckIntervals["connections"])
+}
+
+func TestCheckIntervalCodeDefaults_FromEnv(t *testing.T) {
+	os.Setenv("STS_CONTAINER_CHECK_INTERVAL", "15")
+	os.Setenv("STS_PROCESS_CHECK_INTERVAL", "15")
+	os.Setenv("STS_CONNECTION_CHECK_INTERVAL", "15")
+
+	agentConfig, err := NewAgentConfig(nil, nil, nil)
+	assert.NoError(t, err)
+
+	assert.Equal(t, time.Duration(15) * time.Second, agentConfig.CheckIntervals["container"])
+	assert.Equal(t, time.Duration(15) * time.Second, agentConfig.CheckIntervals["process"])
+	assert.Equal(t, time.Duration(15) * time.Second, agentConfig.CheckIntervals["connections"])
+}
+
+func TestCheckIntervalCodeDefaults_FromEnvOverridesYaml(t *testing.T) {
+	var ddy YamlAgentConfig
+	err := yaml.Unmarshal([]byte(strings.Join([]string{
+		"process_config:",
+		"  intervals:",
+		"    container: 10",
+		"    process: 10",
+		"    connections: 10",
+	}, "\n")), &ddy)
+	assert.NoError(t, err)
+
+	os.Setenv("STS_CONTAINER_CHECK_INTERVAL", "20")
+	os.Setenv("STS_PROCESS_CHECK_INTERVAL", "20")
+	os.Setenv("STS_CONNECTION_CHECK_INTERVAL", "20")
+
+	agentConfig, err := NewAgentConfig(nil, &ddy, nil)
+	assert.NoError(t, err)
+
+	assert.Equal(t, time.Duration(20) * time.Second, agentConfig.CheckIntervals["container"])
+	assert.Equal(t, time.Duration(20) * time.Second, agentConfig.CheckIntervals["process"])
+	assert.Equal(t, time.Duration(20) * time.Second, agentConfig.CheckIntervals["connections"])
+}
+

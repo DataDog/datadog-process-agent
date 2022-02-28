@@ -164,7 +164,7 @@ func (a AgentConfig) CheckInterval(checkName string) time.Duration {
 	d, ok := a.CheckIntervals[checkName]
 	if !ok {
 		log.Errorf("missing check interval for '%s', you must set a default", checkName)
-		d = 10 * time.Second
+		d = 30 * time.Second
 	}
 	return d
 }
@@ -271,11 +271,11 @@ func NewDefaultAgentConfig() *AgentConfig {
 		// Check config
 		EnabledChecks: containerChecks,
 		CheckIntervals: map[string]time.Duration{
-			"process":     10 * time.Second,
+			"process":     30 * time.Second,
 			"rtprocess":   2 * time.Second,
-			"container":   10 * time.Second,
+			"container":   30 * time.Second,
 			"rtcontainer": 2 * time.Second,
-			"connections": 10 * time.Second,
+			"connections": 30 * time.Second,
 		},
 
 		// Docker
@@ -763,6 +763,20 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 	if v, err := strconv.Atoi(os.Getenv("STS_NETWORK_RELATION_FILTER_SHORT_LIVED_QUALIFIER_SECS")); err == nil {
 		setNetworkRelationFilters(c, true, v)
 	}
+
+	// STS
+	if v, err := strconv.Atoi(os.Getenv("STS_CONTAINER_CHECK_INTERVAL")); err == nil {
+		c.CheckIntervals["container"] = time.Duration(v) * time.Second
+	}
+
+	if v, err := strconv.Atoi(os.Getenv("STS_PROCESS_CHECK_INTERVAL")); err == nil {
+		c.CheckIntervals["process"] = time.Duration(v) * time.Second
+	}
+
+	if v, err := strconv.Atoi(os.Getenv("STS_CONNECTION_CHECK_INTERVAL")); err == nil {
+		c.CheckIntervals["connections"] = time.Duration(v) * time.Second
+	}
+
 
 	return c
 }

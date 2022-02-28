@@ -15,10 +15,10 @@ process_config:
   #process_dd_url: https://<branch-name>.test.stackstate.io/stsAgent
 
   queue_size: 10
-  intervals:
-    container: 8
-    process: 5
-    connections: 5
+#  intervals:
+#    container: 30
+#    process: 30
+#    connections: 30
   process_blacklist:
     # A list of regex patterns that will exclude a process if matched.
     patterns:
