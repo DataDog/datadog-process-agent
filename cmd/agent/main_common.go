@@ -108,6 +108,9 @@ func runAgent(exit chan bool) {
 		}()
 	}
 
+	// Set the environment prefix to STS
+	ddconfig.Datadog.SetEnvPrefix("STS")
+
 	agentConf, err := config.NewIfExists(opts.ddConfigPath)
 	//if err != nil {
 	//	log.Criticalf("Error reading sts-agent config: %s", err)
@@ -150,10 +153,15 @@ func runAgent(exit chan bool) {
 	// set the flavor to the Process Agent
 	flavor.SetFlavor("process_agent")
 
-	// setup the forwarder
-	keysPerDomain, err := ddconfig.GetMultipleEndpoints()
-	if err != nil {
-		log.Error("Misconfiguration of agent endpoints: ", err)
+	// setup the forwarder, set up domain -> [apiKeys] from config endpoints
+	keysPerDomain := make(map[string][]string)
+	for _, apiEndpoint := range cfg.APIEndpoints {
+		endpoint := apiEndpoint.Endpoint.String()
+		if apiKeys, ok := keysPerDomain[endpoint]; ok {
+			keysPerDomain[endpoint] = append(apiKeys, apiEndpoint.APIKey)
+		} else {
+			keysPerDomain[endpoint] = []string{apiEndpoint.APIKey}
+		}
 	}
 	common.Forwarder = forwarder.NewDefaultForwarder(forwarder.NewOptions(keysPerDomain))
 	log.Debugf("Starting forwarder")
