@@ -142,10 +142,6 @@ github.com/StackVista/gobpf v0.1.2 h1:A7u+WTC0OLar/5LvcgoI4iK6F22vRbBUXxOYHHj64y
 github.com/StackVista/gobpf v0.1.2/go.mod h1:oNzyvRglZNW//1GU+8+FxFk/EBGzXcYtf8UTI4QIk5U=
 github.com/StackVista/sketches-go v1.1.0 h1:38DaQgAquKgLUEVqavHViPVi1V5r6pYIpyZdR+AL95A=
 github.com/StackVista/sketches-go v1.1.0/go.mod h1:xerTHIkY3XGMCqOy9PwIlCwHNiaqCJE854wvOvlSjyc=
-github.com/StackVista/stackstate-agent v0.0.0-20220301082034-f82b0e19be77 h1:6c/NpE0xQrDjrowOVl4HcgdH8RWOUuMc1tFi2IoV0LU=
-github.com/StackVista/stackstate-agent v0.0.0-20220301082034-f82b0e19be77/go.mod h1:0a+Krg1XhPiDCnnuwR6Wzf+S8hjIfLHmMYzrcu/jlHk=
-github.com/StackVista/stackstate-agent v0.0.0-20220301095005-6f52c4c900dd h1:dyVUphxuWwQX+qh9ih1VDR+Mb6LVFv4ifrMj11Rvv6U=
-github.com/StackVista/stackstate-agent v0.0.0-20220301095005-6f52c4c900dd/go.mod h1:O1JMegB26PX1C3Q5DGq0BGlKKvj1XK1CRqo4BaSTQL4=
 github.com/StackVista/stackstate-agent v0.0.0-20220301185330-a84a5f8f125a h1:fFpAnwuc6PVOTfTOmcTADKZpHh3WytD/HLNFKEQZqaM=
 github.com/StackVista/stackstate-agent v0.0.0-20220301185330-a84a5f8f125a/go.mod h1:O1JMegB26PX1C3Q5DGq0BGlKKvj1XK1CRqo4BaSTQL4=
 github.com/StackVista/tcptracer-bpf v7.0.4+incompatible h1:KPd3FQSHbQ+JS9SKBiamddB/j6+Cf1BEcWINBBy/JRo=

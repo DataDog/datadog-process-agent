@@ -10,6 +10,7 @@ import (
 	"github.com/StackVista/stackstate-agent/pkg/serializer"
 	"github.com/StackVista/stackstate-agent/pkg/util/flavor"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
+	"github.com/StackVista/stackstate-process-agent/statsd"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -135,11 +136,10 @@ func runAgent(exit chan bool) {
 		log.Criticalf("Error initializing info: %s", err)
 		os.Exit(1)
 	}
-	// sts ignored
-	//if err := statsd.Configure(cfg); err != nil {
-	//	log.Criticalf("Error configuring statsd: %s", err)
-	//	os.Exit(1)
-	//}
+	if err := statsd.Configure(cfg); err != nil {
+		log.Criticalf("Error configuring statsd: %s", err)
+		os.Exit(1)
+	}
 
 	// set the flavor to the Process Agent
 	flavor.SetFlavor("process_agent")
