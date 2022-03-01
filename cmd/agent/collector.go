@@ -145,7 +145,7 @@ func (l *Collector) run(exit chan bool) {
 				}
 			case <-heartbeat.C:
 				log.Tracef("got heartbeat.C message. (Ignored)")
-				s.Gauge("stackstate.process.agent", 1, l.cfg.HostName, []string{"version:" + Version})
+				s.Gauge("stackstate.process_agent.running", 1, l.cfg.HostName, []string{"version:" + versionString()})
 			case <-queueSizeTicker.C:
 				updateQueueSize(l.send)
 			case <-featuresTicker.C:

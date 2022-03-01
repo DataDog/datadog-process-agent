@@ -174,7 +174,7 @@ func runAgent(exit chan bool) {
 		_ = log.Error("No default sender available: ", err)
 
 	}
-	snd.Gauge("stackstate.process_agent.running", 1, cfg.HostName,
+	snd.Gauge("stackstate.process_agent.started", 1, cfg.HostName,
 		[]string{fmt.Sprintf("version:%s", versionString())})
 
 	// Exit if agent is not enabled and we're not debugging a check.

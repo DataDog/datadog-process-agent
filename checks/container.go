@@ -89,7 +89,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 	c.lastRates = util.ExtractContainerRateMetric(ctrList)
 	c.lastRun = time.Now()
 
-	s.Gauge("stackstate.process.containers.host_count", totalContainers, cfg.HostName, []string{})
+	s.Gauge("stackstate.process_agent.containers.host_count", totalContainers, cfg.HostName, []string{})
 	log.Debugf("collected %d containers in %s", int(totalContainers), time.Now().Sub(start))
 	return messages, nil
 }
