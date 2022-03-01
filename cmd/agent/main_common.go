@@ -161,7 +161,8 @@ func runAgent(exit chan bool) {
 
 	// setup the aggregator
 	s := serializer.NewSerializer(common.Forwarder)
-	aggregator.InitAggregator(s, cfg.HostName)
+	agg := aggregator.InitAggregator(s, cfg.HostName)
+	agg.MetricPrefix = "stackstate"
 
 	// sts send metrics
 	snd, err := aggregator.GetDefaultSender()
