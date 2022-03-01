@@ -7,7 +7,6 @@ import (
 	"github.com/StackVista/stackstate-agent/cmd/agent/common"
 	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"github.com/StackVista/stackstate-agent/pkg/forwarder"
-	"github.com/StackVista/stackstate-agent/pkg/logs/sender"
 	"github.com/StackVista/stackstate-agent/pkg/serializer"
 	"github.com/StackVista/stackstate-agent/pkg/util/flavor"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
@@ -43,10 +42,6 @@ var (
 	GitBranch string
 	BuildDate string
 	GoVersion string
-
-	// Forwarder is the global forwarder instance
-	Forwarder forwarder.Forwarder
-	Sender    sender.Sender
 )
 
 // versionString returns the version information filled in at build time
