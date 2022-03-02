@@ -58,6 +58,11 @@ func (p *ProcessCheck) Endpoint() string { return "/api/v1/collector" }
 // RealTime indicates if this check only runs in real-time mode.
 func (p *ProcessCheck) RealTime() bool { return false }
 
+// Sender returns an instance of the check sender
+func (p *ProcessCheck) Sender() aggregator.Sender {
+	return GetSender(p.Name())
+}
+
 // Run runs the ProcessCheck to collect a list of running processes and relevant
 // stats for each. On most POSIX systems this will use a mix of procfs and other
 // OS-specific APIs to collect this information. The bulk of this collection is
@@ -126,13 +131,8 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, features features.Features, 
 	p.lastCtrState = buildCtrState(containers)
 
 	// sts send metrics
-	s, err := aggregator.GetSender("process-agent")
-	if err != nil {
-		_ = log.Error("No default sender available: ", err)
-	}
-	defer s.Commit()
-	s.Gauge("stackstate.process_agent.containers.host_count", float64(len(containers)), cfg.HostName, []string{})
-	s.Gauge("stackstate.process_agent.processes.host_count", float64(len(processes)), cfg.HostName, []string{})
+	p.Sender().Gauge("stackstate.process_agent.containers.host_count", float64(len(containers)), cfg.HostName, []string{})
+	p.Sender().Gauge("stackstate.process_agent.processes.host_count", float64(len(processes)), cfg.HostName, []string{})
 
 	checkRunDuration := time.Now().Sub(start)
 	log.Debugf("collected processes in %s, processes found: %v", checkRunDuration, processes)

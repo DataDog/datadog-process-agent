@@ -47,6 +47,11 @@ func (c *ContainerCheck) Endpoint() string { return "/api/v1/container" }
 // RealTime indicates if this check only runs in real-time mode.
 func (c *ContainerCheck) RealTime() bool { return false }
 
+// Sender returns an instance of the check sender
+func (c *ContainerCheck) Sender() aggregator.Sender {
+	return GetSender(c.Name())
+}
+
 // Run runs the ContainerCheck to collect a list of running ctrList and the
 // stats for each container.
 func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {

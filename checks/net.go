@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"strconv"
 	"strings"
 	"time"
@@ -48,6 +49,10 @@ type statusCodeGroup struct {
 	ddSketch *ddsketch.DDSketch
 }
 
+// Init initializes a ConnectionsCheck instance.
+func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
+}
+
 // Name returns the name of the ConnectionsCheck.
 func (c *ConnectionsCheck) Name() string { return "connections" }
 
@@ -56,6 +61,11 @@ func (c *ConnectionsCheck) Endpoint() string { return "/api/v1/connections" }
 
 // RealTime indicates if this check only runs in real-time mode.
 func (c *ConnectionsCheck) RealTime() bool { return false }
+
+// Sender returns an instance of the check sender
+func (c *ConnectionsCheck) Sender() aggregator.Sender {
+	return GetSender(c.Name())
+}
 
 // Run runs the ConnectionsCheck to collect the live TCP connections on the
 // system. Currently only linux systems are supported as eBPF is used to gather
