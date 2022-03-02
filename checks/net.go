@@ -49,10 +49,6 @@ type statusCodeGroup struct {
 	ddSketch *ddsketch.DDSketch
 }
 
-// Init initializes a ConnectionsCheck instance.
-func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
-}
-
 // Name returns the name of the ConnectionsCheck.
 func (c *ConnectionsCheck) Name() string { return "connections" }
 
