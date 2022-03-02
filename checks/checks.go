@@ -33,6 +33,7 @@ var All = []Check{
 	Connections,
 }
 
+// GetSender is the default implementation to get the sender for each check
 func GetSender(checkName string) aggregator.Sender {
 	s, err := aggregator.GetSender(check.ID(checkName))
 	if err != nil {
