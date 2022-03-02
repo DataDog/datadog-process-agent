@@ -3,7 +3,7 @@ package statsd
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/StackVista/stackstate-go/statsd"
 	"github.com/StackVista/stackstate-process-agent/config"
 )
 
