@@ -126,7 +126,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, features features.Features, 
 	p.lastCtrState = buildCtrState(containers)
 
 	// sts send metrics
-	s, err := aggregator.GetDefaultSender()
+	s, err := aggregator.GetSender("process-agent")
 	if err != nil {
 		_ = log.Error("No default sender available: ", err)
 	}

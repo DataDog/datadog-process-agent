@@ -56,7 +56,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 		return nil, err
 	}
 
-	s, err := aggregator.GetDefaultSender()
+	s, err := aggregator.GetSender("process-agent")
 	if err != nil {
 		_ = log.Error("No default sender available: ", err)
 	}

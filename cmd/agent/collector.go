@@ -114,7 +114,7 @@ func (l *Collector) run(exit chan bool) {
 	queueSizeTicker := time.NewTicker(10 * time.Second)
 	featuresTicker := time.NewTicker(5 * time.Second)
 
-	s, err := aggregator.GetDefaultSender()
+	s, err := aggregator.GetSender("process-agent")
 	if err != nil {
 		_ = log.Error("No default sender available: ", err)
 

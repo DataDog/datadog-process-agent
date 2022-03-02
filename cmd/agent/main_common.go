@@ -165,7 +165,7 @@ func runAgent(exit chan bool) {
 	agg.MetricPrefix = "stackstate"
 
 	// sts send metrics
-	snd, err := aggregator.GetDefaultSender()
+	snd, err := aggregator.GetSender("process-agent")
 	if err != nil {
 		_ = log.Error("No default sender available: ", err)
 
