@@ -170,6 +170,8 @@ func runAgent(exit chan bool) {
 		_ = log.Error("No default sender available: ", err)
 
 	}
+	defer snd.Commit()
+
 	snd.Gauge("stackstate.process_agent.started", 1, cfg.HostName,
 		[]string{fmt.Sprintf("version:%s", versionString())})
 

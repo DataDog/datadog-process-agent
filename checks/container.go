@@ -60,6 +60,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 	if err != nil {
 		_ = log.Error("No default sender available: ", err)
 	}
+	defer s.Commit()
 
 	// End check early if this is our first run.
 	if c.lastRates == nil {

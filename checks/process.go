@@ -130,6 +130,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, features features.Features, 
 	if err != nil {
 		_ = log.Error("No default sender available: ", err)
 	}
+	defer s.Commit()
 	s.Gauge("stackstate.process_agent.containers.host_count", float64(len(containers)), cfg.HostName, []string{})
 	s.Gauge("stackstate.process_agent.processes.host_count", float64(len(processes)), cfg.HostName, []string{})
 

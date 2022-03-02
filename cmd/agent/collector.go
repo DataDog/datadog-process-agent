@@ -119,6 +119,7 @@ func (l *Collector) run(exit chan bool) {
 		_ = log.Error("No default sender available: ", err)
 
 	}
+	defer s.Commit()
 
 	// Channel to announce new features detected
 	featuresCh := make(chan features.Features, 1)
