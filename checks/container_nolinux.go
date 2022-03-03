@@ -4,6 +4,7 @@
 package checks
 
 import (
+	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"time"
 
@@ -29,7 +30,7 @@ func (c *ContainerCheck) Init(cfg *config.AgentConfig, info *model.SystemInfo) {
 }
 
 // Sender returns an instance of the check sender
-func (r *RTContainerCheck) Sender() aggregator.Sender {
+func (r *ContainerCheck) Sender() aggregator.Sender {
 	return GetSender(r.Name())
 }
 
