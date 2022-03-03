@@ -1,3 +1,4 @@
+//go:build docker
 // +build docker
 
 package main
@@ -7,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	_ "github.com/StackVista/stackstate-agent/pkg/util/containers/providers/cgroup"
 	log "github.com/cihub/seelog"
 )
 

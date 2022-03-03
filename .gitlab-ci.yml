@@ -1,40 +1,41 @@
 stages:
-- build
-- pre_release
-- release
+  - runner_build
+  - build
+  - pre_release
+  - release
 
 variables:
   SRC_PATH: /src/github.com/StackVista/stackstate-process-agent
   STS_AWS_BUCKET: stackstate-process-agent-2-test
   STS_REPO_BRANCH_NAME: $CI_COMMIT_REF_NAME
   CIRCLE_BRANCH: $CI_COMMIT_REF_NAME
-  BUILD_ENV: /root/.bashrc
   STS_DOCKER_RELEASE_REPO: stackstate-process-agent
   STS_DOCKER_TEST_REPO: stackstate-process-agent-test
-
-before_script:
-    - mkdir -p /go/src/github.com/StackVista
-    - ln -s $CI_PROJECT_DIR  /go/src/github.com/StackVista/stackstate-process-agent
+  GO111MODULE: "on"
+  QUAY_REGISTRY: quay.io
+  DOCKER_REGISTRY: docker.io
+  RUNNER_DIR_PREFIX: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-
+  RUNNER_CENTOS6: centos6
+  RUNNER_RUNNER_BASE: centos6-runner-base
+  RUNNER_RPM: rpm
+  RUNNER7_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-centos7
 
 build_linux:
-  image: stackstate/stackstate-process-agent-runner-gitlab:centos6
+  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-20220218
   stage: build
-  
+
   script:
-    - touch $BUILD_ENV
-    - echo 'export IMPORT_PATH=$GOPATH/src/github.com/StackVista/stackstate-process-agent' >> $BUILD_ENV
-    - echo "export PROCESS_AGENT_VERSION=$(packaging/version.sh)" >> $BUILD_ENV
-    - echo "export EBPF=${EBPF:-true}" >> $BUILD_ENV
-    - source $BUILD_ENV
-    - rsync -azC --delete ./ $IMPORT_PATH
+    - printenv
+    - export PROCESS_AGENT_VERSION=$(packaging/version.sh)
+    - export EBPF=${EBPF:-true}
+    - source ~/.bashrc
     - go get golang.org/x/tools/cmd/gorename
     - go get golang.org/x/tools/cmd/eg
     - go get golang.org/x/lint/golint
     - printenv
-    - cd $IMPORT_PATH/packaging && ./apply_branding.sh
-    - export CC=/opt/centos/devtoolset-1.1/root/usr/bin/gcc
-    - cd $IMPORT_PATH && rake ci
-    - cd $IMPORT_PATH/packaging && ./build_staging_package.sh
+    - (cd packaging; ./apply_branding.sh)
+    - rake ci
+    - (cd packaging; ./build_staging_package.sh)
   artifacts:
     paths:
       - $CI_PROJECT_DIR/process-agent
@@ -45,17 +46,9 @@ build_linux:
 build_windows:
   stage: build
   allow_failure: false
-  before_script:
-    - if exist %GOPATH%\src\github.com\StackVista\stackstate-process-agent rd /s/q %GOPATH%\src\github.com\StackVista\stackstate-process-agent
-    - if exist %GOPATH%\pkg rd /s/q %GOPATH%\pkg
-    - mkdir %GOPATH%\src\github.com\StackVista\stackstate-process-agent
-    - xcopy /q/h/e/s * %GOPATH%\src\github.com\StackVista\stackstate-process-agent
   script:
-    - cd %GOPATH%\src\github.com\StackVista\stackstate-process-agent
     - cd packaging && bash -c "./apply_branding.sh" && cd ..
     - call .gitlab-scripts/windows_build.cmd
-  after_script:
-    - copy %GOPATH%\src\github.com\StackVista\stackstate-process-agent\process-agent.exe
   artifacts:
     expire_in: 2 weeks
     paths:
@@ -73,9 +66,9 @@ pre_release_windows:
   stage: pre_release
   needs:
     - build_windows
-  before_script: []  
+  before_script: []
   script:
-    - call rake windows-versioned-artifact
+    - cp process-agent.exe stackstate-process-agent-%CI_COMMIT_SHORT_SHA%.exe
     - aws.exe s3 cp . s3://stackstate-process-agent-2-test/%CI_COMMIT_REF_NAME% --recursive --exclude "*" --include "*.exe" --acl public-read
   tags:
     - agent_windows_6
@@ -88,46 +81,47 @@ pre_release_windows:
 
 pre_release_linux:
   stage: pre_release
-  image: stackstate/stackstate-process-agent-runner-gitlab:centos6
+  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-20220218
   needs:
     - build_linux
   before_script:
-    - mkdir -p /go/src/github.com/StackVista
-    - ln -s $CI_PROJECT_DIR /go/src/github.com/StackVista/stackstate-process-agent
-    - echo 'export IMPORT_PATH=$GOPATH/src/github.com/StackVista/stackstate-process-agent' >> $BUILD_ENV
-    - echo "export PROCESS_AGENT_VERSION=$(packaging/version.sh)" >> $BUILD_ENV
-    - source $BUILD_ENV
+    - export PROCESS_AGENT_VERSION=$CI_COMMIT_SHORT_SHA
   script:
-    - ls -la $IMPORT_PATH
-    - ls -la $IMPORT_PATH/packaging
-    - cd $IMPORT_PATH/packaging && ./publish_staging_package.sh
-    
+    - ls -la $CI_PROJECT_DIR
+    - ls -la $CI_PROJECT_DIR/packaging
+    - cd $CI_PROJECT_DIR/packaging && ./publish_staging_package.sh
+
 pre_release_image:
   stage: pre_release
-  image: docker:18.06.0
+  image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
   needs:
     - build_linux
   variables:
-      DOCKER_DRIVER: overlay
-      DOCKER_HOST: tcp://docker:2375
-      DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   services:
-    - docker:18.09-dind
+    - name: artifactory.tooling.stackstate.io/docker-virtual/docker:18.09-dind
+      alias: docker
   script:
     - cd $CI_PROJECT_DIR
     - ./packaging/publish_image.sh $CI_COMMIT_REF_NAME $STS_DOCKER_TEST_REPO $CI_PROJECT_DIR/process-agent
 
 release_image:
   stage: release
-  image: docker:18.06.0
+  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/docker:18.06.0
   needs:
     - build_linux
   variables:
-      DOCKER_DRIVER: overlay
-      DOCKER_HOST: tcp://docker:2375
-      DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
   services:
-    - docker:18.09-dind
+    - name: artifactory.tooling.stackstate.io/docker-virtual/docker:18.09-dind
+      alias: docker
+  before_script:
+    - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
+    - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
   script:
     - cd $CI_PROJECT_DIR
     - export PUSH_LATEST=true
@@ -135,4 +129,30 @@ release_image:
   when: manual
   only:
     - tags
-    - trigger   
+    - trigger
+
+build_runner_centos7:
+  stage: runner_build
+  image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
+  services:
+    - name: artifactory.tooling.stackstate.io/docker-virtual/docker:18.09-dind
+      alias: docker
+  retry:
+    max: 2
+    when:
+      - always
+  rules:
+    - when: manual
+      allow_failure: true
+  variables:
+    DOCKER_DRIVER: overlay
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - cd $RUNNER7_DIR
+    - pwd
+    - export RUNTIMETAG=$(date +%Y%m%d)
+    - docker login -u "${docker_user}" -p "${docker_password}" "${DOCKER_REGISTRY}"
+    - docker login -u "${quay_user}" -p "${quay_password}" "${QUAY_REGISTRY}"
+    - docker build -t stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-${RUNTIMETAG} .
+    - docker push stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-${RUNTIMETAG}

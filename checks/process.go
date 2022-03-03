@@ -4,16 +4,16 @@ package checks
 
 import (
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
+	"github.com/StackVista/stackstate-process-agent/statsd"
 	"sync"
 	"time"
 
 	"github.com/DataDog/gopsutil/cpu"
 	"github.com/DataDog/gopsutil/process"
+	"github.com/StackVista/stackstate-agent/pkg/process/util"
 	"github.com/StackVista/stackstate-agent/pkg/util/containers"
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
-	"github.com/StackVista/stackstate-process-agent/statsd"
-	"github.com/StackVista/stackstate-process-agent/util"
 	log "github.com/cihub/seelog"
 	cache "github.com/patrickmn/go-cache"
 )

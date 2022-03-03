@@ -17,10 +17,10 @@ import (
 
 	tracerconfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 
-	"github.com/StackVista/stackstate-process-agent/util"
+	"github.com/StackVista/stackstate-agent/pkg/process/util"
 
 	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
-	ecsutil "github.com/StackVista/stackstate-agent/pkg/util/ecs"
+	"github.com/StackVista/stackstate-agent/pkg/util/fargate"
 
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"
@@ -318,6 +318,7 @@ func isRunningInKubernetes() bool {
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
 func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *YamlAgentConfig) (*AgentConfig, error) {
+	ddconfig.Datadog.SetEnvPrefix("STS")
 	var err error
 	cfg := NewDefaultAgentConfig()
 
@@ -466,10 +467,10 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 	}
 
 	if cfg.HostName == "" {
-		if ecsutil.IsFargateInstance() {
+		if fargate.IsFargateInstance() {
 			// Fargate tasks should have no concept of host names, so we're using the task ARN.
-			if taskMeta, err := ecsutil.GetTaskMetadata(); err == nil {
-				cfg.HostName = fmt.Sprintf("fargate_task:%s", taskMeta.TaskARN)
+			if hostname, err := fargate.GetFargateHost(); err == nil {
+				cfg.HostName = fmt.Sprintf("fargate_task:%s", hostname)
 			} else {
 				log.Errorf("Failed to retrieve Fargate task metadata: %s", err)
 			}
@@ -663,9 +664,10 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 
 	// Used to override container source auto-detection.
 	// "docker", "ecs_fargate", "kubelet", etc
-	if v := os.Getenv("DD_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
-		util.SetContainerSource(v)
-	}
+	// sts ignore
+	//if v := os.Getenv("STS_PROCESS_AGENT_CONTAINER_SOURCE"); v != "" {
+	//	util.SetContainerSource(v)
+	//}
 
 	// Note: this feature is in development and should not be used in production environments
 	// STS: ignore DD notes, this will enable our tcptracer-ebpf and that is production ready

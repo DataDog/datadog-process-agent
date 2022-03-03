@@ -10,9 +10,9 @@ import (
 	"gopkg.in/yaml.v2"
 
 	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
-	ddutil "github.com/StackVista/stackstate-agent/pkg/util"
+	httputils "github.com/StackVista/stackstate-agent/pkg/util/http"
 
-	"github.com/StackVista/stackstate-process-agent/util"
+	"github.com/StackVista/stackstate-agent/pkg/process/util"
 )
 
 // YamlAgentConfig is a structure used for marshaling the datadog.yaml configuration
@@ -166,6 +166,10 @@ func NewYamlIfExists(configPath string) (*YamlAgentConfig, error) {
 		return &yamlConf, nil
 	}
 	return nil, nil
+}
+
+func key(pieces ...string) string {
+	return strings.Join(pieces, ".")
 }
 
 func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig, error) {
@@ -326,14 +330,22 @@ func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig,
 		}
 	}
 
-	// Ugly fix until we merge process agent to main agent repo.
-	ddconfig.Datadog.SetEnvPrefix("STS")
 	_ = ddconfig.Datadog.BindEnv("skip_ssl_validation")
 	log.Infof("STS_SKIP_SSL_VALIDATION: %v", ddconfig.Datadog.GetString("skip_ssl_validation"))
+
+	// sts begin
+	// Used to override container source auto-detection
+	// and to enable multiple collector sources if needed.
+	// "docker", "ecs_fargate", "kubelet", "kubelet docker", etc.
+	if sources := ddconfig.Datadog.GetStringSlice(key("process_config", "container_source")); len(sources) > 0 {
+		util.SetContainerSources(sources)
+	}
+	// sts end
+
 	// Pull additional parameters from the global config file.
 	agentConf.LogLevel = ddconfig.Datadog.GetString("log_level")
 	agentConf.StatsdPort = ddconfig.Datadog.GetInt("dogstatsd_port")
-	agentConf.Transport = ddutil.CreateHTTPTransport()
+	agentConf.Transport = httputils.CreateHTTPTransport()
 
 	return agentConf, nil
 }
@@ -384,7 +396,7 @@ func SetupDDAgentConfig(configPath string) error {
 	}
 
 	// load the configuration
-	if err := ddconfig.Load(); err != nil {
+	if _, err := ddconfig.Load(); err != nil {
 		return fmt.Errorf("unable to load Datadog config file: %s", err)
 	}
 

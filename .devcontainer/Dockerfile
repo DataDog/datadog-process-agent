@@ -96,8 +96,8 @@ RUN apt-get update -y \
     && apt-get -y install --no-install-recommends apt-utils 2>&1 \
     # Verify git, process tools, lsb-release (common in install instructions for CLIs) installed.
     && apt-get -y install git iproute2 procps lsb-release \
-    # Install Python2.7
-    && apt-get install -y python2.7 python-pip unzip \
+    # Install Python
+    && apt-get install -y python3 python3-pip unzip \
     && apt-get install -y protobuf-compiler \
     && apt-get autoremove -y \
     && apt-get clean -y \
