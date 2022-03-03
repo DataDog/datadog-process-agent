@@ -18,10 +18,10 @@ process_config:
   enabled: 'true'
 
   queue_size: 10
-#  intervals:
-#    container: 8
-#    process: 5
-#    connections: 5
+  intervals:
+    container: 8
+    process: 5
+    connections: 5
   process_blacklist:
     # Process blacklist inclusions for top resource using processes
     inclusions:

@@ -5,7 +5,7 @@ package checks
 
 import (
 	"fmt"
-	"github.com/StackVista/stackstate-agent/pkg/aggregator"
+	"github.com/StackVista/stackstate-process-agent/statsd"
 	"runtime"
 	"strings"
 	"time"
@@ -56,11 +56,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 		return nil, err
 	}
 
-	s, err := aggregator.GetDefaultSender()
-	if err != nil {
-		_ = log.Error("No default sender available: ", err)
-	}
-
 	// End check early if this is our first run.
 	if c.lastRates == nil {
 		c.lastRates = util.ExtractContainerRateMetric(ctrList)
@@ -89,7 +84,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 	c.lastRates = util.ExtractContainerRateMetric(ctrList)
 	c.lastRun = time.Now()
 
-	s.Gauge("stackstate.process_agent.containers.host_count", totalContainers, cfg.HostName, []string{})
+	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
 	log.Debugf("collected %d containers in %s", int(totalContainers), time.Now().Sub(start))
 	return messages, nil
 }

@@ -3,8 +3,8 @@
 package checks
 
 import (
-	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
+	"github.com/StackVista/stackstate-process-agent/statsd"
 	"sync"
 	"time"
 
@@ -125,13 +125,8 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, features features.Features, 
 	p.lastProcState = buildProcState(processes)
 	p.lastCtrState = buildCtrState(containers)
 
-	// sts send metrics
-	s, err := aggregator.GetDefaultSender()
-	if err != nil {
-		_ = log.Error("No default sender available: ", err)
-	}
-	s.Gauge("stackstate.process_agent.containers.host_count", float64(len(containers)), cfg.HostName, []string{})
-	s.Gauge("stackstate.process_agent.processes.host_count", float64(len(processes)), cfg.HostName, []string{})
+	statsd.Client.Gauge("datadog.process.containers.host_count", float64(len(containers)), []string{}, 1)
+	statsd.Client.Gauge("datadog.process.processes.host_count", float64(len(processes)), []string{}, 1)
 
 	checkRunDuration := time.Now().Sub(start)
 	log.Debugf("collected processes in %s, processes found: %v", checkRunDuration, processes)

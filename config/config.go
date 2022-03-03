@@ -318,9 +318,7 @@ func isRunningInKubernetes() bool {
 // NewAgentConfig returns an AgentConfig using a configuration file. It can be nil
 // if there is no file available. In this case we'll configure only via environment.
 func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *YamlAgentConfig) (*AgentConfig, error) {
-	// Set the environment prefix to STS
 	ddconfig.Datadog.SetEnvPrefix("STS")
-
 	var err error
 	cfg := NewDefaultAgentConfig()
 
