@@ -41,8 +41,6 @@ func GetSender(checkName string) aggregator.Sender {
 		// use LogSender when no sender instance is available
 		s = processUtils.LogSender
 	}
-	// defer commit to send metrics after
-	defer s.Commit()
 
 	return s
 }

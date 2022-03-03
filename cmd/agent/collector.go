@@ -82,6 +82,9 @@ func (l *Collector) runCheck(c checks.Check, features features.Features) {
 	// update the last collected timestamp for info
 	updateLastCollectTime(currentTime)
 	messages, err := c.Run(l.cfg, features, atomic.AddInt32(&l.groupID, 1), currentTime)
+	// defer commit to after check run
+	defer c.Sender().Commit()
+
 	if err != nil {
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
