@@ -28,6 +28,11 @@ func (r *RTContainerCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 	r.sysInfo = sysInfo
 }
 
+// Sender returns an instance of the check sender
+func (r *RTContainerCheck) Sender() aggregator.Sender {
+	return GetSender(r.Name())
+}
+
 // Name returns the name of the RTContainerCheck.
 func (r *RTContainerCheck) Name() string { return "rtcontainer" }
 
