@@ -1,4 +1,5 @@
 stages:
+  - runner_build
   - build
   - pre_release
   - release
@@ -131,7 +132,7 @@ release_image:
     - trigger
 
 build_runner_centos7:
-  stage: build
+  stage: runner_build
   image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
   services:
     - name: artifactory.tooling.stackstate.io/docker-virtual/docker:18.09-dind
@@ -142,6 +143,7 @@ build_runner_centos7:
       - always
   rules:
     - when: manual
+      allow_failure: true
   variables:
     DOCKER_DRIVER: overlay
     DOCKER_HOST: tcp://docker:2375
