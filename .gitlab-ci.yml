@@ -109,7 +109,7 @@ pre_release_image:
 
 release_image:
   stage: release
-  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/docker:18.06.0
+  image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
   needs:
     - build_linux
   variables:
