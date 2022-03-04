@@ -779,7 +779,6 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		c.CheckIntervals["connections"] = time.Duration(v) * time.Second
 	}
 
-
 	return c
 }
 

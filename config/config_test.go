@@ -1408,9 +1408,9 @@ func TestCheckIntervalCodeDefaults(t *testing.T) {
 	agentConfig, err := NewAgentConfig(nil, nil, nil)
 	assert.NoError(t, err)
 
-	assert.Equal(t, time.Duration(30) * time.Second, agentConfig.CheckIntervals["container"])
-	assert.Equal(t, time.Duration(30) * time.Second, agentConfig.CheckIntervals["process"])
-	assert.Equal(t, time.Duration(30) * time.Second, agentConfig.CheckIntervals["connections"])
+	assert.Equal(t, time.Duration(30)*time.Second, agentConfig.CheckIntervals["container"])
+	assert.Equal(t, time.Duration(30)*time.Second, agentConfig.CheckIntervals["process"])
+	assert.Equal(t, time.Duration(30)*time.Second, agentConfig.CheckIntervals["connections"])
 }
 
 func TestCheckIntervalCodeDefaults_FromYaml(t *testing.T) {
@@ -1427,9 +1427,9 @@ func TestCheckIntervalCodeDefaults_FromYaml(t *testing.T) {
 	agentConfig, err := NewAgentConfig(nil, &ddy, nil)
 	assert.NoError(t, err)
 
-	assert.Equal(t, time.Duration(10) * time.Second, agentConfig.CheckIntervals["container"])
-	assert.Equal(t, time.Duration(10) * time.Second, agentConfig.CheckIntervals["process"])
-	assert.Equal(t, time.Duration(10) * time.Second, agentConfig.CheckIntervals["connections"])
+	assert.Equal(t, time.Duration(10)*time.Second, agentConfig.CheckIntervals["container"])
+	assert.Equal(t, time.Duration(10)*time.Second, agentConfig.CheckIntervals["process"])
+	assert.Equal(t, time.Duration(10)*time.Second, agentConfig.CheckIntervals["connections"])
 }
 
 func TestCheckIntervalCodeDefaults_FromEnv(t *testing.T) {
@@ -1440,9 +1440,9 @@ func TestCheckIntervalCodeDefaults_FromEnv(t *testing.T) {
 	agentConfig, err := NewAgentConfig(nil, nil, nil)
 	assert.NoError(t, err)
 
-	assert.Equal(t, time.Duration(15) * time.Second, agentConfig.CheckIntervals["container"])
-	assert.Equal(t, time.Duration(15) * time.Second, agentConfig.CheckIntervals["process"])
-	assert.Equal(t, time.Duration(15) * time.Second, agentConfig.CheckIntervals["connections"])
+	assert.Equal(t, time.Duration(15)*time.Second, agentConfig.CheckIntervals["container"])
+	assert.Equal(t, time.Duration(15)*time.Second, agentConfig.CheckIntervals["process"])
+	assert.Equal(t, time.Duration(15)*time.Second, agentConfig.CheckIntervals["connections"])
 }
 
 func TestCheckIntervalCodeDefaults_FromEnvOverridesYaml(t *testing.T) {
@@ -1463,8 +1463,7 @@ func TestCheckIntervalCodeDefaults_FromEnvOverridesYaml(t *testing.T) {
 	agentConfig, err := NewAgentConfig(nil, &ddy, nil)
 	assert.NoError(t, err)
 
-	assert.Equal(t, time.Duration(20) * time.Second, agentConfig.CheckIntervals["container"])
-	assert.Equal(t, time.Duration(20) * time.Second, agentConfig.CheckIntervals["process"])
-	assert.Equal(t, time.Duration(20) * time.Second, agentConfig.CheckIntervals["connections"])
+	assert.Equal(t, time.Duration(20)*time.Second, agentConfig.CheckIntervals["container"])
+	assert.Equal(t, time.Duration(20)*time.Second, agentConfig.CheckIntervals["process"])
+	assert.Equal(t, time.Duration(20)*time.Second, agentConfig.CheckIntervals["connections"])
 }
-
