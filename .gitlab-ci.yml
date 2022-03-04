@@ -64,7 +64,7 @@ pre_release_windows:
   needs:
     - build_windows
   script:
-    - VERSION=$(eval $VERSION_LOGIC)
+    - export VERSION=$(eval $VERSION_LOGIC)
     - echo ${VERSION}
     - cp process-agent.exe stackstate-process-agent-%VERSION%.exe
     - aws.exe s3 cp . s3://stackstate-process-agent-2-test/%CI_COMMIT_REF_NAME% --recursive --exclude "*" --include "*.exe" --acl public-read
