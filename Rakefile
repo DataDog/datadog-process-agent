@@ -135,3 +135,9 @@ task 'windows-versioned-artifact' do
   process_agent_version = `bash -c "packaging/version.sh"`.strip!
   system("cp process-agent.exe stackstate-process-agent-%s.exe" % process_agent_version)
 end
+
+task 'windows-tag-or-commit-artifact' do
+  process_agent_version = `bash -c "packaging/commit-or-tag.sh"`.strip!
+  sh "echo %s" % process_agent_version
+  system("cp process-agent.exe stackstate-process-agent-%s.exe" % process_agent_version)
+end
