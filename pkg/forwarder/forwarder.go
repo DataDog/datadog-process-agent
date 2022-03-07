@@ -28,7 +28,7 @@ func (pf ProcessForwarder) Start() {
 
 	// setup the aggregator
 	s := serializer.NewSerializer(common.Forwarder)
-	agg := aggregator.InitAggregator(s, cfg.HostName)
+	agg := aggregator.InitAggregator(s, pf.AgentConfig.HostName)
 	agg.MetricPrefix = "stackstate"
 }
 
