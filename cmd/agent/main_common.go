@@ -4,12 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/StackVista/stackstate-agent/cmd/agent/common"
 	"github.com/StackVista/stackstate-agent/pkg/aggregator"
-	"github.com/StackVista/stackstate-agent/pkg/forwarder"
-	"github.com/StackVista/stackstate-agent/pkg/serializer"
-	"github.com/StackVista/stackstate-agent/pkg/util/flavor"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
+	"github.com/StackVista/stackstate-process-agent/pkg/forwarder"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -141,28 +138,8 @@ func runAgent(exit chan bool) {
 	//	os.Exit(1)
 	//}
 
-	// set the flavor to the Process Agent
-	flavor.SetFlavor("process_agent")
-
-	// setup the forwarder, set up domain -> [apiKeys] from config endpoints
-	keysPerDomain := make(map[string][]string)
-	for _, apiEndpoint := range cfg.APIEndpoints {
-		endpoint := apiEndpoint.Endpoint.String()
-		if apiKeys, ok := keysPerDomain[endpoint]; ok {
-			keysPerDomain[endpoint] = append(apiKeys, apiEndpoint.APIKey)
-		} else {
-			keysPerDomain[endpoint] = []string{apiEndpoint.APIKey}
-		}
-	}
-	common.Forwarder = forwarder.NewDefaultForwarder(forwarder.NewOptions(keysPerDomain))
-	log.Debugf("Starting forwarder")
-	common.Forwarder.Start() //nolint:errcheck
-	log.Debugf("Forwarder started")
-
-	// setup the aggregator
-	s := serializer.NewSerializer(common.Forwarder)
-	agg := aggregator.InitAggregator(s, cfg.HostName)
-	agg.MetricPrefix = "stackstate"
+	fwd := forwarder.MakeProcessForwarder(cfg)
+	fwd.Start()
 
 	// sts send metrics
 	snd, err := aggregator.GetSender("process-agent")
@@ -233,7 +210,8 @@ func runAgent(exit chan bool) {
 	}
 	cl.run(exit)
 	for range exit {
-
+		// stop the forwarder before exiting
+		fwd.Stop()
 	}
 }
 
