@@ -1,4 +1,5 @@
 stages:
+  - runner_build
   - build
   - pre_release
   - release
@@ -13,11 +14,8 @@ variables:
   GO111MODULE: "on"
   QUAY_REGISTRY: quay.io
   DOCKER_REGISTRY: docker.io
-  RUNNER_DIR_PREFIX: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-
-  RUNNER_CENTOS6: centos6
-  RUNNER_RUNNER_BASE: centos6-runner-base
-  RUNNER_RPM: rpm
   RUNNER7_DIR: $CI_PROJECT_DIR/.cd-builders/runner-gitlab-centos7
+  VERSION_LOGIC: '(if [ "$${CI_COMMIT_TAG}" == "" ]; then echo "$${CI_COMMIT_SHORT_SHA}"; else echo "$${CI_COMMIT_TAG}"; fi);'
 
 build_linux:
   image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-20220218
@@ -65,9 +63,8 @@ pre_release_windows:
   stage: pre_release
   needs:
     - build_windows
-  before_script: []
   script:
-    - cp process-agent.exe stackstate-process-agent-%CI_COMMIT_SHORT_SHA%.exe
+    - call rake windows-tag-or-commit-artifact
     - aws.exe s3 cp . s3://stackstate-process-agent-2-test/%CI_COMMIT_REF_NAME% --recursive --exclude "*" --include "*.exe" --acl public-read
   tags:
     - agent_windows_6
@@ -84,8 +81,9 @@ pre_release_linux:
   needs:
     - build_linux
   before_script:
-    - export PROCESS_AGENT_VERSION=$CI_COMMIT_SHORT_SHA
+    - export PROCESS_AGENT_VERSION=$(eval $VERSION_LOGIC)
   script:
+    - echo "PROCESS_AGENT_VERSION=${VERSION}"
     - ls -la $CI_PROJECT_DIR
     - ls -la $CI_PROJECT_DIR/packaging
     - cd $CI_PROJECT_DIR/packaging && ./publish_staging_package.sh
@@ -108,7 +106,7 @@ pre_release_image:
 
 release_image:
   stage: release
-  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/docker:18.06.0
+  image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
   needs:
     - build_linux
   variables:
@@ -131,7 +129,7 @@ release_image:
     - trigger
 
 build_runner_centos7:
-  stage: build
+  stage: runner_build
   image: artifactory.tooling.stackstate.io/docker-virtual/docker:18.06.0
   services:
     - name: artifactory.tooling.stackstate.io/docker-virtual/docker:18.09-dind

@@ -11,7 +11,7 @@ replace (
 // Internal deps fix version
 replace (
 	bitbucket.org/ww/goautoneg => github.com/munnerz/goautoneg v0.0.0-20120707110453-a547fc61f48d
-	github.com/DataDog/sketches-go v1.1.0 => github.com/StackVista/sketches-go v1.1.0
+	github.com/DataDog/sketches-go v1.1.0 => github.com/StackVista/sketches-go v1.1.1
 	github.com/cihub/seelog => github.com/cihub/seelog v0.0.0-20151216151435-d2c6e5aa9fbf // v2.6
 	github.com/docker/distribution => github.com/docker/distribution v2.7.1-0.20190104202606-0ac367fd6bee+incompatible
 	github.com/iovisor/gobpf => github.com/StackVista/gobpf v0.1.2
@@ -53,13 +53,12 @@ replace (
 // replace k8s.io/klog => k8s.io/klog v1.0.1-0.20200310124935-4ad0115ba9e4
 
 require (
-	github.com/DataDog/datadog-go v3.5.0+incompatible
 	github.com/DataDog/gopsutil v0.0.0-20200624212600-1b53412ef321
 	github.com/DataDog/sketches-go v1.1.0
 	github.com/DataDog/zstd v0.0.0-20160706220725-2bf71ec48360
 	github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705
 	github.com/StackVista/stackstate-agent v0.0.0-20220303084304-17d1f84b77b4
-	github.com/StackVista/tcptracer-bpf v7.0.4+incompatible
+	github.com/StackVista/tcptracer-bpf v7.0.5+incompatible
 	github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575
 	github.com/go-ini/ini v1.55.0
 	github.com/gogo/protobuf v1.3.1
@@ -72,9 +71,11 @@ require (
 	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4
 	github.com/smartystreets/goconvey v1.7.2 // indirect
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/sys v0.0.0-20220224120231-95c6836cb0e7
-	golang.org/x/tools v0.1.9 // indirect
+	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
+	golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9
+	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/ini.v1 v1.66.3 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 )
