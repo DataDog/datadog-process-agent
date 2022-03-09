@@ -59,7 +59,7 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705
 	github.com/StackVista/stackstate-agent v0.0.0-20220301185330-a84a5f8f125a
 	github.com/StackVista/stackstate-go v0.0.0-20220302151729-a72c49c07350
-	github.com/StackVista/tcptracer-bpf v7.0.5+incompatible
+	github.com/StackVista/tcptracer-bpf v7.0.6-0.20220309130313-c9f9eee1d0f7+incompatible
 	github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575
 	github.com/go-ini/ini v1.55.0
 	github.com/gogo/protobuf v1.3.1
