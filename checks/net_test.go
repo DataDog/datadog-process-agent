@@ -123,6 +123,51 @@ func makeConnectionStatsNoNs(pid uint32, local, remote string, localPort, remote
 	}
 }
 
+func TestNetworkRelationCacheExpiration(t *testing.T) {
+	cache := NewNetworkRelationCache(100 * time.Millisecond)
+	hostname := "example.org"
+	addStats := func(stats ...common.ConnectionStats) {
+		for _, conn := range stats {
+			relationID, _ := CreateNetworkRelationIdentifier(hostname, conn)
+			cache.PutNetworkRelationCache(relationID, conn)
+		}
+	}
+
+	addStats(
+		makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 12345, 8080),
+	)
+	assert.Equal(t, 1, cache.ItemCount())
+	assert.Equal(t, 1, cache.ConnectionsCount())
+
+	time.Sleep(50 * time.Millisecond)
+
+	addStats(
+		// a new connection for existing relation (remote port 8080)
+		makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 12346, 8080),
+		// a new connection for a new relation (remote port 2000)
+		makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 1000, 2000),
+	)
+	assert.Equal(t, 2, cache.ItemCount())        // should be now 2 relations in total
+	assert.Equal(t, 3, cache.ConnectionsCount()) // and 3 connections because nothing has to be expired yet
+
+	time.Sleep(70 * time.Millisecond)
+	// now the very first connection should be expired as 70+50 > 100 ms has elapsed
+	assert.Equal(t, 2, cache.ItemCount())
+	assert.Equal(t, 2, cache.ConnectionsCount())
+
+	addStats(
+		// a new connection for existing relation (remote port 8080)
+		makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 12347, 8080),
+	)
+	assert.Equal(t, 2, cache.ItemCount())
+	assert.Equal(t, 3, cache.ConnectionsCount())
+
+	time.Sleep(110 * time.Millisecond)
+	// now everything should go away
+	assert.Equal(t, 0, cache.ItemCount())
+	assert.Equal(t, 0, cache.ConnectionsCount())
+}
+
 func TestFilterConnectionsByProcess(t *testing.T) {
 	cfg := config.NewDefaultAgentConfig()
 	now := time.Now()

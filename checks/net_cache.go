@@ -17,7 +17,8 @@ type NetworkRelationCache struct {
 func NewNetworkRelationCache(minCacheDuration time.Duration) *NetworkRelationCache {
 	relationCache := cache.New(minCacheDuration, minCacheDuration)
 	return &NetworkRelationCache{
-		cache: relationCache,
+		cache:            relationCache,
+		minCacheDuration: minCacheDuration,
 	}
 }
 
@@ -103,7 +104,17 @@ func (nrc *NetworkRelationCache) Flush() {
 	nrc.cache.Flush()
 }
 
-// ItemCount returns count of network relations in cache
+// ItemCount returns total number of network relations in the cache
 func (nrc *NetworkRelationCache) ItemCount() int {
-	return nrc.cache.ItemCount()
+	return len(nrc.cache.Items())
+}
+
+// ConnectionsCount returns total number of network connections in the cache
+func (nrc *NetworkRelationCache) ConnectionsCount() int {
+	total := 0
+	for _, item := range nrc.cache.Items() {
+		relation := item.Object.(*NetworkRelationCacheItem)
+		total += len(relation.connectionMetrics.Items())
+	}
+	return total
 }
