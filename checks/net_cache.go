@@ -1,7 +1,6 @@
 package checks
 
 import (
-	"fmt"
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/common"
 	"github.com/patrickmn/go-cache"
 	"time"
@@ -9,24 +8,15 @@ import (
 
 // NetworkRelationCache is used to track age of network relations and to keep metrics for connection for calculating rates
 type NetworkRelationCache struct {
-	cache            *cache.Cache
-	minCacheDuration time.Duration
+	cache *cache.Cache
 }
 
 // NewNetworkRelationCache create network relation cache with specified minimum duration for stored items
 func NewNetworkRelationCache(minCacheDuration time.Duration) *NetworkRelationCache {
 	relationCache := cache.New(minCacheDuration, minCacheDuration)
 	return &NetworkRelationCache{
-		cache:            relationCache,
-		minCacheDuration: minCacheDuration,
+		cache: relationCache,
 	}
-}
-
-// ConnectionMetrics is used to keep state of the previous send and received bytes so that we can calculate transfer rate
-type ConnectionMetrics struct {
-	LastObserved int64
-	SendBytes    uint64
-	RecvBytes    uint64
 }
 
 // NetworkRelationCacheItem is used as the struct in the cache for all seen network relations
@@ -36,18 +26,7 @@ type ConnectionMetrics struct {
 // while a once-off network connection is filtered out and not reported to StackState.
 // This is done by removing source port from cache key in CreateNetworkRelationIdentifier & createRelationIdentifier in checks/net_common.go
 type NetworkRelationCacheItem struct {
-	FirstObserved     int64
-	LastObserved      int64
-	connectionMetrics *cache.Cache
-}
-
-// GetMetrics return metrics for particular network connection (not relation)
-func (nrci *NetworkRelationCacheItem) GetMetrics(connID common.ConnTuple) (*ConnectionMetrics, bool) {
-	result, found := nrci.connectionMetrics.Get(fmt.Sprintf("%v", connID))
-	if found {
-		return result.(*ConnectionMetrics), true
-	}
-	return nil, false
+	FirstObserved int64
 }
 
 // IsNetworkRelationCached checks to see if this relationID is present in the NetworkRelationCacheItem
@@ -67,31 +46,9 @@ func (nrc *NetworkRelationCache) PutNetworkRelationCache(relationID string, conn
 	cPointer, found := nrc.cache.Get(relationID)
 	if found {
 		cachedRelation = cPointer.(*NetworkRelationCacheItem)
-		cachedRelation.connectionMetrics.Set(
-			fmt.Sprintf("%v", connStats.GetConnection()),
-			&ConnectionMetrics{
-				LastObserved: nowUnix,
-				SendBytes:    connStats.SendBytes,
-				RecvBytes:    connStats.RecvBytes,
-			},
-			cache.DefaultExpiration,
-		)
-		cachedRelation.LastObserved = nowUnix
 	} else {
-		connCache := cache.New(nrc.minCacheDuration, nrc.minCacheDuration)
-		connCache.Set(
-			fmt.Sprintf("%v", connStats.GetConnection()),
-			&ConnectionMetrics{
-				LastObserved: nowUnix,
-				SendBytes:    connStats.SendBytes,
-				RecvBytes:    connStats.RecvBytes,
-			},
-			cache.DefaultExpiration,
-		)
 		cachedRelation = &NetworkRelationCacheItem{
-			connectionMetrics: connCache,
-			FirstObserved:     nowUnix,
-			LastObserved:      nowUnix,
+			FirstObserved: nowUnix,
 		}
 	}
 
@@ -107,14 +64,4 @@ func (nrc *NetworkRelationCache) Flush() {
 // ItemCount returns total number of network relations in the cache
 func (nrc *NetworkRelationCache) ItemCount() int {
 	return len(nrc.cache.Items())
-}
-
-// ConnectionsCount returns total number of network connections in the cache
-func (nrc *NetworkRelationCache) ConnectionsCount() int {
-	total := 0
-	for _, item := range nrc.cache.Items() {
-		relation := item.Object.(*NetworkRelationCacheItem)
-		total += len(relation.connectionMetrics.Items())
-	}
-	return total
 }
