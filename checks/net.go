@@ -34,12 +34,17 @@ type ConnectionsCheck struct {
 	localTracer    tracer.Tracer
 
 	prevCheckTime time.Time
-	prevConns     []common.ConnectionStats
+	prevConns     map[common.ConnTuple]connectionMetrics
 
 	buf *bytes.Buffer // Internal buffer
 
 	// Use this as the network relation cache to calculate rate metrics and drop short-lived network relations
 	cache *NetworkRelationCache
+}
+
+type connectionMetrics struct {
+	SendBytes uint64
+	RecvBytes uint64
 }
 
 type statusCodeGroup struct {
@@ -91,7 +96,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 			c.cache.PutNetworkRelationCache(relationID, conn)
 		}
 		c.prevCheckTime = currentTime
-		c.prevConns = conns
+		c.prevConns = makeMetricsLookupMap(conns)
 		return nil, nil
 	}
 
@@ -123,16 +128,22 @@ func (c *ConnectionsCheck) getConnections() ([]common.ConnectionStats, error) {
 	return tu.GetConnections()
 }
 
+func makeMetricsLookupMap(conns []common.ConnectionStats) map[common.ConnTuple]connectionMetrics {
+	lookupMap := make(map[common.ConnTuple]connectionMetrics, len(conns))
+	for _, conn := range conns {
+		lookupMap[conn.GetConnection()] = connectionMetrics{
+			SendBytes: conn.SendBytes,
+			RecvBytes: conn.RecvBytes,
+		}
+	}
+	return lookupMap
+}
+
 // Connections are split up into a chunks of at most 100 connections per message to
 // limit the message size on intake.
-func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []common.ConnectionStats, prevCheckTimeDiff time.Duration, prevConns []common.ConnectionStats) []*model.Connection {
+func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []common.ConnectionStats, prevCheckTimeDiff time.Duration, prevConnStats map[common.ConnTuple]connectionMetrics) []*model.Connection {
 	// Process create-times required to construct unique process hash keys on the backend
 	createTimeForPID := Process.createTimesForPIDs(connectionPIDs(conns))
-
-	prevConnsMap := make(map[common.ConnTuple]common.ConnectionStats, len(prevConns))
-	for _, conn := range prevConns {
-		prevConnsMap[conn.GetConnection()] = conn
-	}
 
 	cxs := make([]*model.Connection, 0, len(conns))
 	for _, conn := range conns {
@@ -148,7 +159,7 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 			if relationCache, ok := c.cache.IsNetworkRelationCached(relationID); ok {
 				if !isRelationShortLived(relationID, relationCache.FirstObserved, cfg) {
 					var prevSentBytes, prevRecvBytes uint64 = 0, 0
-					prevValues, ok := prevConnsMap[conn.GetConnection()]
+					prevValues, ok := prevConnStats[conn.GetConnection()]
 					if ok {
 						prevSentBytes = prevValues.SendBytes
 						prevRecvBytes = prevValues.RecvBytes

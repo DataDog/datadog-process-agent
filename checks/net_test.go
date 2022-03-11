@@ -137,7 +137,6 @@ func TestNetworkRelationCacheExpiration(t *testing.T) {
 		makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 12345, 8080),
 	)
 	assert.Equal(t, 1, cache.ItemCount())
-	assert.Equal(t, 1, cache.ConnectionsCount())
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -147,25 +146,21 @@ func TestNetworkRelationCacheExpiration(t *testing.T) {
 		// a new connection for a new relation (remote port 2000)
 		makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 1000, 2000),
 	)
-	assert.Equal(t, 2, cache.ItemCount())        // should be now 2 relations in total
-	assert.Equal(t, 3, cache.ConnectionsCount()) // and 3 connections because nothing has to be expired yet
+	assert.Equal(t, 2, cache.ItemCount()) // should be now 2 relations in total
 
 	time.Sleep(70 * time.Millisecond)
 	// now the very first connection should be expired as 70+50 > 100 ms has elapsed
 	assert.Equal(t, 2, cache.ItemCount())
-	assert.Equal(t, 2, cache.ConnectionsCount())
 
 	addStats(
 		// a new connection for existing relation (remote port 8080)
 		makeConnectionStats(1, "10.0.0.1", "10.0.0.2", 12347, 8080),
 	)
 	assert.Equal(t, 2, cache.ItemCount())
-	assert.Equal(t, 3, cache.ConnectionsCount())
 
 	time.Sleep(110 * time.Millisecond)
 	// now everything should go away
 	assert.Equal(t, 0, cache.ItemCount())
-	assert.Equal(t, 0, cache.ConnectionsCount())
 }
 
 func TestFilterConnectionsByProcess(t *testing.T) {
@@ -198,7 +193,7 @@ func TestFilterConnectionsByProcess(t *testing.T) {
 		// pid 4 filtered by process blacklisting, so we expect no connections for pid 4
 	}
 
-	connections := c.formatConnections(cfg, connStats, 15*time.Second)
+	connections := c.formatConnections(cfg, connStats, 15*time.Second, map[common.ConnTuple]connectionMetrics{})
 
 	assert.Len(t, connections, 3)
 
@@ -245,7 +240,7 @@ func TestNetworkConnectionNamespaceKubernetes(t *testing.T) {
 		4: {Pid: 4, CreateTime: now.Add(-5 * time.Minute).Unix()},
 	}
 
-	connections := c.formatConnections(cfg, connStats, 15*time.Second)
+	connections := c.formatConnections(cfg, connStats, 15*time.Second, map[common.ConnTuple]connectionMetrics{})
 
 	assert.Len(t, connections, 4)
 	for _, c := range connections {
@@ -287,7 +282,7 @@ func TestRelationCache(t *testing.T) {
 	assert.Zero(t, c.cache.ItemCount(), "Cache should be empty before running")
 
 	// first run on an empty cache; expect no process, but cache should be filled in now.
-	firstRun := c.formatConnections(cfg, connStats, 15*time.Second)
+	firstRun := c.formatConnections(cfg, connStats, 15*time.Second, map[common.ConnTuple]connectionMetrics{})
 	assert.Zero(t, len(firstRun), "Connections should be empty when the cache is not present")
 	assert.Equal(t, 4, c.cache.ItemCount(), "Cache should contain 4 elements")
 
@@ -295,13 +290,13 @@ func TestRelationCache(t *testing.T) {
 	time.Sleep(cfg.ShortLivedNetworkRelationQualifierSecs)
 
 	// second run with filled in cache; expect all processes.
-	secondRun := c.formatConnections(cfg, connStats, 10*time.Second)
+	secondRun := c.formatConnections(cfg, connStats, 10*time.Second, map[common.ConnTuple]connectionMetrics{})
 	assert.Equal(t, 4, len(secondRun), "Connections should contain 4 elements")
 	assert.Equal(t, 4, c.cache.ItemCount(), "Cache should contain 4 elements")
 
 	// delete last connection from the connection stats slice, expect it to be excluded from the connection list, but not the cache
 	connStats = connStats[:len(connStats)-1]
-	thirdRun := c.formatConnections(cfg, connStats, 5*time.Second)
+	thirdRun := c.formatConnections(cfg, connStats, 5*time.Second, map[common.ConnTuple]connectionMetrics{})
 	assert.Equal(t, 3, len(thirdRun), "Connections should contain 3 elements")
 	assert.Equal(t, 4, c.cache.ItemCount(), "Cache should contain 4 elements")
 
@@ -373,9 +368,13 @@ func TestRelationCacheOrdering(t *testing.T) {
 		makeConnectionStats(3, "10.0.0.1", "10.0.0.4", 12348, 8080),
 	}
 
-	connStats[0] = amendConnectionStats(connStats[0], PID1CONN1SEND1, PID1CONN1RECV1)
-	connStats[1] = amendConnectionStats(connStats[1], PID1CONN2SEND1, PID1CONN2RECV1)
-	connStats[2] = amendConnectionStats(connStats[2], PID2CONN1SEND1, PID2CONN1RECV1)
+	prevConnStats := []common.ConnectionStats{}
+	connStats = []common.ConnectionStats{
+		amendConnectionStats(connStats[0], PID1CONN1SEND1, PID1CONN1RECV1),
+		amendConnectionStats(connStats[1], PID1CONN2SEND1, PID1CONN2RECV1),
+		amendConnectionStats(connStats[2], PID2CONN1SEND1, PID2CONN1RECV1),
+		connStats[3],
+	}
 
 	// fill in the procs in the lastProcState map to get process create time for the connection mapping
 	Process.lastProcState = map[int32]*model.Process{
@@ -386,17 +385,21 @@ func TestRelationCacheOrdering(t *testing.T) {
 	}
 
 	// first run on an empty cache; expect no process, but cache should be filled in now.
-	c.formatConnections(cfg, connStats, 15*time.Second)
+	c.formatConnections(cfg, connStats, 15*time.Second, makeMetricsLookupMap(prevConnStats))
 
-	connStats[0] = amendConnectionStats(connStats[0], PID1CONN1SEND2, PID1CONN1RECV2)
-	connStats[1] = amendConnectionStats(connStats[1], PID1CONN2SEND2, PID1CONN2RECV2)
-	connStats[2] = amendConnectionStats(connStats[2], PID2CONN1SEND2, PID2CONN1RECV2)
+	prevConnStats = connStats
+	connStats = []common.ConnectionStats{
+		amendConnectionStats(prevConnStats[0], PID1CONN1SEND2, PID1CONN1RECV2),
+		amendConnectionStats(prevConnStats[1], PID1CONN2SEND2, PID1CONN2RECV2),
+		amendConnectionStats(prevConnStats[2], PID2CONN1SEND2, PID2CONN1RECV2),
+		connStats[3],
+	}
 
 	// wait for cfg.ShortLivedNetworkRelationQualifierSecs duration
 	time.Sleep(cfg.ShortLivedNetworkRelationQualifierSecs)
 
 	// second run with filled in cache; expect all processes.
-	secondRun := c.formatConnections(cfg, connStats, 10*time.Second)
+	secondRun := c.formatConnections(cfg, connStats, 10*time.Second, makeMetricsLookupMap(prevConnStats))
 
 	assert.Equal(t, PID1CONN1SEND2EXPECT, secondRun[0].BytesSentPerSecond, "BytesSentPerSecond")
 	assert.Equal(t, PID1CONN2SEND2EXPECT, secondRun[1].BytesSentPerSecond, "BytesSentPerSecond")
@@ -406,11 +409,15 @@ func TestRelationCacheOrdering(t *testing.T) {
 	assert.Equal(t, PID1CONN2RECV2EXPECT, secondRun[1].BytesReceivedPerSecond, "BytesReceivedPerSecond")
 	assert.Equal(t, PID2CONN1RECV2EXPECT, secondRun[2].BytesReceivedPerSecond, "BytesReceivedPerSecond")
 
-	connStats[0] = amendConnectionStats(connStats[0], PID1CONN1SEND3, PID1CONN1RECV3)
-	connStats[1] = amendConnectionStats(connStats[1], PID1CONN2SEND3, PID1CONN2RECV3)
-	connStats[2] = amendConnectionStats(connStats[2], PID2CONN1SEND3, PID2CONN1RECV3)
+	prevConnStats = connStats
+	connStats = []common.ConnectionStats{
+		amendConnectionStats(connStats[0], PID1CONN1SEND3, PID1CONN1RECV3),
+		amendConnectionStats(connStats[1], PID1CONN2SEND3, PID1CONN2RECV3),
+		amendConnectionStats(connStats[2], PID2CONN1SEND3, PID2CONN1RECV3),
+		connStats[3],
+	}
 
-	thirdRun := c.formatConnections(cfg, connStats, 5*time.Second)
+	thirdRun := c.formatConnections(cfg, connStats, 5*time.Second, makeMetricsLookupMap(prevConnStats))
 
 	assert.Equal(t, PID1CONN1SEND3EXPECT, secondRun[0].BytesSentPerSecond, "BytesSentPerSecond")
 	assert.Equal(t, PID1CONN2SEND3EXPECT, secondRun[1].BytesSentPerSecond, "BytesSentPerSecond")
@@ -497,7 +504,7 @@ func TestRelationShortLivedFiltering(t *testing.T) {
 			// fill in the relation cache
 			tc.prepCache(c.cache)
 
-			connections := c.formatConnections(cfg, connStats, time.Now().Sub(lastRun))
+			connections := c.formatConnections(cfg, connStats, time.Now().Sub(lastRun), map[common.ConnTuple]connectionMetrics{})
 			var rIDs []string
 			for _, conn := range connections {
 				rIDs = append(rIDs, conn.ConnectionIdentifier)
@@ -535,20 +542,8 @@ func fillNetworkRelationCache(hostname string, c *NetworkRelationCache, conn com
 		return err
 	}
 
-	metricsCache := cache.New(c.minCacheDuration, c.minCacheDuration)
-	metricsCache.Set(
-		fmt.Sprintf("%v", conn.GetConnection()),
-		&ConnectionMetrics{
-			SendBytes: conn.SendBytes,
-			RecvBytes: conn.RecvBytes,
-		},
-		cache.DefaultExpiration,
-	)
-
 	cachedRelation := &NetworkRelationCacheItem{
-		connectionMetrics: metricsCache,
-		FirstObserved:     firstObserved,
-		LastObserved:      lastObserved,
+		FirstObserved: firstObserved,
 	}
 	c.cache.Set(relationID, cachedRelation, cache.DefaultExpiration)
 	return nil
