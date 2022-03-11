@@ -103,6 +103,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 	aggregatedInterval := currentTime.Sub(c.prevCheckTime)
 	formattedConnections := c.formatConnections(cfg, conns, aggregatedInterval, c.prevConns)
 	c.prevCheckTime = currentTime
+	c.prevConns = makeMetricsLookupMap(conns)
 
 	log.Debugf("collected connections in %s, connections found: %v", time.Since(start), formattedConnections)
 	return batchConnections(cfg, groupID, formattedConnections, aggregatedInterval), nil
