@@ -329,24 +329,39 @@ const (
 	PID2CONN1SEND3 = uint64(132400)
 	PID2CONN1RECV3 = uint64(213200)
 
-	TIME1                = float32(10)
-	PID1CONN1SEND2EXPECT = float32(PID1CONN1SEND2-PID1CONN1SEND1) / TIME1
-	PID1CONN2SEND2EXPECT = float32(PID1CONN2SEND2-PID1CONN2SEND1) / TIME1
-	PID2CONN1SEND2EXPECT = float32(PID2CONN1SEND2-PID2CONN1SEND1) / TIME1
+	PID1CONN1SEND4 = uint64(1234)
+	PID1CONN1RECV4 = uint64(123)
+	PID1CONN2SEND4 = uint64(4321)
+	PID1CONN2RECV4 = uint64(1432)
+	PID2CONN1SEND4 = uint64(1324)
+	PID2CONN1RECV4 = uint64(2132)
 
-	PID1CONN1RECV2EXPECT = float32(PID1CONN1RECV2-PID1CONN1RECV1) / TIME1
-	PID1CONN2RECV2EXPECT = float32(PID1CONN2RECV2-PID1CONN2RECV1) / TIME1
-	PID2CONN1RECV2EXPECT = float32(PID2CONN1RECV2-PID2CONN1RECV1) / TIME1
+	TIME2                = float32(10)
+	PID1CONN1SEND2EXPECT = float32(PID1CONN1SEND2-PID1CONN1SEND1) / TIME2
+	PID1CONN2SEND2EXPECT = float32(PID1CONN2SEND2-PID1CONN2SEND1) / TIME2
+	PID2CONN1SEND2EXPECT = float32(PID2CONN1SEND2-PID2CONN1SEND1) / TIME2
 
-	TIME2                = float32(100)
-	PID1CONN1SEND3EXPECT = float32(PID1CONN1SEND3-PID1CONN1SEND2) / TIME2
-	PID1CONN2SEND3EXPECT = float32(PID1CONN2SEND3-PID1CONN2SEND2) / TIME2
-	PID2CONN1SEND3EXPECT = float32(PID2CONN1SEND3-PID2CONN1SEND2) / TIME2
+	PID1CONN1RECV2EXPECT = float32(PID1CONN1RECV2-PID1CONN1RECV1) / TIME2
+	PID1CONN2RECV2EXPECT = float32(PID1CONN2RECV2-PID1CONN2RECV1) / TIME2
+	PID2CONN1RECV2EXPECT = float32(PID2CONN1RECV2-PID2CONN1RECV1) / TIME2
 
 	TIME3                = float32(5)
+	PID1CONN1SEND3EXPECT = float32(PID1CONN1SEND3-PID1CONN1SEND2) / TIME3
+	PID1CONN2SEND3EXPECT = float32(PID1CONN2SEND3-PID1CONN2SEND2) / TIME3
+	PID2CONN1SEND3EXPECT = float32(PID2CONN1SEND3-PID2CONN1SEND2) / TIME3
+
 	PID1CONN1RECV3EXPECT = float32(PID1CONN1RECV3-PID1CONN1RECV2) / TIME3
 	PID1CONN2RECV3EXPECT = float32(PID1CONN2RECV3-PID1CONN2RECV2) / TIME3
 	PID2CONN1RECV3EXPECT = float32(PID2CONN1RECV3-PID2CONN1RECV2) / TIME3
+
+	TIME4                = float32(10)
+	PID1CONN1SEND4EXPECT = float32(PID1CONN1SEND4) / TIME4
+	PID1CONN2SEND4EXPECT = float32(PID1CONN2SEND4) / TIME4
+	PID2CONN1SEND4EXPECT = float32(PID2CONN1SEND4) / TIME4
+
+	PID1CONN1RECV4EXPECT = float32(PID1CONN1RECV4) / TIME4
+	PID1CONN2RECV4EXPECT = float32(PID1CONN2RECV4) / TIME4
+	PID2CONN1RECV4EXPECT = float32(PID2CONN1RECV4) / TIME4
 )
 
 func TestRelationCacheOrdering(t *testing.T) {
@@ -399,7 +414,7 @@ func TestRelationCacheOrdering(t *testing.T) {
 	time.Sleep(cfg.ShortLivedNetworkRelationQualifierSecs)
 
 	// second run with filled in cache; expect all processes.
-	secondRun := c.formatConnections(cfg, connStats, 10*time.Second, makeMetricsLookupMap(prevConnStats))
+	secondRun := c.formatConnections(cfg, connStats, time.Duration(TIME2)*time.Second, makeMetricsLookupMap(prevConnStats))
 
 	assert.Equal(t, PID1CONN1SEND2EXPECT, secondRun[0].BytesSentPerSecond, "BytesSentPerSecond")
 	assert.Equal(t, PID1CONN2SEND2EXPECT, secondRun[1].BytesSentPerSecond, "BytesSentPerSecond")
@@ -417,15 +432,33 @@ func TestRelationCacheOrdering(t *testing.T) {
 		connStats[3],
 	}
 
-	thirdRun := c.formatConnections(cfg, connStats, 5*time.Second, makeMetricsLookupMap(prevConnStats))
+	thirdRun := c.formatConnections(cfg, connStats, time.Duration(TIME3)*time.Second, makeMetricsLookupMap(prevConnStats))
 
-	assert.Equal(t, PID1CONN1SEND3EXPECT, secondRun[0].BytesSentPerSecond, "BytesSentPerSecond")
-	assert.Equal(t, PID1CONN2SEND3EXPECT, secondRun[1].BytesSentPerSecond, "BytesSentPerSecond")
-	assert.Equal(t, PID2CONN1SEND3EXPECT, secondRun[2].BytesSentPerSecond, "BytesSentPerSecond")
+	assert.Equal(t, PID1CONN1SEND3EXPECT, thirdRun[0].BytesSentPerSecond, "BytesSentPerSecond")
+	assert.Equal(t, PID1CONN2SEND3EXPECT, thirdRun[1].BytesSentPerSecond, "BytesSentPerSecond")
+	assert.Equal(t, PID2CONN1SEND3EXPECT, thirdRun[2].BytesSentPerSecond, "BytesSentPerSecond")
 
 	assert.Equal(t, PID1CONN1RECV3EXPECT, thirdRun[0].BytesReceivedPerSecond, "BytesReceivedPerSecond")
 	assert.Equal(t, PID1CONN2RECV3EXPECT, thirdRun[1].BytesReceivedPerSecond, "BytesReceivedPerSecond")
 	assert.Equal(t, PID2CONN1RECV3EXPECT, thirdRun[2].BytesReceivedPerSecond, "BytesReceivedPerSecond")
+
+	prevConnStats = connStats
+	connStats = []common.ConnectionStats{
+		amendConnectionStats(connStats[0], PID1CONN1SEND1, PID1CONN1RECV1),
+		amendConnectionStats(connStats[1], PID1CONN2SEND1, PID1CONN2RECV1),
+		amendConnectionStats(connStats[2], PID2CONN1SEND1, PID2CONN1RECV1),
+		connStats[3],
+	}
+
+	fourthRun := c.formatConnections(cfg, connStats, time.Duration(TIME4)*time.Second, makeMetricsLookupMap(prevConnStats))
+
+	assert.Equal(t, PID1CONN1SEND4EXPECT, fourthRun[0].BytesSentPerSecond, "BytesSentPerSecond")
+	assert.Equal(t, PID1CONN2SEND4EXPECT, fourthRun[1].BytesSentPerSecond, "BytesSentPerSecond")
+	assert.Equal(t, PID2CONN1SEND4EXPECT, fourthRun[2].BytesSentPerSecond, "BytesSentPerSecond")
+
+	assert.Equal(t, PID1CONN1RECV4EXPECT, fourthRun[0].BytesReceivedPerSecond, "BytesReceivedPerSecond")
+	assert.Equal(t, PID1CONN2RECV4EXPECT, fourthRun[1].BytesReceivedPerSecond, "BytesReceivedPerSecond")
+	assert.Equal(t, PID2CONN1RECV4EXPECT, fourthRun[2].BytesReceivedPerSecond, "BytesReceivedPerSecond")
 
 	c.cache.Flush()
 }

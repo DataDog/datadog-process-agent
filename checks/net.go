@@ -161,7 +161,7 @@ func (c *ConnectionsCheck) formatConnections(cfg *config.AgentConfig, conns []co
 				if !isRelationShortLived(relationID, relationCache.FirstObserved, cfg) {
 					var prevSentBytes, prevRecvBytes uint64 = 0, 0
 					prevValues, ok := prevConnStats[conn.GetConnection()]
-					if ok {
+					if ok && conn.SendBytes >= prevValues.SendBytes && conn.RecvBytes >= prevValues.RecvBytes {
 						prevSentBytes = prevValues.SendBytes
 						prevRecvBytes = prevValues.RecvBytes
 					}
