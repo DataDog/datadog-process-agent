@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/StackVista/stackstate-agent/pkg/health"
+	"github.com/StackVista/stackstate-agent/pkg/topology"
 	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"io"
@@ -22,6 +24,12 @@ import (
 	"github.com/StackVista/stackstate-process-agent/model"
 )
 
+type checkResult struct {
+	check   checks.Check
+	err     error
+	payload *checkPayload
+}
+
 type checkPayload struct {
 	messages  []model.MessageBody
 	endpoint  string
@@ -30,15 +38,14 @@ type checkPayload struct {
 
 // Collector will collect metrics from the local system and ship to the backend.
 type Collector struct {
-	send          chan checkPayload
+	send          chan checkResult
 	rtIntervalCh  chan time.Duration
 	cfg           *config.AgentConfig
 	httpClient    http.Client
 	groupID       int32
 	runCounter    int32
 	enabledChecks []checks.Check
-	// Channel to send data to each running check, currently only to broadcast features
-	featuresChs []chan features.Features
+	features      features.Features
 
 	// Controls the real-time interval, can change live.
 	realTimeInterval time.Duration
@@ -63,12 +70,13 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 	}
 
 	return Collector{
-		send:          make(chan checkPayload, cfg.QueueSize),
+		send:          make(chan checkResult, cfg.QueueSize),
 		rtIntervalCh:  make(chan time.Duration),
 		cfg:           cfg,
 		groupID:       rand.Int31(),
 		httpClient:    http.Client{Timeout: HTTPTimeout, Transport: cfg.Transport},
 		enabledChecks: enabledChecks,
+		features:      features.Empty(),
 
 		// Defaults for real-time on start
 		realTimeInterval: 2 * time.Second,
@@ -86,9 +94,10 @@ func (l *Collector) runCheck(c checks.Check, features features.Features) {
 	defer c.Sender().Commit()
 
 	if err != nil {
+		l.send <- checkResult{check: c, err: err}
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
-		l.send <- checkPayload{messages, c.Endpoint(), currentTime}
+		l.send <- checkResult{check: c, payload: &checkPayload{messages, c.Endpoint(), currentTime}}
 		// update proc and container count for info
 		updateProcContainerCount(messages)
 		if !c.RealTime() {
@@ -102,6 +111,107 @@ func (l *Collector) runCheck(c checks.Check, features features.Features) {
 				log.Infof("Finish check #%d in %s", runCounter, d)
 			}
 		}
+	}
+}
+
+// HealthState health state
+type HealthState string
+
+const (
+	// Clear clear
+	Clear HealthState = "CLEAR"
+	// Deviating HealthState = "DEVIATING"
+
+	// Critical crictical
+	Critical HealthState = "CRITICAL"
+)
+
+func (l *Collector) agentID() string {
+	return fmt.Sprintf("urn:stackstate-agent:/%s", l.cfg.HostName)
+}
+
+func (l *Collector) agentIntegrationID(check checks.Check) string {
+	return fmt.Sprintf("urn:agent-integration:/%s:%s", l.cfg.HostName, check.Name())
+}
+
+func (l *Collector) integrationTopology(check checks.Check) topology.Topology {
+	agentID := l.agentID()
+	agentIntegrationID := l.agentIntegrationID(check)
+
+	return topology.Topology{
+		StartSnapshot: false,
+		StopSnapshot:  false,
+		Instance: topology.Instance{
+			Type: "agent",
+			URL:  "integrations",
+		},
+		Components: []topology.Component{
+			{
+				ExternalID: agentIntegrationID,
+				Type: topology.Type{
+					Name: "agent-integration",
+				},
+				Data: topology.Data{
+					"name":        fmt.Sprintf("%s check on %s", check.Name(), l.cfg.HostName),
+					"integration": check.Name(),
+					"tags": []string{
+						fmt.Sprintf("hostname:%s", l.cfg.HostName),
+						fmt.Sprintf("integration-type:%s", check.Name()),
+					},
+				},
+			},
+			//{
+			//	ExternalID: "urn:agent-integration:/i-00e58e790872f2b1e:kubelet",
+			//	Type: topology.Type{
+			//		Name: "agent-integration-instance",
+			//	},
+			//	Data: topology.Data{
+			//		"name":    "",
+			//		"version": "",
+			//		"tags":    []string{},
+			//	},
+			//},
+		},
+		Relations: []topology.Relation{
+			{
+				ExternalID: fmt.Sprintf("%s->%s", agentID, agentIntegrationID),
+				SourceID:   agentID,
+				TargetID:   agentIntegrationID,
+				Type:       topology.Type{Name: "runs"},
+				Data:       topology.Data{},
+			},
+			//{
+			//	ExternalID: fmt.Sprintf("%s->%s", agentIntegrationID, agentIntegrationInstanceID),
+			//	SourceID:   agentIntegrationID,
+			//	TargetID:   agentIntegrationInstanceID,
+			//	Type:       topology.Type{Name: "has"},
+			//	Data:       nil,
+			//},
+		},
+	}
+}
+
+func (l *Collector) makeHealth(result checkResult) health.Health {
+	checkData := health.CheckData{
+		"checkStateId":              l.agentIntegrationID(result.check),
+		"topologyElementIdentifier": l.agentIntegrationID(result.check),
+		"health":                    Clear,
+		"name":                      result.check.Name(),
+	}
+	if result.err != nil {
+		checkData["health"] = Critical
+		checkData["message"] = fmt.Sprintf("%v", result.err)
+	}
+	repeatInterval := int(l.cfg.CheckInterval(result.check.Name()).Seconds())
+	return health.Health{
+		StartSnapshot: &health.StartSnapshotMetadata{
+			RepeatIntervalS: repeatInterval,
+		},
+		Stream: health.Stream{
+			Urn:       fmt.Sprintf("urn:health:stackstate-agent:%s", l.cfg.HostName),
+			SubStream: l.agentIntegrationID(result.check),
+		},
+		CheckStates: []health.CheckData{checkData},
 	}
 }
 
@@ -127,25 +237,29 @@ func (l *Collector) run(exit chan bool) {
 	// Channel to announce new features detected
 	featuresCh := make(chan features.Features, 1)
 
-	// Channel per check to broadcast features
-	featureChecksChs := make([]chan features.Features, 0)
-	for range l.enabledChecks {
-		featureChecksChs = append(featureChecksChs, make(chan features.Features, 1))
-	}
-
 	l.getFeatures(l.cfg.APIEndpoints[0], "/features", featuresCh)
 
 	go func() {
 		for {
 			select {
-			case payload := <-l.send:
+			case result := <-l.send:
 				if len(l.send) >= l.cfg.QueueSize {
 					log.Info("Expiring payload from in-memory queue.")
 					// Limit number of items kept in memory while we wait.
 					<-l.send
 				}
-				for _, m := range payload.messages {
-					l.postMessage(payload.endpoint, m, payload.timestamp)
+				if result.payload != nil {
+					payload := result.payload
+					for _, m := range payload.messages {
+						l.postMessage(payload.endpoint, m, payload.timestamp)
+					}
+				}
+				if l.cfg.ReportCheckHealthState || l.features.FeatureEnabled(features.HealthStates) {
+					l.postIntake(intakePayload{
+						InternalHostname: l.cfg.HostName,
+						Topologies:       []topology.Topology{l.integrationTopology(result.check)},
+						Health:           []health.Health{l.makeHealth(result)},
+					})
 				}
 			case <-heartbeat.C:
 				log.Tracef("got heartbeat.C message. (Ignored)")
@@ -155,10 +269,7 @@ func (l *Collector) run(exit chan bool) {
 			case <-featuresTicker.C:
 				l.getFeatures(l.cfg.APIEndpoints[0], "/features", featuresCh)
 			case featuresValue := <-featuresCh:
-				// Broadcast to all checks
-				for _, ch := range featureChecksChs {
-					ch <- featuresValue
-				}
+				l.features = featuresValue
 				// Stop polling
 				featuresTicker.Stop()
 			case <-exit:
@@ -167,15 +278,12 @@ func (l *Collector) run(exit chan bool) {
 		}
 	}()
 
-	for checkInd, c := range l.enabledChecks {
+	for _, c := range l.enabledChecks {
 		// Assignment here, because iterator value gets altered
-		myInd := checkInd
 		go func(c checks.Check) {
-			var featuresSet features.Features = features.Empty()
-
 			// Run the check the first time to prime the caches.
 			if !c.RealTime() {
-				l.runCheck(c, featuresSet)
+				l.runCheck(c, l.features)
 			}
 
 			ticker := time.NewTicker(l.cfg.CheckInterval(c.Name()))
@@ -184,10 +292,8 @@ func (l *Collector) run(exit chan bool) {
 				case <-ticker.C:
 					realTimeEnabled := atomic.LoadInt32(&l.realTimeEnabled) == 1
 					if !c.RealTime() || realTimeEnabled {
-						l.runCheck(c, featuresSet)
+						l.runCheck(c, l.features)
 					}
-				case f := <-featureChecksChs[myInd]:
-					featuresSet = f
 				case d := <-l.rtIntervalCh:
 					// Live-update the ticker.
 					if c.RealTime() {
@@ -203,6 +309,35 @@ func (l *Collector) run(exit chan bool) {
 		}(c)
 	}
 	<-exit
+}
+
+type intakePayload struct {
+	InternalHostname string              `json:"internalHostname"`
+	Topologies       []topology.Topology `json:"topologies"`
+	Health           []health.Health     `json:"health"`
+}
+
+func (l *Collector) postIntake(intake intakePayload) {
+
+	body, err := json.Marshal(intake)
+	if err != nil {
+		log.Errorf("Unable to encode intake payload: %v", err)
+		return
+	}
+
+	responses := make(chan errorResponse)
+	for _, ep := range l.cfg.APIEndpoints {
+		go l.postToAPIwithEncoding(ep, "/intake", body, responses, "application/json")
+	}
+
+	// Wait for all responses to come back before moving on.
+	for range l.cfg.APIEndpoints {
+		res := <-responses
+		if res.err != nil {
+			log.Error(res.err)
+			continue
+		}
+	}
 }
 
 func (l *Collector) postMessage(checkPath string, m model.MessageBody, timestamp time.Time) {
@@ -226,7 +361,7 @@ func (l *Collector) postMessage(checkPath string, m model.MessageBody, timestamp
 
 	responses := make(chan errorResponse)
 	for _, ep := range l.cfg.APIEndpoints {
-		go l.postToAPI(ep, checkPath, body, responses)
+		go l.postToAPIwithEncoding(ep, checkPath, body, responses, "x-zip")
 	}
 
 	// Wait for all responses to come back before moving on.
@@ -284,10 +419,6 @@ func (l *Collector) updateStatus(statuses []*model.CollectorStatus) {
 
 type errorResponse struct {
 	err error
-}
-
-func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan errorResponse) {
-	l.postToAPIwithEncoding(endpoint, checkPath, body, responses, "x-zip")
 }
 
 func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan errorResponse, contentEncoding string) {

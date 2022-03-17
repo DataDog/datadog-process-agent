@@ -1,5 +1,12 @@
 package features
 
+const (
+	// IncrementalTopology bla bla
+	IncrementalTopology = "incremental-topology"
+	// HealthStates bla bla
+	HealthStates = "health-states"
+)
+
 // Features Structure for describing features published by StackState
 type Features interface {
 	FeatureEnabled(feature string) bool
