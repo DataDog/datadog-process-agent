@@ -83,7 +83,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureFlags features.Featur
 	if err != nil {
 		return nil, err
 	}
-	ctrList, _ := util.GetContainers()
+	ctrList, cntError := util.GetContainers()
 
 	// End check early if this is our first run.
 	if p.lastRun.IsZero() {
@@ -137,7 +137,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureFlags features.Featur
 	checkRunDuration := time.Now().Sub(start)
 	log.Debugf("collected processes in %s, processes found: %v", checkRunDuration, processes)
 	log.Debugf("collected containers in %s, containers found: %v", checkRunDuration, containers)
-	return messages, nil
+	return messages, cntError
 }
 
 func buildProcState(processes []*model.Process) map[int32]*model.Process {

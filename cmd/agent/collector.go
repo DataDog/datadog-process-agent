@@ -95,11 +95,18 @@ func (l *Collector) runCheck(c checks.Check, features features.Features) {
 	// defer commit to after check run
 	defer c.Sender().Commit()
 
-	if err != nil {
+	if err != nil && len(messages) == 0 {
 		l.send <- checkResult{check: c, err: err}
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
-		l.send <- checkResult{check: c, payload: &checkPayload{messages, c.Endpoint(), currentTime}}
+		if err != nil {
+			log.Warnf("Check '%s' partially failed with an error: %v", c.Name(), err)
+		}
+		l.send <- checkResult{
+			check:   c,
+			payload: &checkPayload{messages, c.Endpoint(), currentTime},
+			err:     err,
+		}
 		// update proc and container count for info
 		updateProcContainerCount(messages)
 		if !c.RealTime() {
@@ -122,8 +129,8 @@ type HealthState string
 const (
 	// Clear clear
 	Clear HealthState = "CLEAR"
-	// Deviating HealthState = "DEVIATING"
-
+	// Deviating means a component is working but something is wrong[
+	Deviating HealthState = "DEVIATING"
 	// Critical crictical
 	Critical HealthState = "CRITICAL"
 )
@@ -214,8 +221,13 @@ func (l *Collector) makeHealth(result checkResult) health.Health {
 		"name":                      result.check.Name(),
 	}
 	if result.err != nil {
-		checkData["health"] = Critical
-		checkData["message"] = fmt.Sprintf("Check failed:\n```\n%v\n```", result.err)
+		if result.payload != nil {
+			checkData["health"] = Deviating
+			checkData["message"] = fmt.Sprintf("Check partially failed:\n```\n%v\n```", result.err)
+		} else {
+			checkData["health"] = Critical
+			checkData["message"] = fmt.Sprintf("Check failed:\n```\n%v\n```", result.err)
+		}
 	}
 	repeatInterval := int(l.cfg.CheckInterval(result.check.Name()).Seconds())
 	return health.Health{
