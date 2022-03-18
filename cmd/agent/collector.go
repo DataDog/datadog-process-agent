@@ -327,6 +327,7 @@ func (l *Collector) postIntake(intake intakePayload) {
 
 	responses := make(chan errorResponse)
 	for _, ep := range l.cfg.APIEndpoints {
+		log.Infof("Posting Intake to %s/%s: %s", ep, "/intake", intake)
 		go l.postToAPIwithEncoding(ep, "/intake", body, responses, "application/json")
 	}
 
@@ -334,7 +335,7 @@ func (l *Collector) postIntake(intake intakePayload) {
 	for range l.cfg.APIEndpoints {
 		res := <-responses
 		if res.err != nil {
-			log.Error(res.err)
+			_ = log.Errorf("Posting Intake failed: %v", res.err)
 			continue
 		}
 	}
