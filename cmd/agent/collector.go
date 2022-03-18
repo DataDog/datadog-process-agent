@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/DataDog/gopsutil/process"
 	"github.com/StackVista/stackstate-agent/pkg/health"
 	"github.com/StackVista/stackstate-agent/pkg/topology"
 	"github.com/StackVista/stackstate-agent/pkg/aggregator"
@@ -13,6 +14,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"os"
 	"reflect"
 	"sync/atomic"
 	"time"
@@ -135,7 +137,21 @@ func (l *Collector) agentIntegrationID(check checks.Check) string {
 }
 
 func (l *Collector) integrationTopology(check checks.Check) topology.Topology {
+	hostname := l.cfg.HostName
 	agentID := l.agentID()
+	agentPID := int32(os.Getpid())
+	agentCreateTime := int64(0)
+	agentProcess, err := process.NewProcess(agentPID)
+	if err != nil {
+		_ = log.Warnf("can't get process agent OS stats: %v", err)
+	} else {
+		cTime, err := agentProcess.CreateTime()
+		if err != nil {
+			_ = log.Warnf("can't get process agent create time: %v", err)
+		} else {
+			agentCreateTime = cTime
+		}
+	}
 	agentIntegrationID := l.agentIntegrationID(check)
 
 	return topology.Topology{
@@ -146,6 +162,23 @@ func (l *Collector) integrationTopology(check checks.Check) topology.Topology {
 			URL:  "integrations",
 		},
 		Components: []topology.Component{
+			{
+				ExternalID: agentID,
+				Type: topology.Type{
+					Name: "stackstate-agent",
+				},
+				Data: topology.Data{
+					"name":     fmt.Sprintf("StackState Process Agent:%s", hostname),
+					"hostname": hostname,
+					"tags": []string{
+						fmt.Sprintf("hostname:%s", hostname),
+						"stackstate-agent",
+					},
+					"identifiers": []string{
+						fmt.Sprintf("urn:process:/%s:%d:%d", hostname, agentPID, agentCreateTime),
+					},
+				},
+			},
 			{
 				ExternalID: agentIntegrationID,
 				Type: topology.Type{
@@ -160,17 +193,6 @@ func (l *Collector) integrationTopology(check checks.Check) topology.Topology {
 					},
 				},
 			},
-			//{
-			//	ExternalID: "urn:agent-integration:/i-00e58e790872f2b1e:kubelet",
-			//	Type: topology.Type{
-			//		Name: "agent-integration-instance",
-			//	},
-			//	Data: topology.Data{
-			//		"name":    "",
-			//		"version": "",
-			//		"tags":    []string{},
-			//	},
-			//},
 		},
 		Relations: []topology.Relation{
 			{
@@ -180,13 +202,6 @@ func (l *Collector) integrationTopology(check checks.Check) topology.Topology {
 				Type:       topology.Type{Name: "runs"},
 				Data:       topology.Data{},
 			},
-			//{
-			//	ExternalID: fmt.Sprintf("%s->%s", agentIntegrationID, agentIntegrationInstanceID),
-			//	SourceID:   agentIntegrationID,
-			//	TargetID:   agentIntegrationInstanceID,
-			//	Type:       topology.Type{Name: "has"},
-			//	Data:       nil,
-			//},
 		},
 	}
 }
@@ -200,7 +215,7 @@ func (l *Collector) makeHealth(result checkResult) health.Health {
 	}
 	if result.err != nil {
 		checkData["health"] = Critical
-		checkData["message"] = fmt.Sprintf("%v", result.err)
+		checkData["message"] = fmt.Sprintf("Check failed:\n```\n%v\n```", result.err)
 	}
 	repeatInterval := int(l.cfg.CheckInterval(result.check.Name()).Seconds())
 	return health.Health{
@@ -328,7 +343,7 @@ func (l *Collector) postIntake(intake intakePayload) {
 	responses := make(chan errorResponse)
 	for _, ep := range l.cfg.APIEndpoints {
 		log.Infof("Posting Intake to %s/%s: %s", ep, "/intake", intake)
-		go l.postToAPIwithEncoding(ep, "/intake", body, responses, "application/json")
+		go l.postToAPIwithEncoding(ep, "/intake", body, responses, "", "application/json")
 	}
 
 	// Wait for all responses to come back before moving on.
@@ -362,7 +377,7 @@ func (l *Collector) postMessage(checkPath string, m model.MessageBody, timestamp
 
 	responses := make(chan errorResponse)
 	for _, ep := range l.cfg.APIEndpoints {
-		go l.postToAPIwithEncoding(ep, checkPath, body, responses, "x-zip")
+		go l.postToAPIwithEncoding(ep, checkPath, body, responses, "x-zip", "")
 	}
 
 	// Wait for all responses to come back before moving on.
@@ -422,8 +437,8 @@ type errorResponse struct {
 	err error
 }
 
-func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan errorResponse, contentEncoding string) {
-	resp, err := l.accessAPIwithEncoding(endpoint, "POST", checkPath, body, contentEncoding)
+func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan errorResponse, contentEncoding string, contentType string) {
+	resp, err := l.accessAPIwithEncoding(endpoint, "POST", checkPath, body, contentEncoding, contentType)
 	if err != nil {
 		responses <- errorResponse{err: err}
 		return
@@ -433,7 +448,7 @@ func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath
 }
 
 func (l *Collector) getFeatures(endpoint config.APIEndpoint, checkPath string, report chan features.Features) {
-	resp, accessErr := l.accessAPIwithEncoding(endpoint, "GET", checkPath, make([]byte, 0), "identity")
+	resp, accessErr := l.accessAPIwithEncoding(endpoint, "GET", checkPath, make([]byte, 0), "identity", "")
 
 	// Handle error response
 	if accessErr != nil {
@@ -484,14 +499,19 @@ func (l *Collector) getFeatures(endpoint config.APIEndpoint, checkPath string, r
 	report <- features.Make(featuresParsed)
 }
 
-func (l *Collector) accessAPIwithEncoding(endpoint config.APIEndpoint, method string, checkPath string, body []byte, contentEncoding string) (*http.Response, error) {
+func (l *Collector) accessAPIwithEncoding(endpoint config.APIEndpoint, method string, checkPath string, body []byte, contentEncoding string, contentType string) (*http.Response, error) {
 	url := endpoint.Endpoint.String() + checkPath // Add the checkPath in full Process Agent URL
 	req, err := http.NewRequest(method, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("could not create %s request to %s: %s", method, url, err)
 	}
 
-	req.Header.Add("content-encoding", contentEncoding)
+	if contentEncoding != "" {
+		req.Header.Add("content-encoding", contentEncoding)
+	}
+	if contentType != "" {
+		req.Header.Add("content-type", contentType)
+	}
 	req.Header.Add("sts-api-key", endpoint.APIKey)
 	req.Header.Add("sts-hostname", l.cfg.HostName)
 	req.Header.Add("sts-processagentversion", Version)
