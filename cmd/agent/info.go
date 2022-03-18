@@ -77,6 +77,7 @@ func publishVersion() interface{} {
 	return infoVersion{
 		Version:   Version,
 		GitCommit: GitCommit,
+		GitBranch: GitBranch,
 		BuildDate: BuildDate,
 		GoVersion: GoVersion,
 	}
