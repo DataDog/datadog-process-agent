@@ -21,7 +21,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 		// Checking whether the current kernel version is supported by the tracer
 		if _, err = tracer.IsTracerSupportedByOS(); err != nil {
 			// err is always returned when false, so the above catches the !ok case as well
-			log.Errorf("network tracer unsupported by OS: %s. Set the environment STS_NETWORK_TRACING_ENABLED to false to disable network connections reporting", err)
+			c.localTracerErr = log.Errorf("network tracer unsupported by OS: %s. Set the environment STS_NETWORK_TRACING_ENABLED to false to disable network connections reporting", err)
 			return
 		}
 
@@ -30,7 +30,7 @@ func (c *ConnectionsCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemIn
 
 		t, err := tracer.NewTracer(conf)
 		if err != nil {
-			log.Errorf("failed to create network tracer: %s. Set the environment STS_NETWORK_TRACING_ENABLED to false to disable network connections reporting", err)
+			c.localTracerErr = log.Errorf("failed to create network tracer: %s. Set the environment STS_NETWORK_TRACING_ENABLED to false to disable network connections reporting", err)
 			return
 		}
 

@@ -33,6 +33,7 @@ type ConnectionsCheck struct {
 	// Local network tracer
 	useLocalTracer bool
 	localTracer    tracer.Tracer
+	localTracerErr error
 
 	prevCheckTime time.Time
 	prevConns     map[common.ConnTuple]connectionMetrics
@@ -78,7 +79,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 	// If local tracer failed to initialize, so we shouldn't be doing any checks
 	if c.useLocalTracer && c.localTracer == nil {
 		log.Errorf("failed to create network tracer. Set the environment STS_NETWORK_TRACING_ENABLED to false to disable network connections reporting")
-		return nil, nil
+		return nil, c.localTracerErr
 	}
 
 	start := time.Now()
