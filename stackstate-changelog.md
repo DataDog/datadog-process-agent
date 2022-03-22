@@ -1,9 +1,23 @@
 # StackState Process Agent releases
 
-## 3.0.2
+## 4.0.2
+**Bugfix**
+- Fix infinitely growing memory usage
 
+## 4.0.1
 **Bugfix**
 - Process agent will send HTTP response times when they are zero's
+
+## 4.0.0
+**Features**
+- Support for Containerd and CRI-O container runtimes
+
+**Improvements**
+- Moved from Gopkg.toml to go.mod
+
+## 3.0.3
+**Improvement**
+- Set process agent check intervals to be default 30 seconds, added ENV variable overrides for process agent check intervals
 
 ## 3.0.1
 
