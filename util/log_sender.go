@@ -32,7 +32,6 @@ func (ls *logSender) Count(metric string, value float64, hostname string, tags [
 }
 
 // MonotonicCount logs monotonic count data
-// MonotonicCount logs monotonic count data
 func (ls *logSender) MonotonicCount(metric string, value float64, hostname string, tags []string) {
 	log.Debugf("Received MonotonicCount: [%s, %f, %s, %v]", metric, value, hostname, tags)
 }
