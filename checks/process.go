@@ -3,8 +3,8 @@
 package checks
 
 import (
+	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
-	"github.com/StackVista/stackstate-process-agent/statsd"
 	"sync"
 	"time"
 
@@ -57,6 +57,11 @@ func (p *ProcessCheck) Endpoint() string { return "/api/v1/collector" }
 
 // RealTime indicates if this check only runs in real-time mode.
 func (p *ProcessCheck) RealTime() bool { return false }
+
+// Sender returns an instance of the check sender
+func (p *ProcessCheck) Sender() aggregator.Sender {
+	return GetSender(p.Name())
+}
 
 // Run runs the ProcessCheck to collect a list of running processes and relevant
 // stats for each. On most POSIX systems this will use a mix of procfs and other
@@ -125,8 +130,9 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, features features.Features, 
 	p.lastProcState = buildProcState(processes)
 	p.lastCtrState = buildCtrState(containers)
 
-	statsd.Client.Gauge("datadog.process.containers.host_count", float64(len(containers)), []string{}, 1)
-	statsd.Client.Gauge("datadog.process.processes.host_count", float64(len(processes)), []string{}, 1)
+	// sts send metrics
+	p.Sender().Gauge("stackstate.process_agent.containers.host_count", float64(len(containers)), cfg.HostName, []string{})
+	p.Sender().Gauge("stackstate.process_agent.processes.host_count", float64(len(processes)), cfg.HostName, []string{})
 
 	checkRunDuration := time.Now().Sub(start)
 	log.Debugf("collected processes in %s, processes found: %v", checkRunDuration, processes)

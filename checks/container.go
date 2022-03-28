@@ -5,7 +5,7 @@ package checks
 
 import (
 	"fmt"
-	"github.com/StackVista/stackstate-process-agent/statsd"
+	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"runtime"
 	"strings"
 	"time"
@@ -47,6 +47,11 @@ func (c *ContainerCheck) Endpoint() string { return "/api/v1/container" }
 // RealTime indicates if this check only runs in real-time mode.
 func (c *ContainerCheck) RealTime() bool { return false }
 
+// Sender returns an instance of the check sender
+func (c *ContainerCheck) Sender() aggregator.Sender {
+	return GetSender(c.Name())
+}
+
 // Run runs the ContainerCheck to collect a list of running ctrList and the
 // stats for each container.
 func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {
@@ -55,6 +60,12 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 	if err != nil {
 		return nil, err
 	}
+
+	s, err := aggregator.GetSender("process-agent")
+	if err != nil {
+		_ = log.Error("No default sender available: ", err)
+	}
+	defer s.Commit()
 
 	// End check early if this is our first run.
 	if c.lastRates == nil {
@@ -84,7 +95,7 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 	c.lastRates = util.ExtractContainerRateMetric(ctrList)
 	c.lastRun = time.Now()
 
-	statsd.Client.Gauge("datadog.process.containers.host_count", totalContainers, []string{}, 1)
+	s.Gauge("stackstate.process_agent.containers.host_count", totalContainers, cfg.HostName, []string{})
 	log.Debugf("collected %d containers in %s", int(totalContainers), time.Now().Sub(start))
 	return messages, nil
 }

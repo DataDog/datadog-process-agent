@@ -4,6 +4,7 @@
 package checks
 
 import (
+	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"time"
 
@@ -26,6 +27,11 @@ type RTContainerCheck struct {
 // Init initializes a RTContainerCheck instance.
 func (r *RTContainerCheck) Init(cfg *config.AgentConfig, sysInfo *model.SystemInfo) {
 	r.sysInfo = sysInfo
+}
+
+// Sender returns an instance of the check sender
+func (r *RTContainerCheck) Sender() aggregator.Sender {
+	return GetSender(r.Name())
 }
 
 // Name returns the name of the RTContainerCheck.

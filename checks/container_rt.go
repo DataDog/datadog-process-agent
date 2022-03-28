@@ -4,6 +4,7 @@
 package checks
 
 import (
+	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"runtime"
 	"time"
 
@@ -39,6 +40,11 @@ func (r *RTContainerCheck) Endpoint() string { return "/api/v1/container" }
 
 // RealTime indicates if this check only runs in real-time mode.
 func (r *RTContainerCheck) RealTime() bool { return true }
+
+// Sender returns an instance of the check sender
+func (r *RTContainerCheck) Sender() aggregator.Sender {
+	return GetSender(r.Name())
+}
 
 // Run runs the real-time container check getting container-level stats from the Cgroups and Docker APIs.
 func (r *RTContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {

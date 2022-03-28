@@ -57,13 +57,13 @@ require (
 	github.com/DataDog/sketches-go v1.1.0
 	github.com/DataDog/zstd v0.0.0-20160706220725-2bf71ec48360
 	github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705
-	github.com/StackVista/stackstate-agent v0.0.0-20220301185330-a84a5f8f125a
+	github.com/StackVista/stackstate-agent v0.0.0-20220324160841-d3971727d31d
 	github.com/StackVista/stackstate-go v0.0.0-20220302151729-a72c49c07350
 	github.com/StackVista/tcptracer-bpf v7.0.6+incompatible
+	github.com/awalterschulze/goderive v0.0.0-20211221145202-5dcbfa700308 // indirect
 	github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575
 	github.com/go-ini/ini v1.55.0
 	github.com/gogo/protobuf v1.3.1
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/iovisor/gobpf v0.1.2 // indirect
 	github.com/kubernetes-incubator/custom-metrics-apiserver v0.0.0-20190116221620-b7016fc85e1c // indirect
 	github.com/mailru/easyjson v0.7.7
@@ -72,12 +72,9 @@ require (
 	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4
 	github.com/smartystreets/goconvey v1.7.2 // indirect
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
-	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f // indirect
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20220315194320-039c03cc5b86
-	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
+	golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886
+	golang.org/x/tools v0.1.10 // indirect
 	gopkg.in/ini.v1 v1.66.3 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 )
