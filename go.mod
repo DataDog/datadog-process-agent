@@ -49,6 +49,13 @@ replace (
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.0.0-20191016112829-06bb3c9d77c9
 )
 
+// pinned to grpc v1.26.0
+replace (
+	github.com/golang/protobuf => github.com/golang/protobuf v1.3.2
+	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.12.2
+	google.golang.org/grpc => github.com/grpc/grpc-go v1.26.0
+)
+
 // // Pinned so it includes fix for Windows Nano
 // replace k8s.io/klog => k8s.io/klog v1.0.1-0.20200310124935-4ad0115ba9e4
 
@@ -57,13 +64,12 @@ require (
 	github.com/DataDog/sketches-go v1.1.0
 	github.com/DataDog/zstd v0.0.0-20160706220725-2bf71ec48360
 	github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705
-	github.com/StackVista/stackstate-agent v0.0.0-20220303084304-17d1f84b77b4
+	github.com/StackVista/stackstate-agent v0.0.0-20220324160841-d3971727d31d
 	github.com/StackVista/stackstate-go v0.0.0-20220302151729-a72c49c07350
 	github.com/StackVista/tcptracer-bpf v7.0.6+incompatible
 	github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575
 	github.com/go-ini/ini v1.55.0
 	github.com/gogo/protobuf v1.3.1
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/iovisor/gobpf v0.1.2 // indirect
 	github.com/kubernetes-incubator/custom-metrics-apiserver v0.0.0-20190116221620-b7016fc85e1c // indirect
 	github.com/mailru/easyjson v0.7.7
