@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [[ -z "$STS_API_KEY" ]]; then
     echo "You must set an STS_API_KEY environment variable to run the StackState Trace Agent container"
