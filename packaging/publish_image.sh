@@ -9,6 +9,7 @@ PUSH_LATEST="${4:-false}"
 REGISTRY_DOCKERHUB="docker.io"
 REGISTRY_QUAY="quay.io"
 ORGANIZATION="stackstate"
+DOCKERFILE_PATH="DockerFiles/agent"
 
 BUILD_TAG="${IMAGE_REPO}:${IMAGE_TAG}"
 
@@ -16,15 +17,14 @@ echo "IMAGE_TAG=${IMAGE_TAG}"
 echo "IMAGE_REPO=${IMAGE_REPO}"
 echo "ARTIFACT_PATH=${ARTIFACT_PATH}"
 
-
-cp $ARTIFACT_PATH DockerFiles/agent
+cp $ARTIFACT_PATH $DOCKERFILE_PATH
 
 docker build -t stackstate/${IMAGE_REPO}:${IMAGE_TAG} DockerFiles/agent
 
 docker login -u "${docker_user}" -p "${docker_password}" "${REGISTRY_DOCKERHUB}"
 docker login -u "${quay_user}" -p "${quay_password}" "${REGISTRY_QUAY}"
 
-docker push stackstate/${IMAGE_REPO}:${IMAGE_TAG}
+docker build -t "${BUILD_TAG}" $DOCKERFILE_PATH
 
 for REGISTRY in "${REGISTRY_DOCKERHUB}" "${REGISTRY_QUAY}"; do
     DOCKER_TAG="${REGISTRY}/${ORGANIZATION}/${IMAGE_REPO}:${IMAGE_TAG}"
