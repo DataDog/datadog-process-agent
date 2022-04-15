@@ -3,8 +3,8 @@
 # Actual docker image construction #
 ####################################
 
-FROM debian:buster-slim
-LABEL maintainer "StackState <info@stackstate.com>"
+FROM ubuntu:focal-20220316
+LABEL maintainer="StackState <info@stackstate.com>"
 ENV DOCKER_STS_AGENT=true \
     PATH=/opt/stackstate-agent/bin/agent/:/opt/stackstate-agent/embedded/bin/:$PATH \
     CURL_CA_BUNDLE=/opt/stackstate-agent/embedded/ssl/certs/cacert.pem 
@@ -20,6 +20,7 @@ RUN apt-get update \
   && apt-get install -y util-linux ncurses-bin ncurses-base libncursesw5:amd64 \
   # https://security-tracker.debian.org/tracker/CVE-2018-15686
   && apt-get install -y libudev1 libsystemd0 \
+  && apt-get install -y ca-certificates \
   # https://security-tracker.debian.org/tracker/CVE-2016-2779
   && rm -f /usr/sbin/runuser \
   # https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-6954
