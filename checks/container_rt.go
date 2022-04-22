@@ -47,7 +47,7 @@ func (r *RTContainerCheck) Sender() aggregator.Sender {
 }
 
 // Run runs the real-time container check getting container-level stats from the Cgroups and Docker APIs.
-func (r *RTContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {
+func (r *RTContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) (*CheckResult, error) {
 	ctrList, err := util.GetContainers()
 	if err != nil {
 		return nil, err
@@ -80,7 +80,7 @@ func (r *RTContainerCheck) Run(cfg *config.AgentConfig, features features.Featur
 	r.lastRates = util.ExtractContainerRateMetric(ctrList)
 	r.lastRun = time.Now()
 
-	return messages, nil
+	return &CheckResult{CollectorMessages: messages}, nil
 }
 
 // fmtContainerStats formats and chunks the ctrList into a slice of chunks using a specific

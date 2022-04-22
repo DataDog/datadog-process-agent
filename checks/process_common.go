@@ -104,6 +104,11 @@ func getProcessInclusions(commonProcesses []*ProcessCommon, cfg *config.AgentCon
 	go func() {
 		readIOSort := func(processes []*ProcessCommon) func(i, j int) bool {
 			sortingFunc := func(i, j int) bool {
+				if processes[j].IOStat == nil {
+					return true
+				} else if processes[i].IOStat == nil {
+					return false
+				}
 				return processes[i].IOStat.ReadRate > processes[j].IOStat.ReadRate
 			}
 
@@ -116,6 +121,11 @@ func getProcessInclusions(commonProcesses []*ProcessCommon, cfg *config.AgentCon
 	go func() {
 		writeIOSort := func(processes []*ProcessCommon) func(i, j int) bool {
 			sortingFunc := func(i, j int) bool {
+				if processes[j].IOStat == nil {
+					return true
+				} else if processes[i].IOStat == nil {
+					return false
+				}
 				return processes[i].IOStat.WriteRate > processes[j].IOStat.WriteRate
 			}
 

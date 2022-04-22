@@ -255,12 +255,19 @@ func printResults(cfg *config.AgentConfig, ch checks.Check) error {
 	fmt.Printf("\nResults for check %v\n", ch)
 	fmt.Printf("-----------------------------\n\n")
 
-	msgs, err := ch.Run(cfg, features.All(), 1, time.Now())
+	result, err := ch.Run(cfg, features.All(), 1, time.Now())
 	if err != nil {
 		return fmt.Errorf("collection error: %s", err)
 	}
 
-	for _, m := range msgs {
+	for _, m := range result.CollectorMessages {
+		b, err := json.MarshalIndent(m, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal error: %s", err)
+		}
+		fmt.Println(string(b))
+	}
+	for _, m := range result.Metrics {
 		b, err := json.MarshalIndent(m, "", "  ")
 		if err != nil {
 			return fmt.Errorf("marshal error: %s", err)
