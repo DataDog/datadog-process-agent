@@ -114,7 +114,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureSet features.Features
 	useMultiMetrics := featureSet.FeatureEnabled(features.UpgradeToMultiMetrics)
 	containers, multiMetrics := fmtContainers(cfg, ctrList, p.lastCtrRates, p.lastRun, useMultiMetrics)
 
-	if cfg.EnableIncrementalPublishing && featureSet.FeatureEnabled("incremental-topology") && time.Now().Before(p.lastRefresh.Add(cfg.IncrementalPublishingRefreshInterval)) {
+	if cfg.EnableIncrementalPublishing && featureSet.FeatureEnabled(features.IncrementalTopology) && time.Now().Before(p.lastRefresh.Add(cfg.IncrementalPublishingRefreshInterval)) {
 		log.Debug("Sending process status increment")
 		messages = p.fmtIncrement(cfg, groupID, buildIncrement(processes, containers, p.lastProcState, p.lastCtrState))
 	} else {

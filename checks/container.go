@@ -154,7 +154,41 @@ func fmtContainers(
 			Tags:        transformKubernetesTags(tags, cfg.ClusterName),
 		}
 
-		if !multiMetricsEnabled {
+		metricTags := []string{fmt.Sprintf("containerId:%s", ctr.ID)}
+		timestamp := time.Now().Unix()
+		makeMetric := func(name string, value float64) telemetry.RawMetrics {
+			return telemetry.RawMetrics{
+				Name: name, Timestamp: timestamp, HostName: cfg.HostName, Value: value, Tags: metricTags,
+			}
+		}
+
+		// new metrics are sent regardless of feature flag which is needed for migration
+		// cpuThrottledTime & cpuNrThrottled are accumulative values
+		// https://engineering.indeedblog.com/blog/2019/12/unthrottled-fixing-cpu-limits-in-the-cloud/
+		// so that's why rate is calculated
+		multiMetrics = append(multiMetrics,
+			makeMetric("cpuThrottledTime", calculateRateF64(ctr.CPU.ThrottledTime, lastCtr.CPU.ThrottledTime, lastRun)),
+			makeMetric("cpuNrThrottled", float64(calculateRate(ctr.CPU.NrThrottled, lastCtr.CPU.NrThrottled, lastRun))),
+			makeMetric("cpuThreadCount", float64(ctr.CPU.ThreadCount)),
+		)
+
+		if multiMetricsEnabled {
+			log.Debugf("Generating container metrics for intake API (upgrade-to-multi-metrics feature is enabled)")
+			multiMetrics = append(multiMetrics,
+				makeMetric("rbps", float64(calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun))),
+				makeMetric("wbps", float64(calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun))),
+				makeMetric("netRcvdPs", float64(calculateRate(ifStats.PacketsRcvd, lastCtr.NetworkSum.PacketsRcvd, lastRun))),
+				makeMetric("netSentPs", float64(calculateRate(ifStats.PacketsSent, lastCtr.NetworkSum.PacketsSent, lastRun))),
+				makeMetric("netRcvdBps", float64(calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun))),
+				makeMetric("netSentBps", float64(calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun))),
+				makeMetric("userPct", float64(calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun))),
+				makeMetric("systemPct", float64(calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun))),
+				makeMetric("totalPct", float64(calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, sys2, sys1, cpus, lastRun))),
+				makeMetric("memRss", float64(ctr.Memory.RSS)),
+				makeMetric("memCache", float64(ctr.Memory.Cache)),
+			)
+		} else {
+			log.Warnf("Generating container metrics for collector API (upgrade-to-multi-metrics feature is disabled)")
 			container.Rbps = calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun)
 			container.Wbps = calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun)
 			container.NetRcvdPs = calculateRate(ifStats.PacketsRcvd, lastCtr.NetworkSum.PacketsRcvd, lastRun)
@@ -166,30 +200,6 @@ func fmtContainers(
 			container.TotalPct = calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, sys2, sys1, cpus, lastRun)
 			container.MemRss = ctr.Memory.RSS
 			container.MemCache = ctr.Memory.Cache
-		} else {
-			metricTags := []string{fmt.Sprintf("containerId:%s", ctr.ID)}
-			timestamp := time.Now().Unix()
-			makeMetric := func(name string, value float64) telemetry.RawMetrics {
-				return telemetry.RawMetrics{
-					Name: name, Timestamp: timestamp, HostName: cfg.HostName, Value: value, Tags: metricTags,
-				}
-			}
-			multiMetrics = append(multiMetrics,
-				makeMetric("rbps", float64(calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun))),
-				makeMetric("wbps", float64(calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun))),
-				makeMetric("netRcvdPs", float64(calculateRate(ifStats.PacketsRcvd, lastCtr.NetworkSum.PacketsRcvd, lastRun))),
-				makeMetric("netSentPs", float64(calculateRate(ifStats.PacketsSent, lastCtr.NetworkSum.PacketsSent, lastRun))),
-				makeMetric("netRcvdBps", float64(calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun))),
-				makeMetric("netSentBps", float64(calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun))),
-				makeMetric("userPct", float64(calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun))),
-				makeMetric("systemPct", float64(calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun))),
-				makeMetric("totalPct", float64(calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, sys2, sys1, cpus, lastRun))),
-				makeMetric("cpuThrottledTime", ctr.CPU.ThrottledTime),
-				makeMetric("cpuNrThrottled", float64(ctr.CPU.NrThrottled)),
-				makeMetric("cpuThreadCount", float64(ctr.CPU.ThreadCount)),
-				makeMetric("memRss", float64(ctr.Memory.RSS)),
-				makeMetric("memCache", float64(ctr.Memory.Cache)),
-			)
 		}
 
 		containers = append(containers, container)

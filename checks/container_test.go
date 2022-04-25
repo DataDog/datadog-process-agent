@@ -4,6 +4,7 @@
 package checks
 
 import (
+	"github.com/StackVista/stackstate-agent/pkg/telemetry"
 	"testing"
 	"time"
 
@@ -64,6 +65,51 @@ func TestTransformKubernetesTags(t *testing.T) {
 
 }
 
+func TestContainerNewMetricsFeatureFlag(t *testing.T) {
+	cfg := config.NewDefaultAgentConfig()
+	ctrs := []*containers.Container{
+		makeContainer("foo"),
+	}
+	prevCtrs := []*containers.Container{
+		makeContainer("foo"),
+	}
+	lastRun := time.Now().Add(-5 * time.Second)
+
+	findMetric := func(metrics []telemetry.RawMetrics, name string) *telemetry.RawMetrics {
+		for _, metric := range metrics {
+			if metric.Name == name {
+				return &metric
+			}
+		}
+		return nil
+	}
+
+	prevCtrs[0].CPU.ThrottledTime = 500
+	ctrs[0].CPU.ThrottledTime = 1000
+
+	prevCtrs[0].CPU.NrThrottled = 0
+	ctrs[0].CPU.NrThrottled = 100
+
+	prevCtrs[0].CPU.System = 0
+	ctrs[0].CPU.System = 20
+
+	cnts, metrics := fmtContainers(cfg, ctrs, util.ExtractContainerRateMetric(prevCtrs), lastRun, false)
+	assert.Equal(t, cnts[0].SystemPct, float64(20/5))
+	assert.Len(t, metrics, 3, "Only new metrics are expected to appear when feature-flag is disabled")
+	assert.Equal(t, findMetric(metrics, "cpuThrottledTime").Value, float64(1000-500)/5)
+	assert.Equal(t, findMetric(metrics, "cpuNrThrottled").Value, float64(100)/5)
+	assert.Equal(t, findMetric(metrics, "cpuThreadCount").Value, float64(0))
+
+	cnts2, metrics2 := fmtContainers(cfg, ctrs, util.ExtractContainerRateMetric(prevCtrs), lastRun, true)
+	assert.Equal(t, cnts2[0].SystemPct, 0, "When multimetrics enabled, collector's structures metrics should be 0")
+	assert.Len(t, metrics2, 11+3)
+	assert.Equal(t, findMetric(metrics2, "cpuThrottledTime").Value, float64(1000-500)/5)
+	assert.Equal(t, findMetric(metrics2, "cpuNrThrottled").Value, float64(100)/5)
+	assert.Equal(t, findMetric(metrics, "cpuThreadCount").Value, 0)
+	assert.Equal(t, findMetric(metrics, "systemPct").Value, float64(20)/5)
+
+}
+
 func TestContainerChunking(t *testing.T) {
 	cfg := config.NewDefaultAgentConfig()
 	ctrs := []*containers.Container{
@@ -98,7 +144,8 @@ func TestContainerChunking(t *testing.T) {
 			expected: 2,
 		},
 	} {
-		chunked := chunkedContainers(fmtContainers(cfg, tc.cur, tc.last, lastRun), tc.chunks)
+		containers, _ := fmtContainers(cfg, tc.cur, tc.last, lastRun, true)
+		chunked := chunkedContainers(containers, tc.chunks)
 		assert.Len(t, chunked, tc.chunks, "len test %d", i)
 		total := 0
 		for _, c := range chunked {
@@ -122,7 +169,7 @@ func TestContainerNils(t *testing.T) {
 	// Make sure formatting doesn't crash with nils
 	cur := []*containers.Container{{}}
 	last := map[string]util.ContainerRateMetrics{}
-	fmtContainers(cfg, cur, last, time.Now())
+	fmtContainers(cfg, cur, last, time.Now(), true)
 	fmtContainerStats(cur, last, time.Now(), 10)
 	// Make sure we get values when we have nils in last.
 	cur = []*containers.Container{
@@ -138,6 +185,6 @@ func TestContainerNils(t *testing.T) {
 			CPU: &metrics.ContainerCPUStats{},
 		},
 	}
-	fmtContainers(cfg, cur, last, time.Now())
+	fmtContainers(cfg, cur, last, time.Now(), true)
 	fmtContainerStats(cur, last, time.Now(), 10)
 }

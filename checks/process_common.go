@@ -250,6 +250,15 @@ func formatIO(fp *process.FilledProcess, lastIO *process.IOCountersStat, before 
 	}
 }
 
+func calculateRateF64(cur, prev float64, before time.Time) float64 {
+	now := time.Now()
+	diff := now.Unix() - before.Unix()
+	if before.IsZero() || diff <= 0 {
+		return 0
+	}
+	return (cur - prev) / float64(diff)
+}
+
 func calculateRate(cur, prev uint64, before time.Time) float32 {
 	now := time.Now()
 	diff := now.Unix() - before.Unix()
