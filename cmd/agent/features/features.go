@@ -1,7 +1,9 @@
 package features
 
+// FeatureID type ensures well-defined list of features in this file
 type FeatureID string
 
+// List of features managed by StackState receiver
 const (
 	UpgradeToMultiMetrics FeatureID = "upgrade-to-multi-metrics"
 	IncrementalTopology   FeatureID = "incremental-topology"
