@@ -94,20 +94,19 @@ func TestContainerNewMetricsFeatureFlag(t *testing.T) {
 	ctrs[0].CPU.System = 20
 
 	cnts, metrics := fmtContainers(cfg, ctrs, util.ExtractContainerRateMetric(prevCtrs), lastRun, false)
-	assert.Equal(t, cnts[0].SystemPct, float64(20/5))
+	assert.Equal(t, cnts[0].SystemPct, float32(20/5))
 	assert.Len(t, metrics, 3, "Only new metrics are expected to appear when feature-flag is disabled")
-	assert.Equal(t, findMetric(metrics, "cpuThrottledTime").Value, float64(1000-500)/5)
-	assert.Equal(t, findMetric(metrics, "cpuNrThrottled").Value, float64(100)/5)
-	assert.Equal(t, findMetric(metrics, "cpuThreadCount").Value, float64(0))
+	assert.Equal(t, float64((1000-500)/5), findMetric(metrics, "cpuThrottledTime").Value)
+	assert.Equal(t, float64(100/5), findMetric(metrics, "cpuNrThrottled").Value)
+	assert.Equal(t, float64(0), findMetric(metrics, "cpuThreadCount").Value)
 
 	cnts2, metrics2 := fmtContainers(cfg, ctrs, util.ExtractContainerRateMetric(prevCtrs), lastRun, true)
-	assert.Equal(t, cnts2[0].SystemPct, 0, "When multimetrics enabled, collector's structures metrics should be 0")
+	assert.Equal(t, cnts2[0].SystemPct, float32(0), "When multimetrics enabled, collector's structures metrics should be 0")
 	assert.Len(t, metrics2, 11+3)
-	assert.Equal(t, findMetric(metrics2, "cpuThrottledTime").Value, float64(1000-500)/5)
-	assert.Equal(t, findMetric(metrics2, "cpuNrThrottled").Value, float64(100)/5)
-	assert.Equal(t, findMetric(metrics, "cpuThreadCount").Value, 0)
-	assert.Equal(t, findMetric(metrics, "systemPct").Value, float64(20)/5)
-
+	assert.Equal(t, float64(1000-500)/5, findMetric(metrics2, "cpuThrottledTime").Value)
+	assert.Equal(t, float64(100)/5, findMetric(metrics2, "cpuNrThrottled").Value)
+	assert.Equal(t, float64(0), findMetric(metrics2, "cpuThreadCount").Value)
+	assert.Equal(t, float64(20)/5, findMetric(metrics2, "systemPct").Value)
 }
 
 func TestContainerChunking(t *testing.T) {
