@@ -50,6 +50,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 	return nil, nil
 }
 
-func fmtContainers(cfg *config.AgentConfig, ctrList []*containers.Container, lastRates map[string]util.ContainerRateMetrics, lastRun time.Time) []*model.Container {
+func fmtContainers(cfg *config.AgentConfig, ctrList []*containers.Container, lastRates map[string]util.ContainerRateMetrics, lastRun time.Time, multiMetricsEnabled bool) []*model.Container {
 	return make([]*model.Container, 0, len(ctrList))
 }
