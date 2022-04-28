@@ -18,10 +18,9 @@ import (
 	tracerconfig "github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 
 	"github.com/StackVista/stackstate-agent/pkg/process/util"
+	agentutil "github.com/StackVista/stackstate-agent/pkg/util"
 
 	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
-	"github.com/StackVista/stackstate-agent/pkg/util/fargate"
-
 	log "github.com/cihub/seelog"
 	"github.com/go-ini/ini"
 )
@@ -468,7 +467,8 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 		return nil, err
 	}
 
-	if cfg.HostName == "" {
+	// sts begin
+	/* if cfg.HostName == "" {
 		if fargate.IsFargateInstance() {
 			// Fargate tasks should have no concept of host names, so we're using the task ARN.
 			if hostname, err := fargate.GetFargateHost(); err == nil {
@@ -479,7 +479,19 @@ func NewAgentConfig(agentIni *File, agentYaml *YamlAgentConfig, networkYaml *Yam
 		} else if hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv); err == nil {
 			cfg.HostName = hostname
 		}
+	} */
+	// Get hostname from agent util since the process-agent image doesn't include the main agent
+	if cfg.HostName == "" {
+		if hostname, err := agentutil.GetHostname(); err == nil {
+			cfg.HostName = hostname
+			log.Debugf("Got hostname from agent util")
+		} else if hostname, err := getHostname(cfg.DDAgentPy, cfg.DDAgentBin, cfg.DDAgentPyEnv); err == nil {
+			cfg.HostName = hostname
+			log.Debugf("Got hostname from DDAgent")
+		}
 	}
+	log.Infof("Hostname is: %s", cfg.HostName)
+	// sts end
 
 	if cfg.proxy != nil {
 		cfg.Transport.Proxy = cfg.proxy
