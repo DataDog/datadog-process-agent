@@ -104,6 +104,11 @@ func getProcessInclusions(commonProcesses []*ProcessCommon, cfg *config.AgentCon
 	go func() {
 		readIOSort := func(processes []*ProcessCommon) func(i, j int) bool {
 			sortingFunc := func(i, j int) bool {
+				if processes[j].IOStat == nil {
+					return true
+				} else if processes[i].IOStat == nil {
+					return false
+				}
 				return processes[i].IOStat.ReadRate > processes[j].IOStat.ReadRate
 			}
 
@@ -116,6 +121,11 @@ func getProcessInclusions(commonProcesses []*ProcessCommon, cfg *config.AgentCon
 	go func() {
 		writeIOSort := func(processes []*ProcessCommon) func(i, j int) bool {
 			sortingFunc := func(i, j int) bool {
+				if processes[j].IOStat == nil {
+					return true
+				} else if processes[i].IOStat == nil {
+					return false
+				}
 				return processes[i].IOStat.WriteRate > processes[j].IOStat.WriteRate
 			}
 
@@ -240,10 +250,19 @@ func formatIO(fp *process.FilledProcess, lastIO *process.IOCountersStat, before 
 	}
 }
 
+func calculateRateF64(cur, prev float64, before time.Time) float64 {
+	now := time.Now()
+	diff := now.Unix() - before.Unix()
+	if before.IsZero() || diff <= 0 {
+		return 0
+	}
+	return (cur - prev) / float64(diff)
+}
+
 func calculateRate(cur, prev uint64, before time.Time) float32 {
 	now := time.Now()
 	diff := now.Unix() - before.Unix()
-	if before.IsZero() || diff <= 0 || prev == 0 {
+	if before.IsZero() || diff <= 0 {
 		return 0
 	}
 	return float32(cur-prev) / float32(diff)

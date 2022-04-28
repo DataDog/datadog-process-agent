@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/StackVista/stackstate-agent/pkg/aggregator"
+	"github.com/StackVista/stackstate-agent/pkg/batcher"
+	"github.com/StackVista/stackstate-agent/pkg/collector/check"
+	"github.com/StackVista/stackstate-agent/pkg/telemetry"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"io"
 	"io/ioutil"
@@ -24,6 +27,7 @@ import (
 
 type checkPayload struct {
 	messages  []model.MessageBody
+	metrics   []telemetry.RawMetrics
 	endpoint  string
 	timestamp time.Time
 }
@@ -81,16 +85,20 @@ func (l *Collector) runCheck(c checks.Check, features features.Features) {
 	currentTime := time.Now()
 	// update the last collected timestamp for info
 	updateLastCollectTime(currentTime)
-	messages, err := c.Run(l.cfg, features, atomic.AddInt32(&l.groupID, 1), currentTime)
+	result, err := c.Run(l.cfg, features, atomic.AddInt32(&l.groupID, 1), currentTime)
 	// defer commit to after check run
 	defer c.Sender().Commit()
 
 	if err != nil {
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
-		l.send <- checkPayload{messages, c.Endpoint(), currentTime}
-		// update proc and container count for info
-		updateProcContainerCount(messages)
+		if result != nil {
+			l.send <- checkPayload{result.CollectorMessages, result.Metrics, c.Endpoint(), currentTime}
+			// update proc and container count for info
+			updateProcContainerCount(result.CollectorMessages)
+		} else {
+			log.Infof("Ignoring empty result of '%s' check", c.Name())
+		}
 		if !c.RealTime() {
 			d := time.Since(currentTime)
 			switch {
@@ -147,6 +155,10 @@ func (l *Collector) run(exit chan bool) {
 				for _, m := range payload.messages {
 					l.postMessage(payload.endpoint, m, payload.timestamp)
 				}
+				for _, metric := range payload.metrics {
+					batcher.GetBatcher().SubmitRawMetricsData(check.ID(payload.endpoint), metric)
+				}
+				batcher.GetBatcher().SubmitComplete(check.ID(payload.endpoint))
 			case <-heartbeat.C:
 				log.Tracef("got heartbeat.C message. (Ignored)")
 				s.Gauge("stackstate.process_agent.running", 1, l.cfg.HostName, []string{"version:" + versionString()})
@@ -338,14 +350,14 @@ func (l *Collector) getFeatures(endpoint config.APIEndpoint, checkPath string, r
 		_ = log.Errorf("Json was wrongly formatted, expected map type, got: %s", reflect.TypeOf(data))
 	}
 
-	featuresParsed := make(map[string]bool)
+	featuresParsed := make(map[features.FeatureID]bool)
 
 	for k, v := range featureMap {
 		featureValue, okV := v.(bool)
 		if !okV {
 			_ = log.Warnf("Json was wrongly formatted, expected boolean type, got: %s, skipping feature %s", reflect.TypeOf(v), k)
 		}
-		featuresParsed[k] = featureValue
+		featuresParsed[features.FeatureID(k)] = featureValue
 	}
 
 	log.Infof("Server supports features: %s", featuresParsed)
