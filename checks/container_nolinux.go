@@ -1,10 +1,11 @@
-//go:build !linux
-// +build !linux
+//go:build windows
+// +build windows
 
 package checks
 
 import (
 	"github.com/StackVista/stackstate-agent/pkg/aggregator"
+	"github.com/StackVista/stackstate-agent/pkg/telemetry"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"time"
 
@@ -50,6 +51,6 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 	return nil, nil
 }
 
-func fmtContainers(cfg *config.AgentConfig, ctrList []*containers.Container, lastRates map[string]util.ContainerRateMetrics, lastRun time.Time, multiMetricsEnabled bool) []*model.Container {
-	return make([]*model.Container, 0, len(ctrList))
+func fmtContainers(cfg *config.AgentConfig, ctrList []*containers.Container, lastRates map[string]util.ContainerRateMetrics, lastRun time.Time, multiMetricsEnabled bool) ([]*model.Container, []telemetry.RawMetrics) {
+	return make([]*model.Container, 0, len(ctrList)), make([]telemetry.RawMetrics, 0)
 }
