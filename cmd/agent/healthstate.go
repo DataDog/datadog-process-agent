@@ -85,7 +85,7 @@ func (l *Collector) integrationTopology(check checks.Check) ([]topology.Componen
 func (l *Collector) makeHealth(result checkResult) (health.Stream, health.CheckData) {
 	checkData := health.CheckData{
 		CheckState: &health.CheckState{
-			CheckStateId:              l.agentIntegrationID(result.check),
+			CheckStateID:              l.agentIntegrationID(result.check),
 			TopologyElementIdentifier: l.agentIntegrationID(result.check),
 			Health:                    health.Clear,
 			Name:                      result.check.Name(),
