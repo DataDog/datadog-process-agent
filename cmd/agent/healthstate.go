@@ -10,18 +10,6 @@ import (
 	"os"
 )
 
-// HealthState health state
-type HealthState string
-
-const (
-	// Clear designates healthy component
-	Clear HealthState = "CLEAR"
-	// Deviating means a component is working but something is wrong[
-	Deviating HealthState = "DEVIATING"
-	// Critical means that component is suffering
-	Critical HealthState = "CRITICAL"
-)
-
 func (l *Collector) agentID() string {
 	return fmt.Sprintf("urn:stackstate-agent:/%s", l.cfg.HostName)
 }
@@ -104,18 +92,20 @@ func (l *Collector) integrationTopology(check checks.Check) topology.Topology {
 
 func (l *Collector) makeHealth(result checkResult) health.Health {
 	checkData := health.CheckData{
-		"checkStateId":              l.agentIntegrationID(result.check),
-		"topologyElementIdentifier": l.agentIntegrationID(result.check),
-		"health":                    Clear,
-		"name":                      result.check.Name(),
+		CheckState: &health.CheckState{
+			CheckStateId:              l.agentIntegrationID(result.check),
+			TopologyElementIdentifier: l.agentIntegrationID(result.check),
+			Health:                    health.Clear,
+			Name:                      result.check.Name(),
+		},
 	}
 	if result.err != nil {
 		if result.payload != nil {
-			checkData["health"] = Deviating
-			checkData["message"] = fmt.Sprintf("Check partially failed:\n```\n%v\n```", result.err)
+			checkData.CheckState.Health = health.Deviating
+			checkData.CheckState.Message = fmt.Sprintf("Check partially failed:\n```\n%v\n```", result.err)
 		} else {
-			checkData["health"] = Critical
-			checkData["message"] = fmt.Sprintf("Check failed:\n```\n%v\n```", result.err)
+			checkData.CheckState.Health = health.Critical
+			checkData.CheckState.Message = fmt.Sprintf("Check failed:\n```\n%v\n```", result.err)
 		}
 	}
 	repeatInterval := int(l.cfg.CheckInterval(result.check.Name()).Seconds())
