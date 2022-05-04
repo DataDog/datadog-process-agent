@@ -8,6 +8,9 @@ import (
 	"github.com/StackVista/stackstate-agent/pkg/health"
 	"github.com/StackVista/stackstate-agent/pkg/topology"
 	"github.com/StackVista/stackstate-agent/pkg/aggregator"
+	"github.com/StackVista/stackstate-agent/pkg/batcher"
+	"github.com/StackVista/stackstate-agent/pkg/collector/check"
+	"github.com/StackVista/stackstate-agent/pkg/telemetry"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"io"
 	"io/ioutil"
@@ -32,6 +35,7 @@ type checkResult struct {
 
 type checkPayload struct {
 	messages  []model.MessageBody
+	metrics   []telemetry.RawMetrics
 	endpoint  string
 	timestamp time.Time
 }
@@ -89,24 +93,28 @@ func (l *Collector) runCheck(c checks.Check, features features.Features) {
 	currentTime := time.Now()
 	// update the last collected timestamp for info
 	updateLastCollectTime(currentTime)
-	messages, err := c.Run(l.cfg, features, atomic.AddInt32(&l.groupID, 1), currentTime)
+	result, err := c.Run(l.cfg, features, atomic.AddInt32(&l.groupID, 1), currentTime)
 	// defer commit to after check run
 	defer c.Sender().Commit()
 
-	if err != nil && len(messages) == 0 {
+	if err != nil && result == nil {
 		l.send <- checkResult{check: c, err: err}
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
 		if err != nil {
 			log.Warnf("Check '%s' partially failed with an error: %v", c.Name(), err)
 		}
-		l.send <- checkResult{
-			check:   c,
-			payload: &checkPayload{messages, c.Endpoint(), currentTime},
-			err:     err,
+		if result != nil {
+			l.send <- checkResult{
+				check:   c,
+				payload: &checkPayload{result.CollectorMessages, result.Metrics, c.Endpoint(), currentTime},
+				err:     err,
+			}
+			// update proc and container count for info
+			updateProcContainerCount(result.CollectorMessages)
+		} else {
+			log.Infof("Ignoring empty result of '%s' check", c.Name())
 		}
-		// update proc and container count for info
-		updateProcContainerCount(messages)
 		if !c.RealTime() {
 			d := time.Since(currentTime)
 			switch {
@@ -154,18 +162,27 @@ func (l *Collector) run(exit chan bool) {
 					// Limit number of items kept in memory while we wait.
 					<-l.send
 				}
+
+				btch := batcher.GetBatcher()
+
 				if result.payload != nil {
 					payload := result.payload
 					for _, m := range payload.messages {
 						l.postMessage(payload.endpoint, m, payload.timestamp)
 					}
+
+					for _, metric := range payload.metrics {
+						btch.SubmitRawMetricsData(check.ID(payload.endpoint), metric)
+					}
+					btch.SubmitComplete(check.ID(payload.endpoint))
 				}
+
 				if l.cfg.ReportCheckHealthState || l.features.FeatureEnabled(features.HealthStates) {
-					l.postIntake(intakePayload{
-						InternalHostname: l.cfg.HostName,
-						Topologies:       []topology.Topology{l.integrationTopology(result.check)},
-						Health:           []health.Health{l.makeHealth(result)},
-					})
+					//l.postIntake(intakePayload{
+					//	InternalHostname: l.cfg.HostName,
+					//	Topologies:       []topology.Topology{l.integrationTopology(result.check)},
+					//	Health:           []health.Health{l.makeHealth(result)},
+					//})
 				}
 			case <-heartbeat.C:
 				log.Tracef("got heartbeat.C message. (Ignored)")
@@ -217,36 +234,6 @@ func (l *Collector) run(exit chan bool) {
 	<-exit
 }
 
-type intakePayload struct {
-	InternalHostname string              `json:"internalHostname"`
-	Topologies       []topology.Topology `json:"topologies"`
-	Health           []health.Health     `json:"health"`
-}
-
-func (l *Collector) postIntake(intake intakePayload) {
-
-	body, err := json.Marshal(intake)
-	if err != nil {
-		log.Errorf("Unable to encode intake payload: %v", err)
-		return
-	}
-
-	responses := make(chan errorResponse)
-	for _, ep := range l.cfg.APIEndpoints {
-		log.Infof("Posting Intake to %s/%s: %s", ep, "/intake", intake)
-		go l.postToAPIwithEncoding(ep, "/intake", body, responses, "", "application/json")
-	}
-
-	// Wait for all responses to come back before moving on.
-	for range l.cfg.APIEndpoints {
-		res := <-responses
-		if res.err != nil {
-			_ = log.Errorf("Posting Intake failed: %v", res.err)
-			continue
-		}
-	}
-}
-
 func (l *Collector) postMessage(checkPath string, m model.MessageBody, timestamp time.Time) {
 	msgType, err := model.DetectMessageType(m)
 	if err != nil {
@@ -268,7 +255,7 @@ func (l *Collector) postMessage(checkPath string, m model.MessageBody, timestamp
 
 	responses := make(chan errorResponse)
 	for _, ep := range l.cfg.APIEndpoints {
-		go l.postToAPIwithEncoding(ep, checkPath, body, responses, "x-zip", "")
+		go l.postToAPI(ep, checkPath, body, responses)
 	}
 
 	// Wait for all responses to come back before moving on.
@@ -328,8 +315,12 @@ type errorResponse struct {
 	err error
 }
 
-func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan errorResponse, contentEncoding string, contentType string) {
-	resp, err := l.accessAPIwithEncoding(endpoint, "POST", checkPath, body, contentEncoding, contentType)
+func (l *Collector) postToAPI(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan errorResponse) {
+	l.postToAPIwithEncoding(endpoint, checkPath, body, responses, "x-zip")
+}
+
+func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath string, body []byte, responses chan errorResponse, contentEncoding string) {
+	resp, err := l.accessAPIwithEncoding(endpoint, "POST", checkPath, body, contentEncoding)
 	if err != nil {
 		responses <- errorResponse{err: err}
 		return
@@ -339,7 +330,7 @@ func (l *Collector) postToAPIwithEncoding(endpoint config.APIEndpoint, checkPath
 }
 
 func (l *Collector) getFeatures(endpoint config.APIEndpoint, checkPath string, report chan features.Features) {
-	resp, accessErr := l.accessAPIwithEncoding(endpoint, "GET", checkPath, make([]byte, 0), "identity", "")
+	resp, accessErr := l.accessAPIwithEncoding(endpoint, "GET", checkPath, make([]byte, 0), "identity")
 
 	// Handle error response
 	if accessErr != nil {
@@ -376,33 +367,28 @@ func (l *Collector) getFeatures(endpoint config.APIEndpoint, checkPath string, r
 		_ = log.Errorf("Json was wrongly formatted, expected map type, got: %s", reflect.TypeOf(data))
 	}
 
-	featuresParsed := make(map[string]bool)
+	featuresParsed := make(map[features.FeatureID]bool)
 
 	for k, v := range featureMap {
 		featureValue, okV := v.(bool)
 		if !okV {
 			_ = log.Warnf("Json was wrongly formatted, expected boolean type, got: %s, skipping feature %s", reflect.TypeOf(v), k)
 		}
-		featuresParsed[k] = featureValue
+		featuresParsed[features.FeatureID(k)] = featureValue
 	}
 
 	log.Infof("Server supports features: %s", featuresParsed)
 	report <- features.Make(featuresParsed)
 }
 
-func (l *Collector) accessAPIwithEncoding(endpoint config.APIEndpoint, method string, checkPath string, body []byte, contentEncoding string, contentType string) (*http.Response, error) {
+func (l *Collector) accessAPIwithEncoding(endpoint config.APIEndpoint, method string, checkPath string, body []byte, contentEncoding string) (*http.Response, error) {
 	url := endpoint.Endpoint.String() + checkPath // Add the checkPath in full Process Agent URL
 	req, err := http.NewRequest(method, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("could not create %s request to %s: %s", method, url, err)
 	}
 
-	if contentEncoding != "" {
-		req.Header.Add("content-encoding", contentEncoding)
-	}
-	if contentType != "" {
-		req.Header.Add("content-type", contentType)
-	}
+	req.Header.Add("content-encoding", contentEncoding)
 	req.Header.Add("sts-api-key", endpoint.APIKey)
 	req.Header.Add("sts-hostname", l.cfg.HostName)
 	req.Header.Add("sts-processagentversion", Version)

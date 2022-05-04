@@ -6,6 +6,7 @@ package checks
 import (
 	"fmt"
 	"github.com/StackVista/stackstate-agent/pkg/aggregator"
+	"github.com/StackVista/stackstate-agent/pkg/telemetry"
 	"runtime"
 	"strings"
 	"time"
@@ -54,7 +55,7 @@ func (c *ContainerCheck) Sender() aggregator.Sender {
 
 // Run runs the ContainerCheck to collect a list of running ctrList and the
 // stats for each container.
-func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {
+func (c *ContainerCheck) Run(cfg *config.AgentConfig, featureSet features.Features, groupID int32, currentTime time.Time) (*CheckResult, error) {
 	start := time.Now()
 	ctrList, err := util.GetContainers()
 	if err != nil {
@@ -74,21 +75,25 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 		return nil, nil
 	}
 
-	groupSize := len(ctrList) / cfg.MaxPerMessage
+	groupCount := len(ctrList) / cfg.MaxPerMessage
 	if len(ctrList) != cfg.MaxPerMessage {
-		groupSize++
+		groupCount++
 	}
-	chunked := chunkedContainers(fmtContainers(cfg, ctrList, c.lastRates, c.lastRun), groupSize)
-	messages := make([]model.MessageBody, 0, groupSize)
+	useMultiMetrics := featureSet.FeatureEnabled(features.UpgradeToMultiMetrics)
+
+	cnts, metrics := fmtContainers(cfg, ctrList, c.lastRates, c.lastRun, useMultiMetrics)
+	chunked := chunkedContainers(cnts, groupCount)
+
+	messages := make([]model.MessageBody, 0, groupCount)
 	totalContainers := float64(0)
-	for i := 0; i < groupSize; i++ {
+	for i := 0; i < groupCount; i++ {
 		totalContainers += float64(len(chunked[i]))
 		messages = append(messages, &model.CollectorContainer{
 			HostName:   cfg.HostName,
 			Info:       c.sysInfo,
 			Containers: chunked[i],
 			GroupId:    groupID,
-			GroupSize:  int32(groupSize),
+			GroupSize:  int32(groupCount),
 		})
 	}
 
@@ -97,7 +102,10 @@ func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features
 
 	s.Gauge("stackstate.process_agent.containers.host_count", totalContainers, cfg.HostName, []string{})
 	log.Debugf("collected %d containers in %s", int(totalContainers), time.Now().Sub(start))
-	return messages, nil
+	return &CheckResult{
+		CollectorMessages: messages,
+		Metrics:           metrics,
+	}, nil
 }
 
 // fmtContainers formats the ctrList
@@ -105,8 +113,12 @@ func fmtContainers(
 	cfg *config.AgentConfig,
 	ctrList []*containers.Container,
 	lastRates map[string]util.ContainerRateMetrics,
-	lastRun time.Time) []*model.Container {
+	lastRun time.Time,
+	multiMetricsEnabled bool,
+) ([]*model.Container, []telemetry.RawMetrics) {
+
 	containers := make([]*model.Container, 0, len(ctrList))
+	multiMetrics := make([]telemetry.RawMetrics, 0)
 
 	for _, ctr := range ctrList {
 		lastCtr, ok := lastRates[ctr.ID]
@@ -130,31 +142,70 @@ func fmtContainers(
 			tags = []string{}
 		}
 
-		containers = append(containers, &model.Container{
+		container := &model.Container{
 			Id:          ctr.ID,
 			Type:        ctr.Type,
 			CpuLimit:    float32(ctr.Limits.CPULimit),
-			UserPct:     calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun),
-			SystemPct:   calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
-			TotalPct:    calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, sys2, sys1, cpus, lastRun),
 			MemoryLimit: ctr.Limits.MemLimit,
-			MemRss:      ctr.Memory.RSS,
-			MemCache:    ctr.Memory.Cache,
 			Created:     ctr.Created,
 			State:       model.ContainerState(model.ContainerState_value[ctr.State]),
 			Health:      model.ContainerHealth(model.ContainerHealth_value[ctr.Health]),
-			Rbps:        calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun),
-			Wbps:        calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun),
-			NetRcvdPs:   calculateRate(ifStats.PacketsRcvd, lastCtr.NetworkSum.PacketsRcvd, lastRun),
-			NetSentPs:   calculateRate(ifStats.PacketsSent, lastCtr.NetworkSum.PacketsSent, lastRun),
-			NetRcvdBps:  calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun),
-			NetSentBps:  calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun),
 			Started:     ctr.StartedAt,
 			Tags:        transformKubernetesTags(tags, cfg.ClusterName),
-		})
+		}
+
+		metricTags := []string{fmt.Sprintf("containerId:%s", ctr.ID)}
+		timestamp := time.Now().Unix()
+		makeMetric := func(name string, value float64) telemetry.RawMetrics {
+			return telemetry.RawMetrics{
+				Name: name, Timestamp: timestamp, HostName: cfg.HostName, Value: value, Tags: metricTags,
+			}
+		}
+
+		// new metrics are sent regardless of feature flag which is needed for migration
+		// cpuThrottledTime & cpuNrThrottled are accumulative values
+		// https://engineering.indeedblog.com/blog/2019/12/unthrottled-fixing-cpu-limits-in-the-cloud/
+		// so that's why rate is calculated
+		multiMetrics = append(multiMetrics,
+			makeMetric("cpuThrottledTime", calculateRateF64(ctr.CPU.ThrottledTime, lastCtr.CPU.ThrottledTime, lastRun)),
+			makeMetric("cpuNrThrottled", float64(calculateRate(ctr.CPU.NrThrottled, lastCtr.CPU.NrThrottled, lastRun))),
+			makeMetric("cpuThreadCount", float64(ctr.CPU.ThreadCount)),
+		)
+
+		if multiMetricsEnabled {
+			log.Debugf("Generating container metrics for intake API (upgrade-to-multi-metrics feature is enabled)")
+			multiMetrics = append(multiMetrics,
+				makeMetric("rbps", float64(calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun))),
+				makeMetric("wbps", float64(calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun))),
+				makeMetric("netRcvdPs", float64(calculateRate(ifStats.PacketsRcvd, lastCtr.NetworkSum.PacketsRcvd, lastRun))),
+				makeMetric("netSentPs", float64(calculateRate(ifStats.PacketsSent, lastCtr.NetworkSum.PacketsSent, lastRun))),
+				makeMetric("netRcvdBps", float64(calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun))),
+				makeMetric("netSentBps", float64(calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun))),
+				makeMetric("userPct", float64(calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun))),
+				makeMetric("systemPct", float64(calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun))),
+				makeMetric("totalPct", float64(calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, sys2, sys1, cpus, lastRun))),
+				makeMetric("memRss", float64(ctr.Memory.RSS)),
+				makeMetric("memCache", float64(ctr.Memory.Cache)),
+			)
+		} else {
+			log.Warnf("Generating container metrics for collector API (upgrade-to-multi-metrics feature is disabled)")
+			container.Rbps = calculateRate(ctr.IO.ReadBytes, lastCtr.IO.ReadBytes, lastRun)
+			container.Wbps = calculateRate(ctr.IO.WriteBytes, lastCtr.IO.WriteBytes, lastRun)
+			container.NetRcvdPs = calculateRate(ifStats.PacketsRcvd, lastCtr.NetworkSum.PacketsRcvd, lastRun)
+			container.NetSentPs = calculateRate(ifStats.PacketsSent, lastCtr.NetworkSum.PacketsSent, lastRun)
+			container.NetRcvdBps = calculateRate(ifStats.BytesRcvd, lastCtr.NetworkSum.BytesRcvd, lastRun)
+			container.NetSentBps = calculateRate(ifStats.BytesSent, lastCtr.NetworkSum.BytesSent, lastRun)
+			container.UserPct = calculateCtrPct(ctr.CPU.User, lastCtr.CPU.User, sys2, sys1, cpus, lastRun)
+			container.SystemPct = calculateCtrPct(ctr.CPU.System, lastCtr.CPU.System, sys2, sys1, cpus, lastRun)
+			container.TotalPct = calculateCtrPct(ctr.CPU.User+ctr.CPU.System, lastCtr.CPU.User+lastCtr.CPU.System, sys2, sys1, cpus, lastRun)
+			container.MemRss = ctr.Memory.RSS
+			container.MemCache = ctr.Memory.Cache
+		}
+
+		containers = append(containers, container)
 	}
 
-	return containers
+	return containers, multiMetrics
 }
 
 func calculateCtrPct(cur, prev, sys2, sys1 uint64, numCPU int, before time.Time) float32 {

@@ -144,8 +144,8 @@ github.com/StackVista/sketches-go v1.1.1 h1:ddl+0Iax7jWvC7ADJI+ZeQq6VN4QjfOYx0E1
 github.com/StackVista/sketches-go v1.1.1/go.mod h1:xerTHIkY3XGMCqOy9PwIlCwHNiaqCJE854wvOvlSjyc=
 github.com/StackVista/stackstate-agent v0.0.0-20220324160841-d3971727d31d h1:CBtc9BDOzS+yc7B07KnWANoc+pH2FOs28sn07FYI5oE=
 github.com/StackVista/stackstate-agent v0.0.0-20220324160841-d3971727d31d/go.mod h1:MI/8M7ODUvFO1xe0JTPU+HLZxEJEd9NRXfx0UtEkHj4=
-github.com/StackVista/stackstate-agent v0.0.0-20220504120106-85024c6debbc h1:DECd1gGe5gpdYw5VIZbAM5/R+yRnLj9Jz2GlU7M/8wI=
-github.com/StackVista/stackstate-agent v0.0.0-20220504120106-85024c6debbc/go.mod h1:MI/8M7ODUvFO1xe0JTPU+HLZxEJEd9NRXfx0UtEkHj4=
+github.com/StackVista/stackstate-agent v0.0.0-20220408162826-ba4ecc9075a2 h1:WhTAsIvEQ8bc4DMulc0eUe0D5XlufCAOSq1XS+2rsQg=
+github.com/StackVista/stackstate-agent v0.0.0-20220408162826-ba4ecc9075a2/go.mod h1:MI/8M7ODUvFO1xe0JTPU+HLZxEJEd9NRXfx0UtEkHj4=
 github.com/StackVista/stackstate-go v0.0.0-20220302151729-a72c49c07350 h1:wF77lRo/HAWngkaDO8g0crLm7+0AHbS2VFpsepQ0DDE=
 github.com/StackVista/stackstate-go v0.0.0-20220302151729-a72c49c07350/go.mod h1:HK9WZMZBvVwiCUOHBe2Fmr81efRxz25dXn0/LZBvrbI=
 github.com/StackVista/tcptracer-bpf v7.0.6+incompatible h1:0XT3cHAiJqL4e67tQvAUjT9kSp+prmPa4eUkl0EM84M=
@@ -1566,6 +1566,8 @@ golang.org/x/sys v0.0.0-20220315194320-039c03cc5b86 h1:A9i04dxx7Cribqbs8jf3FQLog
 golang.org/x/sys v0.0.0-20220315194320-039c03cc5b86/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886 h1:eJv7u3ksNXoLbGSKuv2s/SIO4tJVxc/A+MTpzxDgz/Q=
 golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20220406163625-3f8b81556e12 h1:QyVthZKMsyaQwBTJE04jdNN0Pp5Fn9Qga0mrgxyERQM=
+golang.org/x/sys v0.0.0-20220406163625-3f8b81556e12/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 h1:v+OssWQX+hTHEmOBgwxdZxK4zHq3yOs8F9J7mk0PY8E=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/text v0.0.0-20160726164857-2910a502d2bf/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=

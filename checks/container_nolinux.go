@@ -5,6 +5,7 @@ package checks
 
 import (
 	"github.com/StackVista/stackstate-agent/pkg/aggregator"
+	"github.com/StackVista/stackstate-agent/pkg/telemetry"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"time"
 
@@ -45,11 +46,11 @@ func (c *ContainerCheck) RealTime() bool { return false }
 
 // Run runs the ContainerCheck to collect a list of running containers and the
 // stats for each container.
-func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {
+func (c *ContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) (*CheckResult, error) {
 
 	return nil, nil
 }
 
-func fmtContainers(cfg *config.AgentConfig, ctrList []*containers.Container, lastRates map[string]util.ContainerRateMetrics, lastRun time.Time) []*model.Container {
-	return make([]*model.Container, 0, len(ctrList))
+func fmtContainers(cfg *config.AgentConfig, ctrList []*containers.Container, lastRates map[string]util.ContainerRateMetrics, lastRun time.Time, multiMetricsEnabled bool) ([]*model.Container, []telemetry.RawMetrics) {
+	return make([]*model.Container, 0, len(ctrList)), make([]telemetry.RawMetrics, 0)
 }

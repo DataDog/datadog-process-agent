@@ -75,7 +75,7 @@ func (c *ConnectionsCheck) Sender() aggregator.Sender {
 // this information. For each connection we'll return a `model.Connection`
 // that will be bundled up into a `CollectorConnections`.
 // See agent.proto for the schema of the message and models.
-func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {
+func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) (*CheckResult, error) {
 	// If local tracer failed to initialize, so we shouldn't be doing any checks
 	if c.useLocalTracer && c.localTracer == nil {
 		log.Errorf("failed to create network tracer. Set the environment STS_NETWORK_TRACING_ENABLED to false to disable network connections reporting")
@@ -113,7 +113,7 @@ func (c *ConnectionsCheck) Run(cfg *config.AgentConfig, features features.Featur
 	c.prevConns = makeMetricsLookupMap(conns)
 
 	log.Debugf("collected connections in %s, connections found: %v", time.Since(start), formattedConnections)
-	return batchConnections(cfg, groupID, formattedConnections, aggregatedInterval), nil
+	return &CheckResult{CollectorMessages: batchConnections(cfg, groupID, formattedConnections, aggregatedInterval)}, nil
 }
 
 func (c *ConnectionsCheck) getConnections() ([]common.ConnectionStats, error) {

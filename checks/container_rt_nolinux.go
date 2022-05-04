@@ -44,7 +44,7 @@ func (r *RTContainerCheck) Endpoint() string { return "/api/v1/container" }
 func (r *RTContainerCheck) RealTime() bool { return true }
 
 // Run runs the real-time container check getting container-level stats from the Cgroups and Docker APIs.
-func (r *RTContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {
+func (r *RTContainerCheck) Run(cfg *config.AgentConfig, features features.Features, groupID int32, currentTime time.Time) (*CheckResult, error) {
 	return nil, nil
 }
 

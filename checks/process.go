@@ -111,7 +111,8 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureFlags features.Featur
 		return nil, nil
 	}
 
-	containers := fmtContainers(cfg, ctrList, p.lastCtrRates, p.lastRun)
+	useMultiMetrics := featureFlags.FeatureEnabled(features.UpgradeToMultiMetrics)
+	containers, multiMetrics := fmtContainers(cfg, ctrList, p.lastCtrRates, p.lastRun, useMultiMetrics)
 
 	if cfg.EnableIncrementalPublishing && featureFlags.FeatureEnabled(features.IncrementalTopology) && time.Now().Before(p.lastRefresh.Add(cfg.IncrementalPublishingRefreshInterval)) {
 		log.Debug("Sending process status increment")
@@ -137,7 +138,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureFlags features.Featur
 	checkRunDuration := time.Now().Sub(start)
 	log.Debugf("collected processes in %s, processes found: %v", checkRunDuration, processes)
 	log.Debugf("collected containers in %s, containers found: %v", checkRunDuration, containers)
-	return messages, cntError
+	return &CheckResult{CollectorMessages: messages, Metrics: multiMetrics}, cntError
 }
 
 func buildProcState(processes []*model.Process) map[int32]*model.Process {
