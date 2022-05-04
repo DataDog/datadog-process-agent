@@ -70,7 +70,7 @@ func (p *ProcessCheck) Sender() aggregator.Sender {
 // Processes are split up into a chunks of at most 100 processes per message to
 // limit the message size on intake.
 // See agent.proto for the schema of the message and models used.
-func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureFlags features.Features, groupID int32, currentTime time.Time) ([]model.MessageBody, error) {
+func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureFlags features.Features, groupID int32, currentTime time.Time) (*CheckResult, error) {
 	p.Lock()
 	defer p.Unlock()
 

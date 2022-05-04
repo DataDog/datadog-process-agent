@@ -18,7 +18,7 @@ func (l *Collector) agentIntegrationID(check checks.Check) string {
 	return fmt.Sprintf("urn:agent-integration:/%s:%s", l.cfg.HostName, check.Name())
 }
 
-func (l *Collector) integrationTopology(check checks.Check) topology.Topology {
+func (l *Collector) integrationTopology(check checks.Check) ([]topology.Component, []topology.Relation) {
 	hostname := l.cfg.HostName
 	agentID := l.agentID()
 	agentPID := int32(os.Getpid())
@@ -35,62 +35,54 @@ func (l *Collector) integrationTopology(check checks.Check) topology.Topology {
 		}
 	}
 	agentIntegrationID := l.agentIntegrationID(check)
-
-	return topology.Topology{
-		StartSnapshot: false,
-		StopSnapshot:  false,
-		Instance: topology.Instance{
-			Type: "agent",
-			URL:  "integrations",
-		},
-		Components: []topology.Component{
-			{
-				ExternalID: agentID,
-				Type: topology.Type{
-					Name: "stackstate-agent",
-				},
-				Data: topology.Data{
-					"name":     fmt.Sprintf("StackState Process Agent:%s", hostname),
-					"hostname": hostname,
-					"version":  publishVersion(),
-					"tags": []string{
-						fmt.Sprintf("hostname:%s", hostname),
-						"stackstate-process-agent",
-						"stackstate-agent",
-					},
-					"identifiers": []string{
-						fmt.Sprintf("urn:process:/%s:%d:%d", hostname, agentPID, agentCreateTime),
-					},
-				},
+	components := []topology.Component{
+		{
+			ExternalID: agentID,
+			Type: topology.Type{
+				Name: "stackstate-agent",
 			},
-			{
-				ExternalID: agentIntegrationID,
-				Type: topology.Type{
-					Name: "agent-integration",
+			Data: topology.Data{
+				"name":     fmt.Sprintf("StackState Process Agent:%s", hostname),
+				"hostname": hostname,
+				"version":  publishVersion(),
+				"tags": []string{
+					fmt.Sprintf("hostname:%s", hostname),
+					"stackstate-process-agent",
+					"stackstate-agent",
 				},
-				Data: topology.Data{
-					"name":        fmt.Sprintf("%s check on %s", check.Name(), l.cfg.HostName),
-					"integration": check.Name(),
-					"tags": []string{
-						fmt.Sprintf("hostname:%s", l.cfg.HostName),
-						fmt.Sprintf("integration-type:%s", check.Name()),
-					},
+				"identifiers": []string{
+					fmt.Sprintf("urn:process:/%s:%d:%d", hostname, agentPID, agentCreateTime),
 				},
 			},
 		},
-		Relations: []topology.Relation{
-			{
-				ExternalID: fmt.Sprintf("%s->%s", agentID, agentIntegrationID),
-				SourceID:   agentID,
-				TargetID:   agentIntegrationID,
-				Type:       topology.Type{Name: "runs"},
-				Data:       topology.Data{},
+		{
+			ExternalID: agentIntegrationID,
+			Type: topology.Type{
+				Name: "agent-integration",
+			},
+			Data: topology.Data{
+				"name":        fmt.Sprintf("%s check on %s", check.Name(), l.cfg.HostName),
+				"integration": check.Name(),
+				"tags": []string{
+					fmt.Sprintf("hostname:%s", l.cfg.HostName),
+					fmt.Sprintf("integration-type:%s", check.Name()),
+				},
 			},
 		},
 	}
+	relations := []topology.Relation{
+		{
+			ExternalID: fmt.Sprintf("%s->%s", agentID, agentIntegrationID),
+			SourceID:   agentID,
+			TargetID:   agentIntegrationID,
+			Type:       topology.Type{Name: "runs"},
+			Data:       topology.Data{},
+		},
+	}
+	return components, relations
 }
 
-func (l *Collector) makeHealth(result checkResult) health.Health {
+func (l *Collector) makeHealth(result checkResult) (health.Stream, health.CheckData) {
 	checkData := health.CheckData{
 		CheckState: &health.CheckState{
 			CheckStateId:              l.agentIntegrationID(result.check),
@@ -108,17 +100,11 @@ func (l *Collector) makeHealth(result checkResult) health.Health {
 			checkData.CheckState.Message = fmt.Sprintf("Check failed:\n```\n%v\n```", result.err)
 		}
 	}
-	repeatInterval := int(l.cfg.CheckInterval(result.check.Name()).Seconds())
 
-	return health.Health{
-		StartSnapshot: &health.StartSnapshotMetadata{
-			RepeatIntervalS: repeatInterval,
-		},
-		StopSnapshot: &health.StopSnapshotMetadata{},
-		Stream: health.Stream{
-			Urn:       fmt.Sprintf("urn:health:stackstate-agent:%s", l.cfg.HostName),
-			SubStream: l.agentIntegrationID(result.check),
-		},
-		CheckStates: []health.CheckData{checkData},
+	stream := health.Stream{
+		Urn:       fmt.Sprintf("urn:health:stackstate-agent:%s", l.cfg.HostName),
+		SubStream: l.agentIntegrationID(result.check),
 	}
+
+	return stream, checkData
 }

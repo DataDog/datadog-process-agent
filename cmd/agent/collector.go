@@ -5,12 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/StackVista/stackstate-agent/pkg/health"
-	"github.com/StackVista/stackstate-agent/pkg/topology"
 	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"github.com/StackVista/stackstate-agent/pkg/batcher"
 	"github.com/StackVista/stackstate-agent/pkg/collector/check"
 	"github.com/StackVista/stackstate-agent/pkg/telemetry"
+	"github.com/StackVista/stackstate-agent/pkg/topology"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"io"
 	"io/ioutil"
@@ -26,6 +25,11 @@ import (
 	"github.com/StackVista/stackstate-process-agent/config"
 	"github.com/StackVista/stackstate-process-agent/model"
 )
+
+var agentTopologyInstance = topology.Instance{
+	Type: "agent",
+	URL:  "integrations",
+}
 
 type checkResult struct {
 	check   checks.Check
@@ -164,6 +168,7 @@ func (l *Collector) run(exit chan bool) {
 				}
 
 				btch := batcher.GetBatcher()
+				checkID := check.ID(result.check.Name())
 
 				if result.payload != nil {
 					payload := result.payload
@@ -172,18 +177,27 @@ func (l *Collector) run(exit chan bool) {
 					}
 
 					for _, metric := range payload.metrics {
-						btch.SubmitRawMetricsData(check.ID(payload.endpoint), metric)
+						btch.SubmitRawMetricsData(checkID, metric)
 					}
-					btch.SubmitComplete(check.ID(payload.endpoint))
 				}
 
 				if l.cfg.ReportCheckHealthState || l.features.FeatureEnabled(features.HealthStates) {
-					//l.postIntake(intakePayload{
-					//	InternalHostname: l.cfg.HostName,
-					//	Topologies:       []topology.Topology{l.integrationTopology(result.check)},
-					//	Health:           []health.Health{l.makeHealth(result)},
-					//})
+					healthStream, healthData := l.makeHealth(result)
+					repeatInterval := int(l.cfg.CheckInterval(result.check.Name()).Seconds())
+					btch.SubmitHealthStartSnapshot(checkID, healthStream, repeatInterval, repeatInterval*2)
+					btch.SubmitHealthCheckData(checkID, healthStream, healthData)
+					btch.SubmitHealthStopSnapshot(checkID, healthStream)
+
+					components, relations := l.integrationTopology(result.check)
+					for _, component := range components {
+						btch.SubmitComponent(checkID, agentTopologyInstance, component)
+					}
+					for _, relation := range relations {
+						btch.SubmitRelation(checkID, agentTopologyInstance, relation)
+					}
 				}
+
+				btch.SubmitComplete(checkID)
 			case <-heartbeat.C:
 				log.Tracef("got heartbeat.C message. (Ignored)")
 				s.Gauge("stackstate.process_agent.running", 1, l.cfg.HostName, []string{"version:" + versionString()})
