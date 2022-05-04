@@ -183,10 +183,6 @@ func (l *Collector) run(exit chan bool) {
 
 				if l.cfg.ReportCheckHealthState || l.features.FeatureEnabled(features.HealthStates) {
 					healthStream, healthData := l.makeHealth(result)
-					repeatInterval := int(l.cfg.CheckInterval(result.check.Name()).Seconds())
-					btch.SubmitHealthStartSnapshot(checkID, healthStream, repeatInterval, repeatInterval*2)
-					btch.SubmitHealthCheckData(checkID, healthStream, healthData)
-					btch.SubmitHealthStopSnapshot(checkID, healthStream)
 
 					components, relations := l.integrationTopology(result.check)
 					for _, component := range components {
@@ -195,6 +191,11 @@ func (l *Collector) run(exit chan bool) {
 					for _, relation := range relations {
 						btch.SubmitRelation(checkID, agentTopologyInstance, relation)
 					}
+
+					repeatInterval := int(l.cfg.CheckInterval(result.check.Name()).Seconds())
+					btch.SubmitHealthStartSnapshot(checkID, healthStream, repeatInterval, repeatInterval*2)
+					btch.SubmitHealthCheckData(checkID, healthStream, healthData)
+					btch.SubmitHealthStopSnapshot(checkID, healthStream)
 				}
 
 				btch.SubmitComplete(checkID)
