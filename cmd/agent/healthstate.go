@@ -24,9 +24,7 @@ func (l *Collector) healthStreamURN() string {
 	return fmt.Sprintf("urn:health:stackstate-process-agent:%s", l.cfg.HostName)
 }
 
-func (l *Collector) integrationTopology(check checks.Check) ([]topology.Component, []topology.Relation) {
-	hostname := l.cfg.HostName
-	agentID := l.agentID()
+func (l *Collector) currentProcessURN() string {
 	agentPID := int32(os.Getpid())
 	agentCreateTime := int64(0)
 	agentProcess, err := process.NewProcess(agentPID)
@@ -40,7 +38,19 @@ func (l *Collector) integrationTopology(check checks.Check) ([]topology.Componen
 			agentCreateTime = cTime
 		}
 	}
+	return fmt.Sprintf("urn:process:/%s:%d:%d", l.cfg.HostName, agentPID, agentCreateTime)
+}
+
+func (l *Collector) integrationTopology(check checks.Check) ([]topology.Component, []topology.Relation) {
+	hostname := l.cfg.HostName
+	agentID := l.agentID()
 	agentIntegrationID := l.agentIntegrationID(check)
+
+	commonTags := []string{fmt.Sprintf("hostname:%s", hostname)}
+	if l.cfg.ClusterName != "" {
+		commonTags = append(commonTags, fmt.Sprintf("cluster-name:%s", l.cfg.ClusterName))
+	}
+
 	components := []topology.Component{
 		{
 			ExternalID: agentID,
@@ -48,16 +58,13 @@ func (l *Collector) integrationTopology(check checks.Check) ([]topology.Componen
 				Name: "stackstate-agent",
 			},
 			Data: topology.Data{
-				"name":     fmt.Sprintf("StackState Process Agent:%s", hostname),
-				"hostname": hostname,
-				"version":  publishVersion(),
-				"tags": []string{
-					fmt.Sprintf("hostname:%s", hostname),
-					"stackstate-process-agent",
-					"stackstate-agent",
-				},
+				"name":      fmt.Sprintf("StackState Process Agent:%s", hostname),
+				"hostname":  hostname,
+				"version":   Version,
+				"buildInfo": publishVersion(),
+				"tags":      append(commonTags, "stackstate-process-agent", "stackstate-agent"),
 				"identifiers": []string{
-					fmt.Sprintf("urn:process:/%s:%d:%d", hostname, agentPID, agentCreateTime),
+					l.currentProcessURN(),
 				},
 			},
 		},
@@ -69,10 +76,7 @@ func (l *Collector) integrationTopology(check checks.Check) ([]topology.Componen
 			Data: topology.Data{
 				"name":        fmt.Sprintf("%s check on %s", check.Name(), l.cfg.HostName),
 				"integration": check.Name(),
-				"tags": []string{
-					fmt.Sprintf("hostname:%s", l.cfg.HostName),
-					fmt.Sprintf("integration-type:%s", check.Name()),
-				},
+				"tags":        append(commonTags, "agent-integration", fmt.Sprintf("integration-type:%s", check.Name())),
 			},
 		},
 	}
