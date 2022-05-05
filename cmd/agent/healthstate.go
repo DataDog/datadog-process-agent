@@ -10,12 +10,18 @@ import (
 	"os"
 )
 
+// agentID builds an external ID for agent component, this will go to a component's identifiers
 func (l *Collector) agentID() string {
-	return fmt.Sprintf("urn:stackstate-agent:/%s", l.cfg.HostName)
+	return fmt.Sprintf("urn:stackstate-agent:process:/%s", l.cfg.HostName)
 }
 
+// agentID builds an external ID for a check component the agent runs, this will go to a component's identifiers
 func (l *Collector) agentIntegrationID(check checks.Check) string {
-	return fmt.Sprintf("urn:agent-integration:/%s:%s", l.cfg.HostName, check.Name())
+	return fmt.Sprintf("urn:agent-integration:/%s:process-agent:%s", l.cfg.HostName, check.Name())
+}
+
+func (l *Collector) healthStreamURN() string {
+	return fmt.Sprintf("urn:health:stackstate-process-agent:%s", l.cfg.HostName)
 }
 
 func (l *Collector) integrationTopology(check checks.Check) ([]topology.Component, []topology.Relation) {
@@ -72,7 +78,7 @@ func (l *Collector) integrationTopology(check checks.Check) ([]topology.Componen
 	}
 	relations := []topology.Relation{
 		{
-			ExternalID: fmt.Sprintf("%s->%s", agentID, agentIntegrationID),
+			ExternalID: fmt.Sprintf("%s -> %s", agentID, agentIntegrationID),
 			SourceID:   agentID,
 			TargetID:   agentIntegrationID,
 			Type:       topology.Type{Name: "runs"},
@@ -102,8 +108,8 @@ func (l *Collector) makeHealth(result checkResult) (health.Stream, health.CheckD
 	}
 
 	stream := health.Stream{
-		Urn:       fmt.Sprintf("urn:health:stackstate-agent:%s", l.cfg.HostName),
-		SubStream: l.agentIntegrationID(result.check),
+		Urn:       l.healthStreamURN(),
+		SubStream: result.check.Name(),
 	}
 
 	return stream, checkData
