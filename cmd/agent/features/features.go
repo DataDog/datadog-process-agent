@@ -7,6 +7,7 @@ type FeatureID string
 const (
 	UpgradeToMultiMetrics FeatureID = "upgrade-to-multi-metrics"
 	IncrementalTopology   FeatureID = "incremental-topology"
+	HealthStates          FeatureID = "health-states"
 )
 
 // Features Structure for describing features published by StackState

@@ -57,7 +57,7 @@ require (
 	github.com/DataDog/sketches-go v1.1.0
 	github.com/DataDog/zstd v0.0.0-20160706220725-2bf71ec48360
 	github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705
-	github.com/StackVista/stackstate-agent v0.0.0-20220408162826-ba4ecc9075a2
+	github.com/StackVista/stackstate-agent v0.0.0-20220607135049-e87d566f908c
 	github.com/StackVista/stackstate-go v0.0.0-20220302151729-a72c49c07350
 	github.com/StackVista/tcptracer-bpf v7.0.6+incompatible
 	github.com/awalterschulze/goderive v0.0.0-20211221145202-5dcbfa700308 // indirect
