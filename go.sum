@@ -150,6 +150,10 @@ github.com/StackVista/stackstate-agent v0.0.0-20220504135114-4e3bdf442303 h1:TkA
 github.com/StackVista/stackstate-agent v0.0.0-20220504135114-4e3bdf442303/go.mod h1:MI/8M7ODUvFO1xe0JTPU+HLZxEJEd9NRXfx0UtEkHj4=
 github.com/StackVista/stackstate-agent v0.0.0-20220506110440-19af3208fab7 h1:dX1Hsd6S9+8w2jJnYQecBPoc5AbBmdogngGh7395ztg=
 github.com/StackVista/stackstate-agent v0.0.0-20220506110440-19af3208fab7/go.mod h1:MI/8M7ODUvFO1xe0JTPU+HLZxEJEd9NRXfx0UtEkHj4=
+github.com/StackVista/stackstate-agent v0.0.0-20220510133049-1d3e8e6a0688 h1:Doi3NeP2/D7tTntTRLwRp3Bp3G0pLGCa/W/SzoS75ZM=
+github.com/StackVista/stackstate-agent v0.0.0-20220510133049-1d3e8e6a0688/go.mod h1:MI/8M7ODUvFO1xe0JTPU+HLZxEJEd9NRXfx0UtEkHj4=
+github.com/StackVista/stackstate-agent v0.0.0-20220602143649-599a775867ed h1:k8fsDBTqwChLmoVwSN3Kv3Kam7eOLkjvbjoae+XR2MM=
+github.com/StackVista/stackstate-agent v0.0.0-20220602143649-599a775867ed/go.mod h1:8sOPtfpn19cOSb6LHWOqVyITJSgh3QrJjb6vn9w+074=
 github.com/StackVista/stackstate-go v0.0.0-20220302151729-a72c49c07350 h1:wF77lRo/HAWngkaDO8g0crLm7+0AHbS2VFpsepQ0DDE=
 github.com/StackVista/stackstate-go v0.0.0-20220302151729-a72c49c07350/go.mod h1:HK9WZMZBvVwiCUOHBe2Fmr81efRxz25dXn0/LZBvrbI=
 github.com/StackVista/tcptracer-bpf v7.0.6+incompatible h1:0XT3cHAiJqL4e67tQvAUjT9kSp+prmPa4eUkl0EM84M=
