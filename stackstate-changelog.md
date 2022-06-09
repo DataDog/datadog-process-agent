@@ -1,5 +1,9 @@
 # StackState Process Agent releases
 
+## 4.0.6
+**Bugfix**
+- Fix warning message to not have an "error" string
+
 ## 4.0.5
 **Features**
 - Reporting CPU throttling metrics for containers
