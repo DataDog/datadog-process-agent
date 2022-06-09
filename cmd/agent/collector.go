@@ -106,7 +106,7 @@ func (l *Collector) runCheck(c checks.Check, features features.Features) {
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
 		if err != nil {
-			log.Warnf("Check '%s' partially failed with an error: %v", c.Name(), err)
+			log.Warnf("Check '%s' partially failed: %v", c.Name(), err)
 		}
 		if result != nil {
 			l.send <- checkResult{
