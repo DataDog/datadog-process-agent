@@ -1,5 +1,9 @@
 # StackState Process Agent releases
 
+## 4.0.7
+**Bugfix**
+- Remove some Kubernetes processes from blacklist
+
 ## 4.0.6
 **Bugfix**
 - Fix warning message to not have an "error" string
