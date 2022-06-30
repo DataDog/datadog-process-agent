@@ -268,7 +268,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		},
 
 		// Check config
-		EnabledChecks: containerChecks,
+		EnabledChecks: processChecks,
 		CheckIntervals: map[string]time.Duration{
 			"process":     30 * time.Second,
 			"rtprocess":   2 * time.Second,
