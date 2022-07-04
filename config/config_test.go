@@ -504,7 +504,7 @@ func TestDefaultConfig(t *testing.T) {
 	// assert that some sane defaults are set
 	assert.Equal("info", agentConfig.LogLevel)
 	assert.Equal(true, agentConfig.AllowRealTime)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(processChecks, agentConfig.EnabledChecks) // sts
 	assert.Equal(true, agentConfig.Scrubber.Enabled)
 
 	os.Setenv("DOCKER_DD_AGENT", "yes")
@@ -517,7 +517,7 @@ func TestDefaultConfig(t *testing.T) {
 		assert.Equal(os.Getenv("HOST_SYS"), "")
 	}
 	os.Setenv("DOCKER_DD_AGENT", "no")
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(processChecks, agentConfig.EnabledChecks) // sts
 }
 
 func TestDDAgentConfigWithNewOpts(t *testing.T) {
@@ -540,7 +540,7 @@ func TestDDAgentConfigWithNewOpts(t *testing.T) {
 	assert.Equal("apikey_12", agentConfig.APIEndpoints[0].APIKey)
 	assert.Equal(5, agentConfig.QueueSize)
 	assert.Equal(false, agentConfig.AllowRealTime)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(processChecks, agentConfig.EnabledChecks) // sts
 	assert.Equal(20, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(true, agentConfig.Windows.AddNewArgs)
 	assert.Equal(true, agentConfig.Scrubber.Enabled)
@@ -580,7 +580,7 @@ func TestDDAgentConfigBothVersions(t *testing.T) {
 	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
 	assert.Equal(10, agentConfig.QueueSize)
 	assert.Equal(false, agentConfig.AllowRealTime)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(processChecks, agentConfig.EnabledChecks) // sts
 	assert.Equal(40, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(true, agentConfig.Windows.AddNewArgs)
 	assert.Equal(true, agentConfig.Scrubber.Enabled)
@@ -654,7 +654,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal(true, agentConfig.Enabled)
 	assert.Equal(false, agentConfig.EnableIncrementalPublishing)
 	assert.Equal(2*time.Minute, agentConfig.IncrementalPublishingRefreshInterval)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(processChecks, agentConfig.EnabledChecks) // sts
 	assert.Equal(-1, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(true, agentConfig.Windows.AddNewArgs)
 	assert.Equal(true, agentConfig.Scrubber.Enabled)
@@ -680,7 +680,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal("apikey_20", ep.APIKey)
 	assert.Equal("my-process-app.datadoghq.com", ep.Endpoint.Hostname())
 	assert.Equal(false, agentConfig.Enabled)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(processChecks, agentConfig.EnabledChecks) // sts
 	assert.Equal(15, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(true, agentConfig.Windows.AddNewArgs)
 	assert.Equal(true, agentConfig.Scrubber.Enabled)
@@ -715,7 +715,7 @@ func TestDDAgentConfigYamlOnly(t *testing.T) {
 	assert.Equal("bar", eps[2].APIKey)
 	assert.Equal("process.datadoghq.eu", eps[2].Endpoint.Hostname())
 	assert.Equal(false, agentConfig.Enabled)
-	assert.Equal(containerChecks, agentConfig.EnabledChecks)
+	assert.Equal(processChecks, agentConfig.EnabledChecks) // sts
 	assert.Equal(15, agentConfig.Windows.ArgsRefreshInterval)
 	assert.Equal(true, agentConfig.Windows.AddNewArgs)
 	assert.Equal(true, agentConfig.Scrubber.Enabled)

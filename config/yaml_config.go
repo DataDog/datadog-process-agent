@@ -175,17 +175,15 @@ func key(pieces ...string) string {
 func mergeYamlConfig(agentConf *AgentConfig, yc *YamlAgentConfig) (*AgentConfig, error) {
 	agentConf.APIEndpoints[0].APIKey = yc.APIKey
 
-	if enabled, _ := isAffirmative(yc.Process.Enabled); enabled {
+	if enabled, err := isAffirmative(yc.Process.Enabled); enabled {
 		agentConf.Enabled = true
 		agentConf.EnabledChecks = processChecks
 	} else if strings.ToLower(yc.Process.Enabled) == "disabled" {
 		agentConf.Enabled = false
+	} else if !enabled && err == nil {
+		agentConf.Enabled = true
+		agentConf.EnabledChecks = processChecks // sts
 	}
-	// [sts]
-	//else if !enabled && err == nil {
-	//	agentConf.Enabled = true
-	//	agentConf.EnabledChecks = containerChecks
-	//}
 
 	if yc.LogToConsole {
 		agentConf.LogToConsole = true
