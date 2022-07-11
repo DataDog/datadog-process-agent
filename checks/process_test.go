@@ -878,7 +878,9 @@ func TestProcessFormatting(t *testing.T) {
 				fillProcessCache(Process.cache, fp, now.Add(-5*time.Minute).Unix(), now.Unix())
 			}
 
-			chunked := chunkProcesses(Process.fmtProcesses(cfg, cur, containers, syst2, syst1, lastRun), cfg.MaxPerMessage, make([][]*model.Process, 0))
+			processes, _, _ := Process.fmtProcesses(cfg, cur, containers, syst2, syst1, lastRun)
+
+			chunked := chunkProcesses(processes, cfg.MaxPerMessage, make([][]*model.Process, 0))
 			assert.Len(t, chunked, tc.expectedChunks, "len %d", i)
 			total := 0
 			pids := make([]int32, 0)
