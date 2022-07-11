@@ -1,7 +1,7 @@
 log_level: INFO
 log_to_console: true
 # Use this when running process agent locally
-sts_url: http://localhost:7077/stsAgent
+sts_url: https://lupulus.sandbox.stackstate.io/receiver/stsAgent
 
 # Running process-agent in Vagrant guest VM and sending payload to host machine on port 7077
 #sts_url: http://10.0.2.2:7077/stsAgent

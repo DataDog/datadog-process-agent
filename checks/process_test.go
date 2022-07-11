@@ -979,7 +979,7 @@ func TestProcessCache(t *testing.T) {
 	assert.Zero(t, Process.cache.ItemCount(), "Cache should be empty before running")
 
 	// first run on an empty cache; expect no process, but cache should be filled in now.
-	firstRun := Process.fmtProcesses(cfg, cur, containers, syst2, syst1, lastRun)
+	firstRun, _, _ := Process.fmtProcesses(cfg, cur, containers, syst2, syst1, lastRun)
 	assert.Zero(t, len(firstRun), "Processes should be empty when the cache is not present")
 	assert.Equal(t, 4, Process.cache.ItemCount(), "Cache should contain 4 elements")
 
@@ -987,13 +987,13 @@ func TestProcessCache(t *testing.T) {
 	time.Sleep(cfg.ShortLivedProcessQualifierSecs)
 
 	// second run with filled in cache; expect all processes.
-	secondRun := Process.fmtProcesses(cfg, cur, containers, syst2, syst1, lastRun)
+	secondRun, _, _ := Process.fmtProcesses(cfg, cur, containers, syst2, syst1, lastRun)
 	assert.Equal(t, 4, len(secondRun), "Processes should contain 4 elements")
 	assert.Equal(t, 4, Process.cache.ItemCount(), "Cache should contain 4 elements")
 
 	// delete pid 4 from the process map, expect it to be excluded from the process list, but not the cache
 	delete(cur, 4)
-	thirdRun := Process.fmtProcesses(cfg, cur, containers, syst2, syst1, lastRun)
+	thirdRun, _, _ := Process.fmtProcesses(cfg, cur, containers, syst2, syst1, lastRun)
 	assert.Equal(t, 3, len(thirdRun), "Processes should contain 3 elements")
 	assert.Equal(t, 4, Process.cache.ItemCount(), "Cache should contain 4 elements")
 
@@ -1066,7 +1066,7 @@ func TestProcessShortLivedFiltering(t *testing.T) {
 			Process.Init(cfg, &model.SystemInfo{})
 			tc.prepCache(Process.cache)
 			// fill in the process cache
-			processes := Process.fmtProcesses(cfg, cur, containers, syst2, syst1, lastRun)
+			processes, _, _ := Process.fmtProcesses(cfg, cur, containers, syst2, syst1, lastRun)
 			var pids []string
 			for _, p := range processes {
 				pids = append(pids, createProcessID(p.Pid, p.CreateTime))
