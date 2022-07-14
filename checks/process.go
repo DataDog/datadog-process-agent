@@ -343,7 +343,13 @@ func enrichProcessWithKubernetesTags(processes []*model.Process, containers []*m
 	return enrichedProcesses
 }
 
-func (p *ProcessCheck) fmtProcesses(cfg *config.AgentConfig, procs map[int32]*process.FilledProcess, ctrList []*containers.Container, syst2, syst1 cpu.TimesStat, lastRun time.Time) ([]*model.Process, int, int) {
+func (p *ProcessCheck) fmtProcesses(
+	cfg *config.AgentConfig,
+	procs map[int32]*process.FilledProcess,
+	ctrList []*containers.Container,
+	syst2, syst1 cpu.TimesStat,
+	lastRun time.Time,
+) ([]*model.Process, int, int) {
 	cidByPid := make(map[int32]string, len(ctrList))
 	for _, c := range ctrList {
 		for _, p := range c.Pids {
