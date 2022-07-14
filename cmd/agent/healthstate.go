@@ -76,7 +76,8 @@ func (l *Collector) integrationTopology(check checks.Check) ([]topology.Componen
 			Data: topology.Data{
 				"name":        fmt.Sprintf("%s check on %s", check.Name(), hostname),
 				"integration": check.Name(),
-integ				"tags":        append(commonTags, "agent-integration", fmt.Sprintf("integration-type:%s", check.Name())),
+				"hostname":    hostname,
+				"tags":        append(commonTags, "agent-integration", fmt.Sprintf("integration-type:%s", check.Name())),
 			},
 		},
 	}
