@@ -1,5 +1,9 @@
 # StackState Process Agent releases
 
+## 4.x.x
+**Bugfix**
+- Fix default enabled checks [(STAC-16953)](https://stackstate.atlassian.net/browse/STAC-16953)
+
 ## 4.0.7
 **Bugfix**
 - Remove some Kubernetes processes from blacklist
