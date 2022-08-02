@@ -9,6 +9,7 @@ import (
 	"github.com/StackVista/stackstate-agent/pkg/batcher"
 	"github.com/StackVista/stackstate-agent/pkg/collector/check"
 	"github.com/StackVista/stackstate-agent/pkg/telemetry"
+	"github.com/StackVista/stackstate-agent/pkg/topology"
 	"github.com/StackVista/stackstate-process-agent/cmd/agent/features"
 	"io"
 	"io/ioutil"
@@ -25,6 +26,17 @@ import (
 	"github.com/StackVista/stackstate-process-agent/model"
 )
 
+var agentTopologyInstance = topology.Instance{
+	Type: "agent",
+	URL:  "integrations",
+}
+
+type checkResult struct {
+	check   checks.Check
+	err     error
+	payload *checkPayload
+}
+
 type checkPayload struct {
 	messages  []model.MessageBody
 	metrics   []telemetry.RawMetrics
@@ -34,15 +46,14 @@ type checkPayload struct {
 
 // Collector will collect metrics from the local system and ship to the backend.
 type Collector struct {
-	send          chan checkPayload
+	send          chan checkResult
 	rtIntervalCh  chan time.Duration
 	cfg           *config.AgentConfig
 	httpClient    http.Client
 	groupID       int32
 	runCounter    int32
 	enabledChecks []checks.Check
-	// Channel to send data to each running check, currently only to broadcast features
-	featuresChs []chan features.Features
+	features      features.Features
 
 	// Controls the real-time interval, can change live.
 	realTimeInterval time.Duration
@@ -67,12 +78,13 @@ func NewCollector(cfg *config.AgentConfig) (Collector, error) {
 	}
 
 	return Collector{
-		send:          make(chan checkPayload, cfg.QueueSize),
+		send:          make(chan checkResult, cfg.QueueSize),
 		rtIntervalCh:  make(chan time.Duration),
 		cfg:           cfg,
 		groupID:       rand.Int31(),
 		httpClient:    http.Client{Timeout: HTTPTimeout, Transport: cfg.Transport},
 		enabledChecks: enabledChecks,
+		features:      features.Empty(),
 
 		// Defaults for real-time on start
 		realTimeInterval: 2 * time.Second,
@@ -89,11 +101,19 @@ func (l *Collector) runCheck(c checks.Check, features features.Features) {
 	// defer commit to after check run
 	defer c.Sender().Commit()
 
-	if err != nil {
+	if err != nil && result == nil {
+		l.send <- checkResult{check: c, err: err}
 		log.Criticalf("Unable to run check '%s': %s", c.Name(), err)
 	} else {
+		if err != nil {
+			log.Warnf("Check '%s' partially failed: %v", c.Name(), err)
+		}
 		if result != nil {
-			l.send <- checkPayload{result.CollectorMessages, result.Metrics, c.Endpoint(), currentTime}
+			l.send <- checkResult{
+				check:   c,
+				payload: &checkPayload{result.CollectorMessages, result.Metrics, c.Endpoint(), currentTime},
+				err:     err,
+			}
 			// update proc and container count for info
 			updateProcContainerCount(result.CollectorMessages)
 		} else {
@@ -135,30 +155,50 @@ func (l *Collector) run(exit chan bool) {
 	// Channel to announce new features detected
 	featuresCh := make(chan features.Features, 1)
 
-	// Channel per check to broadcast features
-	featureChecksChs := make([]chan features.Features, 0)
-	for range l.enabledChecks {
-		featureChecksChs = append(featureChecksChs, make(chan features.Features, 1))
-	}
-
 	l.getFeatures(l.cfg.APIEndpoints[0], "/features", featuresCh)
 
 	go func() {
 		for {
 			select {
-			case payload := <-l.send:
+			case result := <-l.send:
 				if len(l.send) >= l.cfg.QueueSize {
 					log.Info("Expiring payload from in-memory queue.")
 					// Limit number of items kept in memory while we wait.
 					<-l.send
 				}
-				for _, m := range payload.messages {
-					l.postMessage(payload.endpoint, m, payload.timestamp)
+
+				btch := batcher.GetBatcher()
+				checkID := check.ID(result.check.Name())
+
+				if result.payload != nil {
+					payload := result.payload
+					for _, m := range payload.messages {
+						l.postMessage(payload.endpoint, m, payload.timestamp)
+					}
+
+					for _, metric := range payload.metrics {
+						btch.SubmitRawMetricsData(checkID, metric)
+					}
 				}
-				for _, metric := range payload.metrics {
-					batcher.GetBatcher().SubmitRawMetricsData(check.ID(payload.endpoint), metric)
+
+				if l.cfg.ReportCheckHealthState || l.features.FeatureEnabled(features.HealthStates) {
+					healthStream, healthData := l.makeHealth(result)
+
+					components, relations := l.integrationTopology(result.check)
+					for _, component := range components {
+						btch.SubmitComponent(checkID, agentTopologyInstance, component)
+					}
+					for _, relation := range relations {
+						btch.SubmitRelation(checkID, agentTopologyInstance, relation)
+					}
+
+					repeatInterval := int(l.cfg.CheckInterval(result.check.Name()).Seconds())
+					btch.SubmitHealthStartSnapshot(checkID, healthStream, repeatInterval, repeatInterval*2)
+					btch.SubmitHealthCheckData(checkID, healthStream, healthData)
+					btch.SubmitHealthStopSnapshot(checkID, healthStream)
 				}
-				batcher.GetBatcher().SubmitComplete(check.ID(payload.endpoint))
+
+				btch.SubmitComplete(checkID)
 			case <-heartbeat.C:
 				log.Tracef("got heartbeat.C message. (Ignored)")
 				s.Gauge("stackstate.process_agent.running", 1, l.cfg.HostName, []string{"version:" + versionString()})
@@ -167,10 +207,7 @@ func (l *Collector) run(exit chan bool) {
 			case <-featuresTicker.C:
 				l.getFeatures(l.cfg.APIEndpoints[0], "/features", featuresCh)
 			case featuresValue := <-featuresCh:
-				// Broadcast to all checks
-				for _, ch := range featureChecksChs {
-					ch <- featuresValue
-				}
+				l.features = featuresValue
 				// Stop polling
 				featuresTicker.Stop()
 			case <-exit:
@@ -179,15 +216,12 @@ func (l *Collector) run(exit chan bool) {
 		}
 	}()
 
-	for checkInd, c := range l.enabledChecks {
+	for _, c := range l.enabledChecks {
 		// Assignment here, because iterator value gets altered
-		myInd := checkInd
 		go func(c checks.Check) {
-			var featuresSet features.Features = features.Empty()
-
 			// Run the check the first time to prime the caches.
 			if !c.RealTime() {
-				l.runCheck(c, featuresSet)
+				l.runCheck(c, l.features)
 			}
 
 			ticker := time.NewTicker(l.cfg.CheckInterval(c.Name()))
@@ -196,10 +230,8 @@ func (l *Collector) run(exit chan bool) {
 				case <-ticker.C:
 					realTimeEnabled := atomic.LoadInt32(&l.realTimeEnabled) == 1
 					if !c.RealTime() || realTimeEnabled {
-						l.runCheck(c, featuresSet)
+						l.runCheck(c, l.features)
 					}
-				case f := <-featureChecksChs[myInd]:
-					featuresSet = f
 				case d := <-l.rtIntervalCh:
 					// Live-update the ticker.
 					if c.RealTime() {

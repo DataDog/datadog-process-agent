@@ -1,5 +1,29 @@
 # StackState Process Agent releases
 
+## 4.0.7
+**Bugfix**
+- Remove some Kubernetes processes from blacklist
+
+## 4.0.6
+**Bugfix**
+- Fix warning message to not have an "error" string
+
+## 4.0.5
+**Features**
+- Reporting CPU throttling metrics for containers
+- Reporting checks topology along with health states of those (to see faulted checks in StackState UI)
+
+## 4.0.4
+**Improvements**
+- Support running process agent as a separate container in StackState Agent helm chart
+
+**Bugfix**
+- Fix hostname when process agent is running in a separate container
+
+## 4.0.3
+**Improvements**
+- Use updated main agent which is now using go.mod
+
 ## 4.0.2
 **Bugfix**
 - Fix infinitely growing memory usage

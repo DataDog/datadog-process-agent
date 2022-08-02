@@ -137,8 +137,9 @@ type AgentConfig struct {
 	NetworkTracerMaxConnections int
 
 	// Check config
-	EnabledChecks  []string
-	CheckIntervals map[string]time.Duration
+	EnabledChecks          []string
+	CheckIntervals         map[string]time.Duration
+	ReportCheckHealthState bool
 
 	// Containers
 	ContainerBlacklist     []string
@@ -695,6 +696,13 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 
 	if ok, _ := isAffirmative(os.Getenv("STS_INCREMENTAL_PUBLISHING")); ok {
 		c.EnableIncrementalPublishing = ok
+	}
+
+	if ok, err := isAffirmative(os.Getenv("STS_PROCESS_AGENT_REPORT_HEALTH_STATE")); err == nil {
+		c.ReportCheckHealthState = ok
+	} else {
+		// enable by default
+		c.ReportCheckHealthState = true
 	}
 
 	if ok, err := isAffirmative(os.Getenv("STS_PROTOCOL_INSPECTION_ENABLED")); err == nil {

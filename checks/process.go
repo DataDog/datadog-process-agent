@@ -70,7 +70,7 @@ func (p *ProcessCheck) Sender() aggregator.Sender {
 // Processes are split up into a chunks of at most 100 processes per message to
 // limit the message size on intake.
 // See agent.proto for the schema of the message and models used.
-func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureSet features.Features, groupID int32, currentTime time.Time) (*CheckResult, error) {
+func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureFlags features.Features, groupID int32, currentTime time.Time) (*CheckResult, error) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -83,7 +83,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureSet features.Features
 	if err != nil {
 		return nil, err
 	}
-	ctrList, _ := util.GetContainers()
+	ctrList, cntError := util.GetContainers()
 
 	// End check early if this is our first run.
 	if p.lastRun.IsZero() {
@@ -111,10 +111,10 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureSet features.Features
 		return nil, nil
 	}
 
-	useMultiMetrics := featureSet.FeatureEnabled(features.UpgradeToMultiMetrics)
+	useMultiMetrics := featureFlags.FeatureEnabled(features.UpgradeToMultiMetrics)
 	containers, multiMetrics := fmtContainers(cfg, ctrList, p.lastCtrRates, p.lastRun, useMultiMetrics)
 
-	if cfg.EnableIncrementalPublishing && featureSet.FeatureEnabled(features.IncrementalTopology) && time.Now().Before(p.lastRefresh.Add(cfg.IncrementalPublishingRefreshInterval)) {
+	if cfg.EnableIncrementalPublishing && featureFlags.FeatureEnabled(features.IncrementalTopology) && time.Now().Before(p.lastRefresh.Add(cfg.IncrementalPublishingRefreshInterval)) {
 		log.Debug("Sending process status increment")
 		messages = p.fmtIncrement(cfg, groupID, buildIncrement(processes, containers, p.lastProcState, p.lastCtrState))
 	} else {
@@ -138,7 +138,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureSet features.Features
 	checkRunDuration := time.Now().Sub(start)
 	log.Debugf("collected processes in %s, processes found: %v", checkRunDuration, processes)
 	log.Debugf("collected containers in %s, containers found: %v", checkRunDuration, containers)
-	return &CheckResult{CollectorMessages: messages, Metrics: multiMetrics}, nil
+	return &CheckResult{CollectorMessages: messages, Metrics: multiMetrics}, cntError
 }
 
 func buildProcState(processes []*model.Process) map[int32]*model.Process {
