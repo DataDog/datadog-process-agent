@@ -40,7 +40,7 @@ RUN  adduser --system --no-create-home --disabled-password --ingroup root stacks
 
 
 #   - copy default config files
-COPY stackstate*.yaml etc/stackstate-agent/
+COPY stackstate*.yaml /etc/stackstate-agent/
 
 
 HEALTHCHECK --interval=2m --timeout=5s --retries=2 \

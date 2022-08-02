@@ -269,7 +269,7 @@ func NewDefaultAgentConfig() *AgentConfig {
 		},
 
 		// Check config
-		EnabledChecks: containerChecks,
+		EnabledChecks: processChecks, // sts - Always run process checks by default (process check also runs container check)
 		CheckIntervals: map[string]time.Duration{
 			"process":     30 * time.Second,
 			"rtprocess":   2 * time.Second,
