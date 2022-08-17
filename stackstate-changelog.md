@@ -2,7 +2,8 @@
 
 ## 4.x.x
 **Bugfix**
-- Fix default enabled checks [(STAC-16953)](https://stackstate.atlassian.net/browse/STAC-16953)
+- Fix default enabled checks ([STAC-16953](https://stackstate.atlassian.net/browse/STAC-16953))
+- Limited size of message for self-health state check ([STAC-17340](https://stackstate.atlassian.net/browse/STAC-17340))
 
 ## 4.0.7
 **Bugfix**

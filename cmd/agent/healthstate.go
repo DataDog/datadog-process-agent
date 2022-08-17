@@ -10,6 +10,8 @@ import (
 	"os"
 )
 
+const MaxCheckStateMessageSize = 1024
+
 // agentID builds an external ID for agent component, this will go to a component's identifiers
 func (l *Collector) agentID() string {
 	return fmt.Sprintf("urn:stackstate-agent:process:/%s", l.cfg.HostName)
@@ -109,6 +111,7 @@ func (l *Collector) makeHealth(result checkResult) (health.Stream, health.CheckD
 			checkData.CheckState.Health = health.Critical
 			checkData.CheckState.Message = fmt.Sprintf("Check failed:\n```\n%v\n```", result.err)
 		}
+		checkData.CheckState.Message = stripMessage(checkData.CheckState.Message, MaxCheckStateMessageSize)
 	}
 
 	stream := health.Stream{
@@ -117,4 +120,15 @@ func (l *Collector) makeHealth(result checkResult) (health.Stream, health.CheckD
 	}
 
 	return stream, checkData
+}
+
+func stripMessage(message string, maxSize int) string {
+	if len(message) <= maxSize {
+		return message
+	}
+	replacement := "..."
+	toKeep := maxSize - len(replacement)
+	beginCut := toKeep - toKeep/2 // divide odd number to bigger half
+	endCut := len(message) - (toKeep - beginCut)
+	return message[0:beginCut] + replacement + message[endCut:]
 }
