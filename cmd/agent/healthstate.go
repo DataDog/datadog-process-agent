@@ -126,9 +126,11 @@ func stripMessage(message string, maxSize int) string {
 	if len(message) <= maxSize {
 		return message
 	}
+
 	replacement := "..."
 	toKeep := maxSize - len(replacement)
-	beginCut := toKeep - toKeep/2 // divide odd number to bigger half
-	endCut := len(message) - (toKeep - beginCut)
-	return message[0:beginCut] + replacement + message[endCut:]
+	toKeepRight := toKeep / 2
+	toKeepLeft := toKeep - toKeepRight
+
+	return message[0:toKeepLeft] + replacement + message[(len(message)-toKeepRight):]
 }
