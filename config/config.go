@@ -705,7 +705,7 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 		c.ReportCheckHealthState = ok
 	}
 
-	if limit, err := strconv.Atoi(os.Getenv("STS_PROCESS_AGENT_HEALTH_STATE_MESSAGE_LIMIT")); err != nil && limit != 0 {
+	if limit, err := strconv.Atoi(os.Getenv("STS_PROCESS_AGENT_HEALTH_STATE_MESSAGE_LIMIT")); err == nil && limit != 0 {
 		c.CheckHealthStateMessageLimit = limit
 	}
 

@@ -10,8 +10,6 @@ import (
 	"os"
 )
 
-const MaxCheckStateMessageSize = 1024
-
 // agentID builds an external ID for agent component, this will go to a component's identifiers
 func (l *Collector) agentID() string {
 	return fmt.Sprintf("urn:stackstate-agent:process:/%s", l.cfg.HostName)
