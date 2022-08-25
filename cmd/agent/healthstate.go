@@ -111,7 +111,9 @@ func (l *Collector) makeHealth(result checkResult) (health.Stream, health.CheckD
 			checkData.CheckState.Health = health.Critical
 			checkData.CheckState.Message = fmt.Sprintf("Check failed:\n```\n%v\n```", result.err)
 		}
-		checkData.CheckState.Message = stripMessage(checkData.CheckState.Message, MaxCheckStateMessageSize)
+		checkData.CheckState.Message = stripMessage(
+			checkData.CheckState.Message, l.cfg.CheckHealthStateMessageLimit,
+			"[...message was cut to fit...]")
 	}
 
 	stream := health.Stream{
@@ -122,12 +124,14 @@ func (l *Collector) makeHealth(result checkResult) (health.Stream, health.CheckD
 	return stream, checkData
 }
 
-func stripMessage(message string, maxSize int) string {
+func stripMessage(message string, maxSize int, replacement string) string {
 	if len(message) <= maxSize {
 		return message
 	}
+	if maxSize <= len(replacement) {
+		return message
+	}
 
-	replacement := "..."
 	toKeep := maxSize - len(replacement)
 	toKeepRight := toKeep / 2
 	toKeepLeft := toKeep - toKeepRight

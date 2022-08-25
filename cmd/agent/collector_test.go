@@ -1,6 +1,9 @@
 package main
 
 import (
+	"errors"
+	"github.com/StackVista/stackstate-process-agent/checks"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -9,6 +12,21 @@ import (
 	"github.com/StackVista/stackstate-process-agent/model"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestHealthStateMessageCut(t *testing.T) {
+	assert := assert.New(t)
+	cfg := config.NewDefaultAgentConfig()
+	c, err := NewCollector(cfg)
+	assert.NoError(err)
+
+	_, checkData := c.makeHealth(checkResult{
+		check:   &checks.ProcessCheck{},
+		err:     errors.New(strings.Repeat("X", cfg.CheckHealthStateMessageLimit*2)),
+		payload: nil,
+	})
+
+	assert.Len(checkData.CheckState.Message, cfg.CheckHealthStateMessageLimit)
+}
 
 func TestUpdateRTStatus(t *testing.T) {
 	assert := assert.New(t)
