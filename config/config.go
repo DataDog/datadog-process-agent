@@ -137,9 +137,10 @@ type AgentConfig struct {
 	NetworkTracerMaxConnections int
 
 	// Check config
-	EnabledChecks          []string
-	CheckIntervals         map[string]time.Duration
-	ReportCheckHealthState bool
+	EnabledChecks                []string
+	CheckIntervals               map[string]time.Duration
+	ReportCheckHealthState       bool
+	CheckHealthStateMessageLimit int
 
 	// Containers
 	ContainerBlacklist     []string
@@ -277,6 +278,8 @@ func NewDefaultAgentConfig() *AgentConfig {
 			"rtcontainer": 2 * time.Second,
 			"connections": 30 * time.Second,
 		},
+		ReportCheckHealthState:       true,
+		CheckHealthStateMessageLimit: 2048,
 
 		// Docker
 		ContainerCacheDuration: 10 * time.Second,
@@ -700,9 +703,10 @@ func mergeEnvironmentVariables(c *AgentConfig) *AgentConfig {
 
 	if ok, err := isAffirmative(os.Getenv("STS_PROCESS_AGENT_REPORT_HEALTH_STATE")); err == nil {
 		c.ReportCheckHealthState = ok
-	} else {
-		// enable by default
-		c.ReportCheckHealthState = true
+	}
+
+	if limit, err := strconv.Atoi(os.Getenv("STS_PROCESS_AGENT_HEALTH_STATE_MESSAGE_LIMIT")); err == nil && limit != 0 {
+		c.CheckHealthStateMessageLimit = limit
 	}
 
 	if ok, err := isAffirmative(os.Getenv("STS_PROTOCOL_INSPECTION_ENABLED")); err == nil {
