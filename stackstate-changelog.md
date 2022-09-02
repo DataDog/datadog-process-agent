@@ -1,4 +1,9 @@
+
 # StackState Process Agent releases
+
+## 4.1.1
+**Features**
+- Add metrics to "process" check of process-agent (https://stackstate.atlassian.net/browse/STAC-16983))
 
 ## 4.1.0
 **Bugfix**
