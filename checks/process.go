@@ -104,7 +104,7 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureFlags features.Featur
 
 	var messages []model.MessageBody
 
-	processes := p.fmtProcesses(cfg, procs, ctrList, cpuTimes[0], p.lastCPUTime, p.lastRun)
+	processes, topUsage, whiteListedLongLiving := p.fmtProcesses(cfg, procs, ctrList, cpuTimes[0], p.lastCPUTime, p.lastRun)
 
 	// In case we skip every process..
 	if len(processes) == 0 {
@@ -132,8 +132,11 @@ func (p *ProcessCheck) Run(cfg *config.AgentConfig, featureFlags features.Featur
 	p.lastCtrState = buildCtrState(containers)
 
 	// sts send metrics
-	p.Sender().Gauge("stackstate.process_agent.containers.host_count", float64(len(containers)), cfg.HostName, []string{})
-	p.Sender().Gauge("stackstate.process_agent.processes.host_count", float64(len(processes)), cfg.HostName, []string{})
+	p.Sender().Gauge("stackstate.process_agent.containers.total_count", float64(len(containers)), cfg.HostName, []string{})
+	p.Sender().Gauge("stackstate.process_agent.processes.reported_count", float64(len(processes)), cfg.HostName, []string{})
+	p.Sender().Gauge("stackstate.process_agent.processes.total_count", float64(len(procs)), cfg.HostName, []string{})
+	p.Sender().Gauge("stackstate.process_agent.processes.top_usage_count", float64(topUsage), cfg.HostName, []string{})
+	p.Sender().Gauge("stackstate.process_agent.processes.white_listed_count", float64(whiteListedLongLiving), cfg.HostName, []string{})
 
 	checkRunDuration := time.Now().Sub(start)
 	log.Debugf("collected processes in %s, processes found: %v", checkRunDuration, processes)
@@ -346,7 +349,7 @@ func (p *ProcessCheck) fmtProcesses(
 	ctrList []*containers.Container,
 	syst2, syst1 cpu.TimesStat,
 	lastRun time.Time,
-) []*model.Process {
+) ([]*model.Process, int, int) {
 	cidByPid := make(map[int32]string, len(ctrList))
 	for _, c := range ctrList {
 		for _, p := range c.Pids {
@@ -419,6 +422,7 @@ func (p *ProcessCheck) fmtProcesses(
 	}()
 
 	// Take the remainingProcesses of the process and strip all processes that should be skipped
+
 	allProcessesChan := make(chan []*model.Process)
 	allCommonProcesses := make([]*ProcessCommon, len(commonProcesses))
 	copy(allCommonProcesses, commonProcesses)
@@ -430,7 +434,12 @@ func (p *ProcessCheck) fmtProcesses(
 	}()
 
 	// sort all, deduplicate and chunk
-	processes := append(<-inclusionProcessesChan, <-allProcessesChan...)
+
+	topUsage := <-inclusionProcessesChan
+	whiteListedLongLiving := <-allProcessesChan
+
+	processes := append(topUsage, whiteListedLongLiving...)
 	cfg.Scrubber.IncrementCacheAge()
-	return deriveUniqueProcesses(deriveSortProcesses(processes))
+	return deriveUniqueProcesses(deriveSortProcesses(processes)), len(topUsage), len(whiteListedLongLiving)
+
 }
