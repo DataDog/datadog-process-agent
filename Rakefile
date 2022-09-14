@@ -15,8 +15,8 @@ def os
 
 desc "Setup dependencies"
 task :deps do
-  system("go get -u golang.org/x/lint/golint")
-  system("go get -u github.com/awalterschulze/goderive")
+  system("go get golang.org/x/lint/golint@6edffad5e616")
+  system("go get github.com/awalterschulze/goderive@886b66b111a4")
 end
 
 task :default => [:ci]
