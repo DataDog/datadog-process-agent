@@ -1,4 +1,4 @@
-FROM artifactory.tooling.stackstate.io/docker-virtual/stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-20220218
+FROM artifactory.tooling.stackstate.io/docker-virtual/stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-20220914
 
 ARG UID
 ARG GID

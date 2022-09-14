@@ -1,6 +1,6 @@
 module github.com/StackVista/stackstate-process-agent
 
-go 1.13
+go 1.16
 
 replace (
 	github.com/benesch/cgosymbolizer => github.com/benesch/cgosymbolizer v0.0.0-20190515212042-bec6fe6e597b

@@ -1,5 +1,8 @@
-
 # StackState Process Agent releases
+
+## 4.1.2
+**Improvement**
+- Build process-agent with go 1.16
 
 ## 4.1.1
 **Features**
