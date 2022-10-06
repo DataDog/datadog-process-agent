@@ -6,11 +6,14 @@ package main
 import (
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	_ "github.com/StackVista/stackstate-agent/pkg/util/containers/providers/cgroup"
 	log "github.com/cihub/seelog"
 )
+
+var thrownSignalWarnings sync.Map
 
 // Handles signals - tells us whether we should exit.
 func handleSignals(exit chan bool) {
@@ -26,7 +29,9 @@ func handleSignals(exit chan bool) {
 			// Running docker.GetDockerStat() spins up / kills a new process
 			continue
 		default:
-			log.Warnf("Caught signal %s; continuing/ignoring.", sig)
+			if _, exists := thrownSignalWarnings.LoadOrStore(sig, true); !exists {
+				_ = log.Warnf("Caught signal %s; continuing/ignoring.", sig)
+			}
 		}
 	}
 }
