@@ -26,8 +26,6 @@ build_linux:
     - export PROCESS_AGENT_VERSION=$(packaging/version.sh)
     - export EBPF=${EBPF:-true}
     - source ~/.bashrc
-    - go install golang.org/x/tools/cmd/gorename
-    - go install golang.org/x/tools/cmd/eg
     - go install golang.org/x/lint/golint
     - printenv
     - (cd packaging; ./apply_branding.sh)
