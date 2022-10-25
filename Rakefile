@@ -41,7 +41,7 @@ end
 
 desc "Run goderive to generate necessary go code"
 task :derive do
-  sh "go generate ./..."
+  sh "go run github.com/awalterschulze/goderive@886b66b111a4 ./..."
 end
 
 desc "Install Datadog Process agent"
@@ -124,7 +124,7 @@ task :protobuf do
 end
 
 desc "Datadog Process Agent CI script (fmt, vet, etc)"
-task :ci => [:deps, :derive, :fmt, :vet, :test, :lint, :build]
+task :ci => [:derive, :fmt, :vet, :test, :lint, :build]
 
 task :err do
   system("go install github.com/kisielk/errcheck")
