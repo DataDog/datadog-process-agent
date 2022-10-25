@@ -45,7 +45,9 @@ build_windows:
   stage: build
   allow_failure: false
   script:
-    - cd packaging && bash -c "./apply_branding.sh" && cd ..
+    - cd packaging
+    - bash -c "./apply_branding.sh"
+    - cd ..
     - call .gitlab-scripts/windows_build.cmd
   artifacts:
     expire_in: 2 weeks
