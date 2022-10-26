@@ -46,7 +46,7 @@ end
 
 desc "Run goderive to generate necessary go code (Windows)"
 task :derive_win do
-  sh "go get github.com/awalterschulze/goderive@886b66b111a4"
+  sh "go install github.com/awalterschulze/goderive@886b66b111a4"
   sh "go generate ./..."
 end
 
