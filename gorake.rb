@@ -30,9 +30,6 @@ def go_build(program, opts={})
     date = `date +%FT%T%z`.strip
   end
 
-  goversion = `go version`
-  puts("goversion")
-  puts(goversion)
   agentversion = ENV["AGENT_VERSION"] || ENV["PROCESS_AGENT_VERSION"] || "0.99.0"
 
   # NOTE: This value is currently hardcoded and needs to be manually incremented during release
@@ -44,7 +41,11 @@ def go_build(program, opts={})
     vars["#{dd}.BuildDate"] = date
     vars["#{dd}.GitCommit"] = commit
     vars["#{dd}.GitBranch"] = branch
-    # vars["#{dd}.GoVersion"] = goversion
+  end
+  if ENV['windres'] then
+    vars["#{dd}.GoVersion"] = `cmd /c ""C:\\Program Files\\Go\\bin\\go.exe" "version""`.strip
+  else
+    vars["#{dd}.GoVersion"] = `go version`.strip
   end
 
   ldflags = vars.map { |name, value| "-X '#{name}=#{value}'" }
