@@ -111,7 +111,7 @@ def go_test(path, opts = {})
     cmd += " -coverprofile=#{opts[:coverage_file]} -coverpkg=./..."
     filter = "2>&1 | grep -v 'warning: no packages being tested depend on'" # ugly hack
   end
-  sh "#{cmd} #{path} #{filter}"
+  system("#{cmd} #{path} #{filter}")
 end
 
 # return the dependencies of all the packages who start with the root path
