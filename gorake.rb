@@ -1,5 +1,5 @@
 def get_tag_set(opts)
- cmd = ""
+  cmd = ""
   if os != "windows"
     tag_set = 'docker kubelet kubeapiserver linux cri containerd' # Default tags for non-windows OSes (e.g. linux)
     tag_set += ' linux_bpf' if opts[:bpf]    # Add BPF if ebpf exists
@@ -22,15 +22,15 @@ def go_build(program, opts={})
   }.merge(opts)
 
   dd = 'main'
-  commit = `git rev-parse --short HEAD`.strip
-  branch = `git rev-parse --abbrev-ref HEAD`.strip
+  commit = system("git rev-parse --short HEAD").strip
+  branch = system("git rev-parse --abbrev-ref HEAD").strip
   if os == "windows"
-    date = `date /T `.strip
+    date = system("date /T ").strip
   else
-    date = `date +%FT%T%z`.strip
+    date = system("date +%FT%T%z").strip
   end
 
-  goversion = `go version`.strip
+  goversion = system("go version").strip
   agentversion = ENV["AGENT_VERSION"] || ENV["PROCESS_AGENT_VERSION"] || "0.99.0"
 
   # NOTE: This value is currently hardcoded and needs to be manually incremented during release
@@ -91,7 +91,7 @@ end
 
 
 def go_lint(path)
-  out = `golint #{path}/*.go`
+  out = system("golint #{path}/*.go")
   errors = out.split("\n")
   puts "#{errors.length} linting issues found"
   if errors.length > 0
@@ -119,7 +119,7 @@ def go_pkg_deps(pkgs, root_path)
   deps = []
   pkgs.each do |pkg|
     deps << pkg
-    `go list -f '{{ join .Deps "\\n"}}' #{pkg}`.split("\n").select do |path|
+    system("go list -f '{{ join .Deps "\\n"}}' #{pkg}").split("\n").select do |path|
       if path.start_with? root_path
         deps << path
       end
@@ -129,7 +129,7 @@ def go_pkg_deps(pkgs, root_path)
 end
 
 def go_fmt(path)
-  out = `go fmt #{path}`
+  out = system("go fmt #{path}")
   errors = out.split("\n")
   if errors.length > 0
     errors.each do |error|
