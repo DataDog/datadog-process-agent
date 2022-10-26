@@ -22,15 +22,15 @@ def go_build(program, opts={})
   }.merge(opts)
 
   dd = 'main'
-  commit = system("git rev-parse --short HEAD").strip
-  branch = system("git rev-parse --abbrev-ref HEAD").strip
+  commit = `git rev-parse --short HEAD`.strip
+  branch = `git rev-parse --abbrev-ref HEAD`.strip
   if os == "windows"
-    date = system("date /T ").strip
+    date = `date /T `.strip
   else
-    date = system("date +%FT%T%z").strip
+    date = `date +%FT%T%z`.strip
   end
 
-  goversion = system("go version").strip
+  goversion = `go version`.strip
   agentversion = ENV["AGENT_VERSION"] || ENV["PROCESS_AGENT_VERSION"] || "0.99.0"
 
   # NOTE: This value is currently hardcoded and needs to be manually incremented during release
@@ -73,25 +73,25 @@ def go_build(program, opts={})
     # first compile the message table, as it's an input to the resource file
     msgcmd = "windmc --target pe-x86-64 -r #{resdir} #{resdir}/process-agent-msg.mc"
     puts msgcmd
-    system(msgcmd)
+    sh msgcmd
 
     rescmd = "windres --define MAJ_VER=#{winversion[0]} --define MIN_VER=#{winversion[1]} --define PATCH_VER=#{winversion[2]} "
     rescmd += "-i #{resdir}/process-agent.rc --target=pe-x86-64 -O coff -o cmd/agent/rsrc.syso"
-    system(rescmd)
+    sh rescmd
   end
 
   # Building the binary
-  system("#{cmd} -ldflags \"#{ldflags.join(' ')}\" #{program}")
+  sh "#{cmd} -ldflags \"#{ldflags.join(' ')}\" #{program}"
 
   if ENV['SIGN_WINDOWS'] then
     signcmd = "signtool sign /v /t http://timestamp.verisign.com/scripts/timestamp.dll /fd SHA256 /sm /s \"My\" /sha1 ECCDAE36FDCB654D2CBAB3E8975AA55469F96E4C process-agent.exe"
-    system(signcmd)
+    sh signcmd
   end
 end
 
 
 def go_lint(path)
-  out = system("golint #{path}/*.go")
+  out = `golint #{path}/*.go`
   errors = out.split("\n")
   puts "#{errors.length} linting issues found"
   if errors.length > 0
@@ -101,7 +101,7 @@ def go_lint(path)
 end
 
 def go_vet(path, opts={})
-  system("go vet #{get_tag_set(opts)} #{path}")
+  sh "go vet #{get_tag_set(opts)} #{path}"
 end
 
 def go_test(path, opts = {})
@@ -111,7 +111,7 @@ def go_test(path, opts = {})
     cmd += " -coverprofile=#{opts[:coverage_file]} -coverpkg=./..."
     filter = "2>&1 | grep -v 'warning: no packages being tested depend on'" # ugly hack
   end
-  system("#{cmd} #{path} #{filter}")
+  sh "#{cmd} #{path} #{filter}"
 end
 
 # return the dependencies of all the packages who start with the root path
@@ -119,7 +119,7 @@ def go_pkg_deps(pkgs, root_path)
   deps = []
   pkgs.each do |pkg|
     deps << pkg
-    system("go list -f '{{ join .Deps \"\\n\"}}' #{pkg}").split("\n").select do |path|
+    `go list -f '{{ join .Deps "\\n"}}' #{pkg}`.split("\n").select do |path|
       if path.start_with? root_path
         deps << path
       end
@@ -129,7 +129,7 @@ def go_pkg_deps(pkgs, root_path)
 end
 
 def go_fmt(path)
-  out = system("go fmt #{path}")
+  out = `go fmt #{path}`
   errors = out.split("\n")
   if errors.length > 0
     errors.each do |error|

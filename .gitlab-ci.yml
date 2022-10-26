@@ -48,7 +48,7 @@ build_windows:
     - cd packaging
     - bash -c "./apply_branding.sh"
     - cd ..
-    - .\.gitlab-scripts/windows_build.cmd
+    - powershell .\.gitlab-scripts/windows_build.cmd
   artifacts:
     expire_in: 2 weeks
     paths:
