@@ -30,6 +30,7 @@ def go_build(program, opts={})
     date = `date +%FT%T%z`.strip
   end
 
+  goversion = `go version`.strip
   agentversion = ENV["AGENT_VERSION"] || ENV["PROCESS_AGENT_VERSION"] || "0.99.0"
 
   # NOTE: This value is currently hardcoded and needs to be manually incremented during release
@@ -41,11 +42,7 @@ def go_build(program, opts={})
     vars["#{dd}.BuildDate"] = date
     vars["#{dd}.GitCommit"] = commit
     vars["#{dd}.GitBranch"] = branch
-  end
-  if ENV['windres'] then
-    vars["#{dd}.GoVersion"] = `cmd /c ""C:\\Program Files\\Go\\bin\\go.exe" "version""`.strip
-  else
-    vars["#{dd}.GoVersion"] = `go version`.strip
+    vars["#{dd}.GoVersion"] = goversion
   end
 
   ldflags = vars.map { |name, value| "-X '#{name}=#{value}'" }
@@ -114,7 +111,7 @@ def go_test(path, opts = {})
     cmd += " -coverprofile=#{opts[:coverage_file]} -coverpkg=./..."
     filter = "2>&1 | grep -v 'warning: no packages being tested depend on'" # ugly hack
   end
-  system("#{cmd} #{path} #{filter}")
+  sh "#{cmd} #{path} #{filter}"
 end
 
 # return the dependencies of all the packages who start with the root path
