@@ -119,7 +119,7 @@ def go_pkg_deps(pkgs, root_path)
   deps = []
   pkgs.each do |pkg|
     deps << pkg
-    system("go list -f '{{ join .Deps "\\n"}}' #{pkg}").split("\n").select do |path|
+    system("go list -f '{{ join .Deps \"\\n\"}}' #{pkg}").split("\n").select do |path|
       if path.start_with? root_path
         deps << path
       end
