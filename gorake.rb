@@ -30,9 +30,8 @@ def go_build(program, opts={})
     date = `date +%FT%T%z`.strip
   end
 
-  goversion1 = system("go version")
-  puts(goversion1)
-  goversion = system("powershell go version").strip
+  goversion = `go version`
+  puts("goversion")
   puts(goversion)
   agentversion = ENV["AGENT_VERSION"] || ENV["PROCESS_AGENT_VERSION"] || "0.99.0"
 
@@ -45,7 +44,7 @@ def go_build(program, opts={})
     vars["#{dd}.BuildDate"] = date
     vars["#{dd}.GitCommit"] = commit
     vars["#{dd}.GitBranch"] = branch
-    vars["#{dd}.GoVersion"] = goversion
+    # vars["#{dd}.GoVersion"] = goversion
   end
 
   ldflags = vars.map { |name, value| "-X '#{name}=#{value}'" }
