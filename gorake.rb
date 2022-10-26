@@ -30,7 +30,8 @@ def go_build(program, opts={})
     date = `date +%FT%T%z`.strip
   end
 
-  goversion = `go version`.strip
+  goversion = system("go version").strip
+  puts(goversion)
   agentversion = ENV["AGENT_VERSION"] || ENV["PROCESS_AGENT_VERSION"] || "0.99.0"
 
   # NOTE: This value is currently hardcoded and needs to be manually incremented during release
