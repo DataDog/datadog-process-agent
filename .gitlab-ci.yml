@@ -45,6 +45,7 @@ build_windows:
   stage: build
   allow_failure: false
   script:
+    - go install golang.org/x/lint/golint
     - cd packaging
     - bash -c "./apply_branding.sh"
     - cd ..
