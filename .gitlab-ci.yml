@@ -46,7 +46,7 @@ build_windows:
   allow_failure: false
   script:
     - rake deps windres=true --trace
-    - cd packaging && - bash -c "./apply_branding.sh" && - cd ..
+    - bash -c "./packaging/apply_branding.sh"
     - .gitlab-scripts/windows_build.cmd
   artifacts:
     expire_in: 2 weeks
