@@ -6,11 +6,10 @@ set "MANPATH=/mingw64/share/man"
 set "MINGW_PACKAGE_PREFIX=mingw-w64-x86_64"
 set "LANG=en_US.UTF-8"
 set "PATH=c:\tools\msys64\mingw64\bin;c:\tools\msys64\usr\bin;%PATH%"
+set "PATH=C:\TDM-GCC-64\bin;%PATH%"
 set "VCINSTALLDIR=C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community"
 echo %CD%
-call rake deps windres=true --trace
-if %errorlevel% neq 0 exit /b %errorlevel%
-call rake derive windres=true --trace
+call rake derive_win windres=true --trace
 if %errorlevel% neq 0 exit /b %errorlevel%
 call rake test windres=true --trace
 if %errorlevel% neq 0 exit /b %errorlevel%

@@ -18,7 +18,7 @@ variables:
   VERSION_LOGIC: '(if [ "$${CI_COMMIT_TAG}" == "" ]; then echo "$${CI_COMMIT_SHORT_SHA}"; else echo "$${CI_COMMIT_TAG}"; fi);'
 
 build_linux:
-  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-20220914
+  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-20221024
   stage: build
 
   script:
@@ -26,9 +26,6 @@ build_linux:
     - export PROCESS_AGENT_VERSION=$(packaging/version.sh)
     - export EBPF=${EBPF:-true}
     - source ~/.bashrc
-    - go get golang.org/x/tools/cmd/gorename
-    - go get golang.org/x/tools/cmd/eg
-    - go get golang.org/x/lint/golint
     - printenv
     - (cd packaging; ./apply_branding.sh)
     - rake ci
@@ -48,14 +45,15 @@ build_windows:
   stage: build
   allow_failure: false
   script:
-    - cd packaging && bash -c "./apply_branding.sh" && cd ..
-    - call .gitlab-scripts/windows_build.cmd
+    - rake deps windres=true --trace
+    - bash -c "./packaging/apply_branding.sh"
+    - .gitlab-scripts/windows_build.cmd
   artifacts:
     expire_in: 2 weeks
     paths:
       - ./process-agent.exe
   tags:
-    - agent_windows_6
+    - windows_agent7_go1.17
   retry:
     max: 2
     when:
@@ -68,10 +66,10 @@ pre_release_windows:
   needs:
     - build_windows
   script:
-    - call rake windows-tag-or-commit-artifact
+    - rake windows-tag-or-commit-artifact
     - aws.exe s3 cp . s3://stackstate-process-agent-2-test/%CI_COMMIT_REF_NAME% --recursive --exclude "*" --include "*.exe" --acl public-read
   tags:
-    - agent_windows_6
+    - windows_agent7_go1.17
   retry:
     max: 2
     when:
@@ -81,7 +79,7 @@ pre_release_windows:
 
 pre_release_linux:
   stage: pre_release
-  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-20220914
+  image: artifactory.tooling.stackstate.io/docker-virtual/stackstate/stackstate-process-agent-runner-gitlab:runner_centos7-20221024
   needs:
     - build_linux
   before_script:

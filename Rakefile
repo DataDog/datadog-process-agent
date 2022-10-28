@@ -15,8 +15,8 @@ def os
 
 desc "Setup dependencies"
 task :deps do
-  system("go get golang.org/x/lint/golint@6edffad5e616")
-  system("go get github.com/awalterschulze/goderive@886b66b111a4")
+  system("go install golang.org/x/lint/golint@6edffad5e616")
+  system("go install github.com/awalterschulze/goderive@886b66b111a4")
 end
 
 task :default => [:ci]
@@ -41,7 +41,13 @@ end
 
 desc "Run goderive to generate necessary go code"
 task :derive do
-  sh "go generate ./..."
+  sh "go run github.com/awalterschulze/goderive@886b66b111a4 ./..."
+end
+
+desc "Run goderive to generate necessary go code (Windows)"
+task :derive_win do
+  system("go install github.com/awalterschulze/goderive@886b66b111a4")
+  system("go generate ./...")
 end
 
 desc "Install Datadog Process agent"
@@ -124,10 +130,10 @@ task :protobuf do
 end
 
 desc "Datadog Process Agent CI script (fmt, vet, etc)"
-task :ci => [:deps, :derive, :fmt, :vet, :test, :lint, :build]
+task :ci => [:derive, :fmt, :vet, :test, :lint, :build]
 
 task :err do
-  system("go get github.com/kisielk/errcheck")
+  system("go install github.com/kisielk/errcheck")
   sh "errcheck github.com/StackVista/stackstate-process-agent"
 end
 

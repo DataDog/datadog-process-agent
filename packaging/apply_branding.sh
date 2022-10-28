@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd "$(dirname "$0")"
+
 # https://regex-golang.appspot.com/assets/html/index.html
 
 export REPLACE_SCOPE="../config ../cmd ../checks"
