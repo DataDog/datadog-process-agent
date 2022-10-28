@@ -97,11 +97,14 @@ RUN yum install -y rsync \
     && gem install rake fpm deb-s3 \
     && curl https://glide.sh/get | sh
 
+
 # Provide kernel 4.4 header that include eBPF header needed to build linux network tracer
-RUN curl -OL http://mirrors.gigenet.com/gigenet/elrepo-archive/kernel/el6/x86_64/RPMS/kernel-lt-headers-4.4.176-1.el6.elrepo.x86_64.rpm
-RUN rpm2cpio kernel-lt-headers-4.4.176-1.el6.elrepo.x86_64.rpm | cpio -idm
+ENV KERNEL_SHA256 41bfd5085f32d8570f67f8e07b808442817808c10e1f4ce32e9958ac2384a787
+RUN curl curl -OL -o kernel-lt-headers-4.4.176.rpm "http://mirrors.gigenet.com/gigenet/elrepo-archive/kernel/el6/x86_64/RPMS/kernel-lt-headers-4.4.176-1.el6.elrepo.x86_64.rpm"
+RUN echo "$KERNEL_SHA256 kernel-lt-headers-4.4.176.rpm" | sha256sum -c -
+RUN rpm2cpio kernel-lt-headers-4.4.176.rpm | cpio -idm
 RUN rsync -r ./usr/ /usr/
-RUN rm -rf kernel-lt-headers-4.4.176-1.el6.elrepo.x86_64.rpm ./usr
+RUN rm -rf kernel-lt-headers-4.4.176.rpm ./usr
 
 ## Upgrade gcc to 4.7 needed to build gobpf/elf
 #RUN curl https://people.centos.org/tru/devtools-1.1/devtools-1.1.repo -o /etc/yum.repos.d/devtools-1.1.repo \
