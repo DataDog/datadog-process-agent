@@ -307,6 +307,11 @@ func NewDefaultAgentConfig() *AgentConfig {
 		}
 	}
 
+	// TODO: Remove debug logs
+	log.Infof("container_cgroup_root = %s", ddconfig.Datadog.GetString("container_cgroup_root"))
+	log.Infof("STS_CONTAINER_CGROUP_ROOT = %s", os.Getenv("STS_CONTAINER_CGROUP_ROOT"))
+	log.Infof("DD_CONTAINER_CGROUP_ROOT = %s", os.Getenv("DD_CONTAINER_CGROUP_ROOT"))
+
 	if isRunningInKubernetes() {
 		ac.ContainerBlacklist = defaultKubeBlacklist
 	}

@@ -13,7 +13,6 @@ func init() {
 	Datadog = ddconfig.NewConfig("stackstate", "STS", strings.NewReplacer(".", "_"))
 	// Configuration defaults
 	ddconfig.InitConfig(Datadog)
-
 }
 
 // IsContainerized returns whether the Agent is running on a Docker container
@@ -26,6 +25,16 @@ func GetMainEndpoint(prefix string, ddURLKey string) string {
 	return ddconfig.GetMainEndpointWithConfig(Datadog, prefix, ddURLKey)
 }
 
+// Load reads configs files and initializes the config module
 func Load() (*ddconfig.Warnings, error) {
 	return ddconfig.LoadStackstate(Datadog)
+}
+
+// GetMaxCapacity returns the maximum amount of elements per batch for the transactionbatcher
+func GetMaxCapacity() int {
+	if Datadog.IsSet("batcher_capacity") {
+		return Datadog.GetInt("batcher_capacity")
+	}
+
+	return ddconfig.DefaultBatcherBufferSize
 }
