@@ -17,7 +17,7 @@ import (
 	"github.com/StackVista/tcptracer-bpf/pkg/tracer/config"
 
 	"github.com/DataDog/gopsutil/process"
-	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
+	ddconfig "github.com/StackVista/stackstate-process-agent/pkg/config"
 	"github.com/go-ini/ini"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"

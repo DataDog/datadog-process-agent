@@ -4,11 +4,11 @@ import (
 	"github.com/StackVista/stackstate-agent/cmd/agent/common"
 	"github.com/StackVista/stackstate-agent/pkg/aggregator"
 	"github.com/StackVista/stackstate-agent/pkg/batcher"
-	agentConfig "github.com/StackVista/stackstate-agent/pkg/config"
 	"github.com/StackVista/stackstate-agent/pkg/forwarder"
 	"github.com/StackVista/stackstate-agent/pkg/serializer"
 	"github.com/StackVista/stackstate-agent/pkg/util/flavor"
 	"github.com/StackVista/stackstate-process-agent/config"
+	agentConfig "github.com/StackVista/stackstate-process-agent/pkg/config"
 	log "github.com/cihub/seelog"
 )
 
