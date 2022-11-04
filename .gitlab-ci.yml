@@ -104,7 +104,7 @@ pre_release_image:
       alias: docker
   script:
     - cd $CI_PROJECT_DIR
-    - ./packaging/publish_image.sh $CI_COMMIT_REF_NAME $STS_DOCKER_TEST_REPO $CI_PROJECT_DIR/process-agent
+    - ./packaging/publish_image.sh $CI_COMMIT_REF_NAME $STS_DOCKER_TEST_REPO $CI_PROJECT_DIR/process-agent $CI_COMMIT_SHORT_SHA
 
 release_image:
   stage: release
@@ -124,7 +124,7 @@ release_image:
   script:
     - cd $CI_PROJECT_DIR
     - export PUSH_LATEST=true
-    - ./packaging/publish_image.sh $CI_COMMIT_REF_NAME $STS_DOCKER_RELEASE_REPO $CI_PROJECT_DIR/process-agent $PUSH_LATEST
+    - ./packaging/publish_image.sh $CI_COMMIT_REF_NAME $STS_DOCKER_RELEASE_REPO $CI_PROJECT_DIR/process-agent latest
   when: manual
   only:
     - tags

@@ -44,23 +44,8 @@ cat << EOF
 ---------------------------------------------------------------------------------------
 Here few helpful commands to get you started (check .gitlab-ci-agent.yml for more):
 
-  # When starting the first time you always need to pull deps
-  inv -e deps --verbose --dep-vendor-only
+rake ci
 
-  # Build and test the rtloader
-  inv rtloader.clean && inv rtloader.make --python-runtimes \$PYTHON_RUNTIME && inv rtloader.test
-
-  # Build the agent binary
-  inv -e agent.build --major-version 2 --python-runtimes \$PYTHON_RUNTIME
-
-  # Build the agent omnibus package
-  inv -e agent.omnibus-build --base-dir ~/.omnibus --skip-deps --skip-sign --major-version 2 --python-runtimes \$PYTHON_RUNTIME
-
-  # Clean temporary objects and binary artifacts
-  inv agent.clean
-
-  # Switch to python 3
-  export PYTHON_RUNTIME=3 && conda activate ddpy\$PYTHON_RUNTIME
 ---------------------------------------------------------------------------------------
 
 EOF

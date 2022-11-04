@@ -2,10 +2,10 @@
 
 set -xe
 
-IMAGE_TAG=$1
-IMAGE_REPO=$2
-ARTIFACT_PATH=$3
-PUSH_LATEST="${4:-false}"
+IMAGE_TAG="${1}"
+IMAGE_REPO="${2}"
+ARTIFACT_PATH="${3}"
+EXTRA_TAG="${4}"
 REGISTRY_DOCKERHUB="docker.io"
 REGISTRY_QUAY="quay.io"
 ORGANIZATION="stackstate"
@@ -32,10 +32,10 @@ for REGISTRY in "${REGISTRY_DOCKERHUB}" "${REGISTRY_QUAY}"; do
     docker tag "${BUILD_TAG}" "${DOCKER_TAG}"
     docker push "${DOCKER_TAG}"
 
-    if [ "$PUSH_LATEST" = "true" ]; then
-        DOCKER_EXTRA_TAG="${REGISTRY}/${ORGANIZATION}/${IMAGE_REPO}:latest"
+    if [ -n "$EXTRA_TAG" ]; then
+        DOCKER_EXTRA_TAG="${REGISTRY}/${ORGANIZATION}/${IMAGE_REPO}:${EXTRA_TAG}"
         docker tag "${DOCKER_TAG}" "${DOCKER_EXTRA_TAG}"
-        echo "Pushing release to latest"
+        echo "Pushing release to ${EXTRA_TAG}"
         docker push "${DOCKER_EXTRA_TAG}"
     fi
 done

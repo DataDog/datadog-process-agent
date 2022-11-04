@@ -1,14 +1,16 @@
 # StackState Process Agent releases
 
-## 4.1.2
+## 4.0.9
 **Improvement**
 - Build process-agent with go 1.16
 
-## 4.1.1
-**Features**
-- Add metrics to "process" check of process-agent (https://stackstate.atlassian.net/browse/STAC-16983))
+**Bugfix**
+- Fix cgroup metrics acquisition for containers ([STAC-18119](https://stackstate.atlassian.net/browse/STAC-18119))
 
-## 4.1.0
+## 4.0.8
+**Features**
+- Add metrics to "process" check of process-agent ([STAC-16983](https://stackstate.atlassian.net/browse/STAC-16983))
+
 **Bugfix**
 - Fix default enabled checks ([STAC-16953](https://stackstate.atlassian.net/browse/STAC-16953))
 - Limited size of a message for self-health state check ([STAC-17340](https://stackstate.atlassian.net/browse/STAC-17340))
