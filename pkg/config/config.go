@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// Datadog is the global configuration object
 var Datadog ddconfig.Config
 
 func init() {
