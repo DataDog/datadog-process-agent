@@ -10,6 +10,7 @@ import (
 var Datadog ddconfig.Config
 
 func init() {
+	os.Setenv("DOCKER_DD_AGENT", os.Getenv("DOCKER_STS_AGENT"))
 	// Configure Datadog global configuration
 	Datadog = ddconfig.NewConfig("stackstate", "STS", strings.NewReplacer(".", "_"))
 	// Configuration defaults
