@@ -2,7 +2,7 @@
 
 ## 4.0.9
 **Improvement**
-- Build process-agent with go 1.16
+- Build process-agent with go 1.17
 
 **Bugfix**
 - Fix cgroup metrics collection for containers ([STAC-18119](https://stackstate.atlassian.net/browse/STAC-18119))
