@@ -6,6 +6,7 @@
 FROM ubuntu:focal-20220316
 LABEL maintainer="StackState <info@stackstate.com>"
 ENV DOCKER_STS_AGENT=true \
+	DOCKER_DD_AGENT=true \
     PATH=/opt/stackstate-agent/bin/agent/:/opt/stackstate-agent/embedded/bin/:$PATH \
     CURL_CA_BUNDLE=/opt/stackstate-agent/embedded/ssl/certs/cacert.pem 
 

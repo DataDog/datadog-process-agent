@@ -2,7 +2,6 @@ package config
 
 import (
 	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
-	log "github.com/cihub/seelog"
 	"os"
 	"strings"
 )
@@ -11,12 +10,6 @@ import (
 var Datadog ddconfig.Config
 
 func init() {
-	os.Setenv("DOCKER_DD_AGENT", os.Getenv("DOCKER_STS_AGENT"))
-	log.Infof("pkg/config container_cgroup_root = %s", ddconfig.Datadog.GetString("container_cgroup_root"))
-	log.Infof("pkg/config STS_CONTAINER_CGROUP_ROOT = %s", os.Getenv("STS_CONTAINER_CGROUP_ROOT"))
-	log.Infof("pkg/config DD_CONTAINER_CGROUP_ROOT = %s", os.Getenv("DD_CONTAINER_CGROUP_ROOT"))
-	log.Infof("pkg/config DOCKER_DD_AGENT = %s", os.Getenv("DOCKER_DD_AGENT"))
-
 	// Configure Datadog global configuration
 	Datadog = ddconfig.NewConfig("stackstate", "STS", strings.NewReplacer(".", "_"))
 	// Configuration defaults

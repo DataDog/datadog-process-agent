@@ -5,7 +5,7 @@
 - Build process-agent with go 1.16
 
 **Bugfix**
-- Fix cgroup metrics acquisition for containers ([STAC-18119](https://stackstate.atlassian.net/browse/STAC-18119))
+- Fix cgroup metrics collection for containers ([STAC-18119](https://stackstate.atlassian.net/browse/STAC-18119))
 
 ## 4.0.8
 **Features**
