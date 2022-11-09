@@ -9,8 +9,8 @@ import (
 	log "github.com/cihub/seelog"
 	"gopkg.in/yaml.v2"
 
-	ddconfig "github.com/StackVista/stackstate-agent/pkg/config"
 	httputils "github.com/StackVista/stackstate-agent/pkg/util/http"
+	ddconfig "github.com/StackVista/stackstate-process-agent/pkg/config"
 
 	"github.com/StackVista/stackstate-agent/pkg/process/util"
 )

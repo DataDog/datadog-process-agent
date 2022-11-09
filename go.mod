@@ -59,7 +59,7 @@ require (
 	github.com/DataDog/sketches-go v1.1.0
 	github.com/DataDog/zstd v0.0.0-20160706220725-2bf71ec48360
 	github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705
-	github.com/StackVista/stackstate-agent v0.0.0-20220607135049-e87d566f908c
+	github.com/StackVista/stackstate-agent v0.0.0-20221104102902-df45e3a5526d
 	github.com/StackVista/stackstate-go v0.0.0-20220302151729-a72c49c07350
 	github.com/StackVista/tcptracer-bpf v7.0.6+incompatible
 	github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575
@@ -134,9 +134,10 @@ require (
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/hashicorp/consul/api v1.4.0 // indirect
-	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-hclog v0.12.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.1.0 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.1 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -190,13 +191,12 @@ require (
 	github.com/vito/go-sse v1.0.0 // indirect
 	go.etcd.io/etcd v0.0.0-20191023171146-3cf2f69b5738 // indirect
 	go.opencensus.io v0.22.2 // indirect
-	golang.org/x/crypto v0.1.0 // indirect
+	golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d // indirect
 	golang.org/x/mobile v0.0.0-20190719004257-d2bd2a29d028 // indirect
 	golang.org/x/net v0.1.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
-	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
-	golang.org/x/term v0.1.0 // indirect
-	golang.org/x/text v0.4.0 // indirect
+	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e // indirect
+	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
@@ -224,7 +224,5 @@ require (
 	github.com/kubernetes-incubator/custom-metrics-apiserver v0.0.0-20190116221620-b7016fc85e1c // indirect
 	github.com/pytimer/win-netstat v0.0.0-20180710031115-efa1aff6aafc // indirect
 	github.com/smartystreets/goconvey v1.7.2 // indirect
-	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
-	golang.org/x/tools v0.2.0 // indirect
 	gopkg.in/ini.v1 v1.66.3 // indirect
 )
