@@ -67,7 +67,7 @@ pre_release_windows:
     - build_windows
   script:
     - rake windows-tag-or-commit-artifact
-    - aws.exe s3 cp . s3://stackstate-process-agent-2-test/%CI_COMMIT_REF_NAME% --recursive --exclude "*" --include "*.exe" --acl public-read
+    - aws.exe s3 cp . s3://stackstate-process-agent-2-test/$CI_COMMIT_REF_NAME --recursive --exclude "*" --include "*.exe" --acl public-read
   tags:
     - windows_agent7_go1.17
   retry:
